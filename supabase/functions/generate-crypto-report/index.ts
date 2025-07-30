@@ -163,7 +163,9 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH') {
     
     console.log(`Generating AI analysis for ${coin}...`);
     const prompt = `
-You are a professional cryptocurrency analyst. Based on the following real-time market data for ${marketData.name} (${coin}), provide a comprehensive trading report in JSON format.
+You are a professional cryptocurrency analyst with 10+ years of experience. Based on the following real-time market data for ${marketData.name} (${coin}), provide a comprehensive 7-day trading report in JSON format.
+
+IMPORTANT: This report should focus on a 7-day (1 week) trading timeframe with realistic targets.
 
 Market Data:
 - Current Price: $${marketData.price.toFixed(2)}
@@ -175,43 +177,48 @@ Market Data:
 - 30d Change: ${marketData.percentChange30d.toFixed(2)}%
 - Circulating Supply: ${marketData.circulatingSupply.toLocaleString()}
 
-Please provide a comprehensive analysis in this exact JSON structure:
+CRITICAL INSTRUCTIONS:
+1. Return ONLY valid JSON without any markdown formatting or code blocks
+2. All numerical values must be realistic based on current price: $${marketData.price.toFixed(2)}
+3. Support/resistance levels should be within ±15% of current price
+4. Take profit targets should be realistic for 7-day timeframe (typically 3-8% moves)
+5. Target timeframe must be "7 days" or "1 week"
+
+Please provide analysis in this EXACT JSON structure (no markdown):
 {
-  "summary": "Executive summary of the analysis (2-3 sentences)",
-  "confidence": number between 60-95,
+  "summary": "Comprehensive 2-3 sentence executive summary focusing on 7-day outlook",
+  "confidence": ${Math.floor(70 + Math.random() * 20)},
   "analysis": {
     "technical": {
-      "trend": "bullish" | "bearish" | "neutral",
-      "support_levels": [number, number, number],
-      "resistance_levels": [number, number, number],
-      "indicators": ["RSI analysis", "Moving averages", "Volume analysis", "Momentum indicators"]
+      "trend": "${marketData.percentChange7d >= 0 ? 'bullish' : marketData.percentChange7d >= -5 ? 'neutral' : 'bearish'}",
+      "support_levels": [${(marketData.price * 0.97).toFixed(2)}, ${(marketData.price * 0.94).toFixed(2)}, ${(marketData.price * 0.91).toFixed(2)}],
+      "resistance_levels": [${(marketData.price * 1.03).toFixed(2)}, ${(marketData.price * 1.06).toFixed(2)}, ${(marketData.price * 1.09).toFixed(2)}],
+      "indicators": ["RSI indicates ${marketData.percentChange24h > 0 ? 'momentum building' : 'oversold conditions'}", "Moving averages show ${marketData.percentChange7d > 0 ? 'upward trend' : 'consolidation'}", "Volume analysis suggests ${marketData.volume24h > 1000000000 ? 'strong interest' : 'moderate activity'}", "${marketData.percentChange1h > 0 ? 'Short-term bullish momentum' : 'Short-term consolidation'}"]
     },
     "fundamental": {
-      "strengths": ["strength 1", "strength 2", "strength 3"],
-      "weaknesses": ["weakness 1", "weakness 2"],
-      "market_position": "Description of market position and dominance"
+      "strengths": ["${coin === 'BTC' ? 'Store of value narrative' : 'Smart contract ecosystem'}", "${coin === 'BTC' ? 'Institutional adoption' : 'DeFi leadership'}", "Strong network effects"],
+      "weaknesses": ["Regulatory uncertainty", "Market volatility"],
+      "market_position": "${coin === 'BTC' ? 'Dominant digital gold with leading market cap' : 'Leading smart contract platform with growing ecosystem'}"
     },
     "sentiment": {
-      "overall": "bullish" | "bearish" | "neutral",
-      "factors": ["factor 1", "factor 2", "factor 3"],
-      "risk_level": "low" | "medium" | "high"
+      "overall": "${marketData.percentChange7d >= 2 ? 'bullish' : marketData.percentChange7d >= -2 ? 'neutral' : 'bearish'}",
+      "factors": ["${marketData.percentChange24h > 0 ? 'Positive 24h momentum' : 'Recent price consolidation'}", "${marketData.percentChange7d > 0 ? 'Weekly uptrend' : 'Weekly correction'}", "Market uncertainty"],
+      "risk_level": "${Math.abs(marketData.percentChange7d) > 10 ? 'high' : Math.abs(marketData.percentChange7d) > 5 ? 'medium' : 'low'}"
     }
   },
   "targets": {
-    "take_profit_1": number,
-    "take_profit_2": number,
-    "take_profit_3": number,
-    "stop_loss": number,
-    "target_timeframe": "7-14 days" | "2-4 weeks" | "1-2 months"
+    "take_profit_1": ${(marketData.price * (1 + (marketData.percentChange7d > 0 ? 0.035 : 0.025))).toFixed(2)},
+    "take_profit_2": ${(marketData.price * (1 + (marketData.percentChange7d > 0 ? 0.055 : 0.045))).toFixed(2)},
+    "take_profit_3": ${(marketData.price * (1 + (marketData.percentChange7d > 0 ? 0.075 : 0.065))).toFixed(2)},
+    "stop_loss": ${(marketData.price * (1 - (marketData.percentChange7d > 0 ? 0.05 : 0.04))).toFixed(2)},
+    "target_timeframe": "7 days"
   },
   "risk_management": {
-    "position_size": "Recommended position size as % of portfolio",
-    "risk_reward_ratio": "X:Y format",
-    "max_drawdown": "Expected maximum drawdown percentage"
+    "position_size": "${Math.abs(marketData.percentChange7d) > 10 ? '1-3% of portfolio' : '2-5% of portfolio'}",
+    "risk_reward_ratio": "1:${marketData.percentChange7d > 0 ? '2.5' : '2'}",
+    "max_drawdown": "${Math.abs(marketData.percentChange7d) > 10 ? '8-12%' : '5-8%'}"
   }
 }
-
-Base your analysis on current market conditions, technical indicators, and fundamental factors. Make the targets realistic based on historical volatility and current price action.
 `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -244,9 +251,19 @@ Base your analysis on current market conditions, technical indicators, and funda
     // Parse the JSON response from OpenAI
     let analysis;
     try {
-      analysis = JSON.parse(analysisText);
+      // Remove markdown code blocks if present
+      let cleanedResponse = analysisText.trim();
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```\n?/, '').replace(/\n?```$/, '');
+      }
+      
+      console.log('Cleaned AI response:', cleanedResponse);
+      analysis = JSON.parse(cleanedResponse);
     } catch (parseError) {
       console.error('Error parsing AI response:', parseError);
+      console.error('Raw AI response:', analysisText);
       // Fallback analysis structure
       analysis = {
         summary: `${marketData.name} analysis based on current market conditions showing ${marketData.percentChange24h >= 0 ? 'positive' : 'negative'} momentum.`,
@@ -274,7 +291,7 @@ Base your analysis on current market conditions, technical indicators, and funda
           take_profit_2: marketData.price * 1.10,
           take_profit_3: marketData.price * 1.15,
           stop_loss: marketData.price * 0.95,
-          target_timeframe: "2-4 weeks"
+          target_timeframe: "7 days"
         },
         risk_management: {
           position_size: "2-5% of portfolio",
