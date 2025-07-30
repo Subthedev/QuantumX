@@ -236,23 +236,23 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
           <div className="space-y-6">
             {/* Market Overview */}
             {report.report_data?.market_data && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Current Price</div>
-                  <div className="font-bold text-lg">{formatCurrency(report.report_data.market_data?.price)}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">Current Price</div>
+                  <div className="font-bold text-xl text-primary">{formatCurrency(report.report_data.market_data?.price)}</div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">24h Change</div>
-                  <div className={`font-bold text-lg ${(report.report_data.market_data?.percentChange24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="text-center p-4 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-xl border border-secondary/20">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">24h Change</div>
+                  <div className={`font-bold text-xl ${(report.report_data.market_data?.percentChange24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {(report.report_data.market_data?.percentChange24h || 0) >= 0 ? '+' : ''}{(report.report_data.market_data?.percentChange24h || 0).toFixed(2)}%
                   </div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Volume</div>
+                <div className="text-center p-4 bg-gradient-to-br from-accent/5 to-accent/10 rounded-xl border border-accent/20">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">24h Volume</div>
                   <div className="font-bold text-lg">{formatLargeNumber(report.report_data.market_data?.volume24h)}</div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Market Cap</div>
+                <div className="text-center p-4 bg-gradient-to-br from-muted/20 to-muted/30 rounded-xl border border-muted">
+                  <div className="text-xs text-muted-foreground font-medium mb-1">Market Cap</div>
                   <div className="font-bold text-lg">{formatLargeNumber(report.report_data.market_data?.marketCap)}</div>
                 </div>
               </div>
@@ -278,22 +278,22 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     {report.report_data.targets.target_timeframe}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="text-xs text-green-600 font-medium">TP1</div>
-                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets?.take_profit_1)}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 shadow-sm">
+                    <div className="text-xs text-green-700 font-semibold mb-1">TP1</div>
+                    <div className="font-bold text-lg text-green-800">{formatCurrency(report.report_data.targets?.take_profit_1)}</div>
                   </div>
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="text-xs text-green-600 font-medium">TP2</div>
-                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets?.take_profit_2)}</div>
+                  <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 shadow-sm">
+                    <div className="text-xs text-green-700 font-semibold mb-1">TP2</div>
+                    <div className="font-bold text-lg text-green-800">{formatCurrency(report.report_data.targets?.take_profit_2)}</div>
                   </div>
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="text-xs text-green-600 font-medium">TP3</div>
-                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets?.take_profit_3)}</div>
+                  <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 shadow-sm">
+                    <div className="text-xs text-green-700 font-semibold mb-1">TP3</div>
+                    <div className="font-bold text-lg text-green-800">{formatCurrency(report.report_data.targets?.take_profit_3)}</div>
                   </div>
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                    <div className="text-xs text-red-600 font-medium">Stop Loss</div>
-                    <div className="font-bold text-red-700">{formatCurrency(report.report_data.targets?.stop_loss)}</div>
+                  <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border border-red-200 shadow-sm">
+                    <div className="text-xs text-red-700 font-semibold mb-1">Stop Loss</div>
+                    <div className="font-bold text-lg text-red-800">{formatCurrency(report.report_data.targets?.stop_loss)}</div>
                   </div>
                 </div>
               </div>
@@ -311,21 +311,27 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                   </Badge>
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-green-600">Support Levels</h4>
-                    <div className="space-y-1">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      Support Levels
+                    </h4>
+                    <div className="space-y-2">
                       {report.report_data.analysis.technical.support_levels?.map((level, index) => (
-                        <div key={index} className="text-sm bg-green-50 p-2 rounded">
+                        <div key={index} className="text-sm bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200 font-medium text-green-800">
                           {formatCurrency(level)}
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-red-600">Resistance Levels</h4>
-                    <div className="space-y-1">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      Resistance Levels
+                    </h4>
+                    <div className="space-y-2">
                       {report.report_data.analysis.technical.resistance_levels?.map((level, index) => (
-                        <div key={index} className="text-sm bg-red-50 p-2 rounded">
+                        <div key={index} className="text-sm bg-gradient-to-r from-red-50 to-red-100 p-3 rounded-lg border border-red-200 font-medium text-red-800">
                           {formatCurrency(level)}
                         </div>
                       ))}
@@ -356,26 +362,55 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     <DollarSign className="h-5 w-5 text-purple-600" />
                     <h3 className="font-semibold">Fundamental Analysis</h3>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div>
-                      <h4 className="text-sm font-medium text-green-600 mb-1">Strengths</h4>
-                      <div className="space-y-1">
+                      <h4 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        Fundamental Strengths
+                      </h4>
+                      <div className="space-y-2">
                         {report.report_data.analysis.fundamental.strengths?.map((strength, index) => (
-                          <div key={index} className="text-sm text-muted-foreground">• {strength}</div>
+                          <div key={index} className="text-sm text-gray-700 bg-green-50 p-3 rounded-lg border border-green-200">
+                            • {strength}
+                          </div>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium text-red-600 mb-1">Weaknesses</h4>
-                      <div className="space-y-1">
+                      <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        Key Challenges
+                      </h4>
+                      <div className="space-y-2">
                         {report.report_data.analysis.fundamental.weaknesses?.map((weakness, index) => (
-                          <div key={index} className="text-sm text-muted-foreground">• {weakness}</div>
+                          <div key={index} className="text-sm text-gray-700 bg-red-50 p-3 rounded-lg border border-red-200">
+                            • {weakness}
+                          </div>
                         ))}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
-                      {report.report_data.analysis.fundamental.market_position}
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
+                      <h4 className="text-sm font-semibold text-purple-700 mb-2">Market Position</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {report.report_data.analysis.fundamental.market_position}
+                      </p>
                     </div>
+                    {(report.report_data.analysis.fundamental as any)?.adoption_metrics && (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                        <h4 className="text-sm font-semibold text-blue-700 mb-2">Adoption Metrics</h4>
+                        <p className="text-sm text-gray-700">
+                          {(report.report_data.analysis.fundamental as any).adoption_metrics}
+                        </p>
+                      </div>
+                    )}
+                    {(report.report_data.analysis.fundamental as any)?.competitive_position && (
+                      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-4 rounded-lg border border-emerald-200">
+                        <h4 className="text-sm font-semibold text-emerald-700 mb-2">Competitive Position</h4>
+                        <p className="text-sm text-gray-700">
+                          {(report.report_data.analysis.fundamental as any).competitive_position}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

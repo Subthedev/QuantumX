@@ -196,9 +196,11 @@ Please provide analysis in this EXACT JSON structure (no markdown):
       "indicators": ["RSI indicates ${marketData.percentChange24h > 0 ? 'momentum building' : 'oversold conditions'}", "Moving averages show ${marketData.percentChange7d > 0 ? 'upward trend' : 'consolidation'}", "Volume analysis suggests ${marketData.volume24h > 1000000000 ? 'strong interest' : 'moderate activity'}", "${marketData.percentChange1h > 0 ? 'Short-term bullish momentum' : 'Short-term consolidation'}"]
     },
     "fundamental": {
-      "strengths": ["${coin === 'BTC' ? 'Store of value narrative' : 'Smart contract ecosystem'}", "${coin === 'BTC' ? 'Institutional adoption' : 'DeFi leadership'}", "Strong network effects"],
-      "weaknesses": ["Regulatory uncertainty", "Market volatility"],
-      "market_position": "${coin === 'BTC' ? 'Dominant digital gold with leading market cap' : 'Leading smart contract platform with growing ecosystem'}"
+      "strengths": ["${coin === 'BTC' ? 'Store of value narrative strengthening' : 'Leading smart contract platform'}", "${coin === 'BTC' ? 'Institutional adoption accelerating' : 'Ethereum 2.0 upgrade benefits'}", "${coin === 'BTC' ? 'Fixed supply cap creates scarcity' : 'DeFi ecosystem dominance'}", "${coin === 'BTC' ? 'Global monetary hedge properties' : 'NFT marketplace leadership'}", "Strong developer community and network effects"],
+      "weaknesses": ["Regulatory uncertainty in major markets", "${coin === 'BTC' ? 'Energy consumption concerns' : 'High gas fees during congestion'}", "${coin === 'BTC' ? 'Limited smart contract functionality' : 'Competition from newer blockchains'}", "Market volatility and correlation risks"],
+      "market_position": "${coin === 'BTC' ? 'Dominant digital asset with $' + (marketData.marketCap/1e12).toFixed(1) + 'T market cap, leading store of value adoption by institutions and nation-states' : 'Leading smart contract platform with $' + (marketData.marketCap/1e9).toFixed(0) + 'B market cap, powering majority of DeFi and Web3 applications'}",
+      "adoption_metrics": "${coin === 'BTC' ? 'Growing corporate treasury adoption, Lightning Network expansion' : 'Active developer ecosystem, increasing dApp usage'}", 
+      "competitive_position": "${coin === 'BTC' ? 'First-mover advantage with unmatched brand recognition and institutional trust' : 'Market leader in smart contracts with extensive ecosystem and developer tools'}"
     },
     "sentiment": {
       "overall": "${marketData.percentChange7d >= 2 ? 'bullish' : marketData.percentChange7d >= -2 ? 'neutral' : 'bearish'}",
@@ -228,7 +230,7 @@ Please provide analysis in this EXACT JSON structure (no markdown):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { 
             role: 'system', 
@@ -290,18 +292,29 @@ Please provide analysis in this EXACT JSON structure (no markdown):
           },
           fundamental: {
             strengths: [
-              coin === 'BTC' ? 'Digital gold narrative' : 'Smart contract ecosystem',
-              coin === 'BTC' ? 'Store of value properties' : 'DeFi leadership position',
-              'Strong network effects and adoption'
+              coin === 'BTC' ? 'Digital gold narrative with institutional backing' : 'Leading smart contract platform with robust ecosystem',
+              coin === 'BTC' ? 'Fixed 21M supply cap creating long-term scarcity value' : 'Ethereum 2.0 upgrade improving scalability and efficiency', 
+              coin === 'BTC' ? 'Store of value adoption by corporations and governments' : 'Dominance in DeFi with $100B+ total value locked',
+              coin === 'BTC' ? 'Lightning Network enabling faster, cheaper transactions' : 'NFT marketplace leadership and Web3 infrastructure',
+              'Strong network effects with growing developer and user adoption',
+              'Established regulatory clarity in major jurisdictions'
             ],
             weaknesses: [
-              'Regulatory uncertainty in key markets',
-              'Market volatility and sentiment dependency',
-              'Macroeconomic correlation risks'
+              'Regulatory uncertainty in emerging markets and tax implications',
+              coin === 'BTC' ? 'Energy consumption debates affecting ESG investment' : 'High gas fees during network congestion periods',
+              coin === 'BTC' ? 'Limited programmability compared to smart contract platforms' : 'Competition from newer, faster blockchain networks',
+              'Market volatility creating challenges for mainstream adoption',
+              'Macroeconomic correlation with traditional risk assets'
             ],
             market_position: coin === 'BTC' ? 
-              'Dominant cryptocurrency with institutional backing and store of value narrative' :
-              'Leading smart contract platform with extensive DeFi ecosystem and development activity'
+              `Dominant cryptocurrency with $${(marketData.marketCap/1e12).toFixed(1)}T market cap representing digital store of value. Leading institutional adoption with corporate treasuries, ETFs, and government reserves. First-mover advantage with unmatched brand recognition and network security.` :
+              `Leading smart contract platform with $${(marketData.marketCap/1e9).toFixed(0)}B market cap powering the majority of DeFi protocols, NFT marketplaces, and Web3 applications. Ethereum 2.0 transition enhancing scalability while maintaining decentralization and security.`,
+            adoption_metrics: coin === 'BTC' ? 
+              'Corporate treasury adoption growing, Lightning Network channels expanding, institutional custody solutions maturing' :
+              'Active developer count leading industry, dApp transaction volume increasing, enterprise blockchain adoption accelerating',
+            competitive_position: coin === 'BTC' ?
+              'Unmatched network security, regulatory clarity improving, institutional infrastructure mature' :
+              'Extensive developer tooling, largest DeFi ecosystem, established smart contract standards'
           },
           sentiment: {
             overall: marketData.percentChange7d >= 0 ? "bullish" : "bearish",
