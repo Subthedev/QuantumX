@@ -133,20 +133,42 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
     }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | undefined | null) => {
+    // Handle invalid values
+    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+      return '$0.00';
+    }
+
+    // Ensure value is a valid number
+    const numValue = Number(value);
+    if (!isFinite(numValue)) {
+      return '$0.00';
+    }
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
-      maximumFractionDigits: value > 100 ? 0 : 2
-    }).format(value);
+      maximumFractionDigits: numValue > 100 ? 0 : 2
+    }).format(numValue);
   };
 
-  const formatLargeNumber = (value: number) => {
-    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    return formatCurrency(value);
+  const formatLargeNumber = (value: number | undefined | null) => {
+    // Handle invalid values
+    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+      return '$0';
+    }
+
+    // Ensure value is a valid number
+    const numValue = Number(value);
+    if (!isFinite(numValue)) {
+      return '$0';
+    }
+
+    if (numValue >= 1e12) return `$${(numValue / 1e12).toFixed(2)}T`;
+    if (numValue >= 1e9) return `$${(numValue / 1e9).toFixed(2)}B`;
+    if (numValue >= 1e6) return `$${(numValue / 1e6).toFixed(2)}M`;
+    return formatCurrency(numValue);
   };
 
   return (
@@ -200,8 +222,8 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-muted-foreground">24h Change</div>
-                  <div className={`font-bold text-lg ${report.report_data.market_data.percentChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {report.report_data.market_data.percentChange24h >= 0 ? '+' : ''}{report.report_data.market_data.percentChange24h.toFixed(2)}%
+                  <div className={`font-bold text-lg ${(report.report_data.market_data.percentChange24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(report.report_data.market_data.percentChange24h || 0) >= 0 ? '+' : ''}{(report.report_data.market_data.percentChange24h || 0).toFixed(2)}%
                   </div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
