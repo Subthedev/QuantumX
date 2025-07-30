@@ -202,7 +202,7 @@ const Landing = () => {
                     <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.621 5.367 11.988 11.988 11.988s11.987-5.367 11.987-11.988C24.004 5.367 18.637.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.49-3.323-1.297C4.198 14.897 3.708 13.746 3.708 12.449s.49-2.448 1.297-3.323C5.802 8.198 6.953 7.708 8.25 7.708s2.448.49 3.323 1.297c.807.807 1.297 1.958 1.297 3.255s-.49 2.448-1.297 3.323c-.875.807-2.026 1.297-3.323 1.297zm7.718 0c-1.297 0-2.448-.49-3.323-1.297-.807-.875-1.297-2.026-1.297-3.323s.49-2.448 1.297-3.323c.875-.807 2.026-1.297 3.323-1.297s2.448.49 3.323 1.297c.807.807 1.297 1.958 1.297 3.255s-.49 2.448-1.297 3.323c-.875.807-2.026 1.297-3.323 1.297z"/>
                   </svg>
                 </a>
-                <a href="mailto:contact@ignitex.ai" 
+                <a href="mailto:Contact@ignitexagency.com"
                    className="text-muted-foreground hover:text-primary transition-colors">
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -226,8 +226,8 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold mb-4 text-foreground">Support</h4>
               <ul className="space-y-3 text-muted-foreground">
-                <li><a href="mailto:support@ignitex.ai" className="hover:text-primary transition-colors">Help Center</a></li>
-                <li><a href="mailto:contact@ignitex.ai" className="hover:text-primary transition-colors">Contact Us</a></li>
+                <li><a href="mailto:Contact@ignitexagency.com" className="hover:text-primary transition-colors">Help Center</a></li>
+                <li><a href="mailto:Contact@ignitexagency.com" className="hover:text-primary transition-colors">Contact Us</a></li>
                 <li><span className="text-muted-foreground/60">FAQ</span></li>
                 <li><span className="text-muted-foreground/60">Documentation</span></li>
               </ul>
@@ -254,8 +254,8 @@ const Landing = () => {
                 <span>Made with AI-powered predictions</span>
                 <div className="flex items-center gap-2">
                   <span>Contact:</span>
-                  <a href="mailto:hello@ignitex.ai" className="hover:text-primary transition-colors">
-                    hello@ignitex.ai
+                  <a href="mailto:Contact@ignitexagency.com" className="hover:text-primary transition-colors">
+                    Contact@ignitexagency.com
                   </a>
                 </div>
               </div>

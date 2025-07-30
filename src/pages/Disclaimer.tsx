@@ -108,8 +108,8 @@ const Disclaimer = () => {
             <h2 className="text-2xl font-semibold">7. Contact Information</h2>
             <p>
               For questions regarding this disclaimer, please contact us at{' '}
-              <a href="mailto:legal@ignitex.ai" className="text-primary hover:underline">
-                legal@ignitex.ai
+              <a href="mailto:Contact@ignitexagency.com" className="text-primary hover:underline">
+                Contact@ignitexagency.com
               </a>
             </p>
           </section>

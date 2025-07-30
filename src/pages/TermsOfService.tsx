@@ -82,8 +82,8 @@ const TermsOfService = () => {
             <h2 className="text-2xl font-semibold">7. Contact Information</h2>
             <p>
               Questions about the Terms of Service should be sent to us at{' '}
-              <a href="mailto:legal@ignitex.ai" className="text-primary hover:underline">
-                legal@ignitex.ai
+              <a href="mailto:Contact@ignitexagency.com" className="text-primary hover:underline">
+                Contact@ignitexagency.com
               </a>
             </p>
           </section>

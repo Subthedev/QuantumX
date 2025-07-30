@@ -87,8 +87,8 @@ const CookiePolicy = () => {
             <h2 className="text-2xl font-semibold">6. Contact Us</h2>
             <p>
               If you have any questions about our use of cookies, please contact us at{' '}
-              <a href="mailto:privacy@ignitex.ai" className="text-primary hover:underline">
-                privacy@ignitex.ai
+              <a href="mailto:Contact@ignitexagency.com" className="text-primary hover:underline">
+                Contact@ignitexagency.com
               </a>
             </p>
           </section>
