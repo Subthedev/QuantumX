@@ -9,8 +9,8 @@ const CookiePolicy = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
-            <span className="text-2xl font-bold text-primary">IgniteX</span>
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-8 w-8" />
+            
           </Link>
           <Link to="/">
             <Button variant="ghost" className="flex items-center gap-2">
@@ -39,7 +39,7 @@ const CookiePolicy = () => {
 
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">2. How We Use Cookies</h2>
-            <p>IgniteX uses cookies for the following purposes:</p>
+            <p>We use cookies for the following purposes:</p>
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Essential Cookies:</strong> Required for the website to function properly</li>
               <li><strong>Authentication Cookies:</strong> To keep you logged in to your account</li>

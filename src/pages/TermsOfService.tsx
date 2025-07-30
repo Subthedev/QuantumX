@@ -9,8 +9,8 @@ const TermsOfService = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
-            <span className="text-2xl font-bold text-primary">IgniteX</span>
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-8 w-8" />
+            
           </Link>
           <Link to="/">
             <Button variant="ghost" className="flex items-center gap-2">
@@ -32,7 +32,7 @@ const TermsOfService = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">1. Acceptance of Terms</h2>
             <p>
-              By accessing and using IgniteX services, you accept and agree to be bound by the terms 
+              By accessing and using our services, you accept and agree to be bound by the terms 
               and provision of this agreement.
             </p>
           </section>
@@ -40,7 +40,7 @@ const TermsOfService = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">2. Description of Service</h2>
             <p>
-              IgniteX provides AI-powered cryptocurrency prediction services for Bitcoin and Ethereum. 
+              We provide AI-powered cryptocurrency prediction services for Bitcoin and Ethereum. 
               Our predictions are based on algorithmic analysis and should not be considered as financial advice.
             </p>
           </section>
@@ -48,7 +48,7 @@ const TermsOfService = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">3. Investment Disclaimer</h2>
             <p className="font-semibold text-orange-600">
-              IMPORTANT: All predictions provided by IgniteX are for informational purposes only. 
+              IMPORTANT: All predictions provided by our service are for informational purposes only. 
               Cryptocurrency investments carry high risk and you should never invest more than you can afford to lose.
             </p>
           </section>
@@ -65,7 +65,7 @@ const TermsOfService = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">5. Limitation of Liability</h2>
             <p>
-              IgniteX shall not be liable for any direct, indirect, incidental, special, 
+              We shall not be liable for any direct, indirect, incidental, special, 
               consequential or punitive damages resulting from your use of the service.
             </p>
           </section>

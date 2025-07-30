@@ -104,7 +104,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
               <Zap className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-primary">IgniteX</h1>
+              <h1 className="text-2xl font-bold text-primary"></h1>
             </Link>
             <nav className="hidden md:flex items-center gap-4">
               <Link to="/">

@@ -9,8 +9,8 @@ const PrivacyPolicy = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
-            <span className="text-2xl font-bold text-primary">IgniteX</span>
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-8 w-8" />
+            
           </Link>
           <Link to="/">
             <Button variant="ghost" className="flex items-center gap-2">
@@ -32,7 +32,7 @@ const PrivacyPolicy = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">1. Information We Collect</h2>
             <p>
-              At IgniteX, we collect information you provide directly to us, such as when you create an account, 
+              We collect information you provide directly to us, such as when you create an account, 
               use our services, or contact us for support. This may include your name, email address, and usage data.
             </p>
           </section>

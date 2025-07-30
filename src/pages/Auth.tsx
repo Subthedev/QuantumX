@@ -71,7 +71,7 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary-light to-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">IgniteX</CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary"></CardTitle>
           <CardDescription>
             Access your AI-powered crypto predictions
           </CardDescription>

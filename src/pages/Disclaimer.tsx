@@ -10,8 +10,8 @@ const Disclaimer = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
-            <span className="text-2xl font-bold text-primary">IgniteX</span>
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-8 w-8" />
+            
           </Link>
           <Link to="/">
             <Button variant="ghost" className="flex items-center gap-2">
@@ -41,7 +41,7 @@ const Disclaimer = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">1. Not Financial Advice</h2>
             <p className="font-semibold text-red-600">
-              The information provided by IgniteX is for informational purposes only and should not be considered as financial, 
+              The information provided by our service is for informational purposes only and should not be considered as financial, 
               investment, or trading advice. All predictions and analyses are based on algorithmic models and historical data.
             </p>
           </section>
@@ -78,7 +78,7 @@ const Disclaimer = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">4. No Guarantees</h2>
             <p>
-              IgniteX makes no representations or warranties regarding the accuracy, completeness, 
+              We make no representations or warranties regarding the accuracy, completeness, 
               or reliability of any predictions or information provided through our platform.
             </p>
           </section>
@@ -86,13 +86,13 @@ const Disclaimer = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">5. User Responsibility</h2>
             <p>
-              By using IgniteX services, you acknowledge that:
+              By using our services, you acknowledge that:
             </p>
             <ul className="list-disc pl-6 space-y-2">
               <li>You are solely responsible for your investment decisions</li>
               <li>You understand the risks involved in cryptocurrency trading</li>
               <li>You will conduct your own research and due diligence</li>
-              <li>You will not hold IgniteX liable for any losses incurred</li>
+              <li>You will not hold us liable for any losses incurred</li>
             </ul>
           </section>
 

@@ -13,8 +13,8 @@ const Landing = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-24 w-24" />
-            <span className="text-2xl font-bold text-primary">IgniteX</span>
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-24 w-24" />
+            
           </div>
           <div className="flex items-center gap-4">
             {user ? <Link to="/dashboard">
@@ -60,7 +60,7 @@ const Landing = () => {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Why Choose IgniteX?</h2>
+            <h2 className="text-4xl font-bold mb-4">Why Choose Us?</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Advanced AI technology meets cryptocurrency expertise to deliver unparalleled market insights.
             </p>
@@ -182,8 +182,8 @@ const Landing = () => {
             {/* Company Info */}
             <div className="col-span-1">
               <div className="flex items-center gap-2 mb-6">
-                <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-24 w-24" />
-                <span className="text-xl font-bold text-primary">IgniteX</span>
+                <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-24 w-24" />
+                
               </div>
               <p className="text-muted-foreground mb-6 leading-relaxed">
                 AI-powered cryptocurrency predictions for smarter investment decisions. 
@@ -248,7 +248,7 @@ const Landing = () => {
           <div className="border-t border-border pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-muted-foreground text-sm">
-                &copy; 2024 IgniteX. All rights reserved.
+                &copy; 2024. All rights reserved.
               </p>
               <div className="flex items-center gap-6 text-sm text-muted-foreground">
                 <span>Made with AI-powered predictions</span>
