@@ -13,7 +13,7 @@ const Landing = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="h-8 w-8 text-primary" />
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
             <span className="text-2xl font-bold text-primary">IgniteX</span>
           </div>
           <div className="flex items-center gap-4">
@@ -181,7 +181,7 @@ const Landing = () => {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Zap className="h-6 w-6 text-primary" />
+                <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-6 w-6" />
                 <span className="text-xl font-bold text-primary">IgniteX</span>
               </div>
               <p className="text-muted-foreground">
