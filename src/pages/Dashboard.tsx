@@ -21,6 +21,7 @@ const Dashboard = () => {
   const { user, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<Record<string, CryptoReportData>>({});
+  const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       fetchExistingReports();
+      fetchTotalReportsCount();
     }
   }, [user]);
 
@@ -57,6 +59,20 @@ const Dashboard = () => {
       console.error('Error fetching reports:', error);
     } finally {
       setLoadingReports(false);
+    }
+  };
+
+  const fetchTotalReportsCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('crypto_reports')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+      if (error) throw error;
+      setTotalReportsCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching total reports count:', error);
     }
   };
 
@@ -149,7 +165,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {Object.keys(reports).length}
+                {totalReportsCount}
               </div>
               <CardDescription>in the last 24 hours</CardDescription>
             </CardContent>
