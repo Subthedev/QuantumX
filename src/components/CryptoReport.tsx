@@ -133,31 +133,41 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
     }
   };
 
-  const formatCurrency = (value: number | undefined | null) => {
-    console.log('formatCurrency called with:', value, typeof value);
-    
+  const formatCurrency = (value: number | string | undefined | null) => {
     // Handle invalid values
-    if (value === null || value === undefined || isNaN(Number(value)) || !isFinite(Number(value))) {
-      console.log('formatCurrency returning default for invalid value:', value);
+    if (value === null || value === undefined || value === '') {
       return '$0.00';
     }
 
-    // Ensure value is a valid number
-    const numValue = Number(value);
-    if (!isFinite(numValue) || isNaN(numValue)) {
-      console.log('formatCurrency returning default for non-finite value:', numValue);
+    // Convert to number and validate
+    const numValue = typeof value === 'string' ? parseFloat(value) : Number(value);
+    
+    if (isNaN(numValue) || !isFinite(numValue)) {
       return '$0.00';
     }
 
     try {
-      const result = new Intl.NumberFormat('en-US', {
+      // Determine appropriate decimal places
+      let maximumFractionDigits = 2;
+      if (numValue >= 100) {
+        maximumFractionDigits = 2;
+      } else if (numValue >= 1) {
+        maximumFractionDigits = 2;
+      } else if (numValue >= 0.01) {
+        maximumFractionDigits = 4;
+      } else {
+        maximumFractionDigits = 6;
+      }
+
+      // Ensure maximumFractionDigits is within valid range (0-20)
+      maximumFractionDigits = Math.min(20, Math.max(0, maximumFractionDigits));
+
+      return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: numValue > 100 ? 0 : 2
+        minimumFractionDigits: Math.min(2, maximumFractionDigits),
+        maximumFractionDigits: maximumFractionDigits
       }).format(numValue);
-      console.log('formatCurrency success:', numValue, '->', result);
-      return result;
     } catch (error) {
       console.error('formatCurrency error:', error, 'value:', numValue);
       return '$0.00';
