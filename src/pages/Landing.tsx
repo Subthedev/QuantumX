@@ -3,25 +3,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Zap, 
-  Bitcoin, 
-  TrendingUp, 
-  Shield, 
-  Brain, 
-  Clock, 
-  BarChart3, 
-  Users,
-  Star,
-  CheckCircle,
-  ArrowRight
-} from 'lucide-react';
-
+import { Zap, Bitcoin, TrendingUp, Shield, Brain, Clock, BarChart3, Users, Star, CheckCircle, ArrowRight } from 'lucide-react';
 const Landing = () => {
-  const { user } = useAuth();
-
-  return (
-    <div className="min-h-screen">
+  const {
+    user
+  } = useAuth();
+  return <div className="min-h-screen">
       {/* Navigation */}
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -30,20 +17,16 @@ const Landing = () => {
             <span className="text-2xl font-bold text-primary">IgniteX</span>
           </div>
           <div className="flex items-center gap-4">
-            {user ? (
-              <Link to="/dashboard">
+            {user ? <Link to="/dashboard">
                 <Button>Go to Dashboard</Button>
-              </Link>
-            ) : (
-              <>
+              </Link> : <>
                 <Link to="/auth">
                   <Button variant="ghost">Sign In</Button>
                 </Link>
                 <Link to="/auth">
                   <Button>Get Started</Button>
                 </Link>
-              </>
-            )}
+              </>}
           </div>
         </div>
       </nav>
@@ -68,9 +51,7 @@ const Landing = () => {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-              Watch Demo
-            </Button>
+            
           </div>
         </div>
       </section>
@@ -176,83 +157,7 @@ const Landing = () => {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-xl text-muted-foreground">
-              Start free and upgrade as you grow your crypto portfolio
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card className="border-2">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Free Tier</CardTitle>
-                <div className="text-4xl font-bold text-primary">$0</div>
-                <CardDescription>Perfect for getting started</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>1 report per coin every 24 hours</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Bitcoin & Ethereum predictions</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Basic market insights</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Confidence scoring</span>
-                </div>
-                <Link to="/auth" className="block">
-                  <Button className="w-full mt-6">Get Started Free</Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 border-primary relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
-              </div>
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">Pro Tier</CardTitle>
-                <div className="text-4xl font-bold text-primary">$29</div>
-                <CardDescription>For serious crypto investors</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Unlimited reports</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>All cryptocurrencies</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Advanced market analysis</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Real-time alerts</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span>Priority support</span>
-                </div>
-                <Button className="w-full mt-6" variant="outline">
-                  Coming Soon
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
+      
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary to-primary-hover text-white">
@@ -284,28 +189,14 @@ const Landing = () => {
               </p>
             </div>
             
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><Link to="#" className="hover:text-primary">Features</Link></li>
-                <li><Link to="#" className="hover:text-primary">Pricing</Link></li>
-                <li><Link to="#" className="hover:text-primary">API</Link></li>
-              </ul>
-            </div>
             
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-muted-foreground">
-                <li><Link to="#" className="hover:text-primary">About</Link></li>
-                <li><Link to="#" className="hover:text-primary">Blog</Link></li>
-                <li><Link to="#" className="hover:text-primary">Careers</Link></li>
-              </ul>
-            </div>
             
-            <div>
+            
+            
+            <div className="mx-[400px]">
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-muted-foreground">
-                <li><Link to="#" className="hover:text-primary">Help Center</Link></li>
+                <li className="mx-0"><Link to="#" className="hover:text-primary">Help Center</Link></li>
                 <li><Link to="#" className="hover:text-primary">Contact</Link></li>
                 <li><Link to="#" className="hover:text-primary">Privacy</Link></li>
               </ul>
@@ -317,8 +208,6 @@ const Landing = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
