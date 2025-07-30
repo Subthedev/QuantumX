@@ -134,23 +134,34 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
   };
 
   const formatCurrency = (value: number | undefined | null) => {
+    console.log('formatCurrency called with:', value, typeof value);
+    
     // Handle invalid values
-    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+    if (value === null || value === undefined || isNaN(Number(value)) || !isFinite(Number(value))) {
+      console.log('formatCurrency returning default for invalid value:', value);
       return '$0.00';
     }
 
     // Ensure value is a valid number
     const numValue = Number(value);
-    if (!isFinite(numValue)) {
+    if (!isFinite(numValue) || isNaN(numValue)) {
+      console.log('formatCurrency returning default for non-finite value:', numValue);
       return '$0.00';
     }
 
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: numValue > 100 ? 0 : 2
-    }).format(numValue);
+    try {
+      const result = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: numValue > 100 ? 0 : 2
+      }).format(numValue);
+      console.log('formatCurrency success:', numValue, '->', result);
+      return result;
+    } catch (error) {
+      console.error('formatCurrency error:', error, 'value:', numValue);
+      return '$0.00';
+    }
   };
 
   const formatLargeNumber = (value: number | undefined | null) => {
@@ -214,25 +225,25 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
         ) : (
           <div className="space-y-6">
             {/* Market Overview */}
-            {report.report_data.market_data && (
+            {report.report_data?.market_data && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-muted-foreground">Current Price</div>
-                  <div className="font-bold text-lg">{formatCurrency(report.report_data.market_data.price)}</div>
+                  <div className="font-bold text-lg">{formatCurrency(report.report_data.market_data?.price)}</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-muted-foreground">24h Change</div>
-                  <div className={`font-bold text-lg ${(report.report_data.market_data.percentChange24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(report.report_data.market_data.percentChange24h || 0) >= 0 ? '+' : ''}{(report.report_data.market_data.percentChange24h || 0).toFixed(2)}%
+                  <div className={`font-bold text-lg ${(report.report_data.market_data?.percentChange24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(report.report_data.market_data?.percentChange24h || 0) >= 0 ? '+' : ''}{(report.report_data.market_data?.percentChange24h || 0).toFixed(2)}%
                   </div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-muted-foreground">Volume</div>
-                  <div className="font-bold text-lg">{formatLargeNumber(report.report_data.market_data.volume24h)}</div>
+                  <div className="font-bold text-lg">{formatLargeNumber(report.report_data.market_data?.volume24h)}</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                   <div className="text-sm text-muted-foreground">Market Cap</div>
-                  <div className="font-bold text-lg">{formatLargeNumber(report.report_data.market_data.marketCap)}</div>
+                  <div className="font-bold text-lg">{formatLargeNumber(report.report_data.market_data?.marketCap)}</div>
                 </div>
               </div>
             )}
@@ -260,19 +271,19 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-xs text-green-600 font-medium">TP1</div>
-                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets.take_profit_1)}</div>
+                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets?.take_profit_1)}</div>
                   </div>
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-xs text-green-600 font-medium">TP2</div>
-                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets.take_profit_2)}</div>
+                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets?.take_profit_2)}</div>
                   </div>
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-xs text-green-600 font-medium">TP3</div>
-                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets.take_profit_3)}</div>
+                    <div className="font-bold text-green-700">{formatCurrency(report.report_data.targets?.take_profit_3)}</div>
                   </div>
                   <div className="p-3 bg-red-50 rounded-lg border border-red-200">
                     <div className="text-xs text-red-600 font-medium">Stop Loss</div>
-                    <div className="font-bold text-red-700">{formatCurrency(report.report_data.targets.stop_loss)}</div>
+                    <div className="font-bold text-red-700">{formatCurrency(report.report_data.targets?.stop_loss)}</div>
                   </div>
                 </div>
               </div>
