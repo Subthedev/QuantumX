@@ -182,7 +182,7 @@ const Landing = () => {
             {/* Company Info */}
             <div className="col-span-1">
               <div className="flex items-center gap-2 mb-6">
-                <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
+                <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-24 w-24" />
                 <span className="text-xl font-bold text-primary">IgniteX</span>
               </div>
               <p className="text-muted-foreground mb-6 leading-relaxed">
@@ -237,10 +237,10 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold mb-4 text-foreground">Legal</h4>
               <ul className="space-y-3 text-muted-foreground">
-                <li><span className="text-muted-foreground/60">Privacy Policy</span></li>
-                <li><span className="text-muted-foreground/60">Terms of Service</span></li>
-                <li><span className="text-muted-foreground/60">Cookie Policy</span></li>
-                <li><span className="text-muted-foreground/60">Disclaimer</span></li>
+                <li><Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/terms-of-service" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+                <li><Link to="/cookie-policy" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
+                <li><Link to="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</Link></li>
               </ul>
             </div>
           </div>

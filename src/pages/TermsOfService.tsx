@@ -1,0 +1,96 @@
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+const TermsOfService = () => {
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="IgniteX Logo" className="h-8 w-8" />
+            <span className="text-2xl font-bold text-primary">IgniteX</span>
+          </Link>
+          <Link to="/">
+            <Button variant="ghost" className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+      </nav>
+
+      {/* Content */}
+      <div className="container mx-auto px-4 py-12 max-w-4xl">
+        <h1 className="text-4xl font-bold mb-8">Terms of Service</h1>
+        <div className="prose prose-lg max-w-none space-y-6">
+          <p className="text-muted-foreground text-lg">
+            Last updated: {new Date().toLocaleDateString()}
+          </p>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">1. Acceptance of Terms</h2>
+            <p>
+              By accessing and using IgniteX services, you accept and agree to be bound by the terms 
+              and provision of this agreement.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">2. Description of Service</h2>
+            <p>
+              IgniteX provides AI-powered cryptocurrency prediction services for Bitcoin and Ethereum. 
+              Our predictions are based on algorithmic analysis and should not be considered as financial advice.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">3. Investment Disclaimer</h2>
+            <p className="font-semibold text-orange-600">
+              IMPORTANT: All predictions provided by IgniteX are for informational purposes only. 
+              Cryptocurrency investments carry high risk and you should never invest more than you can afford to lose.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">4. User Responsibilities</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>You are responsible for maintaining the confidentiality of your account</li>
+              <li>You agree to use the service only for lawful purposes</li>
+              <li>You understand that all investment decisions are made at your own risk</li>
+            </ul>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">5. Limitation of Liability</h2>
+            <p>
+              IgniteX shall not be liable for any direct, indirect, incidental, special, 
+              consequential or punitive damages resulting from your use of the service.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">6. Termination</h2>
+            <p>
+              We may terminate or suspend your account and access to the service immediately, 
+              without prior notice, for conduct that we believe violates these Terms of Service.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">7. Contact Information</h2>
+            <p>
+              Questions about the Terms of Service should be sent to us at{' '}
+              <a href="mailto:legal@ignitex.ai" className="text-primary hover:underline">
+                legal@ignitex.ai
+              </a>
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TermsOfService;
