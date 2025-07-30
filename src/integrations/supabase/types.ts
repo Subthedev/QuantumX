@@ -14,13 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      crypto_reports: {
+        Row: {
+          coin_symbol: string
+          confidence_score: number
+          created_at: string
+          id: string
+          prediction_summary: string
+          report_data: Json
+          user_id: string
+        }
+        Insert: {
+          coin_symbol: string
+          confidence_score: number
+          created_at?: string
+          id?: string
+          prediction_summary: string
+          report_data: Json
+          user_id: string
+        }
+        Update: {
+          coin_symbol?: string
+          confidence_score?: number
+          created_at?: string
+          id?: string
+          prediction_summary?: string
+          report_data?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_generate_report: {
+        Args: { user_uuid: string; coin: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
