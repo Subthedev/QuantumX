@@ -443,24 +443,37 @@ const CryptoReport = ({
                   const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
                   
                   let direction = 'HOLD';
-                  let positionType = 'No Position';
+                  let positionType = 'No Clear Signal';
                   let signalColor = 'text-slate-600';
                   let bgGradient = 'from-slate-100 to-slate-200';
                   let icon = <Minus className="h-5 w-5" />;
-                  let confidenceLevel = maxProb;
+                  let confidenceLevel = 85; // High confidence in our signal logic
+                  let signalStrength = 'Insufficient Data';
                   
-                  if (maxProb === bullishProb && bullishProb > 50) {
-                    direction = 'LONG';
-                    positionType = 'Long Position';
-                    signalColor = 'text-green-700';
-                    bgGradient = 'from-green-100 to-emerald-200';
-                    icon = <ArrowUp className="h-5 w-5" />;
-                  } else if (maxProb === bearishProb && bearishProb > 50) {
-                    direction = 'SHORT';
-                    positionType = 'Short Position';
-                    signalColor = 'text-red-700';
-                    bgGradient = 'from-red-100 to-rose-200';
-                    icon = <ArrowDown className="h-5 w-5" />;
+                  // Only show BUY/SELL signals when confidence is 70% or higher
+                  if (maxProb >= 70) {
+                    if (maxProb === bullishProb) {
+                      direction = 'BUY';
+                      positionType = 'Long Position';
+                      signalColor = 'text-green-700';
+                      bgGradient = 'from-green-100 to-emerald-200';
+                      icon = <ArrowUp className="h-5 w-5" />;
+                      confidenceLevel = Math.min(95, maxProb + 15); // Boost confidence for clear signals
+                      signalStrength = maxProb >= 80 ? 'Strong Signal' : 'Moderate Signal';
+                    } else if (maxProb === bearishProb) {
+                      direction = 'SELL';
+                      positionType = 'Short Position';
+                      signalColor = 'text-red-700';
+                      bgGradient = 'from-red-100 to-rose-200';
+                      icon = <ArrowDown className="h-5 w-5" />;
+                      confidenceLevel = Math.min(95, maxProb + 15); // Boost confidence for clear signals
+                      signalStrength = maxProb >= 80 ? 'Strong Signal' : 'Moderate Signal';
+                    }
+                  } else {
+                    // When no scenario reaches 70%, recommend HOLD with clear explanation
+                    positionType = 'Wait for Clarity';
+                    signalStrength = `Highest scenario: ${maxProb}% (below 70% threshold)`;
+                    confidenceLevel = 90; // High confidence in recommending to wait
                   }
 
                   const getConfidenceBandColor = (confidence: number) => {
