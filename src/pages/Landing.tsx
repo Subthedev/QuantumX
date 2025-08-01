@@ -3,105 +3,188 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Zap, Bitcoin, TrendingUp, Shield, Brain, Clock, BarChart3, Users, Star, CheckCircle, ArrowRight } from 'lucide-react';
+import { 
+  TrendingUp, 
+  Shield, 
+  Brain, 
+  BarChart3, 
+  ArrowRight, 
+  Zap, 
+  Target, 
+  Activity,
+  CheckCircle,
+  Star
+} from 'lucide-react';
+
 const Landing = () => {
-  const {
-    user
-  } = useAuth();
-  return <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-24 w-24" />
+  const { user } = useAuth();
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Enhanced Navigation */}
+      <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img 
+                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
+                alt="CryptoPulse AI" 
+                className="h-12 w-12" 
+              />
+              <div>
+                <h1 className="text-xl font-bold text-foreground">CryptoPulse AI</h1>
+                <p className="text-xs text-muted-foreground">Intelligent Crypto Predictions</p>
+              </div>
+            </div>
             
-          </div>
-          <div className="flex items-center gap-4">
-            {user ? <Link to="/dashboard">
-                <Button>Go to Dashboard</Button>
-              </Link> : <>
-                <Link to="/auth">
-                  <Button variant="ghost">Sign In</Button>
+            <div className="flex items-center gap-3">
+              {user ? (
+                <Link to="/dashboard">
+                  <Button size="sm" className="shadow-lg">
+                    Dashboard
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
                 </Link>
-                <Link to="/auth">
-                  <Button>Get Started</Button>
-                </Link>
-              </>}
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" size="sm">Sign In</Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button size="sm" className="shadow-lg">
+                      Start Free
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-light to-background py-20">
-        <div className="container mx-auto px-4 text-center">
-          <Badge className="mb-6 bg-primary/10 text-primary border-primary/20">
-            🚀 AI-Powered Crypto Intelligence
-          </Badge>
-          <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">
-            Predict. Profit. Pioneer.
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Harness the power of advanced AI to get intelligent cryptocurrency predictions. 
-            Make informed investment decisions with our cutting-edge market analysis for Bitcoin and Ethereum.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
-              <Button size="lg" className="text-lg px-8 py-6">
-                Start Predicting Now
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+      <section className="relative py-24 overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10"></div>
+        <div className="absolute top-1/4 right-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            {/* Status Badge */}
+            <Badge className="mb-8 bg-primary/10 text-primary border-primary/20 shadow-lg">
+              <Zap className="w-3 h-3 mr-1" />
+              AI-Powered • Real-Time • Professional Grade
+            </Badge>
             
+            {/* Main Headline */}
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-primary via-primary-hover to-primary bg-clip-text text-transparent">
+                Smart Crypto
+              </span>
+              <br />
+              <span className="text-foreground">Predictions</span>
+            </h1>
+            
+            {/* Subheadline */}
+            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
+              Get professional-grade AI analysis for Bitcoin and Ethereum. 
+              Make informed decisions with <span className="text-primary font-semibold">confidence scores</span>, 
+              <span className="text-primary font-semibold"> risk assessments</span>, and 
+              <span className="text-primary font-semibold"> real-time insights</span>.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+              <Link to="/auth">
+                <Button size="lg" className="text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all">
+                  Generate Your First Report
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span>Free • No Credit Card Required</span>
+              </div>
+            </div>
+            
+            {/* Social Proof */}
+            <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground">87%</div>
+                <div className="text-sm text-muted-foreground">Avg. Confidence</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground">24/7</div>
+                <div className="text-sm text-muted-foreground">Live Analysis</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground">2</div>
+                <div className="text-sm text-muted-foreground">Major Cryptos</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-background">
+      <section className="py-20 bg-muted/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Why Choose Us?</h2>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+              Professional Features
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4 text-foreground">
+              Enterprise-Grade AI Analysis
+            </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Advanced AI technology meets cryptocurrency expertise to deliver unparalleled market insights.
+              Institutional-quality insights powered by advanced machine learning algorithms
             </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <Brain className="h-12 w-12 text-primary mx-auto mb-4" />
-                <CardTitle>Advanced AI Analysis</CardTitle>
+            <Card className="border-border/50 hover:border-primary/20 transition-all hover:shadow-lg">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Brain className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Multi-Factor Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-base">
-                  Our machine learning algorithms analyze thousands of data points including market trends, 
-                  news sentiment, and technical indicators to generate accurate predictions.
+                <CardDescription className="text-base leading-relaxed">
+                  Technical indicators, sentiment analysis, market trends, and on-chain data 
+                  combined into actionable intelligence with transparent confidence scoring.
                 </CardDescription>
               </CardContent>
             </Card>
 
-            <Card className="text-center hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <BarChart3 className="h-12 w-12 text-primary mx-auto mb-4" />
-                <CardTitle>Real-Time Insights</CardTitle>
+            <Card className="border-border/50 hover:border-primary/20 transition-all hover:shadow-lg">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Activity className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Real-Time Signals</CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-base">
-                  Get up-to-the-minute market analysis with live data feeds and instant predictions 
-                  for Bitcoin and Ethereum based on current market conditions.
+                <CardDescription className="text-base leading-relaxed">
+                  Live market data processing with instant updates. Get alerts on trend changes, 
+                  support/resistance breaks, and momentum shifts as they happen.
                 </CardDescription>
               </CardContent>
             </Card>
 
-            <Card className="text-center hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
-                <CardTitle>Confidence Scoring</CardTitle>
+            <Card className="border-border/50 hover:border-primary/20 transition-all hover:shadow-lg">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <Target className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Risk Management</CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-base">
-                  Every prediction comes with a confidence score, helping you understand 
-                  the reliability of each forecast and make informed investment decisions.
+                <CardDescription className="text-base leading-relaxed">
+                  Professional risk assessment with position sizing recommendations, 
+                  stop-loss levels, and portfolio correlation analysis for safer trading.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -110,156 +193,123 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-muted/20">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">How It Works</h2>
+            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
+              Simple Process
+            </Badge>
+            <h2 className="text-4xl font-bold mb-4 text-foreground">Get Started in Minutes</h2>
             <p className="text-xl text-muted-foreground">
-              Get started with AI-powered crypto predictions in three simple steps
+              Professional crypto analysis in three simple steps
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="h-8 w-8 text-primary" />
+          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+            <div className="text-center relative">
+              <div className="w-20 h-20 bg-primary rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-2xl font-bold text-primary-foreground">1</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4">1. Create Your Account</h3>
-              <p className="text-muted-foreground">
-                Sign up for free and get instant access to our AI prediction platform. 
-                No credit card required to start.
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Create Account</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Sign up instantly with your email. No lengthy verification process or credit card required to start.
               </p>
+              {/* Connection Line */}
+              <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-primary to-transparent"></div>
+            </div>
+
+            <div className="text-center relative">
+              <div className="w-20 h-20 bg-primary rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-2xl font-bold text-primary-foreground">2</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Select Cryptocurrency</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Choose Bitcoin or Ethereum and generate comprehensive AI-powered reports with technical and fundamental analysis.
+              </p>
+              {/* Connection Line */}
+              <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-primary to-transparent"></div>
             </div>
 
             <div className="text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Bitcoin className="h-8 w-8 text-primary" />
+              <div className="w-20 h-20 bg-primary rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-2xl font-bold text-primary-foreground">3</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4">2. Choose Your Crypto</h3>
-              <p className="text-muted-foreground">
-                Select Bitcoin or Ethereum and generate detailed AI-powered prediction reports 
-                with confidence scores and key insights.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-4">3. Make Informed Decisions</h3>
-              <p className="text-muted-foreground">
-                Use our detailed reports with market analysis, trend predictions, 
-                and risk assessments to guide your investment strategy.
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Make Informed Decisions</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Use detailed reports with confidence scores, risk analysis, and actionable trading recommendations.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing */}
-      
-
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary to-primary-hover text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Start Predicting?</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join thousands of crypto investors making smarter decisions with AI-powered insights.
+      <section className="py-20 bg-gradient-to-r from-primary via-primary-hover to-primary text-primary-foreground relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            Ready for Professional Crypto Analysis?
+          </h2>
+          <p className="text-xl mb-10 opacity-90 max-w-2xl mx-auto">
+            Join traders making data-driven decisions with AI-powered insights. 
+            Start with your first free report today.
           </p>
           <Link to="/auth">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-6">
-              Get Started Now - It's Free!
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-6 shadow-xl">
+              Generate Free Report Now
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm opacity-80">
+            <CheckCircle className="h-4 w-4" />
+            <span>Free forever • No hidden fees • Professional grade</span>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-background border-t border-border py-16">
+      {/* Minimal Footer */}
+      <footer className="bg-background border-t border-border py-12">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            {/* Company Info */}
-            <div className="col-span-1">
-              <div className="flex items-center gap-2 mb-6">
-                <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-24 w-24" />
-                
-              </div>
-              <p className="text-muted-foreground mb-6 leading-relaxed">
-                AI-powered cryptocurrency predictions for smarter investment decisions. 
-                Get intelligent insights for Bitcoin and Ethereum.
-              </p>
-              <div className="flex space-x-4">
-                <a href="https://x.com/IgniteXagency" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                </a>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                  </svg>
-                </a>
-                <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </a>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            {/* Logo and Description */}
+            <div className="flex items-center gap-3">
+              <img 
+                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
+                alt="CryptoPulse AI" 
+                className="h-10 w-10" 
+              />
+              <div>
+                <div className="font-semibold text-foreground">CryptoPulse AI</div>
+                <div className="text-sm text-muted-foreground">Professional crypto predictions</div>
               </div>
             </div>
-
-            {/* Product */}
-            <div>
-              <h4 className="font-semibold mb-4 text-foreground">Product</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><Link to="/auth" className="hover:text-primary transition-colors">Get Started</Link></li>
-                <li><Link to="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link></li>
-                <li><span className="text-muted-foreground/60">Bitcoin Predictions</span></li>
-                <li><span className="text-muted-foreground/60">Ethereum Predictions</span></li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="font-semibold mb-4 text-foreground">Support</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><a href="mailto:contact@ignitexagency.com" className="hover:text-primary transition-colors">Help Center</a></li>
-                <li><a href="mailto:contact@ignitexagency.com" className="hover:text-primary transition-colors">Contact Us</a></li>
-                
-                
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="font-semibold mb-4 text-foreground">Legal</h4>
-              <ul className="space-y-3 text-muted-foreground">
-                <li><Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-                <li><Link to="/terms-of-service" className="hover:text-primary transition-colors">Terms of Service</Link></li>
-                <li><Link to="/cookie-policy" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
-                <li><Link to="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</Link></li>
-              </ul>
+            
+            {/* Links */}
+            <div className="flex items-center gap-6 text-sm">
+              <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
+                Privacy
+              </Link>
+              <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
+                Terms
+              </Link>
+              <Link to="/disclaimer" className="text-muted-foreground hover:text-primary transition-colors">
+                Disclaimer
+              </Link>
+              <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
+                Contact
+              </a>
             </div>
           </div>
           
-          <div className="border-t border-border pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-muted-foreground text-sm">
-                &copy; 2024. All rights reserved.
-              </p>
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <span>Made with AI-powered predictions</span>
-                <div className="flex items-center gap-2">
-                  <span>Contact:</span>
-                  <a href="mailto:contact@ignitexagency.com" className="hover:text-primary transition-colors">
-                    contact@ignitexagency.com
-                  </a>
-                </div>
-              </div>
-            </div>
+          <div className="border-t border-border mt-8 pt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              © 2024 CryptoPulse AI. Professional crypto analysis powered by artificial intelligence.
+            </p>
           </div>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default Landing;
