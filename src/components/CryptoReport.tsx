@@ -538,40 +538,112 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     return (
                       <div className="space-y-6">
                         {/* Signal Strength */}
-                        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-4">
-                              <div className={`p-4 ${directionBg}/20 rounded-xl border border-${directionColor}-500/30`}>
-                                <div className={`text-${directionColor}-400`}>
-                                  {directionIcon}
-                                </div>
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-xl text-white">
-                                  {direction} SIGNAL
-                                </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-slate-300 text-sm">Confidence:</span>
-                                  <span className={`font-bold text-${directionColor}-400`}>{maxProb}%</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className={`${actionColor} text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg hover:scale-105 transition-transform cursor-pointer`}>
-                              {actionText}
-                            </div>
-                          </div>
+                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-800/80 via-slate-750/60 to-slate-800/80 backdrop-blur-sm rounded-2xl p-8 border-2 border-slate-500/30 shadow-xl">
+                          {/* Dynamic glow effect based on confidence */}
+                          <div className={`absolute inset-0 ${maxProb >= 80 ? 'bg-emerald-500/5' : maxProb >= 60 ? 'bg-yellow-500/5' : 'bg-red-500/5'} rounded-2xl`}></div>
+                          <div className={`absolute top-0 right-0 w-24 h-24 ${maxProb >= 80 ? 'bg-emerald-500/10' : maxProb >= 60 ? 'bg-yellow-500/10' : 'bg-red-500/10'} rounded-full blur-2xl`}></div>
                           
-                          {/* Confidence Bar */}
-                          <div className="mb-4">
-                            <div className="flex justify-between text-xs text-slate-400 mb-2">
-                              <span>Signal Strength</span>
-                              <span>{maxProb}%</span>
+                          <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-6">
+                              <div className="flex items-center gap-6">
+                                <div className={`relative p-5 ${directionBg}/20 rounded-2xl border-2 border-${directionColor}-500/40 shadow-lg`}>
+                                  <div className={`text-${directionColor}-400`}>
+                                    {directionIcon}
+                                  </div>
+                                  {/* Pulse effect for high confidence */}
+                                  {maxProb >= 75 && (
+                                    <div className={`absolute inset-0 ${directionBg}/20 rounded-2xl animate-pulse`}></div>
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-2xl text-white mb-1">
+                                    {direction} SIGNAL
+                                  </h4>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-slate-400 text-sm">AI Confidence:</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`font-bold text-lg ${maxProb >= 80 ? 'text-emerald-400' : maxProb >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                        {maxProb}%
+                                      </span>
+                                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        maxProb >= 80 ? 'bg-emerald-500/20 text-emerald-400' : 
+                                        maxProb >= 60 ? 'bg-yellow-500/20 text-yellow-400' : 
+                                        'bg-red-500/20 text-red-400'
+                                      }`}>
+                                        {maxProb >= 80 ? 'STRONG' : maxProb >= 60 ? 'MODERATE' : 'WEAK'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className={`relative group ${actionColor} hover:scale-105 transition-all duration-300 text-white px-10 py-5 rounded-2xl font-bold text-2xl shadow-2xl cursor-pointer overflow-hidden`}>
+                                {/* Animated background */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                                <span className="relative z-10">{actionText}</span>
+                              </div>
                             </div>
-                            <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
-                              <div 
-                                className={`h-full ${directionBg} rounded-full transition-all duration-1000 animate-pulse`}
-                                style={{ width: `${maxProb}%` }}
-                              ></div>
+                            
+                            {/* Enhanced Confidence Visualization */}
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-300 font-medium">Signal Strength Analysis</span>
+                                <div className="flex items-center gap-2">
+                                  {[...Array(5)].map((_, i) => (
+                                    <div
+                                      key={i}
+                                      className={`w-3 h-3 rounded-full transition-all duration-500 ${
+                                        i < Math.floor(maxProb / 20) 
+                                          ? maxProb >= 80 ? 'bg-emerald-500 shadow-emerald-500/50 shadow-md' : 
+                                            maxProb >= 60 ? 'bg-yellow-500 shadow-yellow-500/50 shadow-md' : 
+                                            'bg-red-500 shadow-red-500/50 shadow-md'
+                                          : 'bg-slate-600'
+                                      }`}
+                                    ></div>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              {/* Multi-layered progress bar */}
+                              <div className="relative">
+                                <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner">
+                                  <div className="absolute inset-0 bg-gradient-to-r from-slate-600/50 to-slate-500/50 rounded-full"></div>
+                                  <div 
+                                    className={`relative h-full rounded-full transition-all duration-2000 ease-out ${
+                                      maxProb >= 80 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 
+                                      maxProb >= 60 ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' : 
+                                      'bg-gradient-to-r from-red-600 to-red-400'
+                                    } shadow-lg`}
+                                    style={{ 
+                                      width: `${maxProb}%`,
+                                      boxShadow: `0 0 10px ${maxProb >= 80 ? '#10b981' : maxProb >= 60 ? '#f59e0b' : '#ef4444'}40`
+                                    }}
+                                  >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between mt-2 text-xs text-slate-400">
+                                  <span>0%</span>
+                                  <span className="font-medium">{maxProb}% Confidence</span>
+                                  <span>100%</span>
+                                </div>
+                              </div>
+                              
+                              {/* Confidence interpretation */}
+                              <div className={`mt-4 p-4 rounded-xl border ${
+                                maxProb >= 80 ? 'bg-emerald-500/10 border-emerald-500/30' : 
+                                maxProb >= 60 ? 'bg-yellow-500/10 border-yellow-500/30' : 
+                                'bg-red-500/10 border-red-500/30'
+                              }`}>
+                                <p className={`text-sm font-medium ${
+                                  maxProb >= 80 ? 'text-emerald-300' : 
+                                  maxProb >= 60 ? 'text-yellow-300' : 
+                                  'text-red-300'
+                                }`}>
+                                  {maxProb >= 80 ? '🎯 High confidence signal - Strong trading opportunity identified' : 
+                                   maxProb >= 60 ? '⚠️ Moderate confidence - Proceed with careful risk management' : 
+                                   '🔍 Low confidence - Consider waiting for stronger signals'}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
