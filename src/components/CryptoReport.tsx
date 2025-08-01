@@ -599,168 +599,165 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
 
             <Separator />
 
-            {/* Fundamental & Sentiment Analysis */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Fundamental Analysis */}
-              {report.report_data.analysis?.fundamental && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <DollarSign className="h-5 w-5 text-purple-600" />
-                    <h3 className="font-semibold">Fundamental Analysis</h3>
-                  </div>
-                  <div className="space-y-4">
-                    {/* Macro Environment */}
-                    {report.report_data.analysis.fundamental.macro_environment && (
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                        <h4 className="text-sm font-semibold text-blue-700 mb-2">Macro Environment</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.fundamental.macro_environment)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Institutional Flow */}
-                    {report.report_data.analysis.fundamental.institutional_flow && (
-                      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-4 rounded-lg border border-emerald-200">
-                        <h4 className="text-sm font-semibold text-emerald-700 mb-2">Institutional Flow</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.fundamental.institutional_flow)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Network Health */}
-                    {report.report_data.analysis.fundamental.network_health && (
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
-                        <h4 className="text-sm font-semibold text-green-700 mb-2">Network Health</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.fundamental.network_health)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Competitive Landscape */}
-                    {report.report_data.analysis.fundamental.competitive_landscape && (
-                      <div className="bg-gradient-to-r from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
-                        <h4 className="text-sm font-semibold text-purple-700 mb-2">Competitive Landscape</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.fundamental.competitive_landscape)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Catalysts */}
-                    {report.report_data.analysis.fundamental.catalysts && (
-                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
-                        <h4 className="text-sm font-semibold text-orange-700 mb-2">Key Catalysts</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.fundamental.catalysts)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Fallback for legacy data */}
-                    {report.report_data.analysis.fundamental.market_position && (
-                      <div className="bg-gradient-to-r from-slate-50 to-gray-50 p-4 rounded-lg border border-slate-200">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-2">Market Position</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.fundamental.market_position)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+            {/* Fundamental Analysis */}
+            {report.report_data.analysis?.fundamental && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <DollarSign className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold">Fundamental Analysis</h3>
                 </div>
-              )}
+                <div className="space-y-4">
+                  {/* Macro Environment */}
+                  {report.report_data.analysis.fundamental.macro_environment && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                      <h4 className="text-sm font-semibold text-blue-700 mb-2">Macro Environment</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.fundamental.macro_environment)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Institutional Flow */}
+                  {report.report_data.analysis.fundamental.institutional_flow && (
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-4 rounded-lg border border-emerald-200">
+                      <h4 className="text-sm font-semibold text-emerald-700 mb-2">Institutional Flow</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.fundamental.institutional_flow)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Network Health */}
+                  {report.report_data.analysis.fundamental.network_health && (
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                      <h4 className="text-sm font-semibold text-green-700 mb-2">Network Health</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.fundamental.network_health)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Competitive Landscape */}
+                  {report.report_data.analysis.fundamental.competitive_landscape && (
+                    <div className="bg-gradient-to-r from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
+                      <h4 className="text-sm font-semibold text-purple-700 mb-2">Competitive Landscape</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.fundamental.competitive_landscape)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Catalysts */}
+                  {report.report_data.analysis.fundamental.catalysts && (
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
+                      <h4 className="text-sm font-semibold text-orange-700 mb-2">Key Catalysts</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.fundamental.catalysts)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Fallback for legacy data */}
+                  {report.report_data.analysis.fundamental.market_position && (
+                    <div className="bg-gradient-to-r from-slate-50 to-gray-50 p-4 rounded-lg border border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-2">Market Position</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.fundamental.market_position)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-              {/* Sentiment Analysis */}
-              {report.report_data.analysis?.sentiment && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="h-5 w-5 text-orange-600" />
-                    <h3 className="font-semibold">Sentiment Analysis</h3>
-                    {report.report_data.analysis.sentiment.risk_level && (
-                      <Badge className={getRiskColor(report.report_data.analysis.sentiment.risk_level)}>
-                        {report.report_data.analysis.sentiment.risk_level} risk
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    {/* Market Sentiment */}
-                    {report.report_data.analysis.sentiment.market_sentiment && (
-                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg border border-blue-200">
-                        <h4 className="text-sm font-semibold text-blue-700 mb-2">Market Sentiment</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.sentiment.market_sentiment)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Fear & Greed Analysis */}
-                    {report.report_data.analysis.sentiment.fear_greed_analysis && (
-                      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border border-yellow-200">
-                        <h4 className="text-sm font-semibold text-yellow-700 mb-2">Fear & Greed Analysis</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.sentiment.fear_greed_analysis)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Social Metrics */}
-                    {report.report_data.analysis.sentiment.social_metrics && (
-                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-200">
-                        <h4 className="text-sm font-semibold text-indigo-700 mb-2">Social Metrics</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.sentiment.social_metrics)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Options Flow */}
-                    {report.report_data.analysis.sentiment.options_flow && (
-                      <div className="bg-gradient-to-r from-green-50 to-teal-50 p-4 rounded-lg border border-green-200">
-                        <h4 className="text-sm font-semibold text-green-700 mb-2">Options Flow</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.sentiment.options_flow)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Contrarian Indicators */}
-                    {report.report_data.analysis.sentiment.contrarian_indicators && (
-                      <div className="bg-gradient-to-r from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
-                        <h4 className="text-sm font-semibold text-red-700 mb-2">Contrarian Indicators</h4>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {renderSafeContent(report.report_data.analysis.sentiment.contrarian_indicators)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Fallback for legacy sentiment data */}
-                    {report.report_data.analysis.sentiment.overall && (
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">Overall Sentiment</h4>
-                          <Badge variant={report.report_data.analysis.sentiment.overall === 'bullish' ? 'default' : 
-                                        report.report_data.analysis.sentiment.overall === 'bearish' ? 'destructive' : 'secondary'}>
-                            {report.report_data.analysis.sentiment.overall}
-                          </Badge>
-                        </div>
-                        {report.report_data.analysis.sentiment.factors && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-1">Key Factors</h4>
-                            <div className="space-y-1">
-                              {report.report_data.analysis.sentiment.factors?.map((factor, index) => (
-                                <div key={index} className="text-sm text-muted-foreground">• {factor}</div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+            {/* Sentiment Analysis */}
+            {report.report_data.analysis?.sentiment && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  <h3 className="font-semibold">Sentiment Analysis</h3>
+                  {report.report_data.analysis.sentiment.risk_level && (
+                    <Badge className={getRiskColor(report.report_data.analysis.sentiment.risk_level)}>
+                      {report.report_data.analysis.sentiment.risk_level} risk
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </div>
+                <div className="space-y-4">
+                  {/* Market Sentiment */}
+                  {report.report_data.analysis.sentiment.market_sentiment && (
+                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg border border-blue-200">
+                      <h4 className="text-sm font-semibold text-blue-700 mb-2">Market Sentiment</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.sentiment.market_sentiment)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Fear & Greed Analysis */}
+                  {report.report_data.analysis.sentiment.fear_greed_analysis && (
+                    <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border border-yellow-200">
+                      <h4 className="text-sm font-semibold text-yellow-700 mb-2">Fear & Greed Analysis</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.sentiment.fear_greed_analysis)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Social Metrics */}
+                  {report.report_data.analysis.sentiment.social_metrics && (
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-200">
+                      <h4 className="text-sm font-semibold text-indigo-700 mb-2">Social Metrics</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.sentiment.social_metrics)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Options Flow */}
+                  {report.report_data.analysis.sentiment.options_flow && (
+                    <div className="bg-gradient-to-r from-green-50 to-teal-50 p-4 rounded-lg border border-green-200">
+                      <h4 className="text-sm font-semibold text-green-700 mb-2">Options Flow</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.sentiment.options_flow)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Contrarian Indicators */}
+                  {report.report_data.analysis.sentiment.contrarian_indicators && (
+                    <div className="bg-gradient-to-r from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
+                      <h4 className="text-sm font-semibold text-red-700 mb-2">Contrarian Indicators</h4>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {renderSafeContent(report.report_data.analysis.sentiment.contrarian_indicators)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Fallback for legacy sentiment data */}
+                  {report.report_data.analysis.sentiment.overall && (
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="text-sm font-medium mb-1">Overall Sentiment</h4>
+                        <Badge variant={report.report_data.analysis.sentiment.overall === 'bullish' ? 'default' : 
+                                      report.report_data.analysis.sentiment.overall === 'bearish' ? 'destructive' : 'secondary'}>
+                          {report.report_data.analysis.sentiment.overall}
+                        </Badge>
+                      </div>
+                      {report.report_data.analysis.sentiment.factors && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-1">Key Factors</h4>
+                          <div className="space-y-1">
+                            {report.report_data.analysis.sentiment.factors?.map((factor, index) => (
+                              <div key={index} className="text-sm text-muted-foreground">• {factor}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Risk Management */}
             {report.report_data.risk_management && (
