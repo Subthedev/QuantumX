@@ -417,10 +417,22 @@ const CryptoReport = ({
                       <p className="text-xs text-slate-600">Real-time algorithmic analysis</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-[8px] my-[3px]">
-                    Live Signal
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-xs text-slate-600 font-medium">Confidence</div>
+                      <div className="text-lg font-bold text-slate-800">{report.confidence_score}%</div>
+                    </div>
+                    <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${getConfidenceColor(report.confidence_score)}`}
+                        style={{ width: `${report.confidence_score}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
+                <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-[8px] my-[3px] mb-4">
+                  Live Signal
+                </Badge>
 
                 {(() => {
             const signals = report.report_data.analysis.multi_directional_signals;
