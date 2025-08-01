@@ -7,7 +7,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { TrendingUp, TrendingDown, Target, Shield, BarChart3, Activity, DollarSign, AlertTriangle, Loader2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -117,14 +116,12 @@ interface CryptoReportData {
   };
   created_at: string;
 }
-
 interface CryptoReportProps {
   coin: string;
   icon: React.ReactNode;
   name: string;
   existingReport?: CryptoReportData;
 }
-
 const CryptoReport = ({
   coin,
   icon,
@@ -139,7 +136,6 @@ const CryptoReport = ({
   } = useToast();
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<CryptoReportData | undefined>(existingReport);
-
   const generateReport = async () => {
     if (!user) {
       toast({
@@ -177,18 +173,15 @@ const CryptoReport = ({
       setLoading(false);
     }
   };
-
   const getConfidenceColor = (score: number) => {
     if (score >= 80) return "bg-green-500";
     if (score >= 70) return "bg-blue-500";
     if (score >= 60) return "bg-yellow-500";
     return "bg-red-500";
   };
-
   const getTrendIcon = (trend: string) => {
     return trend === 'bullish' ? <TrendingUp className="h-4 w-4 text-green-600" /> : trend === 'bearish' ? <TrendingDown className="h-4 w-4 text-red-600" /> : <Activity className="h-4 w-4 text-yellow-600" />;
   };
-
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case 'low':
@@ -201,7 +194,6 @@ const CryptoReport = ({
         return 'text-gray-600 bg-gray-50';
     }
   };
-
   const formatCurrency = (value: number | string | undefined | null) => {
     // Handle invalid values
     if (value === null || value === undefined || value === '') {
@@ -239,7 +231,6 @@ const CryptoReport = ({
       return '$0.00';
     }
   };
-
   const formatLargeNumber = (value: number | undefined | null) => {
     // Handle invalid values
     if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
@@ -273,7 +264,6 @@ const CryptoReport = ({
     }
     return String(content || 'Not available');
   };
-
   return <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -284,9 +274,7 @@ const CryptoReport = ({
               <CardDescription>{coin} Analysis</CardDescription>
             </div>
           </div>
-          {report && <Badge className={`${getConfidenceColor(report.confidence_score)} text-white`}>
-              {report.confidence_score}% Confidence
-            </Badge>}
+          {report}
         </div>
       </CardHeader>
 
@@ -430,120 +418,61 @@ const CryptoReport = ({
                       <p className="text-xs text-slate-600">Real-time algorithmic analysis</p>
                     </div>
                   </div>
-                  <div className="relative flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-full px-4 py-2 shadow-sm">
-                    <div className="relative flex items-center">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                      <div className="absolute w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-75"></div>
-                    </div>
-                    <span className="text-emerald-700 font-semibold text-sm tracking-wide">LIVE SIGNAL</span>
-                  </div>
+                  <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-[8px] my-[3px]">
+                    Live Signal
+                  </Badge>
                 </div>
 
                 {(() => {
-                  const signals = report.report_data.analysis.multi_directional_signals;
-                  const bullishProb = parseInt(signals.bullish_scenario.probability.replace('%', '')) || 0;
-                  const bearishProb = parseInt(signals.bearish_scenario.probability.replace('%', '')) || 0;
-                  const neutralProb = parseInt(signals.neutral_scenario.probability.replace('%', '')) || 0;
-                  const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
-                  
-                  let direction = 'HOLD';
-                  let positionType = 'No Clear Signal';
-                  let signalColor = 'text-slate-600';
-                  let bgGradient = 'from-slate-100 to-slate-200';
-                  let icon = <Minus className="h-5 w-5" />;
-                  let confidenceLevel = 85; // High confidence in our signal logic
-                  let signalStrength = 'Insufficient Data';
-                  
-                  // Only show BUY/SELL signals when confidence is 70% or higher
-                  if (maxProb >= 70) {
-                    if (maxProb === bullishProb) {
-                      direction = 'BUY';
-                      positionType = 'Long Position';
-                      signalColor = 'text-green-700';
-                      bgGradient = 'from-green-100 to-emerald-200';
-                      icon = <ArrowUp className="h-5 w-5" />;
-                      confidenceLevel = Math.min(95, maxProb + 15); // Boost confidence for clear signals
-                      signalStrength = maxProb >= 80 ? 'Strong Signal' : 'Moderate Signal';
-                    } else if (maxProb === bearishProb) {
-                      direction = 'SELL';
-                      positionType = 'Short Position';
-                      signalColor = 'text-red-700';
-                      bgGradient = 'from-red-100 to-rose-200';
-                      icon = <ArrowDown className="h-5 w-5" />;
-                      confidenceLevel = Math.min(95, maxProb + 15); // Boost confidence for clear signals
-                      signalStrength = maxProb >= 80 ? 'Strong Signal' : 'Moderate Signal';
-                    }
-                  } else {
-                    // When no scenario reaches 70%, recommend HOLD with clear explanation
-                    positionType = 'Wait for Clarity';
-                    signalStrength = `Highest scenario: ${maxProb}% (below 70% threshold)`;
-                    confidenceLevel = 90; // High confidence in recommending to wait
-                  }
-
-                  const getConfidenceBandColor = (confidence: number) => {
-                    if (confidence >= 80) return 'bg-green-500';
-                    if (confidence >= 70) return 'bg-blue-500';
-                    if (confidence >= 60) return 'bg-yellow-500';
-                    return 'bg-red-500';
-                  };
-
-                  const getConfidenceLabel = (confidence: number) => {
-                    if (confidence >= 80) return 'Very High';
-                    if (confidence >= 70) return 'High';
-                    if (confidence >= 60) return 'Moderate';
-                    return 'Low';
-                  };
-
-                  if (direction === 'HOLD') {
-                    return (
-                      <div className="space-y-4">
-                        <div className="text-center p-6 bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl border border-slate-300">
-                          <div className="flex items-center justify-center gap-2 mb-3">
-                            <div className="p-2 bg-white/80 rounded-full shadow-sm">
-                              {icon}
-                            </div>
-                            <div className="text-2xl font-bold text-slate-700">HOLD</div>
+            const signals = report.report_data.analysis.multi_directional_signals;
+            const bullishProb = parseInt(signals.bullish_scenario.probability.replace('%', '')) || 0;
+            const bearishProb = parseInt(signals.bearish_scenario.probability.replace('%', '')) || 0;
+            const neutralProb = parseInt(signals.neutral_scenario.probability.replace('%', '')) || 0;
+            const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
+            let direction = 'HOLD';
+            let positionType = 'No Position';
+            let signalColor = 'text-slate-600';
+            let bgGradient = 'from-slate-100 to-slate-200';
+            let icon = <Minus className="h-5 w-5" />;
+            if (maxProb === bullishProb && bullishProb > 50) {
+              direction = 'LONG';
+              positionType = 'Long Position';
+              signalColor = 'text-green-700';
+              bgGradient = 'from-green-100 to-emerald-200';
+              icon = <ArrowUp className="h-5 w-5" />;
+            } else if (maxProb === bearishProb && bearishProb > 50) {
+              direction = 'SHORT';
+              positionType = 'Short Position';
+              signalColor = 'text-red-700';
+              bgGradient = 'from-red-100 to-rose-200';
+              icon = <ArrowDown className="h-5 w-5" />;
+            }
+            if (direction === 'HOLD') {
+              return <div className="text-center p-6 bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl border border-slate-300">
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                          <div className="p-2 bg-white/80 rounded-full shadow-sm">
+                            {icon}
                           </div>
-                          <div className="text-sm text-slate-600 mb-3 font-medium">No clear directional signal detected</div>
-                          <div className="grid grid-cols-3 gap-3 text-xs">
-                            <div className="bg-white/60 p-2 rounded-lg">
-                              <div className="text-green-600 font-semibold">Bullish</div>
-                              <div className="text-slate-600">{bullishProb}%</div>
-                            </div>
-                            <div className="bg-white/60 p-2 rounded-lg">
-                              <div className="text-red-600 font-semibold">Bearish</div>
-                              <div className="text-slate-600">{bearishProb}%</div>
-                            </div>
-                            <div className="bg-white/60 p-2 rounded-lg">
-                              <div className="text-slate-600 font-semibold">Neutral</div>
-                              <div className="text-slate-600">{neutralProb}%</div>
-                            </div>
+                          <div className="text-2xl font-bold text-slate-700">HOLD</div>
+                        </div>
+                        <div className="text-sm text-slate-600 mb-3 font-medium">No clear directional signal detected</div>
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          <div className="bg-white/60 p-2 rounded-lg">
+                            <div className="text-green-600 font-semibold">Bullish</div>
+                            <div className="text-slate-600">{bullishProb}%</div>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-lg">
+                            <div className="text-red-600 font-semibold">Bearish</div>
+                            <div className="text-slate-600">{bearishProb}%</div>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-lg">
+                            <div className="text-slate-600 font-semibold">Neutral</div>
+                            <div className="text-slate-600">{neutralProb}%</div>
                           </div>
                         </div>
-
-                        {/* Confidence Band for HOLD */}
-                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-slate-700">Signal Confidence</span>
-                            <span className="text-sm font-bold text-slate-800">{confidenceLevel}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                            <div 
-                              className={`h-2 rounded-full ${getConfidenceBandColor(confidenceLevel)} transition-all duration-500 ease-out`}
-                              style={{ width: `${confidenceLevel}%` }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between text-xs text-slate-500">
-                            <span>Confidence Level: {getConfidenceLabel(confidenceLevel)}</span>
-                            <span>{confidenceLevel >= 70 ? 'Reliable Signal' : 'Use Caution'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-4">
+                      </div>;
+            }
+            return <div className="space-y-4">
                       {/* Signal Header */}
                       <div className={`text-center p-4 bg-gradient-to-br ${bgGradient} rounded-xl border-2 ${direction === 'LONG' ? 'border-green-300' : 'border-red-300'} shadow-sm`}>
                         <div className="flex items-center justify-center gap-3 mb-2">
@@ -560,24 +489,6 @@ const CryptoReport = ({
                         </div>
                       </div>
 
-                      {/* Confidence Band */}
-                      <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-slate-700">Signal Confidence</span>
-                          <span className="text-sm font-bold text-slate-800">{confidenceLevel}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-                          <div 
-                            className={`h-3 rounded-full ${getConfidenceBandColor(confidenceLevel)} transition-all duration-500 ease-out`}
-                            style={{ width: `${confidenceLevel}%` }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-500">
-                          <span>Confidence Level: {getConfidenceLabel(confidenceLevel)}</span>
-                          <span>{confidenceLevel >= 70 ? 'Strong Signal' : confidenceLevel >= 60 ? 'Moderate Signal' : 'Weak Signal'}</span>
-                        </div>
-                      </div>
-
                       {/* Signal Details Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
@@ -586,10 +497,7 @@ const CryptoReport = ({
                             <span className="font-semibold text-slate-700 text-sm">Entry Zone</span>
                           </div>
                           <div className="text-lg font-bold text-slate-800">
-                            {report.report_data.market_data?.price 
-                              ? formatCurrency(report.report_data.market_data.price * (direction === 'LONG' ? 0.98 : 1.02))
-                              : 'Current Price'
-                            }
+                            {report.report_data.market_data?.price ? formatCurrency(report.report_data.market_data.price * (direction === 'LONG' ? 0.98 : 1.02)) : 'Current Price'}
                           </div>
                           <div className="text-xs text-slate-500 mt-1">
                             {direction === 'LONG' ? '2% below current' : '2% above current'}
@@ -602,10 +510,7 @@ const CryptoReport = ({
                             <span className="font-semibold text-slate-700 text-sm">Stop Loss</span>
                           </div>
                           <div className="text-lg font-bold text-red-700">
-                            {report.report_data.targets?.stop_loss 
-                              ? formatCurrency(report.report_data.targets.stop_loss)
-                              : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 0.95 : 1.05))
-                            }
+                            {report.report_data.targets?.stop_loss ? formatCurrency(report.report_data.targets.stop_loss) : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 0.95 : 1.05))}
                           </div>
                           <div className="text-xs text-slate-500 mt-1">Risk management level</div>
                         </div>
@@ -616,10 +521,7 @@ const CryptoReport = ({
                             <span className="font-semibold text-slate-700 text-sm">Take Profit</span>
                           </div>
                           <div className="text-lg font-bold text-green-700">
-                            {report.report_data.targets?.take_profit_1 
-                              ? formatCurrency(report.report_data.targets.take_profit_1)
-                              : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 1.05 : 0.95))
-                            }
+                            {report.report_data.targets?.take_profit_1 ? formatCurrency(report.report_data.targets.take_profit_1) : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 1.05 : 0.95))}
                           </div>
                           <div className="text-xs text-slate-500 mt-1">Primary target level</div>
                         </div>
@@ -635,9 +537,8 @@ const CryptoReport = ({
                           <div className="text-xs text-slate-500 mt-1">Expected ratio</div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    </div>;
+          })()}
               </div>}
 
             {/* Quantitative Metrics */}
@@ -838,5 +739,4 @@ const CryptoReport = ({
       </CardContent>
     </Card>;
 };
-
 export default CryptoReport;
