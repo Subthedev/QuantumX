@@ -447,6 +447,7 @@ const CryptoReport = ({
                   let signalColor = 'text-slate-600';
                   let bgGradient = 'from-slate-100 to-slate-200';
                   let icon = <Minus className="h-5 w-5" />;
+                  let confidenceLevel = maxProb;
                   
                   if (maxProb === bullishProb && bullishProb > 50) {
                     direction = 'LONG';
@@ -462,28 +463,62 @@ const CryptoReport = ({
                     icon = <ArrowDown className="h-5 w-5" />;
                   }
 
+                  const getConfidenceBandColor = (confidence: number) => {
+                    if (confidence >= 80) return 'bg-green-500';
+                    if (confidence >= 70) return 'bg-blue-500';
+                    if (confidence >= 60) return 'bg-yellow-500';
+                    return 'bg-red-500';
+                  };
+
+                  const getConfidenceLabel = (confidence: number) => {
+                    if (confidence >= 80) return 'Very High';
+                    if (confidence >= 70) return 'High';
+                    if (confidence >= 60) return 'Moderate';
+                    return 'Low';
+                  };
+
                   if (direction === 'HOLD') {
                     return (
-                      <div className="text-center p-6 bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl border border-slate-300">
-                        <div className="flex items-center justify-center gap-2 mb-3">
-                          <div className="p-2 bg-white/80 rounded-full shadow-sm">
-                            {icon}
+                      <div className="space-y-4">
+                        <div className="text-center p-6 bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl border border-slate-300">
+                          <div className="flex items-center justify-center gap-2 mb-3">
+                            <div className="p-2 bg-white/80 rounded-full shadow-sm">
+                              {icon}
+                            </div>
+                            <div className="text-2xl font-bold text-slate-700">HOLD</div>
                           </div>
-                          <div className="text-2xl font-bold text-slate-700">HOLD</div>
+                          <div className="text-sm text-slate-600 mb-3 font-medium">No clear directional signal detected</div>
+                          <div className="grid grid-cols-3 gap-3 text-xs">
+                            <div className="bg-white/60 p-2 rounded-lg">
+                              <div className="text-green-600 font-semibold">Bullish</div>
+                              <div className="text-slate-600">{bullishProb}%</div>
+                            </div>
+                            <div className="bg-white/60 p-2 rounded-lg">
+                              <div className="text-red-600 font-semibold">Bearish</div>
+                              <div className="text-slate-600">{bearishProb}%</div>
+                            </div>
+                            <div className="bg-white/60 p-2 rounded-lg">
+                              <div className="text-slate-600 font-semibold">Neutral</div>
+                              <div className="text-slate-600">{neutralProb}%</div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-sm text-slate-600 mb-3 font-medium">No clear directional signal detected</div>
-                        <div className="grid grid-cols-3 gap-3 text-xs">
-                          <div className="bg-white/60 p-2 rounded-lg">
-                            <div className="text-green-600 font-semibold">Bullish</div>
-                            <div className="text-slate-600">{bullishProb}%</div>
+
+                        {/* Confidence Band for HOLD */}
+                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-slate-700">Signal Confidence</span>
+                            <span className="text-sm font-bold text-slate-800">{confidenceLevel}%</span>
                           </div>
-                          <div className="bg-white/60 p-2 rounded-lg">
-                            <div className="text-red-600 font-semibold">Bearish</div>
-                            <div className="text-slate-600">{bearishProb}%</div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div 
+                              className={`h-2 rounded-full ${getConfidenceBandColor(confidenceLevel)} transition-all duration-500 ease-out`}
+                              style={{ width: `${confidenceLevel}%` }}
+                            ></div>
                           </div>
-                          <div className="bg-white/60 p-2 rounded-lg">
-                            <div className="text-slate-600 font-semibold">Neutral</div>
-                            <div className="text-slate-600">{neutralProb}%</div>
+                          <div className="flex justify-between text-xs text-slate-500">
+                            <span>Confidence Level: {getConfidenceLabel(confidenceLevel)}</span>
+                            <span>{confidenceLevel >= 70 ? 'Reliable Signal' : 'Use Caution'}</span>
                           </div>
                         </div>
                       </div>
@@ -505,6 +540,24 @@ const CryptoReport = ({
                           <Badge variant="secondary" className="bg-white/70 font-medium">
                             {maxProb}% Confidence
                           </Badge>
+                        </div>
+                      </div>
+
+                      {/* Confidence Band */}
+                      <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-slate-700">Signal Confidence</span>
+                          <span className="text-sm font-bold text-slate-800">{confidenceLevel}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                          <div 
+                            className={`h-3 rounded-full ${getConfidenceBandColor(confidenceLevel)} transition-all duration-500 ease-out`}
+                            style={{ width: `${confidenceLevel}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-500">
+                          <span>Confidence Level: {getConfidenceLabel(confidenceLevel)}</span>
+                          <span>{confidenceLevel >= 70 ? 'Strong Signal' : confidenceLevel >= 60 ? 'Moderate Signal' : 'Weak Signal'}</span>
                         </div>
                       </div>
 
