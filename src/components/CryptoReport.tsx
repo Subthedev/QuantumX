@@ -608,27 +608,29 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                               </div>
                               
                               {/* Multi-layered progress bar */}
-                              <div className="relative">
-                                <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner">
-                                  <div className="absolute inset-0 bg-gradient-to-r from-slate-600/50 to-slate-500/50 rounded-full"></div>
+                              <div className="relative w-full">
+                                <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner relative">
+                                  <div className="absolute inset-0 bg-gradient-to-r from-slate-600/30 to-slate-500/30 rounded-full"></div>
                                   <div 
-                                    className={`relative h-full rounded-full transition-all duration-2000 ease-out ${
+                                    className={`relative h-full rounded-full transition-all duration-2000 ease-out z-10 ${
                                       maxProb >= 80 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 
                                       maxProb >= 60 ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' : 
                                       'bg-gradient-to-r from-red-600 to-red-400'
                                     } shadow-lg`}
                                     style={{ 
-                                      width: `${maxProb}%`,
+                                      width: `${Math.min(maxProb, 100)}%`,
                                       boxShadow: `0 0 10px ${maxProb >= 80 ? '#10b981' : maxProb >= 60 ? '#f59e0b' : '#ef4444'}40`
                                     }}
                                   >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse rounded-full"></div>
                                   </div>
                                 </div>
-                                <div className="flex justify-between items-center mt-3 text-xs text-slate-400">
-                                  <span>0%</span>
-                                  <span className="font-medium text-center px-2">{maxProb}% Confidence</span>
-                                  <span>100%</span>
+                                <div className="flex justify-between items-center mt-4 text-xs text-slate-400 px-1">
+                                  <span className="text-left">0%</span>
+                                  <span className="font-medium text-center bg-slate-800/50 px-3 py-1 rounded-full border border-slate-600">
+                                    {maxProb}% Confidence
+                                  </span>
+                                  <span className="text-right">100%</span>
                                 </div>
                               </div>
                               
