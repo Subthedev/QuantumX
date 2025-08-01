@@ -487,20 +487,22 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                 
                 <div className="relative z-10">
                   {/* Header */}
-                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 bg-primary/20 rounded-xl border border-primary/30">
+                      <div className="p-3 bg-primary/20 rounded-xl border border-primary/30 flex-shrink-0">
                         <Target className="h-7 w-7 text-primary" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="font-bold text-2xl text-white">AI Trade Signal</h3>
                         <p className="text-slate-300 text-sm">Professional Market Analysis</p>
                       </div>
                     </div>
                     {report.report_data.market_direction && (
-                      <Badge className="bg-primary text-white text-sm px-4 py-2 font-semibold animate-pulse">
-                        {report.report_data.market_direction.replace('_', ' ').toUpperCase()} BIAS
-                      </Badge>
+                      <div className="flex-shrink-0">
+                        <Badge className="bg-primary text-white text-sm px-4 py-2 font-semibold animate-pulse whitespace-nowrap">
+                          {report.report_data.market_direction.replace('_', ' ').toUpperCase()} BIAS
+                        </Badge>
+                      </div>
                     )}
                   </div>
                 
@@ -544,10 +546,10 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                           <div className={`absolute top-0 right-0 w-24 h-24 ${maxProb >= 80 ? 'bg-emerald-500/10' : maxProb >= 60 ? 'bg-yellow-500/10' : 'bg-red-500/10'} rounded-full blur-2xl`}></div>
                           
                           <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-6">
-                              <div className="flex items-center gap-6">
-                                <div className={`relative p-5 ${directionBg}/20 rounded-2xl border-2 border-${directionColor}-500/40 shadow-lg`}>
-                                  <div className={`text-${directionColor}-400`}>
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-6 min-w-0 flex-1">
+                                <div className={`relative p-5 ${directionBg}/20 rounded-2xl border-2 border-${directionColor}-500/40 shadow-lg flex-shrink-0 self-start sm:self-center`}>
+                                  <div className={`text-${directionColor}-400 flex items-center justify-center`}>
                                     {directionIcon}
                                   </div>
                                   {/* Pulse effect for high confidence */}
@@ -555,12 +557,12 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                                     <div className={`absolute inset-0 ${directionBg}/20 rounded-2xl animate-pulse`}></div>
                                   )}
                                 </div>
-                                <div>
-                                  <h4 className="font-bold text-2xl text-white mb-1">
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-bold text-2xl text-white mb-2">
                                     {direction} SIGNAL
                                   </h4>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-slate-400 text-sm">AI Confidence:</span>
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <span className="text-slate-400 text-sm whitespace-nowrap">AI Confidence:</span>
                                     <div className="flex items-center gap-2">
                                       <span className={`font-bold text-lg ${maxProb >= 80 ? 'text-emerald-400' : maxProb >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
                                         {maxProb}%
@@ -576,18 +578,20 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                                   </div>
                                 </div>
                               </div>
-                              <div className={`relative group ${actionColor} hover:scale-105 transition-all duration-300 text-white px-10 py-5 rounded-2xl font-bold text-2xl shadow-2xl cursor-pointer overflow-hidden`}>
-                                {/* Animated background */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                                <span className="relative z-10">{actionText}</span>
+                              <div className="flex-shrink-0 self-start lg:self-center">
+                                <div className={`relative group ${actionColor} hover:scale-105 transition-all duration-300 text-white px-10 py-5 rounded-2xl font-bold text-2xl shadow-2xl cursor-pointer overflow-hidden text-center min-w-[120px]`}>
+                                  {/* Animated background */}
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                                  <span className="relative z-10">{actionText}</span>
+                                </div>
                               </div>
                             </div>
                             
                             {/* Enhanced Confidence Visualization */}
-                            <div className="space-y-4">
-                              <div className="flex justify-between items-center">
-                                <span className="text-slate-300 font-medium">Signal Strength Analysis</span>
-                                <div className="flex items-center gap-2">
+                            <div className="space-y-6">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <span className="text-slate-300 font-medium text-center sm:text-left">Signal Strength Analysis</span>
+                                <div className="flex items-center justify-center sm:justify-end gap-2">
                                   {[...Array(5)].map((_, i) => (
                                     <div
                                       key={i}
@@ -621,15 +625,15 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
                                   </div>
                                 </div>
-                                <div className="flex justify-between mt-2 text-xs text-slate-400">
+                                <div className="flex justify-between items-center mt-3 text-xs text-slate-400">
                                   <span>0%</span>
-                                  <span className="font-medium">{maxProb}% Confidence</span>
+                                  <span className="font-medium text-center px-2">{maxProb}% Confidence</span>
                                   <span>100%</span>
                                 </div>
                               </div>
                               
                               {/* Confidence interpretation */}
-                              <div className={`mt-4 p-4 rounded-xl border ${
+                              <div className={`p-4 rounded-xl border text-center ${
                                 maxProb >= 80 ? 'bg-emerald-500/10 border-emerald-500/30' : 
                                 maxProb >= 60 ? 'bg-yellow-500/10 border-yellow-500/30' : 
                                 'bg-red-500/10 border-red-500/30'
