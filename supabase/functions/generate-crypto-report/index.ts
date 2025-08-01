@@ -158,70 +158,119 @@ async function fetchCMCData(symbol: string) {
 
 async function generateProfessionalReport(coin: 'BTC' | 'ETH') {
   try {
-    console.log(`Fetching market data for ${coin}...`);
+    console.log(`Fetching comprehensive market data for ${coin}...`);
     const marketData = await fetchCMCData(coin);
     
-    console.log(`Generating AI analysis for ${coin}...`);
+    // Enhanced market analysis calculations
+    const volatilityScore = Math.abs(marketData.percentChange7d) + Math.abs(marketData.percentChange24h);
+    const momentumScore = (marketData.percentChange1h + marketData.percentChange24h + marketData.percentChange7d) / 3;
+    const volumeStrength = marketData.volume24h / marketData.marketCap * 100; // Volume to market cap ratio
+    const marketDirection = momentumScore > 2 ? 'strong_bullish' : momentumScore > 0 ? 'bullish' : momentumScore > -2 ? 'neutral' : momentumScore > -5 ? 'bearish' : 'strong_bearish';
+    
+    // Dynamic confidence scoring based on multiple factors
+    const baseConfidence = 65;
+    const volumeConfidence = Math.min(volumeStrength * 2, 15); // Higher volume = higher confidence
+    const trendConfidence = Math.abs(momentumScore) > 3 ? 10 : Math.abs(momentumScore) > 1 ? 5 : 0;
+    const volatilityPenalty = volatilityScore > 15 ? -10 : volatilityScore > 8 ? -5 : 0;
+    const timeConsistency = Math.sign(marketData.percentChange1h) === Math.sign(marketData.percentChange24h) && Math.sign(marketData.percentChange24h) === Math.sign(marketData.percentChange7d) ? 8 : 0;
+    
+    const dynamicConfidence = Math.max(45, Math.min(95, baseConfidence + volumeConfidence + trendConfidence + volatilityPenalty + timeConsistency + Math.random() * 5));
+    
+    console.log(`Generating institution-grade AI analysis for ${coin}...`);
     const prompt = `
-You are a professional cryptocurrency analyst with 10+ years of experience. Based on the following real-time market data for ${marketData.name} (${coin}), provide a comprehensive 7-day trading report in JSON format.
+You are a senior quantitative analyst at a tier-1 institutional trading firm with 15+ years of experience in crypto markets. Based on the comprehensive market data below, provide a multi-directional institutional-grade analysis for ${marketData.name} (${coin}).
 
-IMPORTANT: This report should focus on a 7-day (1 week) trading timeframe with realistic targets.
-
-Market Data:
+MARKET DATA ANALYSIS:
 - Current Price: $${marketData.price.toFixed(2)}
-- Market Cap: $${marketData.marketCap.toLocaleString()}
-- 24h Volume: $${marketData.volume24h.toLocaleString()}
+- Market Cap: $${marketData.marketCap.toLocaleString()} (${(marketData.marketCap/1e9).toFixed(1)}B)
+- 24h Volume: $${marketData.volume24h.toLocaleString()} (${volumeStrength.toFixed(2)}% of market cap)
+- Volume Strength: ${volumeStrength > 3 ? 'STRONG' : volumeStrength > 1 ? 'MODERATE' : 'WEAK'}
 - 1h Change: ${marketData.percentChange1h.toFixed(2)}%
 - 24h Change: ${marketData.percentChange24h.toFixed(2)}%
 - 7d Change: ${marketData.percentChange7d.toFixed(2)}%
 - 30d Change: ${marketData.percentChange30d.toFixed(2)}%
-- Circulating Supply: ${marketData.circulatingSupply.toLocaleString()}
+- Momentum Score: ${momentumScore.toFixed(2)} (${marketDirection})
+- Volatility Score: ${volatilityScore.toFixed(2)} (${volatilityScore > 15 ? 'HIGH' : volatilityScore > 8 ? 'MEDIUM' : 'LOW'})
+- Supply Data: ${marketData.circulatingSupply.toLocaleString()} / ${marketData.totalSupply?.toLocaleString() || 'N/A'} ${marketData.maxSupply ? '/ ' + marketData.maxSupply.toLocaleString() : ''}
 
-CRITICAL INSTRUCTIONS:
-1. Return ONLY valid JSON without any markdown formatting or code blocks
-2. All numerical values must be realistic based on current price: $${marketData.price.toFixed(2)}
-3. Support/resistance levels should be within ±15% of current price
-4. Take profit targets should be realistic for 7-day timeframe (typically 3-8% moves)
-5. Target timeframe must be "7 days" or "1 week"
+CRITICAL ANALYSIS REQUIREMENTS:
+1. MULTI-DIRECTIONAL SIGNALS: Provide both bullish and bearish scenarios with specific triggers
+2. ADAPTIVE ANALYSIS: Analysis must reflect current market momentum (${marketDirection})
+3. INSTITUTION-GRADE: Include quantitative metrics, risk-adjusted returns, and probabilistic outcomes
+4. DYNAMIC CONFIDENCE: Your confidence score should be ${Math.round(dynamicConfidence)} (±3 based on analysis depth)
+5. COMPREHENSIVE DATA POINTS: Integrate volume profile, momentum indicators, and supply dynamics
 
-Please provide analysis in this EXACT JSON structure (no markdown):
+Return analysis in this JSON structure (NO MARKDOWN):
 {
-  "summary": "Comprehensive 2-3 sentence executive summary focusing on 7-day outlook",
-  "confidence": ${Math.floor(70 + Math.random() * 20)},
+  "summary": "Institution-grade executive summary covering both bullish and bearish scenarios with specific probability assessments and key market drivers for 7-day outlook",
+  "confidence": ${Math.round(dynamicConfidence)},
+  "market_direction": "${marketDirection}",
   "analysis": {
     "technical": {
-      "trend": "${marketData.percentChange7d >= 0 ? 'bullish' : marketData.percentChange7d >= -5 ? 'neutral' : 'bearish'}",
-      "support_levels": [${(marketData.price * 0.97).toFixed(2)}, ${(marketData.price * 0.94).toFixed(2)}, ${(marketData.price * 0.91).toFixed(2)}],
-      "resistance_levels": [${(marketData.price * 1.03).toFixed(2)}, ${(marketData.price * 1.06).toFixed(2)}, ${(marketData.price * 1.09).toFixed(2)}],
-      "indicators": ["RSI indicates ${marketData.percentChange24h > 0 ? 'momentum building' : 'oversold conditions'}", "Moving averages show ${marketData.percentChange7d > 0 ? 'upward trend' : 'consolidation'}", "Volume analysis suggests ${marketData.volume24h > 1000000000 ? 'strong interest' : 'moderate activity'}", "${marketData.percentChange1h > 0 ? 'Short-term bullish momentum' : 'Short-term consolidation'}"]
+      "primary_trend": "${marketDirection}",
+      "support_levels": "Calculate 3 dynamic support levels based on recent volume nodes and Fibonacci retracements",
+      "resistance_levels": "Calculate 3 dynamic resistance levels based on volume profile and momentum",
+      "key_indicators": "Include RSI overbought/oversold levels, MACD divergence, volume weighted moving averages, and momentum oscillators",
+      "breakout_scenarios": "Define specific price levels for bullish and bearish breakouts with probability estimates"
     },
     "fundamental": {
-      "strengths": ["${coin === 'BTC' ? 'Store of value narrative strengthening' : 'Leading smart contract platform'}", "${coin === 'BTC' ? 'Institutional adoption accelerating' : 'Ethereum 2.0 upgrade benefits'}", "${coin === 'BTC' ? 'Fixed supply cap creates scarcity' : 'DeFi ecosystem dominance'}", "${coin === 'BTC' ? 'Global monetary hedge properties' : 'NFT marketplace leadership'}", "Strong developer community and network effects"],
-      "weaknesses": ["Regulatory uncertainty in major markets", "${coin === 'BTC' ? 'Energy consumption concerns' : 'High gas fees during congestion'}", "${coin === 'BTC' ? 'Limited smart contract functionality' : 'Competition from newer blockchains'}", "Market volatility and correlation risks"],
-      "market_position": "${coin === 'BTC' ? 'Dominant digital asset with $' + (marketData.marketCap/1e12).toFixed(1) + 'T market cap, leading store of value adoption by institutions and nation-states' : 'Leading smart contract platform with $' + (marketData.marketCap/1e9).toFixed(0) + 'B market cap, powering majority of DeFi and Web3 applications'}",
-      "adoption_metrics": "${coin === 'BTC' ? 'Growing corporate treasury adoption, Lightning Network expansion' : 'Active developer ecosystem, increasing dApp usage'}", 
-      "competitive_position": "${coin === 'BTC' ? 'First-mover advantage with unmatched brand recognition and institutional trust' : 'Market leader in smart contracts with extensive ecosystem and developer tools'}"
+      "macro_environment": "Current macroeconomic conditions affecting crypto markets",
+      "institutional_flow": "Analysis of institutional buying/selling pressure and on-chain metrics",
+      "network_health": "Transaction fees, active addresses, network utilization for ${coin}",
+      "competitive_landscape": "Position relative to other cryptocurrencies and market share dynamics",
+      "catalysts": "Upcoming events, upgrades, or market developments that could impact price"
     },
     "sentiment": {
-      "overall": "${marketData.percentChange7d >= 2 ? 'bullish' : marketData.percentChange7d >= -2 ? 'neutral' : 'bearish'}",
-      "factors": ["${marketData.percentChange24h > 0 ? 'Positive 24h momentum' : 'Recent price consolidation'}", "${marketData.percentChange7d > 0 ? 'Weekly uptrend' : 'Weekly correction'}", "Market uncertainty"],
-      "risk_level": "${Math.abs(marketData.percentChange7d) > 10 ? 'high' : Math.abs(marketData.percentChange7d) > 5 ? 'medium' : 'low'}"
+      "market_sentiment": "Overall market mood based on volume, volatility, and price action",
+      "fear_greed_analysis": "Current fear/greed level and historical context",
+      "social_metrics": "Correlation with social sentiment and retail vs institutional interest",
+      "options_flow": "Derivatives market signals and positioning",
+      "contrarian_indicators": "Signals suggesting potential trend reversal"
+    },
+    "multi_directional_signals": {
+      "bullish_scenario": {
+        "probability": "Percentage likelihood based on current data",
+        "triggers": "Specific price levels or events that would confirm bullish bias",
+        "targets": "Conservative, moderate, and aggressive upside targets",
+        "timeframe": "Expected duration for bullish scenario to play out",
+        "risk_factors": "What could invalidate the bullish thesis"
+      },
+      "bearish_scenario": {
+        "probability": "Percentage likelihood based on current data", 
+        "triggers": "Specific price levels or events that would confirm bearish bias",
+        "targets": "Conservative, moderate, and aggressive downside targets",
+        "timeframe": "Expected duration for bearish scenario to play out",
+        "risk_factors": "What could invalidate the bearish thesis"
+      },
+      "neutral_scenario": {
+        "probability": "Percentage likelihood of sideways consolidation",
+        "range": "Expected trading range for consolidation phase",
+        "duration": "How long consolidation might last",
+        "breakout_catalysts": "Events that could end the consolidation"
+      }
     }
   },
-  "targets": {
-    "take_profit_1": ${(marketData.price * (1 + (marketData.percentChange7d > 0 ? 0.035 : 0.025))).toFixed(2)},
-    "take_profit_2": ${(marketData.price * (1 + (marketData.percentChange7d > 0 ? 0.055 : 0.045))).toFixed(2)},
-    "take_profit_3": ${(marketData.price * (1 + (marketData.percentChange7d > 0 ? 0.075 : 0.065))).toFixed(2)},
-    "stop_loss": ${(marketData.price * (1 - (marketData.percentChange7d > 0 ? 0.05 : 0.04))).toFixed(2)},
-    "target_timeframe": "7 days"
+  "quantitative_metrics": {
+    "sharpe_ratio_estimate": "Risk-adjusted return expectation for 7-day period",
+    "max_drawdown_probability": "Likelihood and magnitude of potential drawdowns",
+    "volatility_forecast": "Expected volatility range for next 7 days",
+    "correlation_factors": "Key market correlations affecting price movement"
   },
-  "risk_management": {
-    "position_size": "${Math.abs(marketData.percentChange7d) > 10 ? '1-3% of portfolio' : '2-5% of portfolio'}",
-    "risk_reward_ratio": "1:${marketData.percentChange7d > 0 ? '2.5' : '2'}",
-    "max_drawdown": "${Math.abs(marketData.percentChange7d) > 10 ? '8-12%' : '5-8%'}"
+  "execution_strategy": {
+    "entry_zones": "Optimal entry points for both long and short positions",
+    "position_sizing": "Risk-based position sizing recommendations",
+    "stop_loss_strategy": "Dynamic stop-loss levels for risk management",
+    "profit_taking": "Systematic profit-taking approach with specific levels",
+    "hedging_options": "Derivative strategies for risk mitigation"
+  },
+  "risk_assessment": {
+    "tail_risks": "Low probability, high impact events to monitor",
+    "correlation_risks": "Risk of increased correlation with traditional markets",
+    "liquidity_risks": "Potential liquidity concerns during volatile periods",
+    "regulatory_risks": "Upcoming regulatory decisions that could impact price",
+    "technical_risks": "Network or protocol-specific risks for ${coin}"
   }
-}
-`;
+}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -234,12 +283,12 @@ Please provide analysis in this EXACT JSON structure (no markdown):
         messages: [
           { 
             role: 'system', 
-            content: 'You are a professional cryptocurrency analyst with 10+ years of experience in technical analysis, fundamental analysis, and risk management. Provide detailed, actionable insights.' 
+            content: 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments.' 
           },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3,
-        max_tokens: 2000
+        temperature: 0.2,
+        max_tokens: 4000
       }),
     });
 

@@ -14,22 +14,62 @@ interface CryptoReportData {
   prediction_summary: string;
   confidence_score: number;
   report_data: {
+    summary: string;
+    confidence: number;
+    market_direction?: string;
     analysis: {
       technical: {
-        trend: string;
-        support_levels: number[];
-        resistance_levels: number[];
-        indicators: string[];
+        trend?: string;
+        primary_trend?: string;
+        support_levels: number[] | string;
+        resistance_levels: number[] | string;
+        indicators: string[] | string;
+        key_indicators?: string;
+        breakout_scenarios?: string;
       };
       fundamental: {
         strengths: string[];
         weaknesses: string[];
         market_position: string;
+        adoption_metrics?: string;
+        competitive_position?: string;
+        macro_environment?: string;
+        institutional_flow?: string;
+        network_health?: string;
+        competitive_landscape?: string;
+        catalysts?: string;
       };
       sentiment: {
         overall: string;
         factors: string[];
         risk_level: string;
+        market_sentiment?: string;
+        fear_greed_analysis?: string;
+        social_metrics?: string;
+        options_flow?: string;
+        contrarian_indicators?: string;
+      };
+      multi_directional_signals?: {
+        bullish_scenario: {
+          probability: string;
+          triggers: string;
+          targets: string;
+          timeframe: string;
+          risk_factors: string;
+        };
+        bearish_scenario: {
+          probability: string;
+          triggers: string;
+          targets: string;
+          timeframe: string;
+          risk_factors: string;
+        };
+        neutral_scenario: {
+          probability: string;
+          range: string;
+          duration: string;
+          breakout_catalysts: string;
+        };
       };
     };
     targets: {
@@ -44,11 +84,33 @@ interface CryptoReportData {
       risk_reward_ratio: string;
       max_drawdown: string;
     };
+    quantitative_metrics?: {
+      sharpe_ratio_estimate: string;
+      max_drawdown_probability: string;
+      volatility_forecast: string;
+      correlation_factors: string;
+    };
+    execution_strategy?: {
+      entry_zones: string;
+      position_sizing: string;
+      stop_loss_strategy: string;
+      profit_taking: string;
+      hedging_options: string;
+    };
+    risk_assessment?: {
+      tail_risks: string;
+      correlation_risks: string;
+      liquidity_risks: string;
+      regulatory_risks: string;
+      technical_risks: string;
+    };
     market_data: {
       price: number;
       percentChange24h: number;
       volume24h: number;
       marketCap: number;
+      name?: string;
+      symbol?: string;
     };
     timestamp: string;
     coin: string;
@@ -317,11 +379,18 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                       Support Levels
                     </h4>
                     <div className="space-y-2">
-                      {report.report_data.analysis.technical.support_levels?.map((level, index) => (
-                        <div key={index} className="text-sm bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200 font-medium text-green-800">
-                          {formatCurrency(level)}
-                        </div>
-                      ))}
+                      {Array.isArray(report.report_data.analysis.technical.support_levels) ? 
+                        report.report_data.analysis.technical.support_levels.map((level, index) => (
+                          <div key={index} className="text-sm bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200 font-medium text-green-800">
+                            {formatCurrency(level)}
+                          </div>
+                        )) : (
+                          <div className="text-sm bg-gradient-to-r from-green-50 to-green-100 p-3 rounded-lg border border-green-200 font-medium text-green-800">
+                            {typeof report.report_data.analysis.technical.support_levels === 'string' ? 
+                              report.report_data.analysis.technical.support_levels : 'No support levels available'}
+                          </div>
+                        )
+                      }
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -330,11 +399,18 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                       Resistance Levels
                     </h4>
                     <div className="space-y-2">
-                      {report.report_data.analysis.technical.resistance_levels?.map((level, index) => (
-                        <div key={index} className="text-sm bg-gradient-to-r from-red-50 to-red-100 p-3 rounded-lg border border-red-200 font-medium text-red-800">
-                          {formatCurrency(level)}
-                        </div>
-                      ))}
+                      {Array.isArray(report.report_data.analysis.technical.resistance_levels) ? 
+                        report.report_data.analysis.technical.resistance_levels.map((level, index) => (
+                          <div key={index} className="text-sm bg-gradient-to-r from-red-50 to-red-100 p-3 rounded-lg border border-red-200 font-medium text-red-800">
+                            {formatCurrency(level)}
+                          </div>
+                        )) : (
+                          <div className="text-sm bg-gradient-to-r from-red-50 to-red-100 p-3 rounded-lg border border-red-200 font-medium text-red-800">
+                            {typeof report.report_data.analysis.technical.resistance_levels === 'string' ? 
+                              report.report_data.analysis.technical.resistance_levels : 'No resistance levels available'}
+                          </div>
+                        )
+                      }
                     </div>
                   </div>
                 </div>
@@ -342,12 +418,139 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                   <div className="mt-3">
                     <h4 className="text-sm font-medium mb-2">Key Indicators</h4>
                     <div className="space-y-1">
-                      {report.report_data.analysis.technical.indicators.map((indicator, index) => (
-                        <div key={index} className="text-sm text-muted-foreground">• {indicator}</div>
-                      ))}
+                      {Array.isArray(report.report_data.analysis.technical.indicators) ? 
+                        report.report_data.analysis.technical.indicators.map((indicator, index) => (
+                          <div key={index} className="text-sm text-muted-foreground">• {indicator}</div>
+                        )) : (
+                          <div className="text-sm text-muted-foreground">
+                            {typeof report.report_data.analysis.technical.indicators === 'string' ? 
+                              report.report_data.analysis.technical.indicators : 'No indicators available'}
+                          </div>
+                        )
+                      }
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Multi-Directional Signals - Institution Grade */}
+            {report.report_data.analysis?.multi_directional_signals && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-800">Multi-Directional Market Signals</h3>
+                  {report.report_data.market_direction && (
+                    <Badge variant="outline" className="text-xs bg-blue-100">
+                      Direction: {report.report_data.market_direction.replace('_', ' ').toUpperCase()}
+                    </Badge>
+                  )}
+                </div>
+                
+                <div className="grid md:grid-cols-3 gap-4">
+                  {/* Bullish Scenario */}
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <h4 className="font-semibold text-green-800">Bullish Scenario</h4>
+                      <Badge className="bg-green-100 text-green-800 text-xs">
+                        {report.report_data.analysis.multi_directional_signals.bullish_scenario.probability}
+                      </Badge>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="font-medium text-green-700">Triggers:</span>
+                        <p className="text-green-600 mt-1">{report.report_data.analysis.multi_directional_signals.bullish_scenario.triggers}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-700">Targets:</span>
+                        <p className="text-green-600 mt-1">{report.report_data.analysis.multi_directional_signals.bullish_scenario.targets}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bearish Scenario */}
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                      <h4 className="font-semibold text-red-800">Bearish Scenario</h4>
+                      <Badge className="bg-red-100 text-red-800 text-xs">
+                        {report.report_data.analysis.multi_directional_signals.bearish_scenario.probability}
+                      </Badge>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="font-medium text-red-700">Triggers:</span>
+                        <p className="text-red-600 mt-1">{report.report_data.analysis.multi_directional_signals.bearish_scenario.triggers}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-red-700">Targets:</span>
+                        <p className="text-red-600 mt-1">{report.report_data.analysis.multi_directional_signals.bearish_scenario.targets}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Neutral Scenario */}
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className="h-4 w-4 text-yellow-600" />
+                      <h4 className="font-semibold text-yellow-800">Neutral Scenario</h4>
+                      <Badge className="bg-yellow-100 text-yellow-800 text-xs">
+                        {report.report_data.analysis.multi_directional_signals.neutral_scenario.probability}
+                      </Badge>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="font-medium text-yellow-700">Range:</span>
+                        <p className="text-yellow-600 mt-1">{report.report_data.analysis.multi_directional_signals.neutral_scenario.range}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-yellow-700">Duration:</span>
+                        <p className="text-yellow-600 mt-1">{report.report_data.analysis.multi_directional_signals.neutral_scenario.duration}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quantitative Metrics */}
+            {report.report_data.quantitative_metrics && (
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <BarChart3 className="h-5 w-5 text-slate-600" />
+                  <h3 className="font-semibold text-slate-800">Quantitative Metrics</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-slate-700">Sharpe Ratio:</span>
+                    <p className="text-slate-600 mt-1">{report.report_data.quantitative_metrics.sharpe_ratio_estimate}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Volatility Forecast:</span>
+                    <p className="text-slate-600 mt-1">{report.report_data.quantitative_metrics.volatility_forecast}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Execution Strategy */}
+            {report.report_data.execution_strategy && (
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold text-purple-800">Execution Strategy</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-purple-700">Entry Zones:</span>
+                    <p className="text-purple-600 mt-1">{report.report_data.execution_strategy.entry_zones}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-purple-700">Hedging Options:</span>
+                    <p className="text-purple-600 mt-1">{report.report_data.execution_strategy.hedging_options}</p>
+                  </div>
+                </div>
               </div>
             )}
 
