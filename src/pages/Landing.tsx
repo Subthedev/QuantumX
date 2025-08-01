@@ -239,7 +239,7 @@ const Landing = () => {
           </Link>
           <div className="mt-6 flex items-center justify-center gap-2 text-sm opacity-80">
             <CheckCircle className="h-4 w-4" />
-            <span>Free forever • No hidden fees • Professional grade</span>
+            <span>Free • No hidden fees • Professional grade</span>
           </div>
         </div>
       </section>
