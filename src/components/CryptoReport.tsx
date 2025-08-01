@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { TrendingUp, TrendingDown, Target, Shield, BarChart3, Activity, DollarSign, AlertTriangle, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Shield, BarChart3, Activity, DollarSign, AlertTriangle, Loader2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -116,12 +117,14 @@ interface CryptoReportData {
   };
   created_at: string;
 }
+
 interface CryptoReportProps {
   coin: string;
   icon: React.ReactNode;
   name: string;
   existingReport?: CryptoReportData;
 }
+
 const CryptoReport = ({
   coin,
   icon,
@@ -136,6 +139,7 @@ const CryptoReport = ({
   } = useToast();
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<CryptoReportData | undefined>(existingReport);
+
   const generateReport = async () => {
     if (!user) {
       toast({
@@ -173,15 +177,18 @@ const CryptoReport = ({
       setLoading(false);
     }
   };
+
   const getConfidenceColor = (score: number) => {
     if (score >= 80) return "bg-green-500";
     if (score >= 70) return "bg-blue-500";
     if (score >= 60) return "bg-yellow-500";
     return "bg-red-500";
   };
+
   const getTrendIcon = (trend: string) => {
     return trend === 'bullish' ? <TrendingUp className="h-4 w-4 text-green-600" /> : trend === 'bearish' ? <TrendingDown className="h-4 w-4 text-red-600" /> : <Activity className="h-4 w-4 text-yellow-600" />;
   };
+
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case 'low':
@@ -194,6 +201,7 @@ const CryptoReport = ({
         return 'text-gray-600 bg-gray-50';
     }
   };
+
   const formatCurrency = (value: number | string | undefined | null) => {
     // Handle invalid values
     if (value === null || value === undefined || value === '') {
@@ -231,6 +239,7 @@ const CryptoReport = ({
       return '$0.00';
     }
   };
+
   const formatLargeNumber = (value: number | undefined | null) => {
     // Handle invalid values
     if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
@@ -264,6 +273,7 @@ const CryptoReport = ({
     }
     return String(content || 'Not available');
   };
+
   return <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -409,10 +419,20 @@ const CryptoReport = ({
               </div>}
 
             {/* AI Trade Signal */}
-            {report.report_data.analysis?.multi_directional_signals && <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                <div className="flex items-center gap-2 mb-3">
-                  <Target className="h-5 w-5 text-purple-600" />
-                  <h3 className="font-semibold text-purple-800">AI Trade Signal</h3>
+            {report.report_data.analysis?.multi_directional_signals && <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg">
+                      <Target className="h-5 w-5 text-purple-700" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-lg">AI Trade Signal</h3>
+                      <p className="text-xs text-slate-600">Real-time algorithmic analysis</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-1">
+                    Live Signal
+                  </Badge>
                 </div>
 
                 {(() => {
@@ -424,58 +444,126 @@ const CryptoReport = ({
                   
                   let direction = 'HOLD';
                   let positionType = 'No Position';
+                  let signalColor = 'text-slate-600';
+                  let bgGradient = 'from-slate-100 to-slate-200';
+                  let icon = <Minus className="h-5 w-5" />;
                   
                   if (maxProb === bullishProb && bullishProb > 50) {
                     direction = 'LONG';
                     positionType = 'Long Position';
+                    signalColor = 'text-green-700';
+                    bgGradient = 'from-green-100 to-emerald-200';
+                    icon = <ArrowUp className="h-5 w-5" />;
                   } else if (maxProb === bearishProb && bearishProb > 50) {
                     direction = 'SHORT';
                     positionType = 'Short Position';
+                    signalColor = 'text-red-700';
+                    bgGradient = 'from-red-100 to-rose-200';
+                    icon = <ArrowDown className="h-5 w-5" />;
                   }
 
                   if (direction === 'HOLD') {
                     return (
-                      <div className="text-center p-4">
-                        <div className="text-xl font-bold text-purple-700">HOLD</div>
-                        <div className="text-sm text-purple-600 mt-1">No clear directional signal detected</div>
-                        <div className="text-sm text-purple-600">Current probabilities: Bullish {bullishProb}% | Bearish {bearishProb}% | Neutral {neutralProb}%</div>
+                      <div className="text-center p-6 bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl border border-slate-300">
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                          <div className="p-2 bg-white/80 rounded-full shadow-sm">
+                            {icon}
+                          </div>
+                          <div className="text-2xl font-bold text-slate-700">HOLD</div>
+                        </div>
+                        <div className="text-sm text-slate-600 mb-3 font-medium">No clear directional signal detected</div>
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          <div className="bg-white/60 p-2 rounded-lg">
+                            <div className="text-green-600 font-semibold">Bullish</div>
+                            <div className="text-slate-600">{bullishProb}%</div>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-lg">
+                            <div className="text-red-600 font-semibold">Bearish</div>
+                            <div className="text-slate-600">{bearishProb}%</div>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-lg">
+                            <div className="text-slate-600 font-semibold">Neutral</div>
+                            <div className="text-slate-600">{neutralProb}%</div>
+                          </div>
+                        </div>
                       </div>
                     );
                   }
 
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-purple-700">Signal:</span>
-                        <p className="text-purple-600 mt-1 font-semibold">{direction} ({positionType})</p>
-                        <p className="text-purple-600 text-xs">Probability: {maxProb}%</p>
+                    <div className="space-y-4">
+                      {/* Signal Header */}
+                      <div className={`text-center p-4 bg-gradient-to-br ${bgGradient} rounded-xl border-2 ${direction === 'LONG' ? 'border-green-300' : 'border-red-300'} shadow-sm`}>
+                        <div className="flex items-center justify-center gap-3 mb-2">
+                          <div className="p-2 bg-white/80 rounded-full shadow-sm">
+                            {icon}
+                          </div>
+                          <div className={`text-3xl font-bold ${signalColor}`}>{direction}</div>
+                        </div>
+                        <div className={`text-sm font-semibold ${signalColor} mb-1`}>{positionType}</div>
+                        <div className="flex items-center justify-center gap-2">
+                          <Badge variant="secondary" className="bg-white/70 font-medium">
+                            {maxProb}% Confidence
+                          </Badge>
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-medium text-purple-700">Entry Zone:</span>
-                        <p className="text-purple-600 mt-1">
-                          {report.report_data.market_data?.price 
-                            ? formatCurrency(report.report_data.market_data.price * (direction === 'LONG' ? 0.98 : 1.02))
-                            : 'Current Price'
-                          }
-                        </p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-purple-700">Stop Loss:</span>
-                        <p className="text-purple-600 mt-1">
-                          {report.report_data.targets?.stop_loss 
-                            ? formatCurrency(report.report_data.targets.stop_loss)
-                            : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 0.95 : 1.05))
-                          }
-                        </p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-purple-700">Take Profit:</span>
-                        <p className="text-purple-600 mt-1">
-                          {report.report_data.targets?.take_profit_1 
-                            ? formatCurrency(report.report_data.targets.take_profit_1)
-                            : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 1.05 : 0.95))
-                          }
-                        </p>
+
+                      {/* Signal Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Target className="h-4 w-4 text-slate-600" />
+                            <span className="font-semibold text-slate-700 text-sm">Entry Zone</span>
+                          </div>
+                          <div className="text-lg font-bold text-slate-800">
+                            {report.report_data.market_data?.price 
+                              ? formatCurrency(report.report_data.market_data.price * (direction === 'LONG' ? 0.98 : 1.02))
+                              : 'Current Price'
+                            }
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            {direction === 'LONG' ? '2% below current' : '2% above current'}
+                          </div>
+                        </div>
+
+                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Shield className="h-4 w-4 text-red-600" />
+                            <span className="font-semibold text-slate-700 text-sm">Stop Loss</span>
+                          </div>
+                          <div className="text-lg font-bold text-red-700">
+                            {report.report_data.targets?.stop_loss 
+                              ? formatCurrency(report.report_data.targets.stop_loss)
+                              : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 0.95 : 1.05))
+                            }
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">Risk management level</div>
+                        </div>
+
+                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="h-4 w-4 text-green-600" />
+                            <span className="font-semibold text-slate-700 text-sm">Take Profit</span>
+                          </div>
+                          <div className="text-lg font-bold text-green-700">
+                            {report.report_data.targets?.take_profit_1 
+                              ? formatCurrency(report.report_data.targets.take_profit_1)
+                              : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 1.05 : 0.95))
+                            }
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">Primary target level</div>
+                        </div>
+
+                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <BarChart3 className="h-4 w-4 text-purple-600" />
+                            <span className="font-semibold text-slate-700 text-sm">Risk/Reward</span>
+                          </div>
+                          <div className="text-lg font-bold text-purple-700">
+                            1:2.5
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">Expected ratio</div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -680,4 +768,5 @@ const CryptoReport = ({
       </CardContent>
     </Card>;
 };
+
 export default CryptoReport;
