@@ -247,7 +247,7 @@ const Landing = () => {
       {/* Minimal Footer */}
       <footer className="bg-background border-t border-border py-12">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             {/* Logo and Description */}
             <div className="flex items-center gap-3">
               <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-24 w-24" />
@@ -258,33 +258,40 @@ const Landing = () => {
             </div>
             
             {/* Links and Social Media */}
-            <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex flex-col items-center gap-6">
+              {/* Navigation Links */}
               <div className="flex items-center gap-6 text-sm">
                 <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy
+                  Privacy Policy
                 </Link>
                 <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
-                  Terms
+                  Terms of Service
                 </Link>
                 <Link to="/disclaimer" className="text-muted-foreground hover:text-primary transition-colors">
                   Disclaimer
                 </Link>
                 <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact
+                  Contact Us
                 </a>
               </div>
               
-              {/* Social Media Icons */}
-              <div className="flex items-center gap-4">
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Twitter className="h-5 w-5" />
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Mail className="h-5 w-5" />
-                </a>
+              {/* Social Media Links */}
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-sm text-muted-foreground font-medium">Follow Us</p>
+                <div className="flex items-center gap-6">
+                  <a href="#" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                    <Twitter className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm">Twitter</span>
+                  </a>
+                  <a href="#" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                    <Instagram className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm">Instagram</span>
+                  </a>
+                  <a href="mailto:contact@ignitexagency.com" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                    <Mail className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm">Email</span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
