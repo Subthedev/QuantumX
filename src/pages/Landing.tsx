@@ -3,50 +3,28 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  TrendingUp, 
-  Shield, 
-  Brain, 
-  BarChart3, 
-  ArrowRight, 
-  Zap, 
-  Target, 
-  Activity,
-  CheckCircle,
-  Star
-} from 'lucide-react';
-
+import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star } from 'lucide-react';
 const Landing = () => {
-  const { user } = useAuth();
-
-  return (
-    <div className="min-h-screen bg-background">
+  const {
+    user
+  } = useAuth();
+  return <div className="min-h-screen bg-background">
       {/* Enhanced Navigation */}
       <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img 
-                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
-                alt="CryptoPulse AI" 
-                className="h-12 w-12" 
-              />
-              <div>
-                <h1 className="text-xl font-bold text-foreground">CryptoPulse AI</h1>
-                <p className="text-xs text-muted-foreground">Intelligent Crypto Predictions</p>
-              </div>
+              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-12 w-12" />
+              
             </div>
             
             <div className="flex items-center gap-3">
-              {user ? (
-                <Link to="/dashboard">
+              {user ? <Link to="/dashboard">
                   <Button size="sm" className="shadow-lg">
                     Dashboard
                     <ArrowRight className="ml-1 h-4 w-4" />
                   </Button>
-                </Link>
-              ) : (
-                <>
+                </Link> : <>
                   <Link to="/auth">
                     <Button variant="ghost" size="sm">Sign In</Button>
                   </Link>
@@ -56,8 +34,7 @@ const Landing = () => {
                       <ArrowRight className="ml-1 h-4 w-4" />
                     </Button>
                   </Link>
-                </>
-              )}
+                </>}
             </div>
           </div>
         </div>
@@ -273,14 +250,10 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             {/* Logo and Description */}
             <div className="flex items-center gap-3">
-              <img 
-                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
-                alt="CryptoPulse AI" 
-                className="h-10 w-10" 
-              />
+              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-10 w-10" />
               <div>
-                <div className="font-semibold text-foreground">CryptoPulse AI</div>
-                <div className="text-sm text-muted-foreground">Professional crypto predictions</div>
+                
+                
               </div>
             </div>
             
@@ -302,14 +275,10 @@ const Landing = () => {
           </div>
           
           <div className="border-t border-border mt-8 pt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              © 2024 CryptoPulse AI. Professional crypto analysis powered by artificial intelligence.
-            </p>
+            <p className="text-sm text-muted-foreground">© 2024 IgniteXagency. Professional crypto analysis powered by artificial intelligence.</p>
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
