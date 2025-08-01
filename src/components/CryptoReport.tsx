@@ -254,6 +254,27 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
     return formatCurrency(numValue);
   };
 
+  // Helper function to safely render potentially structured data
+  const renderSafeContent = (content: any): React.ReactNode => {
+    if (typeof content === 'string') {
+      return content;
+    }
+    
+    if (typeof content === 'object' && content !== null) {
+      // If it's an object, convert it to a readable format
+      if (Array.isArray(content)) {
+        return content.join(', ');
+      }
+      
+      // For objects like {moderate: "5%", aggressive: "8%", conservative: "2%"}
+      return Object.entries(content)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+    }
+    
+    return String(content || 'Not available');
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -460,11 +481,11 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     <div className="space-y-3 text-sm">
                       <div>
                         <span className="font-medium text-green-700">Triggers:</span>
-                        <p className="text-green-600 mt-1">{report.report_data.analysis.multi_directional_signals.bullish_scenario.triggers}</p>
+                        <p className="text-green-600 mt-1">{renderSafeContent(report.report_data.analysis.multi_directional_signals.bullish_scenario.triggers)}</p>
                       </div>
                       <div>
                         <span className="font-medium text-green-700">Targets:</span>
-                        <p className="text-green-600 mt-1">{report.report_data.analysis.multi_directional_signals.bullish_scenario.targets}</p>
+                        <p className="text-green-600 mt-1">{renderSafeContent(report.report_data.analysis.multi_directional_signals.bullish_scenario.targets)}</p>
                       </div>
                     </div>
                   </div>
@@ -481,11 +502,11 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     <div className="space-y-3 text-sm">
                       <div>
                         <span className="font-medium text-red-700">Triggers:</span>
-                        <p className="text-red-600 mt-1">{report.report_data.analysis.multi_directional_signals.bearish_scenario.triggers}</p>
+                        <p className="text-red-600 mt-1">{renderSafeContent(report.report_data.analysis.multi_directional_signals.bearish_scenario.triggers)}</p>
                       </div>
                       <div>
                         <span className="font-medium text-red-700">Targets:</span>
-                        <p className="text-red-600 mt-1">{report.report_data.analysis.multi_directional_signals.bearish_scenario.targets}</p>
+                        <p className="text-red-600 mt-1">{renderSafeContent(report.report_data.analysis.multi_directional_signals.bearish_scenario.targets)}</p>
                       </div>
                     </div>
                   </div>
@@ -502,11 +523,11 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     <div className="space-y-3 text-sm">
                       <div>
                         <span className="font-medium text-yellow-700">Range:</span>
-                        <p className="text-yellow-600 mt-1">{report.report_data.analysis.multi_directional_signals.neutral_scenario.range}</p>
+                        <p className="text-yellow-600 mt-1">{renderSafeContent(report.report_data.analysis.multi_directional_signals.neutral_scenario.range)}</p>
                       </div>
                       <div>
                         <span className="font-medium text-yellow-700">Duration:</span>
-                        <p className="text-yellow-600 mt-1">{report.report_data.analysis.multi_directional_signals.neutral_scenario.duration}</p>
+                        <p className="text-yellow-600 mt-1">{renderSafeContent(report.report_data.analysis.multi_directional_signals.neutral_scenario.duration)}</p>
                       </div>
                     </div>
                   </div>
@@ -524,11 +545,11 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-slate-700">Sharpe Ratio:</span>
-                    <p className="text-slate-600 mt-1">{report.report_data.quantitative_metrics.sharpe_ratio_estimate}</p>
+                    <p className="text-slate-600 mt-1">{renderSafeContent(report.report_data.quantitative_metrics.sharpe_ratio_estimate)}</p>
                   </div>
                   <div>
                     <span className="font-medium text-slate-700">Volatility Forecast:</span>
-                    <p className="text-slate-600 mt-1">{report.report_data.quantitative_metrics.volatility_forecast}</p>
+                    <p className="text-slate-600 mt-1">{renderSafeContent(report.report_data.quantitative_metrics.volatility_forecast)}</p>
                   </div>
                 </div>
               </div>
@@ -544,11 +565,11 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-purple-700">Entry Zones:</span>
-                    <p className="text-purple-600 mt-1">{report.report_data.execution_strategy.entry_zones}</p>
+                    <p className="text-purple-600 mt-1">{renderSafeContent(report.report_data.execution_strategy.entry_zones)}</p>
                   </div>
                   <div>
                     <span className="font-medium text-purple-700">Hedging Options:</span>
-                    <p className="text-purple-600 mt-1">{report.report_data.execution_strategy.hedging_options}</p>
+                    <p className="text-purple-600 mt-1">{renderSafeContent(report.report_data.execution_strategy.hedging_options)}</p>
                   </div>
                 </div>
               </div>
