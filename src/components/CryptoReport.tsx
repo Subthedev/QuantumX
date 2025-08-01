@@ -274,7 +274,6 @@ const CryptoReport = ({
               <CardDescription>{coin} Analysis</CardDescription>
             </div>
           </div>
-          {report}
         </div>
       </CardHeader>
 
