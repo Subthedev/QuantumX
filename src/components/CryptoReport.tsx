@@ -665,17 +665,34 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                               <h5 className="font-semibold text-white">Entry Strategy</h5>
                             </div>
                             <div className="space-y-3">
-                              <div>
-                                <span className="text-slate-400 text-sm block mb-1">Key Triggers:</span>
-                                <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
-                                  {direction === 'BULLISH' 
-                                    ? renderSafeContent(signals.bullish_scenario.triggers)
-                                    : direction === 'BEARISH'
-                                    ? renderSafeContent(signals.bearish_scenario.triggers)
-                                    : renderSafeContent(signals.neutral_scenario.breakout_catalysts)
-                                  }
-                                </p>
-                              </div>
+                              {report.report_data.execution_strategy?.entry_zones ? (
+                                <div>
+                                  <span className="text-slate-400 text-sm block mb-1">Entry Zones:</span>
+                                  <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                                    {renderSafeContent(report.report_data.execution_strategy.entry_zones)}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="text-slate-400 text-sm block mb-1">Entry Approach:</span>
+                                  <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                                    {direction === 'BULLISH' 
+                                      ? `Consider entering on pullbacks to support levels. Use dollar-cost averaging for large positions.`
+                                      : direction === 'BEARISH'
+                                      ? `Enter on bounces to resistance levels. Consider short positions or protective puts.`
+                                      : `Wait for breakout confirmation above/below key levels before entering.`
+                                    }
+                                  </p>
+                                </div>
+                              )}
+                              {report.report_data.execution_strategy?.position_sizing && (
+                                <div>
+                                  <span className="text-slate-400 text-sm block mb-1">Position Sizing:</span>
+                                  <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                                    {renderSafeContent(report.report_data.execution_strategy.position_sizing)}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </div>
                           
