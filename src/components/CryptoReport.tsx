@@ -430,8 +430,12 @@ const CryptoReport = ({
                     </div>
                   </div>
                 </div>
-                <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-[8px] my-[3px] mb-4">
-                  Live Signal
+                <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-[8px] my-[3px] mb-4 animate-pulse border-emerald-300 shadow-lg shadow-emerald-200/50 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 via-green-400/30 to-emerald-400/20 animate-pulse"></div>
+                  <span className="relative z-10 flex items-center gap-1">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                    Live Signal
+                  </span>
                 </Badge>
 
                 {(() => {
