@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
+import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star } from 'lucide-react';
 const Landing = () => {
   const {
     user
@@ -14,7 +14,7 @@ const Landing = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-30 w-30" />
+              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-12 w-12" />
               
             </div>
             
@@ -250,42 +250,27 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             {/* Logo and Description */}
             <div className="flex items-center gap-3">
-              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-25 w-25" />
+              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-10 w-10" />
               <div>
                 
                 
               </div>
             </div>
             
-            {/* Links and Social Media */}
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-6 text-sm">
-                <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy
-                </Link>
-                <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
-                  Terms
-                </Link>
-                <Link to="/disclaimer" className="text-muted-foreground hover:text-primary transition-colors">
-                  Disclaimer
-                </Link>
-                <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact
-                </a>
-              </div>
-              
-              {/* Social Media Icons */}
-              <div className="flex items-center gap-4">
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Twitter className="h-5 w-5" />
-                </a>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  <Mail className="h-5 w-5" />
-                </a>
-              </div>
+            {/* Links */}
+            <div className="flex items-center gap-6 text-sm">
+              <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
+                Privacy
+              </Link>
+              <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
+                Terms
+              </Link>
+              <Link to="/disclaimer" className="text-muted-foreground hover:text-primary transition-colors">
+                Disclaimer
+              </Link>
+              <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
+                Contact
+              </a>
             </div>
           </div>
           
