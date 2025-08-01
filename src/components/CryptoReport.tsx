@@ -430,9 +430,13 @@ const CryptoReport = ({
                       <p className="text-xs text-slate-600">Real-time algorithmic analysis</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-1">
-                    Live Signal
-                  </Badge>
+                  <div className="relative flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-full px-4 py-2 shadow-sm">
+                    <div className="relative flex items-center">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                      <div className="absolute w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-75"></div>
+                    </div>
+                    <span className="text-emerald-700 font-semibold text-sm tracking-wide">LIVE SIGNAL</span>
+                  </div>
                 </div>
 
                 {(() => {
