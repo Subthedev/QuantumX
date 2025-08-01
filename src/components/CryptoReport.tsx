@@ -409,10 +409,10 @@ const CryptoReport = ({
               </div>}
 
             {/* AI Trade Signal */}
-            {report.report_data.analysis?.multi_directional_signals && <div className="bg-card p-6 rounded-lg border border-border">
-                <div className="flex items-center gap-3 mb-4">
-                  <Target className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold text-lg">AI Trade Signal</h3>
+            {report.report_data.analysis?.multi_directional_signals && <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold text-purple-800">AI Trade Signal</h3>
                 </div>
 
                 {(() => {
@@ -423,96 +423,59 @@ const CryptoReport = ({
                   const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
                   
                   let direction = 'HOLD';
-                  let directionColor = 'text-muted-foreground';
-                  let bgColor = 'bg-muted';
+                  let positionType = 'No Position';
                   
-                  if (maxProb === bullishProb && bullishProb > 40) {
-                    direction = 'BUY';
-                    directionColor = 'text-green-600';
-                    bgColor = 'bg-green-50 border-green-200';
-                  } else if (maxProb === bearishProb && bearishProb > 40) {
-                    direction = 'SELL';
-                    directionColor = 'text-red-600';
-                    bgColor = 'bg-red-50 border-red-200';
+                  if (maxProb === bullishProb && bullishProb > 50) {
+                    direction = 'LONG';
+                    positionType = 'Long Position';
+                  } else if (maxProb === bearishProb && bearishProb > 50) {
+                    direction = 'SHORT';
+                    positionType = 'Short Position';
+                  }
+
+                  if (direction === 'HOLD') {
+                    return (
+                      <div className="text-center p-4">
+                        <div className="text-xl font-bold text-purple-700">HOLD</div>
+                        <div className="text-sm text-purple-600 mt-1">No clear directional signal detected</div>
+                        <div className="text-sm text-purple-600">Current probabilities: Bullish {bullishProb}% | Bearish {bearishProb}% | Neutral {neutralProb}%</div>
+                      </div>
+                    );
                   }
 
                   return (
-                    <div className="space-y-4">
-                      {/* Signal Display */}
-                      <div className={`p-4 rounded-lg ${bgColor} border`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className={`text-2xl font-bold ${directionColor}`}>{direction}</div>
-                            <div className="text-sm text-muted-foreground">Signal Strength: {maxProb}%</div>
-                          </div>
-                          <Badge className={maxProb >= 70 ? 'bg-green-500' : maxProb >= 50 ? 'bg-yellow-500' : 'bg-orange-500'}>
-                            {maxProb >= 70 ? 'Strong' : maxProb >= 50 ? 'Moderate' : 'Weak'}
-                          </Badge>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-purple-700">Signal:</span>
+                        <p className="text-purple-600 mt-1 font-semibold">{direction} ({positionType})</p>
+                        <p className="text-purple-600 text-xs">Probability: {maxProb}%</p>
                       </div>
-
-                      {/* Key Levels */}
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Entry Zone</h4>
-                          <div className="text-lg font-semibold">
-                            {report.report_data.market_data?.price 
-                              ? formatCurrency(report.report_data.market_data.price * (direction === 'BUY' ? 0.98 : direction === 'SELL' ? 1.02 : 1))
-                              : 'Current Price'
-                            }
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Stop Loss</h4>
-                          <div className="text-lg font-semibold text-red-600">
-                            {report.report_data.targets?.stop_loss 
-                              ? formatCurrency(report.report_data.targets.stop_loss)
-                              : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'BUY' ? 0.95 : 1.05))
-                            }
-                          </div>
-                        </div>
+                      <div>
+                        <span className="font-medium text-purple-700">Entry Zone:</span>
+                        <p className="text-purple-600 mt-1">
+                          {report.report_data.market_data?.price 
+                            ? formatCurrency(report.report_data.market_data.price * (direction === 'LONG' ? 0.98 : 1.02))
+                            : 'Current Price'
+                          }
+                        </p>
                       </div>
-
-                      {/* Take Profit Levels */}
-                      {report.report_data.targets && (
-                        <div>
-                          <h4 className="font-medium text-sm mb-2">Take Profit Targets</h4>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="text-center p-3 bg-green-50 rounded border border-green-200">
-                              <div className="text-xs text-green-700 font-medium">TP1</div>
-                              <div className="font-semibold text-green-800">
-                                {formatCurrency(report.report_data.targets.take_profit_1)}
-                              </div>
-                            </div>
-                            <div className="text-center p-3 bg-green-50 rounded border border-green-200">
-                              <div className="text-xs text-green-700 font-medium">TP2</div>
-                              <div className="font-semibold text-green-800">
-                                {formatCurrency(report.report_data.targets.take_profit_2)}
-                              </div>
-                            </div>
-                            <div className="text-center p-3 bg-green-50 rounded border border-green-200">
-                              <div className="text-xs text-green-700 font-medium">TP3</div>
-                              <div className="font-semibold text-green-800">
-                                {formatCurrency(report.report_data.targets.take_profit_3)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Timeframe */}
-                      <div className="p-3 bg-muted rounded border">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Timeframe:</span>
-                          <span className="text-sm">
-                            {direction === 'BUY' 
-                              ? renderSafeContent(signals.bullish_scenario.timeframe)
-                              : direction === 'SELL'
-                              ? renderSafeContent(signals.bearish_scenario.timeframe)
-                              : renderSafeContent(signals.neutral_scenario.duration)
-                            }
-                          </span>
-                        </div>
+                      <div>
+                        <span className="font-medium text-purple-700">Stop Loss:</span>
+                        <p className="text-purple-600 mt-1">
+                          {report.report_data.targets?.stop_loss 
+                            ? formatCurrency(report.report_data.targets.stop_loss)
+                            : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 0.95 : 1.05))
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-purple-700">Take Profit:</span>
+                        <p className="text-purple-600 mt-1">
+                          {report.report_data.targets?.take_profit_1 
+                            ? formatCurrency(report.report_data.targets.take_profit_1)
+                            : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 1.05 : 0.95))
+                          }
+                        </p>
                       </div>
                     </div>
                   );
