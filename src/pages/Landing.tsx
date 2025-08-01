@@ -14,7 +14,14 @@ const Landing = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-32 w-32" />
+              <img 
+                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
+                alt="CryptoPulse AI" 
+                className="h-32 w-32" 
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
+              />
               
             </div>
             
@@ -250,7 +257,13 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             {/* Logo and Description */}
             <div className="flex items-center gap-3">
-              <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="CryptoPulse AI" className="h-24 w-24" />
+              <img 
+                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
+                alt="CryptoPulse AI" 
+                className="h-24 w-24" 
+                loading="lazy"
+                decoding="async"
+              />
               <div>
                 
                 
