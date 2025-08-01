@@ -408,7 +408,7 @@ const CryptoReport = ({
                   </div>}
               </div>}
 
-            {/* Trade Recommendation */}
+            {/* Professional Trade Signal */}
             {report.report_data.analysis?.multi_directional_signals && <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-600 shadow-2xl">
                 {/* Background Pattern */}
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 opacity-50"></div>
@@ -416,218 +416,248 @@ const CryptoReport = ({
                 <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/10 rounded-full blur-2xl"></div>
                 
                 <div className="relative z-10">
-                  {/* Header */}
+                  {/* Professional Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-primary/20 rounded-xl border border-primary/30 flex-shrink-0">
                         <Target className="h-7 w-7 text-primary" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-bold text-2xl text-white">AI Trade Signal</h3>
-                        <p className="text-slate-300 text-sm">Professional Market Analysis</p>
+                        <h3 className="font-bold text-2xl text-white">Professional Trade Signal</h3>
+                        <p className="text-slate-300 text-sm">AI-Powered Market Analysis</p>
                       </div>
                     </div>
                     {report.report_data.market_direction && <div className="flex-shrink-0">
-                        <Badge className="bg-primary text-white text-sm px-4 py-2 font-semibold animate-pulse whitespace-nowrap">
-                          {report.report_data.market_direction.replace('_', ' ').toUpperCase()} BIAS
+                        <Badge className="bg-primary text-white text-sm px-4 py-2 font-semibold whitespace-nowrap">
+                          {report.report_data.market_direction.replace('_', ' ').toUpperCase()} OUTLOOK
                         </Badge>
                       </div>}
                   </div>
                 
-                  {/* Main Signal */}
+                  {/* Trade Recommendation */}
                   {(() => {
               const signals = report.report_data.analysis.multi_directional_signals;
               const bullishProb = parseInt(signals.bullish_scenario.probability.replace('%', '')) || 0;
               const bearishProb = parseInt(signals.bearish_scenario.probability.replace('%', '')) || 0;
               const neutralProb = parseInt(signals.neutral_scenario.probability.replace('%', '')) || 0;
               const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
+              
               let direction = 'NEUTRAL';
-              let directionColor = 'yellow';
-              let directionBg = 'bg-yellow-500';
-              let directionIcon = <Activity className="h-6 w-6" />;
-              let actionText = 'HOLD';
-              let actionColor = 'bg-yellow-600';
+              let actionText = 'HOLD POSITION';
+              let actionColor = 'bg-slate-600';
+              let signalColor = 'text-slate-400';
+              let signalIcon = <Activity className="h-8 w-8" />;
+              
               if (maxProb === bullishProb && bullishProb > 40) {
                 direction = 'BULLISH';
-                directionColor = 'emerald';
-                directionBg = 'bg-emerald-500';
-                directionIcon = <TrendingUp className="h-6 w-6" />;
-                actionText = 'BUY';
+                actionText = 'BUY OPPORTUNITY';
                 actionColor = 'bg-emerald-600';
+                signalColor = 'text-emerald-400';
+                signalIcon = <TrendingUp className="h-8 w-8" />;
               } else if (maxProb === bearishProb && bearishProb > 40) {
                 direction = 'BEARISH';
-                directionColor = 'red';
-                directionBg = 'bg-red-500';
-                directionIcon = <TrendingDown className="h-6 w-6" />;
-                actionText = 'SELL';
+                actionText = 'SELL SIGNAL';
                 actionColor = 'bg-red-600';
+                signalColor = 'text-red-400';
+                signalIcon = <TrendingDown className="h-8 w-8" />;
               }
-              return <div className="space-y-6">
-                        {/* Signal Strength */}
-                        <div className="relative overflow-hidden bg-gradient-to-r from-slate-800/80 via-slate-750/60 to-slate-800/80 backdrop-blur-sm rounded-2xl p-8 border-2 border-slate-500/30 shadow-xl">
-                          {/* Dynamic glow effect based on confidence */}
-                          <div className={`absolute inset-0 ${maxProb >= 80 ? 'bg-emerald-500/5' : maxProb >= 60 ? 'bg-yellow-500/5' : 'bg-red-500/5'} rounded-2xl`}></div>
-                          <div className={`absolute top-0 right-0 w-24 h-24 ${maxProb >= 80 ? 'bg-emerald-500/10' : maxProb >= 60 ? 'bg-yellow-500/10' : 'bg-red-500/10'} rounded-full blur-2xl`}></div>
-                          
-                          <div className="relative z-10">
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-6 min-w-0 flex-1">
-                                <div className={`relative p-5 ${directionBg}/20 rounded-2xl border-2 border-${directionColor}-500/40 shadow-lg flex-shrink-0 self-start sm:self-center`}>
-                                  <div className={`text-${directionColor}-400 flex items-center justify-center`}>
-                                    {directionIcon}
-                                  </div>
-                                  {/* Pulse effect for high confidence */}
-                                  {maxProb >= 75 && <div className={`absolute inset-0 ${directionBg}/20 rounded-2xl animate-pulse`}></div>}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <h4 className="font-bold text-2xl text-white mb-2">
-                                    {direction} SIGNAL
-                                  </h4>
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                    <span className="text-slate-400 text-sm whitespace-nowrap">AI Confidence:</span>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`font-bold text-lg ${maxProb >= 80 ? 'text-emerald-400' : maxProb >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                        {maxProb}%
-                                      </span>
-                                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${maxProb >= 80 ? 'bg-emerald-500/20 text-emerald-400' : maxProb >= 60 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
-                                        {maxProb >= 80 ? 'STRONG' : maxProb >= 60 ? 'MODERATE' : 'WEAK'}
-                                      </div>
-                                    </div>
-                                  </div>
+
+              return <div className="space-y-8">
+                        {/* Main Signal Display */}
+                        <div className="bg-gradient-to-r from-slate-800/90 to-slate-700/90 backdrop-blur-sm rounded-2xl p-8 border border-slate-500/50">
+                          <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+                            {/* Signal Information */}
+                            <div className="flex items-center gap-6 flex-1">
+                              <div className="p-4 bg-slate-700/50 rounded-2xl border border-slate-600">
+                                <div className={signalColor}>
+                                  {signalIcon}
                                 </div>
                               </div>
-                              <div className="flex-shrink-0 self-start lg:self-center">
-                                <div className={`relative group ${actionColor} hover:scale-105 transition-all duration-300 text-white px-10 py-5 rounded-2xl font-bold text-2xl shadow-2xl cursor-pointer overflow-hidden text-center min-w-[120px]`}>
-                                  {/* Animated background */}
-                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                                  <span className="relative z-10">{actionText}</span>
+                              <div className="text-center lg:text-left">
+                                <h4 className="text-3xl font-bold text-white mb-2">{direction}</h4>
+                                <div className="flex items-center gap-3 justify-center lg:justify-start">
+                                  <span className="text-slate-300">Confidence:</span>
+                                  <span className={`text-2xl font-bold ${maxProb >= 75 ? 'text-emerald-400' : maxProb >= 60 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                                    {maxProb}%
+                                  </span>
+                                  <Badge className={`${maxProb >= 75 ? 'bg-emerald-600' : maxProb >= 60 ? 'bg-yellow-600' : 'bg-orange-600'} text-white font-semibold`}>
+                                    {maxProb >= 75 ? 'HIGH' : maxProb >= 60 ? 'MEDIUM' : 'MODERATE'}
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
                             
-                            {/* Enhanced Confidence Visualization */}
-                            <div className="space-y-6">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <span className="text-slate-300 font-medium text-center sm:text-left">Signal Strength Analysis</span>
-                                <div className="flex items-center justify-center sm:justify-end gap-2">
-                                  {[...Array(5)].map((_, i) => <div key={i} className={`w-3 h-3 rounded-full transition-all duration-500 ${i < Math.floor(maxProb / 20) ? maxProb >= 80 ? 'bg-emerald-500 shadow-emerald-500/50 shadow-md' : maxProb >= 60 ? 'bg-yellow-500 shadow-yellow-500/50 shadow-md' : 'bg-red-500 shadow-red-500/50 shadow-md' : 'bg-slate-600'}`}></div>)}
-                                </div>
+                            {/* Action Button */}
+                            <div className="flex-shrink-0">
+                              <div className={`${actionColor} hover:scale-105 transition-all duration-300 text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg cursor-pointer text-center min-w-[180px]`}>
+                                {actionText}
                               </div>
-                              
-                              {/* Multi-layered progress bar */}
-                              <div className="relative w-full">
-                                <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden shadow-inner relative">
-                                  <div className="absolute inset-0 bg-gradient-to-r from-slate-600/30 to-slate-500/30 rounded-full"></div>
-                                  <div className={`relative h-full rounded-full transition-all duration-2000 ease-out z-10 ${maxProb >= 80 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : maxProb >= 60 ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' : 'bg-gradient-to-r from-red-600 to-red-400'} shadow-lg`} style={{
-                            width: `${Math.min(maxProb, 100)}%`,
-                            boxShadow: `0 0 10px ${maxProb >= 80 ? '#10b981' : maxProb >= 60 ? '#f59e0b' : '#ef4444'}40`
-                          }}>
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse rounded-full"></div>
-                                  </div>
-                                </div>
-                                <div className="flex justify-between items-center mt-4 text-xs text-slate-400 px-1">
-                                  <span className="text-left">0%</span>
-                                  <span className="font-medium text-center bg-slate-800/50 px-3 py-1 rounded-full border border-slate-600">
-                                    {maxProb}% Confidence
-                                  </span>
-                                  <span className="text-right">100%</span>
-                                </div>
-                              </div>
-                              
-                              {/* Confidence interpretation */}
-                              <div className={`p-4 rounded-xl border text-center ${maxProb >= 80 ? 'bg-emerald-500/10 border-emerald-500/30' : maxProb >= 60 ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                                <p className={`text-sm font-medium ${maxProb >= 80 ? 'text-emerald-300' : maxProb >= 60 ? 'text-yellow-300' : 'text-red-300'}`}>
-                                  {maxProb >= 80 ? '🎯 High confidence signal - Strong trading opportunity identified' : maxProb >= 60 ? '⚠️ Moderate confidence - Proceed with careful risk management' : '🔍 Low confidence - Consider waiting for stronger signals'}
-                                </p>
-                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Confidence Bar */}
+                          <div className="mt-6">
+                            <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all duration-1000 ${maxProb >= 75 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : maxProb >= 60 ? 'bg-gradient-to-r from-yellow-600 to-yellow-400' : 'bg-gradient-to-r from-orange-600 to-orange-400'}`}
+                                style={{ width: `${Math.min(maxProb, 100)}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between mt-2 text-xs text-slate-400">
+                              <span>0%</span>
+                              <span className="font-medium">{maxProb}% AI Confidence</span>
+                              <span>100%</span>
                             </div>
                           </div>
                         </div>
                         
-                        {/* Action Plan */}
+                        {/* Trading Plan */}
                         <div className="grid md:grid-cols-2 gap-6">
-                          {/* Entry Strategy */}
-                          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-primary/20 rounded-lg">
-                                <Target className="h-5 w-5 text-primary" />
+                          {/* Smart Entry Strategy */}
+                          <div className="bg-slate-800/40 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="p-2 bg-emerald-600/20 rounded-lg">
+                                <Target className="h-5 w-5 text-emerald-400" />
                               </div>
-                              <h5 className="font-semibold text-white">Entry Strategy</h5>
+                              <h5 className="font-bold text-white text-lg">Smart Entry Plan</h5>
                             </div>
-                            <div className="space-y-3">
-                              {report.report_data.execution_strategy?.entry_zones ? <div>
-                                  <span className="text-slate-400 text-sm block mb-1">Entry Zones:</span>
-                                  <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
-                                    {renderSafeContent(report.report_data.execution_strategy.entry_zones)}
-                                  </p>
-                                </div> : <div>
-                                  <span className="text-slate-400 text-sm block mb-1">Entry Approach:</span>
-                                  <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
-                                    {direction === 'BULLISH' ? `Consider entering on pullbacks to support levels. Use dollar-cost averaging for large positions.` : direction === 'BEARISH' ? `Enter on bounces to resistance levels. Consider short positions or protective puts.` : `Wait for breakout confirmation above/below key levels before entering.`}
-                                  </p>
-                                </div>}
-                              {report.report_data.execution_strategy?.position_sizing && <div>
-                                  <span className="text-slate-400 text-sm block mb-1">Position Sizing:</span>
-                                  <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
-                                    {renderSafeContent(report.report_data.execution_strategy.position_sizing)}
-                                  </p>
-                                </div>}
+                            
+                            <div className="space-y-4">
+                              {/* Entry Price */}
+                              {report.report_data.market_data?.price && (
+                                <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-slate-300 font-medium">Optimal Entry</span>
+                                    <Badge variant="outline" className="text-emerald-400 border-emerald-400">
+                                      ACTIVE
+                                    </Badge>
+                                  </div>
+                                  <div className="text-2xl font-bold text-white">
+                                    {direction === 'BULLISH' 
+                                      ? formatCurrency(report.report_data.market_data.price * 0.98)
+                                      : direction === 'BEARISH'
+                                      ? formatCurrency(report.report_data.market_data.price * 1.02)
+                                      : formatCurrency(report.report_data.market_data.price)
+                                    }
+                                  </div>
+                                  <div className="text-sm text-slate-400 mt-1">
+                                    {direction === 'BULLISH' 
+                                      ? 'Enter on 2% pullback' 
+                                      : direction === 'BEARISH'
+                                      ? 'Enter on 2% bounce'
+                                      : 'Current market price'
+                                    }
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Position Size Recommendation */}
+                              <div className="bg-blue-600/10 p-4 rounded-lg border border-blue-500/30">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                  <span className="text-blue-300 font-medium">Position Size</span>
+                                </div>
+                                <div className="text-blue-200">
+                                  {maxProb >= 75 
+                                    ? '3-5% of portfolio' 
+                                    : maxProb >= 60 
+                                    ? '2-3% of portfolio'
+                                    : '1-2% of portfolio'
+                                  }
+                                </div>
+                              </div>
+                              
+                              {/* Risk Management */}
+                              <div className="bg-red-600/10 p-4 rounded-lg border border-red-500/30">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                  <span className="text-red-300 font-medium">Stop Loss</span>
+                                </div>
+                                <div className="text-red-200">
+                                  {report.report_data.targets?.stop_loss 
+                                    ? formatCurrency(report.report_data.targets.stop_loss)
+                                    : direction === 'BULLISH'
+                                    ? formatCurrency((report.report_data.market_data?.price || 0) * 0.95)
+                                    : formatCurrency((report.report_data.market_data?.price || 0) * 1.05)
+                                  }
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
                           {/* Price Targets */}
-                          
-                        </div>
-                        
-                        {/* Timeline & Risk */}
-                        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
-                          <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                              <div className="flex items-center gap-2 mb-3">
-                                <Activity className="h-4 w-4 text-blue-400" />
-                                <span className="font-medium text-white">Timeline</span>
+                          <div className="bg-slate-800/40 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="p-2 bg-green-600/20 rounded-lg">
+                                <DollarSign className="h-5 w-5 text-green-400" />
                               </div>
-                              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                                <span className="text-blue-300 font-medium">
-                                  {direction === 'BULLISH' ? renderSafeContent(signals.bullish_scenario.timeframe) : direction === 'BEARISH' ? renderSafeContent(signals.bearish_scenario.timeframe) : renderSafeContent(signals.neutral_scenario.duration)}
-                                </span>
-                              </div>
+                              <h5 className="font-bold text-white text-lg">Price Targets</h5>
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-3">
-                                <AlertTriangle className="h-4 w-4 text-red-400" />
-                                <span className="font-medium text-white">Risk Factors</span>
-                              </div>
-                              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                                <p className="text-red-300 text-sm">
-                                  {(() => {
-                            if (maxProb === bullishProb) {
-                              return renderSafeContent(signals.bullish_scenario.risk_factors);
-                            } else {
-                              return renderSafeContent(signals.bearish_scenario.risk_factors);
-                            }
-                          })()}
-                                </p>
+                            
+                            <div className="space-y-3">
+                              {report.report_data.targets && (
+                                <>
+                                  <div className="flex items-center justify-between p-3 bg-green-600/10 rounded-lg border border-green-500/30">
+                                    <span className="text-green-300 font-medium">Target 1</span>
+                                    <span className="text-green-200 font-bold">
+                                      {formatCurrency(report.report_data.targets.take_profit_1)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between p-3 bg-green-600/10 rounded-lg border border-green-500/30">
+                                    <span className="text-green-300 font-medium">Target 2</span>
+                                    <span className="text-green-200 font-bold">
+                                      {formatCurrency(report.report_data.targets.take_profit_2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between p-3 bg-emerald-600/10 rounded-lg border border-emerald-500/30">
+                                    <span className="text-emerald-300 font-medium">Target 3</span>
+                                    <span className="text-emerald-200 font-bold">
+                                      {formatCurrency(report.report_data.targets.take_profit_3)}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                              
+                              {/* Timeframe */}
+                              <div className="mt-4 p-3 bg-slate-700/30 rounded-lg border border-slate-600">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Activity className="h-4 w-4 text-slate-400" />
+                                  <span className="text-slate-300 font-medium">Timeframe</span>
+                                </div>
+                                <div className="text-slate-200">
+                                  {direction === 'BULLISH' 
+                                    ? renderSafeContent(signals.bullish_scenario.timeframe)
+                                    : direction === 'BEARISH'
+                                    ? renderSafeContent(signals.bearish_scenario.timeframe)
+                                    : renderSafeContent(signals.neutral_scenario.duration)
+                                  }
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
                         
-                        {/* Professional Disclaimer */}
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                          <div className="flex items-start gap-3">
-                            <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                        {/* Professional Advisory */}
+                        <div className="bg-amber-600/10 border border-amber-500/30 rounded-xl p-6">
+                          <div className="flex items-start gap-4">
+                            <div className="p-2 bg-amber-600/20 rounded-lg flex-shrink-0">
+                              <AlertTriangle className="h-5 w-5 text-amber-400" />
+                            </div>
                             <div>
-                              <p className="text-amber-200 text-sm font-medium mb-1">Professional Trading Advisory</p>
-                              <p className="text-amber-300/80 text-xs leading-relaxed">
-                                This AI-generated signal is for educational purposes. Always conduct your own research and consider your risk tolerance before trading. Past performance does not guarantee future results.
+                              <h6 className="text-amber-200 font-semibold mb-2">Professional Advisory</h6>
+                              <p className="text-amber-300/90 text-sm leading-relaxed">
+                                This analysis leverages advanced AI algorithms processing multiple market factors. 
+                                {maxProb >= 75 && " High confidence indicates strong alignment across technical, fundamental, and sentiment indicators."}
+                                {maxProb >= 60 && maxProb < 75 && " Moderate confidence suggests mixed signals - scale position accordingly."}
+                                {maxProb < 60 && " Lower confidence indicates market uncertainty - proceed with caution and smaller positions."}
+                                Always conduct independent research and never risk more than you can afford to lose.
                               </p>
                             </div>
                           </div>
                         </div>
                       </div>;
             })()}
-                </div>
+                 </div>
               </div>}
 
             {/* Quantitative Metrics */}
