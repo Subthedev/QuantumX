@@ -479,19 +479,32 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
 
             {/* Trade Recommendation */}
             {report.report_data.analysis?.multi_directional_signals && (
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-xl border-2 border-primary/30">
-                <div className="flex items-center gap-3 mb-4">
-                  <Target className="h-6 w-6 text-primary" />
-                  <h3 className="font-bold text-xl text-primary">Trade Recommendation</h3>
-                  {report.report_data.market_direction && (
-                    <Badge className="bg-primary text-white text-sm px-3 py-1">
-                      {report.report_data.market_direction.replace('_', ' ').toUpperCase()}
-                    </Badge>
-                  )}
-                </div>
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-600 shadow-2xl">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 opacity-50"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/10 rounded-full blur-2xl"></div>
                 
-                {/* Primary Direction */}
-                <div className="mb-6">
+                <div className="relative z-10">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/20 rounded-xl border border-primary/30">
+                        <Target className="h-7 w-7 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-2xl text-white">AI Trade Signal</h3>
+                        <p className="text-slate-300 text-sm">Professional Market Analysis</p>
+                      </div>
+                    </div>
+                    {report.report_data.market_direction && (
+                      <Badge className="bg-primary text-white text-sm px-4 py-2 font-semibold animate-pulse">
+                        {report.report_data.market_direction.replace('_', ' ').toUpperCase()} BIAS
+                      </Badge>
+                    )}
+                  </div>
+                
+                  {/* Main Signal */}
                   {(() => {
                     const signals = report.report_data.analysis.multi_directional_signals;
                     const bullishProb = parseInt(signals.bullish_scenario.probability.replace('%', '')) || 0;
@@ -501,109 +514,173 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
                     const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
                     let direction = 'NEUTRAL';
                     let directionColor = 'yellow';
-                    let directionIcon = <Activity className="h-5 w-5" />;
+                    let directionBg = 'bg-yellow-500';
+                    let directionIcon = <Activity className="h-6 w-6" />;
                     let actionText = 'HOLD';
+                    let actionColor = 'bg-yellow-600';
                     
                     if (maxProb === bullishProb && bullishProb > 40) {
                       direction = 'BULLISH';
-                      directionColor = 'green';
-                      directionIcon = <TrendingUp className="h-5 w-5" />;
+                      directionColor = 'emerald';
+                      directionBg = 'bg-emerald-500';
+                      directionIcon = <TrendingUp className="h-6 w-6" />;
                       actionText = 'BUY';
+                      actionColor = 'bg-emerald-600';
                     } else if (maxProb === bearishProb && bearishProb > 40) {
                       direction = 'BEARISH';
                       directionColor = 'red';
-                      directionIcon = <TrendingDown className="h-5 w-5" />;
+                      directionBg = 'bg-red-500';
+                      directionIcon = <TrendingDown className="h-6 w-6" />;
                       actionText = 'SELL';
+                      actionColor = 'bg-red-600';
                     }
                     
                     return (
-                      <div className={`bg-${directionColor}-50 border-2 border-${directionColor}-200 rounded-xl p-5`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 bg-${directionColor}-100 rounded-lg text-${directionColor}-700`}>
-                              {directionIcon}
+                      <div className="space-y-6">
+                        {/* Signal Strength */}
+                        <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                              <div className={`p-4 ${directionBg}/20 rounded-xl border border-${directionColor}-500/30`}>
+                                <div className={`text-${directionColor}-400`}>
+                                  {directionIcon}
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-xl text-white">
+                                  {direction} SIGNAL
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-slate-300 text-sm">Confidence:</span>
+                                  <span className={`font-bold text-${directionColor}-400`}>{maxProb}%</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className={`${actionColor} text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg hover:scale-105 transition-transform cursor-pointer`}>
+                              {actionText}
+                            </div>
+                          </div>
+                          
+                          {/* Confidence Bar */}
+                          <div className="mb-4">
+                            <div className="flex justify-between text-xs text-slate-400 mb-2">
+                              <span>Signal Strength</span>
+                              <span>{maxProb}%</span>
+                            </div>
+                            <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                              <div 
+                                className={`h-full ${directionBg} rounded-full transition-all duration-1000 animate-pulse`}
+                                style={{ width: `${maxProb}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Action Plan */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                          {/* Entry Strategy */}
+                          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="p-2 bg-primary/20 rounded-lg">
+                                <Target className="h-5 w-5 text-primary" />
+                              </div>
+                              <h5 className="font-semibold text-white">Entry Strategy</h5>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <span className="text-slate-400 text-sm block mb-1">Key Triggers:</span>
+                                <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                                  {direction === 'BULLISH' 
+                                    ? renderSafeContent(signals.bullish_scenario.triggers)
+                                    : direction === 'BEARISH'
+                                    ? renderSafeContent(signals.bearish_scenario.triggers)
+                                    : renderSafeContent(signals.neutral_scenario.breakout_catalysts)
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Price Targets */}
+                          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="p-2 bg-accent/20 rounded-lg">
+                                <DollarSign className="h-5 w-5 text-accent" />
+                              </div>
+                              <h5 className="font-semibold text-white">
+                                {direction === 'NEUTRAL' ? 'Expected Range' : 'Price Targets'}
+                              </h5>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <span className="text-slate-400 text-sm block mb-1">Targets:</span>
+                                <p className="text-slate-200 text-sm bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                                  {direction === 'BULLISH' 
+                                    ? renderSafeContent(signals.bullish_scenario.targets)
+                                    : direction === 'BEARISH'
+                                    ? renderSafeContent(signals.bearish_scenario.targets)
+                                    : renderSafeContent(signals.neutral_scenario.range)
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Timeline & Risk */}
+                        <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-600">
+                          <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <Activity className="h-4 w-4 text-blue-400" />
+                                <span className="font-medium text-white">Timeline</span>
+                              </div>
+                              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                                <span className="text-blue-300 font-medium">
+                                  {direction === 'BULLISH' 
+                                    ? renderSafeContent(signals.bullish_scenario.timeframe)
+                                    : direction === 'BEARISH'
+                                    ? renderSafeContent(signals.bearish_scenario.timeframe)
+                                    : renderSafeContent(signals.neutral_scenario.duration)
+                                  }
+                                </span>
+                              </div>
                             </div>
                             <div>
-                              <h4 className={`font-bold text-lg text-${directionColor}-800`}>
-                                {direction} BIAS
-                              </h4>
-                              <p className={`text-sm text-${directionColor}-600`}>
-                                Confidence: {maxProb}%
-                              </p>
+                              <div className="flex items-center gap-2 mb-3">
+                                <AlertTriangle className="h-4 w-4 text-red-400" />
+                                <span className="font-medium text-white">Risk Factors</span>
+                              </div>
+                              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                <p className="text-red-300 text-sm">
+                                  {(() => {
+                                    if (maxProb === bullishProb) {
+                                      return renderSafeContent(signals.bullish_scenario.risk_factors);
+                                    } else {
+                                      return renderSafeContent(signals.bearish_scenario.risk_factors);
+                                    }
+                                  })()}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                          <Badge className={`bg-${directionColor}-600 text-white text-lg px-4 py-2 font-bold`}>
-                            {actionText}
-                          </Badge>
                         </div>
                         
-                        {/* Key Triggers & Targets */}
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <h5 className={`font-semibold text-${directionColor}-700 mb-2`}>Key Triggers:</h5>
-                            <p className={`text-sm text-${directionColor}-600 bg-${directionColor}-100 p-3 rounded-lg`}>
-                              {direction === 'BULLISH' 
-                                ? renderSafeContent(signals.bullish_scenario.triggers)
-                                : direction === 'BEARISH'
-                                ? renderSafeContent(signals.bearish_scenario.triggers)
-                                : renderSafeContent(signals.neutral_scenario.breakout_catalysts)
-                              }
-                            </p>
-                          </div>
-                          <div>
-                            <h5 className={`font-semibold text-${directionColor}-700 mb-2`}>
-                              {direction === 'NEUTRAL' ? 'Expected Range:' : 'Price Targets:'}
-                            </h5>
-                            <p className={`text-sm text-${directionColor}-600 bg-${directionColor}-100 p-3 rounded-lg`}>
-                              {direction === 'BULLISH' 
-                                ? renderSafeContent(signals.bullish_scenario.targets)
-                                : direction === 'BEARISH'
-                                ? renderSafeContent(signals.bearish_scenario.targets)
-                                : renderSafeContent(signals.neutral_scenario.range)
-                              }
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Timeframe */}
-                        <div className="mt-4 pt-4 border-t border-current/20">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-medium text-${directionColor}-700`}>Expected Timeframe:</span>
-                            <span className={`text-${directionColor}-600 bg-${directionColor}-100 px-3 py-1 rounded-full text-sm font-medium`}>
-                              {direction === 'BULLISH' 
-                                ? renderSafeContent(signals.bullish_scenario.timeframe)
-                                : direction === 'BEARISH'
-                                ? renderSafeContent(signals.bearish_scenario.timeframe)
-                                : renderSafeContent(signals.neutral_scenario.duration)
-                              }
-                            </span>
+                        {/* Professional Disclaimer */}
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-amber-200 text-sm font-medium mb-1">Professional Trading Advisory</p>
+                              <p className="text-amber-300/80 text-xs leading-relaxed">
+                                This AI-generated signal is for educational purposes. Always conduct your own research and consider your risk tolerance before trading. Past performance does not guarantee future results.
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
                     );
                   })()}
-                </div>
-                
-                {/* Risk Factors */}
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-red-600" />
-                    <h5 className="font-semibold text-red-700">Key Risk Factors</h5>
-                  </div>
-                  <p className="text-sm text-red-600">
-                    {(() => {
-                      const signals = report.report_data.analysis.multi_directional_signals;
-                      const bullishProb = parseInt(signals.bullish_scenario.probability.replace('%', '')) || 0;
-                      const bearishProb = parseInt(signals.bearish_scenario.probability.replace('%', '')) || 0;
-                      const maxProb = Math.max(bullishProb, bearishProb);
-                      
-                      if (maxProb === bullishProb) {
-                        return renderSafeContent(signals.bullish_scenario.risk_factors);
-                      } else {
-                        return renderSafeContent(signals.bearish_scenario.risk_factors);
-                      }
-                    })()}
-                  </p>
                 </div>
               </div>
             )}
