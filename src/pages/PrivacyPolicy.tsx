@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import ignitexLogo from '@/assets/ignitex-logo.png';
+import ignitexLogo from '@/assets/ignitex-logo-pro.png';
 
 const PrivacyPolicy = () => {
   return (

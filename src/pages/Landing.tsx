@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
-import ignitexLogo from '@/assets/ignitex-logo.png';
+import ignitexLogo from '@/assets/ignitex-logo-pro.png';
 const Landing = () => {
   const {
     user
@@ -15,7 +15,15 @@ const Landing = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary-hover to-primary bg-clip-text text-transparent">
+              <img 
+                src={ignitexLogo} 
+                alt="IgniteX" 
+                className="h-8 w-8" 
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
+              />
+              <h1 className="text-xl font-bold text-foreground">
                 IgniteX
               </h1>
             </div>
@@ -255,7 +263,7 @@ const Landing = () => {
               <img 
                 src={ignitexLogo} 
                 alt="IgniteX" 
-                className="h-16 w-16" 
+                className="h-12 w-12" 
                 loading="lazy"
                 decoding="async"
               />
