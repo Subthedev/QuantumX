@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
-import ignitexLogo from '@/assets/ignitex-ai-brain-logo.png';
+import ignitexLogo from '@/assets/ignitex-orange-brain-logo.png';
 const Landing = () => {
   const {
     user
