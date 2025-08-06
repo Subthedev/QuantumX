@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import ignitexLogo from '@/assets/ignitex-logo-pro.png';
+import ignitexLogo from '@/assets/ignitex-ai-brain-logo.png';
 
 const Disclaimer = () => {
   return (
