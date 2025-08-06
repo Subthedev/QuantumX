@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
+import ignitexLogo from '@/assets/ignitex-logo.png';
 const Landing = () => {
   const {
     user
@@ -11,18 +12,12 @@ const Landing = () => {
   return <div className="min-h-screen bg-background">
       {/* Enhanced Navigation */}
       <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img 
-                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
-                alt="CryptoPulse AI" 
-                className="h-32 w-32" 
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-              />
-              
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary-hover to-primary bg-clip-text text-transparent">
+                IgniteX
+              </h1>
             </div>
             
             <div className="flex items-center gap-3">
@@ -258,15 +253,15 @@ const Landing = () => {
             {/* Logo and Description */}
             <div className="flex items-center gap-3">
               <img 
-                src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
-                alt="CryptoPulse AI" 
-                className="h-24 w-24" 
+                src={ignitexLogo} 
+                alt="IgniteX" 
+                className="h-16 w-16" 
                 loading="lazy"
                 decoding="async"
               />
               <div>
-                
-                
+                <h3 className="text-xl font-bold text-foreground">IgniteX</h3>
+                <p className="text-sm text-muted-foreground">Professional crypto analysis</p>
               </div>
             </div>
             
@@ -310,7 +305,7 @@ const Landing = () => {
           </div>
           
           <div className="border-t border-border mt-8 pt-6 text-center">
-            <p className="text-sm text-muted-foreground">© 2024 IgniteXagency. Professional crypto analysis powered by artificial intelligence.</p>
+            <p className="text-sm text-muted-foreground">© 2024 IgniteX. Professional crypto analysis powered by artificial intelligence.</p>
           </div>
         </div>
       </footer>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import ignitexLogo from '@/assets/ignitex-logo.png';
 
 const Disclaimer = () => {
   return (
@@ -10,8 +11,8 @@ const Disclaimer = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" alt="Logo" className="h-8 w-8" />
-            
+            <img src={ignitexLogo} alt="IgniteX" className="h-8 w-8" />
+            <span className="font-bold text-lg">IgniteX</span>
           </Link>
           <Link to="/">
             <Button variant="ghost" className="flex items-center gap-2">
