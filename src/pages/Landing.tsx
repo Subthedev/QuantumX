@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
-import ignitexLogo from '@/assets/ignitex-orange-brain-logo.png';
+import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
 const Landing = () => {
   const {
     user
@@ -15,14 +15,7 @@ const Landing = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img 
-                src={ignitexLogo} 
-                alt="IgniteX" 
-                className="h-8 w-8" 
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-              />
+              <AIBrainIcon className="h-8 w-8" />
               <h1 className="text-xl font-bold text-foreground">
                 IgniteX
               </h1>
@@ -260,13 +253,7 @@ const Landing = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-8">
             {/* Logo and Description */}
             <div className="flex items-center gap-3">
-              <img 
-                src={ignitexLogo} 
-                alt="IgniteX" 
-                className="h-12 w-12" 
-                loading="lazy"
-                decoding="async"
-              />
+              <AIBrainIcon size="lg" className="h-12 w-12" />
               <div>
                 <h3 className="text-xl font-bold text-foreground">IgniteX</h3>
                 <p className="text-sm text-muted-foreground">Professional crypto analysis</p>
