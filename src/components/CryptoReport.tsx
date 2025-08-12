@@ -111,6 +111,23 @@ interface CryptoReportData {
       name?: string;
       symbol?: string;
     };
+    signal_4h?: {
+      timeframe: string;
+      direction: 'LONG' | 'SHORT' | 'HOLD';
+      confidence: number;
+      entry: number;
+      stop_loss: number;
+      take_profits: number[];
+      indicators: {
+        rsi14: number;
+        macd_hist: number;
+        ema50_above_ema200: boolean;
+        atr_percent: number;
+        funding_rate: number | null;
+        orderbook_imbalance_pct: number | null;
+      };
+      reasoning: string[];
+    };
     timestamp: string;
     coin: string;
   };
@@ -153,7 +170,8 @@ const CryptoReport = ({
       } = await supabase.functions.invoke('generate-crypto-report', {
         body: {
           coin: coin,
-          userId: user.id
+          userId: user.id,
+          timeframe: '4H'
         }
       });
       if (error) throw error;
@@ -320,6 +338,39 @@ const CryptoReport = ({
               </div>
               <p className="text-sm leading-relaxed">{report.prediction_summary}</p>
             </div>
+
+            {/* 4H Signal */}
+            {report.report_data?.signal_4h && (
+              <div className="bg-gradient-to-br from-secondary/20 to-secondary/30 p-4 rounded-lg border border-secondary">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">4H Signal</h3>
+                  <Badge className={`${report.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : report.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
+                    {report.report_data.signal_4h.direction} · {report.report_data.signal_4h.confidence}%
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div className="p-3 rounded-md border border-border">
+                    <div className="text-muted-foreground">Entry</div>
+                    <div className="font-semibold">${report.report_data.signal_4h.entry.toFixed(2)}</div>
+                  </div>
+                  <div className="p-3 rounded-md border border-border">
+                    <div className="text-muted-foreground">Stop Loss</div>
+                    <div className="font-semibold">${report.report_data.signal_4h.stop_loss.toFixed(2)}</div>
+                  </div>
+                  <div className="p-3 rounded-md border border-border md:col-span-2">
+                    <div className="text-muted-foreground">Take Profits</div>
+                    <div className="font-semibold">
+                      {report.report_data.signal_4h.take_profits.map((tp: number, i: number) => `$${tp.toFixed(2)}`).join(' • ')}
+                    </div>
+                  </div>
+                </div>
+                {report.report_data.signal_4h.indicators && (
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    Indicators: RSI {report.report_data.signal_4h.indicators.rsi14}, MACD hist {report.report_data.signal_4h.indicators.macd_hist}, ATR% {report.report_data.signal_4h.indicators.atr_percent}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Trading Targets */}
             {report.report_data.targets && <div>

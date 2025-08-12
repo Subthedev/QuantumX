@@ -37,6 +37,26 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    document.title = '4H Crypto Signals Dashboard | Ignitex';
+    const metaDesc = 'AI 4H crypto signals for BTC & ETH with confidence, entries, stops, and targets.';
+    let descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    if (!descTag) {
+      descTag = document.createElement('meta');
+      descTag.name = 'description';
+      document.head.appendChild(descTag);
+    }
+    descTag.content = metaDesc;
+
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = window.location.origin + '/dashboard';
+  }, []);
+
   const fetchExistingReports = async () => {
     if (!user) return;
 
@@ -137,6 +157,81 @@ const Dashboard = () => {
           <p className="text-muted-foreground">
             Generate intelligent market insights and price predictions for your favorite cryptocurrencies.
           </p>
+        </div>
+
+        {/* 4H Signal Cards */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between">
+                <span>Bitcoin 4H Signal</span>
+                {reports.BTC?.report_data?.signal_4h ? (
+                  <span className={`text-xs px-2 py-1 rounded ${reports.BTC.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : reports.BTC.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
+                    {reports.BTC.report_data.signal_4h.direction}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No signal</span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Confidence {reports.BTC?.report_data?.signal_4h?.confidence ?? 0}%
+              </CardDescription>
+            </CardHeader>
+            {reports.BTC?.report_data?.signal_4h && (
+              <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Entry</div>
+                  <div className="font-semibold">${reports.BTC.report_data.signal_4h.entry.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Stop</div>
+                  <div className="font-semibold">${reports.BTC.report_data.signal_4h.stop_loss.toFixed(2)}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-muted-foreground">TPs</div>
+                  <div className="font-semibold">
+                    {reports.BTC.report_data.signal_4h.take_profits.map((v: number) => `$${v.toFixed(2)}`).join(' • ')}
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between">
+                <span>Ethereum 4H Signal</span>
+                {reports.ETH?.report_data?.signal_4h ? (
+                  <span className={`text-xs px-2 py-1 rounded ${reports.ETH.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : reports.ETH.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
+                    {reports.ETH.report_data.signal_4h.direction}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No signal</span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Confidence {reports.ETH?.report_data?.signal_4h?.confidence ?? 0}%
+              </CardDescription>
+            </CardHeader>
+            {reports.ETH?.report_data?.signal_4h && (
+              <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Entry</div>
+                  <div className="font-semibold">${reports.ETH.report_data.signal_4h.entry.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Stop</div>
+                  <div className="font-semibold">${reports.ETH.report_data.signal_4h.stop_loss.toFixed(2)}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-muted-foreground">TPs</div>
+                  <div className="font-semibold">
+                    {reports.ETH.report_data.signal_4h.take_profits.map((v: number) => `$${v.toFixed(2)}`).join(' • ')}
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-12">
