@@ -469,9 +469,25 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       ]
     };
 
+    // Normalize confidence to integer 0-100
+    const normalizedConfidence = (() => {
+      const c = (analysis as any)?.confidence;
+      if (c === null || c === undefined) return Math.round(baseConfidence);
+      if (typeof c === 'string') {
+        const m = c.match(/[\d.]+/);
+        if (!m) return Math.round(baseConfidence);
+        const val = parseFloat(m[0]);
+        return Math.round(val <= 1 ? val * 100 : val);
+      }
+      if (typeof c === 'number') {
+        return Math.round(c <= 1 ? c * 100 : c);
+      }
+      return Math.round(baseConfidence);
+    })();
+
     return {
       summary: analysis.summary,
-      confidence: analysis.confidence,
+      confidence: normalizedConfidence,
       data: {
         ...analysis,
         signal_4h: signal4h,
