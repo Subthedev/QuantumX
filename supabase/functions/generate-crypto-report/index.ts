@@ -355,23 +355,57 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
     const prompt = `You are a senior quantitative analyst...`;
     // Reuse existing OpenAI call and parsing logic below unchanged
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [
-          { role: 'system', content: 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments.' },
-          { role: 'user', content: `FOCUS: 4H timeframe direct trading signal.\nAsset: ${coin}\nPrice: ${priceNow.toFixed(2)}\nRSI14: ${rsiNow.toFixed(1)}\nMACD hist: ${macdHistNow.toFixed(4)}\nEMA50>${ema50Above200 ? '' : 'not '}EMA200\nATR%: ${atrPct.toFixed(2)}\nFunding: ${fundingRate ?? 'n/a'}\nOrderbook imbalance: ${(obImbalance ?? 0).toFixed(2)}%\nDirection decided: ${direction} with confidence ${baseConfidence}%.\nProvide concise multi-scenario quantitative summary following the JSON schema shared earlier; keep HOLD minimal.` }
-        ],
-        temperature: 0.15,
-        max_tokens: 2500
-      }),
-    });
+    let analysisText: string;
 
-    if (!response.ok) throw new Error(`OpenAI API error: ${response.status}`);
-    const aiResponse = await response.json();
-    const analysisText = aiResponse.choices[0].message.content;
+    // Try OpenAI Responses API with o3 reasoning model ("GPT-5"-class)
+    try {
+      const resp = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'o3-2025-04-16',
+          input: [
+            { role: 'system', content: 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments.' },
+            { role: 'user', content: `FOCUS: 4H timeframe direct trading signal.\nAsset: ${coin}\nPrice: ${priceNow.toFixed(2)}\nRSI14: ${rsiNow.toFixed(1)}\nMACD hist: ${macdHistNow.toFixed(4)}\nEMA50>${ema50Above200 ? '' : 'not '}EMA200\nATR%: ${atrPct.toFixed(2)}\nFunding: ${fundingRate ?? 'n/a'}\nOrderbook imbalance: ${(obImbalance ?? 0).toFixed(2)}%\nDirection decided: ${direction} with confidence ${baseConfidence}%.\nProvide concise multi-scenario quantitative summary following the JSON schema shared earlier; keep HOLD minimal.` }
+          ],
+          temperature: 0.15,
+          max_output_tokens: 2500
+        }),
+      });
+
+      if (!resp.ok) throw new Error(`Responses API error: ${resp.status}`);
+      const ai = await resp.json();
+      analysisText = ai.output_text
+        ?? (Array.isArray(ai.output) ? ai.output.map((o: any) => {
+              if (typeof o === 'string') return o;
+              if (o.type === 'output_text' && typeof o.text === 'string') return o.text;
+              if (o.content && Array.isArray(o.content)) {
+                return o.content.map((c: any) => (c.type === 'output_text' ? c.text : c.text || '')).join('');
+              }
+              return '';
+            }).join('') : '');
+      if (!analysisText) throw new Error('Empty output from Responses API');
+    } catch (err) {
+      // Fallback to Chat Completions with gpt-4.1 for reliability
+      const resp2 = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-4.1-2025-04-14',
+          messages: [
+            { role: 'system', content: 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments.' },
+            { role: 'user', content: `FOCUS: 4H timeframe direct trading signal.\nAsset: ${coin}\nPrice: ${priceNow.toFixed(2)}\nRSI14: ${rsiNow.toFixed(1)}\nMACD hist: ${macdHistNow.toFixed(4)}\nEMA50>${ema50Above200 ? '' : 'not '}EMA200\nATR%: ${atrPct.toFixed(2)}\nFunding: ${fundingRate ?? 'n/a'}\nOrderbook imbalance: ${(obImbalance ?? 0).toFixed(2)}%\nDirection decided: ${direction} with confidence ${baseConfidence}%.\nProvide concise multi-scenario quantitative summary following the JSON schema shared earlier; keep HOLD minimal.` }
+          ],
+          temperature: 0.15,
+          max_tokens: 2500
+        }),
+      });
+
+      if (!resp2.ok) throw new Error(`OpenAI API error: ${resp2.status}`);
+      const ai2 = await resp2.json();
+      analysisText = ai2.choices?.[0]?.message?.content ?? '';
+      if (!analysisText) throw new Error('Empty output from OpenAI');
+    }
 
     let analysis;
     try {
