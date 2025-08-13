@@ -359,7 +359,7 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'o3-2025-04-16',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments.' },
           { role: 'user', content: `FOCUS: 4H timeframe direct trading signal.\nAsset: ${coin}\nPrice: ${priceNow.toFixed(2)}\nRSI14: ${rsiNow.toFixed(1)}\nMACD hist: ${macdHistNow.toFixed(4)}\nEMA50>${ema50Above200 ? '' : 'not '}EMA200\nATR%: ${atrPct.toFixed(2)}\nFunding: ${fundingRate ?? 'n/a'}\nOrderbook imbalance: ${(obImbalance ?? 0).toFixed(2)}%\nDirection decided: ${direction} with confidence ${baseConfidence}%.\nProvide concise multi-scenario quantitative summary following the JSON schema shared earlier; keep HOLD minimal.` }
