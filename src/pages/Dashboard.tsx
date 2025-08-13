@@ -7,7 +7,6 @@ import CryptoReport from '@/components/CryptoReport';
 import { Bitcoin, Zap, LogOut, TrendingUp, Home } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
-
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -16,27 +15,27 @@ interface CryptoReportData {
   report_data: any;
   created_at: string;
 }
-
 const Dashboard = () => {
-  const { user, signOut, loading } = useAuth();
+  const {
+    user,
+    signOut,
+    loading
+  } = useAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<Record<string, CryptoReportData>>({});
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
-
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
     }
   }, [user, loading, navigate]);
-
   useEffect(() => {
     if (user) {
       fetchExistingReports();
       fetchTotalReportsCount();
     }
   }, [user]);
-
   useEffect(() => {
     document.title = '4H Crypto Signals Dashboard | Ignitex';
     const metaDesc = 'AI 4H crypto signals for BTC & ETH with confidence, entries, stops, and targets.';
@@ -47,7 +46,6 @@ const Dashboard = () => {
       document.head.appendChild(descTag);
     }
     descTag.content = metaDesc;
-
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonical) {
       canonical = document.createElement('link');
@@ -56,22 +54,18 @@ const Dashboard = () => {
     }
     canonical.href = window.location.origin + '/dashboard';
   }, []);
-
   const fetchExistingReports = async () => {
     if (!user) return;
-
     try {
-      const { data, error } = await supabase
-        .from('crypto_reports')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('crypto_reports').select('*').eq('user_id', user.id).gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()).order('created_at', {
+        ascending: false
+      });
       if (error) throw error;
-
       const reportsMap: Record<string, CryptoReportData> = {};
-      data?.forEach((report) => {
+      data?.forEach(report => {
         reportsMap[report.coin_symbol] = report;
       });
       setReports(reportsMap);
@@ -81,43 +75,37 @@ const Dashboard = () => {
       setLoadingReports(false);
     }
   };
-
   const fetchTotalReportsCount = async () => {
     try {
-      const { count, error } = await supabase
-        .from('crypto_reports')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-
+      const {
+        count,
+        error
+      } = await supabase.from('crypto_reports').select('*', {
+        count: 'exact',
+        head: true
+      }).gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
       if (error) throw error;
       setTotalReportsCount(count || 0);
     } catch (error) {
       console.error('Error fetching total reports count:', error);
     }
   };
-
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
-
   if (loading || loadingReports) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+    return <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
-
   if (!user) {
     return null;
   }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
+  return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -160,93 +148,11 @@ const Dashboard = () => {
         </div>
 
         {/* 4H Signal Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between">
-                <span>Bitcoin 4H Signal</span>
-                {reports.BTC?.report_data?.signal_4h ? (
-                  <span className={`text-xs px-2 py-1 rounded ${reports.BTC.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : reports.BTC.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
-                    {reports.BTC.report_data.signal_4h.direction}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">No signal</span>
-                )}
-              </CardTitle>
-              <CardDescription>
-                Confidence {reports.BTC?.report_data?.signal_4h?.confidence ?? 0}%
-              </CardDescription>
-            </CardHeader>
-            {reports.BTC?.report_data?.signal_4h && (
-              <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <div className="text-muted-foreground">Entry</div>
-                  <div className="font-semibold">${reports.BTC.report_data.signal_4h.entry.toFixed(2)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Stop</div>
-                  <div className="font-semibold">${reports.BTC.report_data.signal_4h.stop_loss.toFixed(2)}</div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-muted-foreground">TPs</div>
-                  <div className="font-semibold">
-                    {reports.BTC.report_data.signal_4h.take_profits.map((v: number) => `$${v.toFixed(2)}`).join(' • ')}
-                  </div>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between">
-                <span>Ethereum 4H Signal</span>
-                {reports.ETH?.report_data?.signal_4h ? (
-                  <span className={`text-xs px-2 py-1 rounded ${reports.ETH.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : reports.ETH.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
-                    {reports.ETH.report_data.signal_4h.direction}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">No signal</span>
-                )}
-              </CardTitle>
-              <CardDescription>
-                Confidence {reports.ETH?.report_data?.signal_4h?.confidence ?? 0}%
-              </CardDescription>
-            </CardHeader>
-            {reports.ETH?.report_data?.signal_4h && (
-              <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <div className="text-muted-foreground">Entry</div>
-                  <div className="font-semibold">${reports.ETH.report_data.signal_4h.entry.toFixed(2)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Stop</div>
-                  <div className="font-semibold">${reports.ETH.report_data.signal_4h.stop_loss.toFixed(2)}</div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-muted-foreground">TPs</div>
-                  <div className="font-semibold">
-                    {reports.ETH.report_data.signal_4h.take_profits.map((v: number) => `$${v.toFixed(2)}`).join(' • ')}
-                  </div>
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </div>
+        
 
         <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <CryptoReport
-            coin="BTC"
-            icon={<Bitcoin className="h-6 w-6 text-orange-500" />}
-            name="Bitcoin"
-            existingReport={reports.BTC}
-          />
-          <CryptoReport
-            coin="ETH"
-            icon={<Zap className="h-6 w-6 text-blue-500" />}
-            name="Ethereum"
-            existingReport={reports.ETH}
-          />
+          <CryptoReport coin="BTC" icon={<Bitcoin className="h-6 w-6 text-orange-500" />} name="Bitcoin" existingReport={reports.BTC} />
+          <CryptoReport coin="ETH" icon={<Zap className="h-6 w-6 text-blue-500" />} name="Ethereum" existingReport={reports.ETH} />
         </div>
 
         {/* Stats Section */}
@@ -275,9 +181,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-500">
-                {Object.keys(reports).length > 0 
-                  ? Math.round(Object.values(reports).reduce((acc, report) => acc + report.confidence_score, 0) / Object.keys(reports).length)
-                  : 0}%
+                {Object.keys(reports).length > 0 ? Math.round(Object.values(reports).reduce((acc, report) => acc + report.confidence_score, 0) / Object.keys(reports).length) : 0}%
               </div>
               <CardDescription>across all predictions</CardDescription>
             </CardContent>
@@ -329,8 +233,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Dashboard;
