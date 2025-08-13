@@ -340,8 +340,7 @@ const CryptoReport = ({
             </div>
 
             {/* 4H Signal */}
-            {report.report_data?.signal_4h && (
-              <div className="bg-gradient-to-br from-secondary/20 to-secondary/30 p-4 rounded-lg border border-secondary">
+            {report.report_data?.signal_4h && <div className="bg-gradient-to-br from-secondary/20 to-secondary/30 p-4 rounded-lg border border-secondary">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold">4H Signal</h3>
                   <Badge className={`${report.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : report.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
@@ -364,13 +363,10 @@ const CryptoReport = ({
                     </div>
                   </div>
                 </div>
-                {report.report_data.signal_4h.indicators && (
-                  <div className="mt-3 text-xs text-muted-foreground">
+                {report.report_data.signal_4h.indicators && <div className="mt-3 text-xs text-muted-foreground">
                     Indicators: RSI {report.report_data.signal_4h.indicators.rsi14}, MACD hist {report.report_data.signal_4h.indicators.macd_hist}, ATR% {report.report_data.signal_4h.indicators.atr_percent}
-                  </div>
-                )}
-              </div>
-            )}
+                  </div>}
+              </div>}
 
             {/* Trading Targets */}
             {report.report_data.targets && <div>
@@ -474,10 +470,9 @@ const CryptoReport = ({
                       <div className="text-lg font-bold text-slate-800">{report.confidence_score}%</div>
                     </div>
                     <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${getConfidenceColor(report.confidence_score)}`}
-                        style={{ width: `${report.confidence_score}%` }}
-                      />
+                      <div className={`h-full rounded-full transition-all duration-500 ${getConfidenceColor(report.confidence_score)}`} style={{
+                  width: `${report.confidence_score}%`
+                }} />
                     </div>
                   </div>
                 </div>
@@ -548,11 +543,7 @@ const CryptoReport = ({
                           <div className={`text-3xl font-bold ${signalColor}`}>{direction}</div>
                         </div>
                         <div className={`text-sm font-semibold ${signalColor} mb-1`}>{positionType}</div>
-                        <div className="flex items-center justify-center gap-2">
-                          <Badge variant="secondary" className="bg-white/70 font-medium">
-                            {maxProb}% Confidence
-                          </Badge>
-                        </div>
+                        
                       </div>
 
                       {/* Signal Details Grid */}
