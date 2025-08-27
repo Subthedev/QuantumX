@@ -530,7 +530,48 @@ const CryptoReport = ({
               </div>}
 
             {/* AI Trade Signal */}
-            {report.report_data.analysis?.multi_directional_signals}
+            {report.report_data.analysis?.multi_directional_signals && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                <h3 className="font-semibold text-purple-800 mb-3">Multi-Directional Signals</h3>
+                <div className="space-y-3">
+                  {report.report_data.analysis.multi_directional_signals.bullish_scenario && (
+                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                      <h4 className="text-sm font-semibold text-green-700 mb-2">Bullish Scenario</h4>
+                      <div className="text-sm text-gray-700 space-y-1">
+                        <p><strong>Probability:</strong> {report.report_data.analysis.multi_directional_signals.bullish_scenario.probability}</p>
+                        <p><strong>Triggers:</strong> {report.report_data.analysis.multi_directional_signals.bullish_scenario.triggers}</p>
+                        <p><strong>Targets:</strong> {report.report_data.analysis.multi_directional_signals.bullish_scenario.targets}</p>
+                        <p><strong>Timeframe:</strong> {report.report_data.analysis.multi_directional_signals.bullish_scenario.timeframe}</p>
+                        <p><strong>Risk Factors:</strong> {report.report_data.analysis.multi_directional_signals.bullish_scenario.risk_factors}</p>
+                      </div>
+                    </div>
+                  )}
+                  {report.report_data.analysis.multi_directional_signals.bearish_scenario && (
+                    <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                      <h4 className="text-sm font-semibold text-red-700 mb-2">Bearish Scenario</h4>
+                      <div className="text-sm text-gray-700 space-y-1">
+                        <p><strong>Probability:</strong> {report.report_data.analysis.multi_directional_signals.bearish_scenario.probability}</p>
+                        <p><strong>Triggers:</strong> {report.report_data.analysis.multi_directional_signals.bearish_scenario.triggers}</p>
+                        <p><strong>Targets:</strong> {report.report_data.analysis.multi_directional_signals.bearish_scenario.targets}</p>
+                        <p><strong>Timeframe:</strong> {report.report_data.analysis.multi_directional_signals.bearish_scenario.timeframe}</p>
+                        <p><strong>Risk Factors:</strong> {report.report_data.analysis.multi_directional_signals.bearish_scenario.risk_factors}</p>
+                      </div>
+                    </div>
+                  )}
+                  {report.report_data.analysis.multi_directional_signals.neutral_scenario && (
+                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Neutral Scenario</h4>
+                      <div className="text-sm text-gray-700 space-y-1">
+                        <p><strong>Probability:</strong> {report.report_data.analysis.multi_directional_signals.neutral_scenario.probability}</p>
+                        <p><strong>Range:</strong> {report.report_data.analysis.multi_directional_signals.neutral_scenario.range}</p>
+                        <p><strong>Duration:</strong> {report.report_data.analysis.multi_directional_signals.neutral_scenario.duration}</p>
+                        <p><strong>Breakout Catalysts:</strong> {report.report_data.analysis.multi_directional_signals.neutral_scenario.breakout_catalysts}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Quantitative Metrics */}
             {report.report_data.quantitative_metrics && <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
