@@ -339,34 +339,145 @@ const CryptoReport = ({
               <p className="text-sm leading-relaxed">{report.prediction_summary}</p>
             </div>
 
-            {/* 4H Signal */}
+            {/* AI-Powered Trading Signal */}
             {report.report_data?.signal_4h && (
-              <div className="bg-gradient-to-br from-secondary/20 to-secondary/30 p-4 rounded-lg border border-secondary">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">4H Signal</h3>
-                  <Badge className={`${report.report_data.signal_4h.direction === 'LONG' ? 'bg-primary/20 text-primary' : report.report_data.signal_4h.direction === 'SHORT' ? 'bg-destructive/20 text-destructive' : 'bg-muted text-foreground'}`}>
-                    {report.report_data.signal_4h.direction} · {report.report_data.signal_4h.confidence}%
+              <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-5 rounded-xl border border-primary/30 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/30 rounded-full blur-md animate-pulse"></div>
+                      <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-full">
+                        <Activity className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      AI-Powered Trading Signal
+                    </h3>
+                  </div>
+                  <Badge className={`px-3 py-1 text-sm font-bold ${
+                    report.report_data.signal_4h.direction === 'LONG' 
+                      ? 'bg-green-500/20 text-green-700 border-green-500/30' 
+                      : report.report_data.signal_4h.direction === 'SHORT' 
+                      ? 'bg-red-500/20 text-red-700 border-red-500/30' 
+                      : 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {report.report_data.signal_4h.direction === 'LONG' && <ArrowUp className="h-4 w-4" />}
+                      {report.report_data.signal_4h.direction === 'SHORT' && <ArrowDown className="h-4 w-4" />}
+                      {report.report_data.signal_4h.direction === 'HOLD' && <Minus className="h-4 w-4" />}
+                      {report.report_data.signal_4h.direction}
+                    </div>
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div className="p-3 rounded-md border border-border">
-                    <div className="text-muted-foreground">Entry</div>
-                    <div className="font-semibold">${report.report_data.signal_4h.entry.toFixed(2)}</div>
+                
+                {/* Confidence Score */}
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-muted-foreground">AI Confidence</span>
+                    <span className="text-sm font-bold">{report.report_data.signal_4h.confidence}%</span>
                   </div>
-                  <div className="p-3 rounded-md border border-border">
-                    <div className="text-muted-foreground">Stop Loss</div>
-                    <div className="font-semibold">${report.report_data.signal_4h.stop_loss.toFixed(2)}</div>
+                  <div className="w-full bg-muted/30 rounded-full h-2.5 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        report.report_data.signal_4h.confidence >= 80 
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                          : report.report_data.signal_4h.confidence >= 70 
+                          ? 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                          : report.report_data.signal_4h.confidence >= 60
+                          ? 'bg-gradient-to-r from-yellow-500 to-amber-500'
+                          : 'bg-gradient-to-r from-red-500 to-orange-500'
+                      }`}
+                      style={{ width: `${report.report_data.signal_4h.confidence}%` }}
+                    />
                   </div>
-                  <div className="p-3 rounded-md border border-border md:col-span-2">
-                    <div className="text-muted-foreground">Take Profits</div>
-                    <div className="font-semibold">
-                      {report.report_data.signal_4h.take_profits.map((tp: number, i: number) => `$${tp.toFixed(2)}`).join(' • ')}
+                </div>
+
+                {/* Trading Levels */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-background/50 backdrop-blur-sm p-3 rounded-lg border border-primary/20">
+                    <div className="text-xs text-muted-foreground mb-1">Entry Price</div>
+                    <div className="font-bold text-lg text-primary">
+                      ${report.report_data.signal_4h.entry.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="bg-red-500/10 backdrop-blur-sm p-3 rounded-lg border border-red-500/20">
+                    <div className="text-xs text-muted-foreground mb-1">Stop Loss</div>
+                    <div className="font-bold text-lg text-red-600">
+                      ${report.report_data.signal_4h.stop_loss.toFixed(2)}
                     </div>
                   </div>
                 </div>
+
+                {/* Take Profit Targets */}
+                <div className="bg-green-500/10 backdrop-blur-sm p-3 rounded-lg border border-green-500/20 mb-4">
+                  <div className="text-xs text-muted-foreground mb-2">Take Profit Targets</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {report.report_data.signal_4h.take_profits.map((tp: number, i: number) => (
+                      <div key={i} className="text-center">
+                        <div className="text-xs text-green-700 font-medium">TP{i + 1}</div>
+                        <div className="font-bold text-green-700">${tp.toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Analysis Indicators */}
                 {report.report_data.signal_4h.indicators && (
-                  <div className="mt-3 text-xs text-muted-foreground">
-                    Indicators: RSI {report.report_data.signal_4h.indicators.rsi14}, MACD hist {report.report_data.signal_4h.indicators.macd_hist}, ATR% {report.report_data.signal_4h.indicators.atr_percent}
+                  <div className="bg-muted/20 p-3 rounded-lg">
+                    <div className="text-xs font-medium text-muted-foreground mb-2">AI Analysis Indicators</div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-muted-foreground">RSI:</span>
+                        <span className="font-medium">{report.report_data.signal_4h.indicators.rsi14}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <span className="text-muted-foreground">MACD:</span>
+                        <span className="font-medium">{report.report_data.signal_4h.indicators.macd_hist.toFixed(4)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-muted-foreground">ATR%:</span>
+                        <span className="font-medium">{report.report_data.signal_4h.indicators.atr_percent}</span>
+                      </div>
+                      {report.report_data.signal_4h.indicators.ema50_above_ema200 !== undefined && (
+                        <div className="flex items-center gap-1">
+                          <div className={`w-2 h-2 rounded-full ${report.report_data.signal_4h.indicators.ema50_above_ema200 ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className="text-muted-foreground">Trend:</span>
+                          <span className="font-medium">{report.report_data.signal_4h.indicators.ema50_above_ema200 ? 'Bullish' : 'Bearish'}</span>
+                        </div>
+                      )}
+                      {report.report_data.signal_4h.indicators.funding_rate !== null && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                          <span className="text-muted-foreground">Funding:</span>
+                          <span className="font-medium">{(report.report_data.signal_4h.indicators.funding_rate * 100).toFixed(3)}%</span>
+                        </div>
+                      )}
+                      {report.report_data.signal_4h.indicators.orderbook_imbalance_pct !== null && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                          <span className="text-muted-foreground">OB Imbalance:</span>
+                          <span className="font-medium">{report.report_data.signal_4h.indicators.orderbook_imbalance_pct.toFixed(1)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Signal Reasoning */}
+                {report.report_data.signal_4h.reasoning && report.report_data.signal_4h.reasoning.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <div className="text-xs font-medium text-muted-foreground mb-2">AI Signal Reasoning</div>
+                    <div className="space-y-1">
+                      {report.report_data.signal_4h.reasoning.map((reason: string, i: number) => (
+                        <div key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                          <span className="text-primary mt-0.5">•</span>
+                          <span>{reason}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
