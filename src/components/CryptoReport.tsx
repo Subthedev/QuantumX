@@ -330,18 +330,10 @@ const CryptoReport = ({
               </div>}
 
             {/* Executive Summary */}
-            <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-primary">Executive Summary</h3>
-                {getTrendIcon(report.report_data.analysis?.technical?.trend || 'neutral')}
-              </div>
-              <p className="text-sm leading-relaxed">{report.prediction_summary}</p>
-            </div>
+            
 
             {/* AI-Powered Trading Signal */}
-            {report.report_data?.signal_4h && (
-              <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-5 rounded-xl border border-primary/30 shadow-lg">
+            {report.report_data?.signal_4h && <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-5 rounded-xl border border-primary/30 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="relative">
@@ -354,13 +346,7 @@ const CryptoReport = ({
                       AI-Powered Trading Signal
                     </h3>
                   </div>
-                  <Badge className={`px-3 py-1 text-sm font-bold ${
-                    report.report_data.signal_4h.direction === 'LONG' 
-                      ? 'bg-green-500/20 text-green-700 border-green-500/30' 
-                      : report.report_data.signal_4h.direction === 'SHORT' 
-                      ? 'bg-red-500/20 text-red-700 border-red-500/30' 
-                      : 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30'
-                  }`}>
+                  <Badge className={`px-3 py-1 text-sm font-bold ${report.report_data.signal_4h.direction === 'LONG' ? 'bg-green-500/20 text-green-700 border-green-500/30' : report.report_data.signal_4h.direction === 'SHORT' ? 'bg-red-500/20 text-red-700 border-red-500/30' : 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30'}`}>
                     <div className="flex items-center gap-2">
                       {report.report_data.signal_4h.direction === 'LONG' && <ArrowUp className="h-4 w-4" />}
                       {report.report_data.signal_4h.direction === 'SHORT' && <ArrowDown className="h-4 w-4" />}
@@ -377,18 +363,9 @@ const CryptoReport = ({
                     <span className="text-sm font-bold">{report.report_data.signal_4h.confidence}%</span>
                   </div>
                   <div className="w-full bg-muted/30 rounded-full h-2.5 overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        report.report_data.signal_4h.confidence >= 80 
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                          : report.report_data.signal_4h.confidence >= 70 
-                          ? 'bg-gradient-to-r from-blue-500 to-cyan-500'
-                          : report.report_data.signal_4h.confidence >= 60
-                          ? 'bg-gradient-to-r from-yellow-500 to-amber-500'
-                          : 'bg-gradient-to-r from-red-500 to-orange-500'
-                      }`}
-                      style={{ width: `${report.report_data.signal_4h.confidence}%` }}
-                    />
+                    <div className={`h-full rounded-full transition-all duration-500 ${report.report_data.signal_4h.confidence >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : report.report_data.signal_4h.confidence >= 70 ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : report.report_data.signal_4h.confidence >= 60 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' : 'bg-gradient-to-r from-red-500 to-orange-500'}`} style={{
+                width: `${report.report_data.signal_4h.confidence}%`
+              }} />
                   </div>
                 </div>
 
@@ -412,18 +389,15 @@ const CryptoReport = ({
                 <div className="bg-green-500/10 backdrop-blur-sm p-3 rounded-lg border border-green-500/20 mb-4">
                   <div className="text-xs text-muted-foreground mb-2">Take Profit Targets</div>
                   <div className="grid grid-cols-3 gap-2">
-                    {report.report_data.signal_4h.take_profits.map((tp: number, i: number) => (
-                      <div key={i} className="text-center">
+                    {report.report_data.signal_4h.take_profits.map((tp: number, i: number) => <div key={i} className="text-center">
                         <div className="text-xs text-green-700 font-medium">TP{i + 1}</div>
                         <div className="font-bold text-green-700">${tp.toFixed(2)}</div>
-                      </div>
-                    ))}
+                      </div>)}
                   </div>
                 </div>
 
                 {/* AI Analysis Indicators */}
-                {report.report_data.signal_4h.indicators && (
-                  <div className="bg-muted/20 p-3 rounded-lg">
+                {report.report_data.signal_4h.indicators && <div className="bg-muted/20 p-3 rounded-lg">
                     <div className="text-xs font-medium text-muted-foreground mb-2">AI Analysis Indicators</div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
                       <div className="flex items-center gap-1">
@@ -441,47 +415,35 @@ const CryptoReport = ({
                         <span className="text-muted-foreground">ATR%:</span>
                         <span className="font-medium">{report.report_data.signal_4h.indicators.atr_percent}</span>
                       </div>
-                      {report.report_data.signal_4h.indicators.ema50_above_ema200 !== undefined && (
-                        <div className="flex items-center gap-1">
+                      {report.report_data.signal_4h.indicators.ema50_above_ema200 !== undefined && <div className="flex items-center gap-1">
                           <div className={`w-2 h-2 rounded-full ${report.report_data.signal_4h.indicators.ema50_above_ema200 ? 'bg-green-500' : 'bg-red-500'}`}></div>
                           <span className="text-muted-foreground">Trend:</span>
                           <span className="font-medium">{report.report_data.signal_4h.indicators.ema50_above_ema200 ? 'Bullish' : 'Bearish'}</span>
-                        </div>
-                      )}
-                      {report.report_data.signal_4h.indicators.funding_rate !== null && (
-                        <div className="flex items-center gap-1">
+                        </div>}
+                      {report.report_data.signal_4h.indicators.funding_rate !== null && <div className="flex items-center gap-1">
                           <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                           <span className="text-muted-foreground">Funding:</span>
                           <span className="font-medium">{(report.report_data.signal_4h.indicators.funding_rate * 100).toFixed(3)}%</span>
-                        </div>
-                      )}
-                      {report.report_data.signal_4h.indicators.orderbook_imbalance_pct !== null && (
-                        <div className="flex items-center gap-1">
+                        </div>}
+                      {report.report_data.signal_4h.indicators.orderbook_imbalance_pct !== null && <div className="flex items-center gap-1">
                           <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
                           <span className="text-muted-foreground">OB Imbalance:</span>
                           <span className="font-medium">{report.report_data.signal_4h.indicators.orderbook_imbalance_pct.toFixed(1)}%</span>
-                        </div>
-                      )}
+                        </div>}
                     </div>
-                  </div>
-                )}
+                  </div>}
 
                 {/* Signal Reasoning */}
-                {report.report_data.signal_4h.reasoning && report.report_data.signal_4h.reasoning.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-border/50">
+                {report.report_data.signal_4h.reasoning && report.report_data.signal_4h.reasoning.length > 0 && <div className="mt-3 pt-3 border-t border-border/50">
                     <div className="text-xs font-medium text-muted-foreground mb-2">AI Signal Reasoning</div>
                     <div className="space-y-1">
-                      {report.report_data.signal_4h.reasoning.map((reason: string, i: number) => (
-                        <div key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                      {report.report_data.signal_4h.reasoning.map((reason: string, i: number) => <div key={i} className="text-xs text-muted-foreground flex items-start gap-1">
                           <span className="text-primary mt-0.5">•</span>
                           <span>{reason}</span>
-                        </div>
-                      ))}
+                        </div>)}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  </div>}
+              </div>}
 
             {/* Trading Targets */}
             {report.report_data.targets && <div>
@@ -568,155 +530,7 @@ const CryptoReport = ({
               </div>}
 
             {/* AI Trade Signal */}
-            {report.report_data.analysis?.multi_directional_signals && <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg">
-                      <Target className="h-5 w-5 text-purple-700" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-lg">AI Trade Signal</h3>
-                      <p className="text-xs text-slate-600">Real-time algorithmic analysis</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-xs text-slate-600 font-medium">Confidence</div>
-                      <div className="text-lg font-bold text-slate-800">{report.confidence_score}%</div>
-                    </div>
-                    <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${getConfidenceColor(report.confidence_score)}`}
-                        style={{ width: `${report.confidence_score}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <Badge variant="outline" className="bg-white/70 text-slate-700 font-medium px-3 py-[8px] my-[3px] mb-4 border-emerald-300 shadow-lg shadow-emerald-200/50 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 via-green-400/30 to-emerald-400/20 animate-pulse"></div>
-                  <span className="relative z-10 flex items-center gap-1">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
-                    Live Signal
-                  </span>
-                </Badge>
-
-                {(() => {
-            const signals = report.report_data.analysis.multi_directional_signals;
-            const bullishProb = parseInt(signals.bullish_scenario.probability.replace('%', '')) || 0;
-            const bearishProb = parseInt(signals.bearish_scenario.probability.replace('%', '')) || 0;
-            const neutralProb = parseInt(signals.neutral_scenario.probability.replace('%', '')) || 0;
-            const maxProb = Math.max(bullishProb, bearishProb, neutralProb);
-            let direction = 'HOLD';
-            let positionType = 'No Position';
-            let signalColor = 'text-slate-600';
-            let bgGradient = 'from-slate-100 to-slate-200';
-            let icon = <Minus className="h-5 w-5" />;
-            if (maxProb === bullishProb && bullishProb > 50) {
-              direction = 'LONG';
-              positionType = 'Long Position';
-              signalColor = 'text-green-700';
-              bgGradient = 'from-green-100 to-emerald-200';
-              icon = <ArrowUp className="h-5 w-5" />;
-            } else if (maxProb === bearishProb && bearishProb > 50) {
-              direction = 'SHORT';
-              positionType = 'Short Position';
-              signalColor = 'text-red-700';
-              bgGradient = 'from-red-100 to-rose-200';
-              icon = <ArrowDown className="h-5 w-5" />;
-            }
-            if (direction === 'HOLD') {
-              return <div className="text-center p-6 bg-gradient-to-br from-slate-100 to-gray-200 rounded-xl border border-slate-300">
-                        <div className="flex items-center justify-center gap-2 mb-3">
-                          <div className="p-2 bg-white/80 rounded-full shadow-sm">
-                            {icon}
-                          </div>
-                          <div className="text-2xl font-bold text-slate-700">HOLD</div>
-                        </div>
-                        <div className="text-sm text-slate-600 mb-3 font-medium">No clear directional signal detected</div>
-                        <div className="grid grid-cols-3 gap-3 text-xs">
-                          <div className="bg-white/60 p-2 rounded-lg">
-                            <div className="text-green-600 font-semibold">Bullish</div>
-                            <div className="text-slate-600">{bullishProb}%</div>
-                          </div>
-                          <div className="bg-white/60 p-2 rounded-lg">
-                            <div className="text-red-600 font-semibold">Bearish</div>
-                            <div className="text-slate-600">{bearishProb}%</div>
-                          </div>
-                          <div className="bg-white/60 p-2 rounded-lg">
-                            <div className="text-slate-600 font-semibold">Neutral</div>
-                            <div className="text-slate-600">{neutralProb}%</div>
-                          </div>
-                        </div>
-                      </div>;
-            }
-            return <div className="space-y-4">
-                      {/* Signal Header */}
-                      <div className={`text-center p-4 bg-gradient-to-br ${bgGradient} rounded-xl border-2 ${direction === 'LONG' ? 'border-green-300' : 'border-red-300'} shadow-sm`}>
-                        <div className="flex items-center justify-center gap-3 mb-2">
-                          <div className="p-2 bg-white/80 rounded-full shadow-sm">
-                            {icon}
-                          </div>
-                          <div className={`text-3xl font-bold ${signalColor}`}>{direction}</div>
-                        </div>
-                        <div className={`text-sm font-semibold ${signalColor} mb-1`}>{positionType}</div>
-                        <div className="flex items-center justify-center gap-2">
-                          <Badge variant="secondary" className="bg-white/70 font-medium">
-                            {maxProb}% Confidence
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* Signal Details Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Target className="h-4 w-4 text-slate-600" />
-                            <span className="font-semibold text-slate-700 text-sm">Entry Zone</span>
-                          </div>
-                          <div className="text-lg font-bold text-slate-800">
-                            {report.report_data.market_data?.price ? formatCurrency(report.report_data.market_data.price * (direction === 'LONG' ? 0.98 : 1.02)) : 'Current Price'}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            {direction === 'LONG' ? '2% below current' : '2% above current'}
-                          </div>
-                        </div>
-
-                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Shield className="h-4 w-4 text-red-600" />
-                            <span className="font-semibold text-slate-700 text-sm">Stop Loss</span>
-                          </div>
-                          <div className="text-lg font-bold text-red-700">
-                            {report.report_data.targets?.stop_loss ? formatCurrency(report.report_data.targets.stop_loss) : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 0.95 : 1.05))}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">Risk management level</div>
-                        </div>
-
-                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <TrendingUp className="h-4 w-4 text-green-600" />
-                            <span className="font-semibold text-slate-700 text-sm">Take Profit</span>
-                          </div>
-                          <div className="text-lg font-bold text-green-700">
-                            {report.report_data.targets?.take_profit_1 ? formatCurrency(report.report_data.targets.take_profit_1) : formatCurrency((report.report_data.market_data?.price || 0) * (direction === 'LONG' ? 1.05 : 0.95))}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">Primary target level</div>
-                        </div>
-
-                        <div className="bg-white/70 p-4 rounded-lg border border-slate-200 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                            <BarChart3 className="h-4 w-4 text-purple-600" />
-                            <span className="font-semibold text-slate-700 text-sm">Risk/Reward</span>
-                          </div>
-                          <div className="text-lg font-bold text-purple-700">
-                            1:2.5
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">Expected ratio</div>
-                        </div>
-                      </div>
-                    </div>;
-          })()}
-              </div>}
+            {report.report_data.analysis?.multi_directional_signals}
 
             {/* Quantitative Metrics */}
             {report.report_data.quantitative_metrics && <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
