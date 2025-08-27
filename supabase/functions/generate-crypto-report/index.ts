@@ -352,40 +352,99 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
 
     console.log(`Generating institution-grade AI analysis for ${coin} with 4H signal ${direction} @ conf ${baseConfidence}%`);
 
-    const prompt = `You are a senior quantitative analyst...`;
-    // Reuse existing OpenAI call and parsing logic below unchanged
+    const systemPrompt = 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments. Output strictly valid JSON matching the schema used previously.';
+    const userPrompt = `FOCUS: 4H timeframe direct trading signal.\nAsset: ${coin}\nPrice: ${priceNow.toFixed(2)}\nRSI14: ${rsiNow.toFixed(1)}\nMACD hist: ${macdHistNow.toFixed(4)}\nEMA50>${ema50Above200 ? '' : 'not '}EMA200\nATR%: ${atrPct.toFixed(2)}\nFunding: ${fundingRate ?? 'n/a'}\nOrderbook imbalance: ${(obImbalance ?? 0).toFixed(2)}%\nDirection decided: ${direction} with confidence ${baseConfidence}%.\nProvide concise multi-scenario quantitative summary following the JSON schema shared earlier; keep HOLD minimal.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [
-          { role: 'system', content: 'You are a senior quantitative analyst at a tier-1 institutional trading firm specializing in cryptocurrency markets. Your analysis combines technical indicators, fundamental metrics, sentiment analysis, and quantitative risk models to provide actionable investment insights. Always provide multi-directional analysis with specific probability assessments.' },
-          { role: 'user', content: `FOCUS: 4H timeframe direct trading signal.\nAsset: ${coin}\nPrice: ${priceNow.toFixed(2)}\nRSI14: ${rsiNow.toFixed(1)}\nMACD hist: ${macdHistNow.toFixed(4)}\nEMA50>${ema50Above200 ? '' : 'not '}EMA200\nATR%: ${atrPct.toFixed(2)}\nFunding: ${fundingRate ?? 'n/a'}\nOrderbook imbalance: ${(obImbalance ?? 0).toFixed(2)}%\nDirection decided: ${direction} with confidence ${baseConfidence}%.\nProvide concise multi-scenario quantitative summary following the JSON schema shared earlier; keep HOLD minimal.` }
-        ],
-        temperature: 0.15,
-        max_tokens: 2500
-      }),
-    });
-
-    if (!response.ok) throw new Error(`OpenAI API error: ${response.status}`);
-    const aiResponse = await response.json();
-    const analysisText = aiResponse.choices[0].message.content;
-
-    let analysis;
-    try {
-      let cleanedResponse = analysisText.trim();
-      if (cleanedResponse.startsWith('```json')) {
-        cleanedResponse = cleanedResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-      } else if (cleanedResponse.startsWith('```')) {
-        cleanedResponse = cleanedResponse.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    async function generateWithResponses(model: string) {
+      const res = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          input: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          max_completion_tokens: 1500
+        })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error(`[OpenAI Responses] ${model} failed`, res.status, txt);
+        throw new Error(`OpenAI Responses ${model} error: ${res.status}`);
       }
-      analysis = JSON.parse(cleanedResponse);
-    } catch (_) {
-      // fallback similar to previous structure if parsing fails
+      const data = await res.json();
+      // Robust parsing across possible shapes
+      const text = data.output_text
+        ?? data.content?.[0]?.text
+        ?? data.output?.[0]?.content?.map((c: any) => c.text || c)?.join('')
+        ?? data.choices?.[0]?.message?.content
+        ?? '';
+      return String(text);
+    }
+
+    async function generateWithChat(model: string) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.15,
+          max_tokens: 1500
+        })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error(`[OpenAI Chat] ${model} failed`, res.status, txt);
+        throw new Error(`OpenAI Chat ${model} error: ${res.status}`);
+      }
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content ?? '';
+    }
+
+    let analysisText: string | null = null;
+    try {
+      // 1) Try GPT-5 via Responses API (no temperature, use max_completion_tokens)
+      analysisText = await generateWithResponses('gpt-5-2025-08-07');
+    } catch (e1) {
+      try {
+        // 2) Fallback to GPT-4.1 via Responses API (same parameters rules)
+        analysisText = await generateWithResponses('gpt-4.1-2025-04-14');
+      } catch (e2) {
+        try {
+          // 3) Last-resort fallback to legacy chat completions with a supported model
+          analysisText = await generateWithChat('gpt-4o-mini');
+        } catch (e3) {
+          console.error('All OpenAI calls failed; proceeding with deterministic local fallback.', e1, e2, e3);
+          analysisText = null;
+        }
+      }
+    }
+
+    let analysis: any;
+    if (analysisText) {
+      try {
+        let cleanedResponse = analysisText.trim();
+        if (cleanedResponse.startsWith('```json')) {
+          cleanedResponse = cleanedResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+        } else if (cleanedResponse.startsWith('```')) {
+          cleanedResponse = cleanedResponse.replace(/^```\n?/, '').replace(/\n?```$/, '');
+        }
+        analysis = JSON.parse(cleanedResponse);
+      } catch (parseErr) {
+        console.warn('AI JSON parse failed; using structured fallback.', parseErr);
+        analysis = undefined;
+      }
+    }
+
+    if (!analysis) {
+      // Deterministic structured fallback if AI unavailable or parsing failed
       analysis = {
-        summary: `${coin} 4H signal: ${direction}. RSI ${rsiNow.toFixed(1)}, MACD hist ${macdHistNow.toFixed(4)}, ATR ${atrPct.toFixed(2)}%.` ,
+        summary: `${coin} 4H signal: ${direction}. RSI ${rsiNow.toFixed(1)}, MACD hist ${macdHistNow.toFixed(4)}, ATR ${atrPct.toFixed(2)}%.`,
         confidence: baseConfidence,
         market_direction: marketDirection,
         analysis: {
@@ -399,8 +458,8 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
           fundamental: { macro_environment: 'Stable', institutional_flow: 'Mixed', network_health: '', competitive_landscape: '', catalysts: '' },
           sentiment: { market_sentiment: 'Neutral', fear_greed_analysis: '', social_metrics: '', options_flow: '', contrarian_indicators: '' },
           multi_directional_signals: {
-            bullish_scenario: { probability: direction==='LONG'? `${Math.max(55, baseConfidence)}%` : '35%', triggers: `Close > ${ (priceNow*1.01).toFixed(2) } with volume`, targets: `TP1 ${ (tp1).toFixed(2) }, TP2 ${ (tp2).toFixed(2) }, TP3 ${ (tp3).toFixed(2) }`, timeframe: '1-3 days', risk_factors: 'Macro shocks' },
-            bearish_scenario: { probability: direction==='SHORT'? `${Math.max(55, baseConfidence)}%` : '35%', triggers: `Close < ${ (priceNow*0.99).toFixed(2) } with volume`, targets: `TP1 ${ (tp1).toFixed(2) }, TP2 ${ (tp2).toFixed(2) }, TP3 ${ (tp3).toFixed(2) }`, timeframe: '1-3 days', risk_factors: 'Short squeezes' },
+            bullish_scenario: { probability: direction==='LONG'? `${Math.max(55, baseConfidence)}%` : '35%', triggers: `Close > ${(priceNow*1.01).toFixed(2)} with volume`, targets: `TP1 ${(tp1).toFixed(2)}, TP2 ${(tp2).toFixed(2)}, TP3 ${(tp3).toFixed(2)}`, timeframe: '1-3 days', risk_factors: 'Macro shocks' },
+            bearish_scenario: { probability: direction==='SHORT'? `${Math.max(55, baseConfidence)}%` : '35%', triggers: `Close < ${(priceNow*0.99).toFixed(2)} with volume`, targets: `TP1 ${(tp1).toFixed(2)}, TP2 ${(tp2).toFixed(2)}, TP3 ${(tp3).toFixed(2)}`, timeframe: '1-3 days', risk_factors: 'Short squeezes' },
             neutral_scenario: { probability: '10-20%', range: `$${(priceNow*0.99).toFixed(2)}-$${(priceNow*1.01).toFixed(2)}`, duration: '1-2 days', breakout_catalysts: 'High impact news' }
           }
         },
@@ -408,6 +467,14 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
         execution_strategy: { entry_zones: 'n/a', position_sizing: 'n/a', stop_loss_strategy: 'n/a', profit_taking: 'n/a', hedging_options: 'n/a' },
         risk_assessment: { tail_risks: '', correlation_risks: '', liquidity_risks: '', regulatory_risks: '', technical_risks: '' }
       };
+    }
+
+    // Normalize confidence to a number for DB
+    const numericConfidence = Number(String(analysis.confidence).toString().replace('%',''));
+    if (!Number.isFinite(numericConfidence)) {
+      analysis.confidence = baseConfidence;
+    } else {
+      analysis.confidence = Math.round(Math.min(99, Math.max(1, numericConfidence)));
     }
 
     const signal4h = {
