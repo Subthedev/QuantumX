@@ -286,7 +286,10 @@ const Landing = () => {
                     <Twitter className="h-4 w-4 group-hover:scale-110 transition-transform" />
                     <span className="text-sm">Twitter</span>
                   </a>
-                  
+                  <a href="#" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
+                    <Instagram className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-sm">Instagram</span>
+                  </a>
                   <a href="mailto:contact@ignitexagency.com" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
                     <Mail className="h-4 w-4 group-hover:scale-110 transition-transform" />
                     <span className="text-sm">Email</span>
