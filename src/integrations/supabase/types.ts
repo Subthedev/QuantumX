@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -44,25 +44,67 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_responses: {
+        Row: {
+          created_at: string
+          id: string
+          question_1: string | null
+          question_2: string | null
+          question_3: string | null
+          question_4: string | null
+          question_5: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_1?: string | null
+          question_2?: string | null
+          question_3?: string | null
+          question_4?: string | null
+          question_5?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_1?: string | null
+          question_2?: string | null
+          question_3?: string | null
+          question_4?: string | null
+          question_5?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
+          credits: number
           email: string | null
+          feedback_count: number
           id: string
+          last_feedback_shown: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          credits?: number
           email?: string | null
+          feedback_count?: number
           id?: string
+          last_feedback_shown?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          credits?: number
           email?: string | null
+          feedback_count?: number
           id?: string
+          last_feedback_shown?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -95,17 +137,29 @@ export type Database = {
     }
     Functions: {
       can_generate_report: {
-        Args: { user_uuid: string; coin: string }
+        Args: { coin: string; user_uuid: string }
         Returns: boolean
       }
       can_generate_unlimited_reports: {
         Args: { _user_id: string }
         Returns: boolean
       }
+      consume_credit: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      grant_feedback_credits: {
+        Args: { _credits: number; _user_id: string }
+        Returns: undefined
+      }
+      has_credits: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
