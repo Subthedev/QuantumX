@@ -162,8 +162,33 @@ const CryptoReport = ({
       });
       return;
     }
+    
+    // Check if user has credits
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile || profile.credits < 1) {
+      toast({
+        title: "No credits available",
+        description: "Complete the feedback form to earn 5 credits!",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
+      // Consume a credit
+      const { data: consumed, error: consumeError } = await supabase
+        .rpc('consume_credit', { _user_id: user.id });
+
+      if (!consumed || consumeError) {
+        throw new Error('Failed to consume credit');
+      }
+
       const {
         data,
         error
@@ -178,7 +203,7 @@ const CryptoReport = ({
       setReport(data);
       toast({
         title: "Report Generated",
-        description: `Professional analysis for ${name} has been created successfully.`
+        description: `Professional analysis for ${name} has been created successfully. Credit consumed.`
       });
     } catch (error: any) {
       console.error('Error generating report:', error);

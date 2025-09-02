@@ -41,21 +41,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl
       }
     });
+    
+    // Grant initial 2 credits on signup
+    if (!error && data.user) {
+      await supabase
+        .from('profiles')
+        .update({ credits: 2 })
+        .eq('user_id', data.user.id);
+    }
+    
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // Grant login credits - check if it's the first login today
+    if (!error && data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('updated_at, credits')
+        .eq('user_id', data.user.id)
+        .single();
+        
+      if (profile) {
+        const lastUpdate = new Date(profile.updated_at);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // If last update was before today, grant 2 credits
+        if (lastUpdate < today) {
+          await supabase
+            .from('profiles')
+            .update({ 
+              credits: profile.credits + 2,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', data.user.id);
+        }
+      }
+    }
+    
     return { error };
   };
 

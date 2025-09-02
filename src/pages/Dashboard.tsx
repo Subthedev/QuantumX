@@ -4,7 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import CryptoReport from '@/components/CryptoReport';
-import { Bitcoin, Zap, LogOut, TrendingUp, Home } from 'lucide-react';
+import CreditDisplay from '@/components/CreditDisplay';
+import FeedbackModal from '@/components/FeedbackModal';
+import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
+import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 interface CryptoReportData {
@@ -25,6 +28,10 @@ const Dashboard = () => {
   const [reports, setReports] = useState<Record<string, CryptoReportData>>({});
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
+  const [userCredits, setUserCredits] = useState(0);
+  
+  // Feedback popup management
+  const { shouldShowFeedback, handleFeedbackClose, handleFeedbackComplete } = useFeedbackPopup();
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -34,8 +41,22 @@ const Dashboard = () => {
     if (user) {
       fetchExistingReports();
       fetchTotalReportsCount();
+      fetchUserCredits();
     }
   }, [user]);
+  
+  const fetchUserCredits = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (data) {
+      setUserCredits(data.credits || 0);
+    }
+  };
   useEffect(() => {
     document.title = '4H Crypto Signals Dashboard | Ignitex';
     const metaDesc = 'AI 4H crypto signals for BTC & ETH with confidence, entries, stops, and targets.';
@@ -127,6 +148,7 @@ const Dashboard = () => {
             </nav>
           </div>
           <div className="flex items-center gap-4">
+            <CreditDisplay />
             <span className="text-sm text-muted-foreground hidden sm:block">
               Welcome, {user.email}
             </span>
@@ -190,15 +212,15 @@ const Dashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                Remaining Reports
+                <Coins className="h-5 w-5 text-primary" />
+                Available Credits
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-primary">
-                {2 - Object.keys(reports).length}
+                {userCredits}
               </div>
-              <CardDescription>until next 24h cycle</CardDescription>
+              <CardDescription>Use credits to generate reports</CardDescription>
             </CardContent>
           </Card>
         </div>
@@ -233,6 +255,13 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </main>
+      
+      {/* Feedback Modal */}
+      <FeedbackModal 
+        isOpen={shouldShowFeedback}
+        onClose={handleFeedbackClose}
+        onComplete={handleFeedbackComplete}
+      />
     </div>;
 };
 export default Dashboard;
