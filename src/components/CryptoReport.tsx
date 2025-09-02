@@ -337,11 +337,8 @@ const CryptoReport = ({
               <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-5 rounded-xl border border-primary/30 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="relative flex-shrink-0">
-                      <div className="absolute inset-0 bg-primary/30 rounded-full blur-md animate-pulse"></div>
-                      <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-full">
-                        <Activity className="h-5 w-5 text-white" />
-                      </div>
+                    <div className="flex-shrink-0 bg-primary/20 p-2.5 rounded-full border border-primary/30">
+                      <Activity className="h-5 w-5 text-primary" />
                     </div>
                     <h3 className="font-bold text-lg text-foreground">
                       AI-Powered Trading Signal
