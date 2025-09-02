@@ -333,27 +333,36 @@ const CryptoReport = ({
             
 
             {/* AI-Powered Trading Signal */}
-            {report.report_data?.signal_4h && <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-5 rounded-xl border border-primary/30 shadow-lg">
+            {report.report_data?.signal_4h && (
+              <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-5 rounded-xl border border-primary/30 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="relative">
+                    <div className="relative flex-shrink-0">
                       <div className="absolute inset-0 bg-primary/30 rounded-full blur-md animate-pulse"></div>
                       <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-full">
                         <Activity className="h-5 w-5 text-white" />
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    <h3 className="font-bold text-lg text-foreground">
                       AI-Powered Trading Signal
                     </h3>
                   </div>
-                  <Badge className={`px-3 py-1 text-sm font-bold ${report.report_data.signal_4h.direction === 'LONG' ? 'bg-green-500/20 text-green-700 border-green-500/30' : report.report_data.signal_4h.direction === 'SHORT' ? 'bg-red-500/20 text-red-700 border-red-500/30' : 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30'}`}>
-                    <div className="flex items-center gap-2">
-                      {report.report_data.signal_4h.direction === 'LONG' && <ArrowUp className="h-4 w-4" />}
-                      {report.report_data.signal_4h.direction === 'SHORT' && <ArrowDown className="h-4 w-4" />}
-                      {report.report_data.signal_4h.direction === 'HOLD' && <Minus className="h-4 w-4" />}
-                      {report.report_data.signal_4h.direction}
-                    </div>
-                  </Badge>
+                  {report.report_data.signal_4h.direction && (
+                    <Badge className={`px-3 py-1 text-sm font-bold ${
+                      report.report_data.signal_4h.direction === 'LONG' 
+                        ? 'bg-green-500/20 text-green-700 border-green-500/30' 
+                        : report.report_data.signal_4h.direction === 'SHORT' 
+                        ? 'bg-red-500/20 text-red-700 border-red-500/30' 
+                        : 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {report.report_data.signal_4h.direction === 'LONG' && <ArrowUp className="h-4 w-4" />}
+                        {report.report_data.signal_4h.direction === 'SHORT' && <ArrowDown className="h-4 w-4" />}
+                        {report.report_data.signal_4h.direction === 'HOLD' && <Minus className="h-4 w-4" />}
+                        {report.report_data.signal_4h.direction}
+                      </div>
+                    </Badge>
+                  )}
                 </div>
                 
                 {/* Confidence Score */}
@@ -443,7 +452,8 @@ const CryptoReport = ({
                         </div>)}
                     </div>
                   </div>}
-              </div>}
+              </div>
+            )}
 
             {/* Trading Targets */}
             {report.report_data.targets && <div>
