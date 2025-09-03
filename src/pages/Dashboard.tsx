@@ -221,7 +221,7 @@ const Dashboard = () => {
                   <div className="text-2xl font-bold text-primary">
                     {userCredits}
                   </div>
-                  
+                  <CardDescription>Use credits to generate reports</CardDescription>
                 </div>
                 <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
                   <Gift className="h-4 w-4 text-accent" />
