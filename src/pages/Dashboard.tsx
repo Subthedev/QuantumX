@@ -133,17 +133,13 @@ const Dashboard = () => {
   return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
       {/* Header */}
       <header className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 grid grid-cols-3 items-center">
-          {/* Left: Logo (match Landing) */}
-          <div className="flex items-center gap-2">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Left: Logo + Credits */}
+          <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2">
               <AIBrainIcon className="h-8 w-8" />
               <h1 className="text-xl font-bold text-foreground">IgniteX</h1>
             </Link>
-          </div>
-
-          {/* Center: Credits + Buy Credits */}
-          <div className="flex justify-center">
             <CreditDisplay />
           </div>
 
