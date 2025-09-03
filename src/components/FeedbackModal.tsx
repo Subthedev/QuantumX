@@ -247,7 +247,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
             <Button
               onClick={handleNext}
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              className="flex-1 bg-primary hover:bg-primary/90 text-white font-semibold"
             >
               {currentStep === questions.length - 1 ? (
                 loading ? "Submitting..." : "Submit & Earn 5 Credits"
