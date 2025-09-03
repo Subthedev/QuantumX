@@ -162,15 +162,25 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
         <DialogHeader>
           {currentStep === 0 && (
             <div className="mb-4 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20">
-              <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2">
-                🎯 Our Mission: Build the World's Most Accurate Crypto Prediction Engine
-              </h3>
-              <p className="text-xs text-muted-foreground mb-2">
-                Your honest feedback directly shapes our AI algorithms. Every response helps thousands of traders make better decisions.
-              </p>
-              <p className="text-xs font-semibold text-primary">
-                💡 Your insights = Better predictions for everyone
-              </p>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-accent/10 rounded-full">
+                  <Gift className="h-5 w-5 text-accent" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Win-Win Partnership: Your Feedback = 5 Free Credits 🎯
+                </h3>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-primary">Our Mission:</span> Build the world's most accurate AI crypto prediction engine
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-accent">Your Benefit:</span> Earn 5 credits instantly + shape the features you want
+                </p>
+                <p className="text-xs font-medium text-foreground/80 bg-primary/5 p-2 rounded">
+                  💡 Your honest insights directly improve predictions for 10,000+ traders worldwide
+                </p>
+              </div>
             </div>
           )}
           
@@ -184,13 +194,16 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
                   {currentQuestion.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-1">
-                  Question {currentStep + 1} of {questions.length} • {currentStep === questions.length - 1 ? 'Final question' : 'Your input matters'}
+                  Question {currentStep + 1} of {questions.length} • {currentStep === questions.length - 1 ? 'Last question - Get your credits!' : '2 minutes to better trading'}
                 </DialogDescription>
               </div>
             </div>
-            <div className="flex items-center gap-1 px-3 py-1 bg-accent/10 rounded-full">
-              <Gift className="h-4 w-4 text-accent" />
-              <span className="text-sm font-bold text-accent">+5</span>
+            <div className="flex flex-col items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-accent/10 to-accent/20 rounded-lg border border-accent/30">
+              <span className="text-[10px] font-medium text-muted-foreground">Reward</span>
+              <div className="flex items-center gap-1">
+                <Gift className="h-4 w-4 text-accent animate-pulse" />
+                <span className="text-sm font-bold text-accent">+5</span>
+              </div>
             </div>
           </div>
           
