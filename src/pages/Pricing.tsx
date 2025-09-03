@@ -14,11 +14,10 @@ const pricingPlans = [
     description: "Perfect for active traders",
     paymentLink: "https://nowpayments.io/payment/?iid=4356497370",
     features: [
-      "30 AI-powered predictions",
-      "Real-time market analysis",
-      "Technical indicators",
-      "24-hour support",
-      "Risk assessment tools"
+      "30 AI prediction credits per month",
+      "Technical & sentiment analysis reports",
+      "4-hour price movement forecasts",
+      "Standard email support"
     ],
     highlighted: false,
     gradient: "from-primary/10 to-primary/5"
@@ -31,12 +30,10 @@ const pricingPlans = [
     description: "For serious crypto investors",
     paymentLink: "https://nowpayments.io/payment/?iid=6122943694",
     features: [
-      "100 AI-powered predictions",
-      "Advanced pattern recognition",
-      "Whale movement alerts",
-      "Priority support",
-      "Custom trading signals",
-      "Portfolio optimization"
+      "100 AI prediction credits per month",
+      "Whale wallet tracking & alerts",
+      "24-hour advanced forecasts",
+      "Priority 24/7 support access"
     ],
     highlighted: true,
     gradient: "from-primary/10 to-primary/5"
@@ -49,12 +46,10 @@ const pricingPlans = [
     description: "Built for institutions",
     paymentLink: null,
     features: [
-      "Unlimited predictions",
-      "API access",
-      "Custom AI models",
-      "Dedicated account manager",
-      "White-label options",
-      "SLA guarantee"
+      "Unlimited AI predictions & API access",
+      "Custom model training & deployment",
+      "Dedicated success manager",
+      "99.9% uptime SLA guarantee"
     ],
     highlighted: false,
     gradient: "from-muted/30 to-muted/10"
