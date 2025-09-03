@@ -221,13 +221,11 @@ export default function Pricing() {
                 {/* CTA Button */}
                 <Button
                   className={`w-full h-12 font-semibold text-base ${
-                    plan.highlighted 
-                      ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
-                      : plan.name === "ENTERPRISE"
+                    plan.name === "ENTERPRISE"
                       ? 'bg-muted hover:bg-muted/80'
-                      : 'bg-muted/30 hover:bg-muted/50 border border-border/50'
+                      : 'bg-orange-500 hover:bg-orange-600 text-white'
                   }`}
-                  variant={plan.highlighted ? "default" : "outline"}
+                  variant={plan.name === "ENTERPRISE" ? "secondary" : "default"}
                   onClick={() => handlePurchase(plan.paymentLink)}
                 >
                   {plan.name === "ENTERPRISE" ? (
