@@ -61,17 +61,6 @@ export default function CreditDisplay({ onGetCredits }: CreditDisplayProps) {
         <span className="text-sm font-bold text-foreground">{credits}</span>
         <span className="text-xs text-muted-foreground">credits</span>
       </div>
-      {onGetCredits && (
-        <Button 
-          onClick={onGetCredits}
-          size="sm"
-          variant="outline"
-          className="flex items-center gap-1.5 h-8 px-3 border-accent/30 hover:bg-accent/10 hover:border-accent/50"
-        >
-          <Gift className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-semibold">Get Free Credits</span>
-        </Button>
-      )}
       <Button 
         onClick={() => navigate("/pricing")}
         size="sm"

@@ -144,11 +144,20 @@ const Dashboard = () => {
 
           {/* Center: Credits + Buy Credits */}
           <div className="flex justify-center">
-            <CreditDisplay onGetCredits={userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com' ? () => setShowFeedbackModal(true) : undefined} />
+            <CreditDisplay />
           </div>
 
-          {/* Right: Home */}
-          <div className="flex justify-end">
+          {/* Right: Get Free Credits + Home */}
+          <div className="flex justify-end items-center gap-3">
+            {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 hover:bg-primary/20 transition-colors"
+              >
+                <Gift className="h-4 w-4 text-primary" />
+                <span className="text-sm font-bold text-foreground">Get Free Credits</span>
+              </button>
+            )}
             <Link to="/">
               <Button variant="ghost" size="sm">
                 <Home className="h-4 w-4 mr-2" />
