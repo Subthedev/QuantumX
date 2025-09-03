@@ -183,8 +183,8 @@ export default function FeedbackModal({
                 </DialogDescription>
               </div>
             </div>
-            <div className="px-3 py-1 rounded-full border border-accent/30 text-accent text-xs font-medium">
-              +5 credits
+            <div className="px-3 py-1 rounded-full bg-accent/20 border border-accent text-accent text-sm font-bold">
+              +{currentStep + 1} {currentStep === questions.length - 1 ? 'credits' : 'credit'}
             </div>
           </div>
           
