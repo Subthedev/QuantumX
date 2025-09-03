@@ -247,60 +247,160 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Minimal Footer */}
-      <footer className="bg-background border-t border-border py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-            {/* Logo and Description */}
-            <div className="flex items-center gap-3">
-              <AIBrainIcon size="lg" className="h-12 w-12" />
-              <div>
-                <h3 className="text-xl font-bold text-foreground">IgniteX</h3>
-                <p className="text-sm text-muted-foreground">Professional crypto analysis</p>
+      {/* Professional Footer */}
+      <footer className="bg-muted/5 border-t border-border">
+        <div className="container mx-auto px-4 py-16">
+          {/* Main Footer Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+            
+            {/* Brand Section */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <AIBrainIcon size="lg" className="h-10 w-10" />
+                <h3 className="text-2xl font-bold text-foreground">IgniteX</h3>
+              </div>
+              <p className="text-muted-foreground mb-6 max-w-sm">
+                Professional-grade AI crypto analysis platform providing institutional-quality insights 
+                for Bitcoin and Ethereum traders worldwide.
+              </p>
+              <div className="flex items-center gap-4">
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
+                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
+                  <Twitter className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </a>
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
+                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
+                  <Instagram className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"
+                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
+                  <svg className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                  </svg>
+                </a>
+                <a href="mailto:contact@ignitexagency.com"
+                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
+                  <Mail className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </a>
               </div>
             </div>
             
-            {/* Links and Social Media */}
-            <div className="flex flex-col items-center gap-6">
-              {/* Navigation Links */}
-              <div className="flex items-center gap-6 text-sm">
-                <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy Policy
-                </Link>
-                <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
-                  Terms of Service
-                </Link>
-                <Link to="/disclaimer" className="text-muted-foreground hover:text-primary transition-colors">
-                  Disclaimer
-                </Link>
-                <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact Us
-                </a>
+            {/* Product Links */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-4">Product</h4>
+              <ul className="space-y-3">
+                <li>
+                  <Link to="/dashboard" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    AI Reports
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Pricing
+                  </Link>
+                </li>
+                <li>
+                  <a href="#features" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors text-sm flex items-center gap-1">
+                    API Access
+                    <Badge className="text-xs py-0 px-1 ml-1" variant="secondary">Soon</Badge>
+                  </a>
+                </li>
+              </ul>
+            </div>
+            
+            {/* Company Links */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-4">Company</h4>
+              <ul className="space-y-3">
+                <li>
+                  <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <a href="mailto:contact@ignitexagency.com" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Contact
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Careers
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Blog
+                  </a>
+                </li>
+              </ul>
+            </div>
+            
+            {/* Legal & Support */}
+            <div>
+              <h4 className="font-semibold text-foreground mb-4">Legal & Support</h4>
+              <ul className="space-y-3">
+                <li>
+                  <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/disclaimer" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Risk Disclaimer
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/cookie-policy" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                    Cookie Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          {/* Newsletter Section */}
+          <div className="border-t border-border pt-8 pb-8">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div>
+                <h4 className="font-semibold text-foreground mb-2">Stay Updated</h4>
+                <p className="text-sm text-muted-foreground">
+                  Get weekly crypto insights and market analysis delivered to your inbox.
+                </p>
               </div>
-              
-              {/* Social Media Links */}
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-sm text-muted-foreground font-medium">Follow Us</p>
-                <div className="flex items-center gap-6">
-                  <a href="#" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
-                    <Twitter className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm">Twitter</span>
-                  </a>
-                  <a href="#" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
-                    <Instagram className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm">Instagram</span>
-                  </a>
-                  <a href="mailto:contact@ignitexagency.com" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
-                    <Mail className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm">Email</span>
-                  </a>
-                </div>
+              <div className="flex gap-2">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email" 
+                  className="flex-1 px-4 py-2 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+                <Button className="px-6">
+                  Subscribe
+                </Button>
               </div>
             </div>
           </div>
           
-          <div className="border-t border-border mt-8 pt-6 text-center font-bold">
-            <p className="text-sm text-muted-foreground">© 2024 IgniteX. Professional crypto analysis powered by artificial intelligence.</p>
+          {/* Bottom Bar */}
+          <div className="border-t border-border pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Shield className="h-4 w-4" />
+                <span>SSL Secured • Data Protected • GDPR Compliant</span>
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                © 2023 IgniteX. All rights reserved. Professional crypto analysis powered by AI.
+              </p>
+            </div>
           </div>
         </div>
       </footer>
