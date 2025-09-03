@@ -192,15 +192,15 @@ export default function Pricing() {
                   <div className="mb-6">
                     <div className="text-center py-4 px-4 rounded-lg bg-muted/50 border border-border">
                       {plan.price !== "Custom" ? (
-                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                          <span className="text-3xl font-bold text-foreground">{plan.price}</span>
-                          <span className="text-sm text-muted-foreground">for</span>
-                          <span className="text-xl font-semibold text-foreground">{plan.credits} credits</span>
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
+                          <span>{plan.price}</span>
+                          <span>for</span>
+                          <span>{plan.credits} credits</span>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                          <span className="text-2xl font-bold text-foreground">{plan.price}</span>
-                          <span className="text-base text-muted-foreground">pricing</span>
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
+                          <span>{plan.price}</span>
+                          <span>pricing</span>
                         </div>
                       )}
                     </div>
