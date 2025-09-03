@@ -10,7 +10,6 @@ import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
 import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
-import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -132,47 +131,31 @@ const Dashboard = () => {
   }
   return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
       {/* Header */}
-      <header className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Logo - Left */}
-          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <AIBrainIcon className="h-8 w-8" />
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              IgniteX
-            </span>
-          </Link>
-
-          {/* Credits - Center */}
-          <div className="flex items-center justify-center flex-1">
-            <CreditDisplay 
-              onGetCredits={(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') 
-                ? () => setShowFeedbackModal(true) 
-                : undefined} 
-            />
-          </div>
-
-          {/* Navigation & Actions - Right */}
-          <div className="flex items-center gap-3">
-            <Link to="/">
-              <Button variant="ghost" size="default">
-                <Home className="h-4 w-4 mr-2" />
-                Home
-              </Button>
+      <header className="bg-white/80 backdrop-blur-sm border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center gap-2">
+              <Zap className="h-8 w-8 text-primary" />
+              <h1 className="text-2xl font-bold text-primary"></h1>
             </Link>
-            <div className="hidden sm:flex items-center gap-3">
-              <div className="h-8 w-px bg-border/50" />
-              <span className="text-sm text-muted-foreground">
-                {user.email}
-              </span>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={handleSignOut} 
-              size="default"
-              className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
-            >
-              <LogOut className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Sign Out</span>
+            <nav className="hidden md:flex items-center gap-4">
+              <Link to="/">
+                <Button variant="ghost" size="sm">
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </Button>
+              </Link>
+              
+            </nav>
+          </div>
+          <div className="flex items-center gap-4">
+            <CreditDisplay onGetCredits={userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com' ? () => setShowFeedbackModal(true) : undefined} />
+            <span className="text-sm text-muted-foreground hidden sm:block">
+              Welcome, {user.email}
+            </span>
+            <Button variant="outline" onClick={handleSignOut} size="sm">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
             </Button>
           </div>
         </div>
@@ -182,9 +165,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Your AI Prediction Dashboard</h2>
-          <p className="text-muted-foreground">
-            Generate intelligent market insights and price predictions for your favorite cryptocurrencies.
-          </p>
+          
         </div>
 
         {/* 4H Signal Cards */}
@@ -242,12 +223,10 @@ const Dashboard = () => {
                   </div>
                   <CardDescription>Use credits to generate reports</CardDescription>
                 </div>
-                {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
-                  <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
+                {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
                     <Gift className="h-4 w-4 text-accent" />
                     <span className="text-xs font-semibold">Get Free Credits</span>
-                  </Button>
-                )}
+                  </Button>}
               </div>
             </CardContent>
           </Card>
