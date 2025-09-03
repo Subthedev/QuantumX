@@ -15,7 +15,7 @@ const pricingPlans = [
     paymentLink: "https://nowpayments.io/payment/?iid=4356497370",
     features: [
       "30 AI prediction credits per month",
-      "Technical & sentiment analysis reports",
+      "Advanced ML model with higher accuracy",
       "4-hour price movement forecasts",
       "Standard email support"
     ],
