@@ -160,6 +160,20 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] !bg-white dark:!bg-gray-900 !border-2 !border-gray-300 dark:!border-gray-700 !shadow-2xl">
         <DialogHeader>
+          {currentStep === 0 && (
+            <div className="mb-4 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20">
+              <h3 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2">
+                🎯 Our Mission: Build the World's Most Accurate Crypto Prediction Engine
+              </h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Your honest feedback directly shapes our AI algorithms. Every response helps thousands of traders make better decisions.
+              </p>
+              <p className="text-xs font-semibold text-accent">
+                💡 Your insights = Better predictions for everyone
+              </p>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-primary/10 rounded-full">
@@ -170,7 +184,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
                   {currentQuestion.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-1">
-                  Question {currentStep + 1} of {questions.length} • Earn 5 credits
+                  Question {currentStep + 1} of {questions.length} • {currentStep === questions.length - 1 ? 'Final question' : 'Your input matters'}
                 </DialogDescription>
               </div>
             </div>
@@ -202,7 +216,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
                   ...answers,
                   [currentQuestion.id]: e.target.value
                 })}
-                placeholder="Share your thoughts..."
+                placeholder="Be honest and specific - your genuine feedback shapes our AI improvements..."
                 className="min-h-[100px] bg-background/50 border-primary/20 focus:border-primary/40"
               />
             ) : (
