@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { AIBrainIcon } from "@/components/ui/ai-brain-icon";
 
 const pricingPlans = [
   {
@@ -83,12 +84,10 @@ export default function Pricing() {
             className="flex items-center gap-3 cursor-pointer" 
             onClick={() => navigate("/")}
           >
-            <img 
-              src="/lovable-uploads/5f2b01e7-38a6-4a5c-bb03-94c3c178b575.png" 
-              alt="IgniteX" 
-              className="h-8 w-auto"
-            />
-            <span className="font-bold text-xl">IgniteX</span>
+            <AIBrainIcon className="h-8 w-8" />
+            <h1 className="text-xl font-bold text-foreground">
+              IgniteX
+            </h1>
           </div>
           
           <nav className="flex items-center gap-6">
