@@ -194,21 +194,20 @@ export default function Pricing() {
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <p className="text-muted-foreground text-sm mb-4">{plan.description}</p>
                   
-                  {/* Combined Price & Credits Bar */}
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50 mb-4">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold">{plan.price}</span>
-                      {plan.price !== "Custom" && (
-                        <span className="text-sm text-muted-foreground">/one-time</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 fill-primary text-primary" />
-                      <span className="font-semibold text-lg">{plan.credits}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {typeof plan.credits === 'number' ? 'Credits' : ''}
-                      </span>
-                    </div>
+                  {/* Price & Credits */}
+                  <div className="mb-6">
+                    {plan.price !== "Custom" ? (
+                      <div className="text-center py-4 rounded-lg bg-muted/30 border border-border/50">
+                        <span className="text-3xl font-bold">{plan.price}</span>
+                        <span className="text-lg text-muted-foreground mx-2">for</span>
+                        <span className="text-2xl font-semibold">{plan.credits} credits</span>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 rounded-lg bg-muted/30 border border-border/50">
+                        <span className="text-3xl font-bold">{plan.price}</span>
+                        <span className="text-lg text-muted-foreground mx-2">pricing</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
