@@ -148,7 +148,7 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-muted/20">
+      <section id="features" className="py-20 bg-muted/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
