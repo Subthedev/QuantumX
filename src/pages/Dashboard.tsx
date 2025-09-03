@@ -133,33 +133,65 @@ const Dashboard = () => {
   return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
       {/* Header */}
       <header className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <AIBrainIcon className="h-8 w-8" />
-            <span className="text-xl font-bold text-foreground">IgniteX</span>
-          </Link>
+        <div className="container mx-auto px-4 h-16 flex items-center">
+          {/* Logo Section */}
+          <div className="flex-1">
+            <Link to="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <AIBrainIcon className="h-8 w-8" />
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                IgniteX
+              </span>
+            </Link>
+          </div>
 
-          <nav className="hidden md:flex items-center gap-2">
+          {/* Center Navigation */}
+          <nav className="flex items-center gap-1">
             <Link to="/">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="default" className="font-medium">
                 <Home className="h-4 w-4 mr-2" />
                 Home
               </Button>
             </Link>
             <Link to="/pricing">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="default" className="font-medium">
                 <Coins className="h-4 w-4 mr-2" />
                 Pricing
               </Button>
             </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <CreditDisplay onGetCredits={(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') ? () => setShowFeedbackModal(true) : undefined} />
-            <span className="hidden sm:block text-sm text-muted-foreground">Welcome, {user.email}</span>
-            <Button variant="outline" onClick={handleSignOut} size="sm">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+          {/* Right Section */}
+          <div className="flex-1 flex items-center justify-end gap-4">
+            <CreditDisplay 
+              onGetCredits={(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') 
+                ? () => setShowFeedbackModal(true) 
+                : undefined} 
+            />
+            <div className="hidden lg:flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Signed in as</p>
+                <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                  {user.email}
+                </p>
+              </div>
+              <div className="h-8 w-px bg-border/50" />
+              <Button 
+                variant="outline" 
+                onClick={handleSignOut} 
+                size="default"
+                className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-colors"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleSignOut} 
+              size="icon"
+              className="lg:hidden hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
