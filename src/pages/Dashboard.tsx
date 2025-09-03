@@ -7,7 +7,7 @@ import CryptoReport from '@/components/CryptoReport';
 import CreditDisplay from '@/components/CreditDisplay';
 import FeedbackModal from '@/components/FeedbackModal';
 import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
-import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins } from 'lucide-react';
+import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 interface CryptoReportData {
@@ -29,8 +29,9 @@ const Dashboard = () => {
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
   const [userCredits, setUserCredits] = useState(0);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
-  // Feedback popup management
+  // Feedback popup management  
   const { shouldShowFeedback, handleFeedbackClose, handleFeedbackComplete } = useFeedbackPopup();
   useEffect(() => {
     if (!loading && !user) {
@@ -148,7 +149,7 @@ const Dashboard = () => {
             </nav>
           </div>
           <div className="flex items-center gap-4">
-            <CreditDisplay />
+            <CreditDisplay onGetCredits={() => setShowFeedbackModal(true)} />
             <span className="text-sm text-muted-foreground hidden sm:block">
               Welcome, {user.email}
             </span>
@@ -217,10 +218,23 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">
-                {userCredits}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold text-primary">
+                    {userCredits}
+                  </div>
+                  <CardDescription>Use credits to generate reports</CardDescription>
+                </div>
+                <Button 
+                  onClick={() => setShowFeedbackModal(true)}
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50"
+                >
+                  <Gift className="h-4 w-4 text-accent" />
+                  <span className="text-xs font-semibold">Get Free Credits</span>
+                </Button>
               </div>
-              <CardDescription>Use credits to generate reports</CardDescription>
             </CardContent>
           </Card>
         </div>
@@ -256,7 +270,17 @@ const Dashboard = () => {
         </Card>
       </main>
       
-      {/* Feedback Modal */}
+      {/* Feedback Modal - Manual Trigger */}
+      <FeedbackModal 
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onComplete={() => {
+          setShowFeedbackModal(false);
+          fetchUserCredits(); // Refresh credits after completion
+        }}
+      />
+      
+      {/* Feedback Modal - Auto Popup */}
       <FeedbackModal 
         isOpen={shouldShowFeedback}
         onClose={handleFeedbackClose}
