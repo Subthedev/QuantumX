@@ -149,7 +149,7 @@ const Dashboard = () => {
             </nav>
           </div>
           <div className="flex items-center gap-4">
-            <CreditDisplay onGetCredits={userFeedbackCount === 0 ? () => setShowFeedbackModal(true) : undefined} />
+            <CreditDisplay onGetCredits={(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') ? () => setShowFeedbackModal(true) : undefined} />
             <span className="text-sm text-muted-foreground hidden sm:block">
               Welcome, {user.email}
             </span>
@@ -225,7 +225,7 @@ const Dashboard = () => {
                   </div>
                   <CardDescription>Use credits to generate reports</CardDescription>
                 </div>
-                {userFeedbackCount === 0 && (
+                {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
                   <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
                     <Gift className="h-4 w-4 text-accent" />
                     <span className="text-xs font-semibold">Get Free Credits</span>
