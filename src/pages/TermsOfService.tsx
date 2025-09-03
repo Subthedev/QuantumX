@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import ignitexLogo from '@/assets/ignitex-orange-brain-logo.png';
+import ignitexLogo from '@/assets/ignitex-new-logo.png';
 
 const TermsOfService = () => {
   return (
@@ -55,7 +55,20 @@ const TermsOfService = () => {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">4. User Responsibilities</h2>
+            <h2 className="text-2xl font-semibold">4. Payments and Refund Policy</h2>
+            <p className="font-semibold text-orange-600">
+              IMPORTANT: All credit purchases are final and non-refundable. Once credits are purchased, 
+              they cannot be refunded, exchanged, or transferred. Please ensure you understand our service 
+              before making a purchase.
+            </p>
+            <p>
+              Credits purchased will be immediately available in your account and do not expire. 
+              We encourage you to review our service offerings carefully before completing any purchase.
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">5. User Responsibilities</h2>
             <ul className="list-disc pl-6 space-y-2">
               <li>You are responsible for maintaining the confidentiality of your account</li>
               <li>You agree to use the service only for lawful purposes</li>
@@ -64,7 +77,7 @@ const TermsOfService = () => {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">5. Limitation of Liability</h2>
+            <h2 className="text-2xl font-semibold">6. Limitation of Liability</h2>
             <p>
               We shall not be liable for any direct, indirect, incidental, special, 
               consequential or punitive damages resulting from your use of the service.
@@ -72,7 +85,7 @@ const TermsOfService = () => {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">6. Termination</h2>
+            <h2 className="text-2xl font-semibold">7. Termination</h2>
             <p>
               We may terminate or suspend your account and access to the service immediately, 
               without prior notice, for conduct that we believe violates these Terms of Service.
@@ -80,7 +93,7 @@ const TermsOfService = () => {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">7. Contact Information</h2>
+            <h2 className="text-2xl font-semibold">8. Contact Information</h2>
             <p>
               Questions about the Terms of Service should be sent to us at{' '}
               <a href="mailto:Contact@ignitexagency.com" className="text-primary hover:underline">
