@@ -2,44 +2,41 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Professional startup timing strategy:
-// - First popup: After 3 minutes (180 seconds) of being logged in
-// - Second popup: 10 minutes after first completion
-// - Third+ popups: Every 20 minutes, but only if user has been active
-// - Max 3 popups per session
+// Production-grade timing strategy based on user engagement psychology:
+// - Initial popup: After 60 seconds (quick enough to catch engaged users)
+// - Second attempt: 5 minutes later (if declined, gives breathing room)
+// - Third attempt: Next session or 24 hours later
+// - Never spam: Max 1 popup per session after submission
 
-const FIRST_POPUP_DELAY = 180000; // 3 minutes
-const SECOND_POPUP_DELAY = 600000; // 10 minutes
-const RECURRING_POPUP_DELAY = 1200000; // 20 minutes
-const MAX_POPUPS_PER_SESSION = 3;
+const INITIAL_POPUP_DELAY = 60000; // 60 seconds as requested
+const SECOND_ATTEMPT_DELAY = 300000; // 5 minutes
+const SESSION_LIMIT = 1; // Only show once per session after initial attempts
+const COOLDOWN_PERIOD = 86400000; // 24 hours between attempts
 
 export function useFeedbackPopup() {
   const { user } = useAuth();
   const [shouldShowFeedback, setShouldShowFeedback] = useState(false);
-  const [popupsShownInSession, setPopupsShownInSession] = useState(0);
+  const [hasShownInSession, setHasShownInSession] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [sessionStartTime] = useState(Date.now());
+  const [attemptCount, setAttemptCount] = useState(0);
 
-  // Track user activity
+  // Track user activity for engagement detection
   useEffect(() => {
     const handleActivity = () => {
       setLastActivityTime(Date.now());
     };
 
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    window.addEventListener('click', handleActivity);
-    window.addEventListener('scroll', handleActivity);
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, handleActivity));
 
     return () => {
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-      window.removeEventListener('click', handleActivity);
-      window.removeEventListener('scroll', handleActivity);
+      events.forEach(event => window.removeEventListener(event, handleActivity));
     };
   }, []);
 
-  // Fetch user profile
+  // Fetch user profile with credits and feedback data
   useEffect(() => {
     if (!user) return;
 
@@ -56,67 +53,105 @@ export function useFeedbackPopup() {
     };
 
     fetchProfile();
+
+    // Subscribe to profile changes
+    const subscription = supabase
+      .channel('profile_changes')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` },
+        fetchProfile
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [user]);
 
-  // Determine when to show feedback popup
+  // Strategic popup timing with psychological triggers
   useEffect(() => {
-    if (!user || !userProfile || popupsShownInSession >= MAX_POPUPS_PER_SESSION) return;
+    if (!user || !userProfile || hasShownInSession) return;
+    
+    // Don't show if user already submitted feedback (except for test email)
+    if (userProfile.feedback_count > 0 && user.email !== 'contactsubhrajeet@gmail.com') return;
 
-    // Don't show if user has plenty of credits
-    if (userProfile.credits > 10) return;
+    // Check cooldown period
+    if (userProfile.last_feedback_shown) {
+      const timeSinceLastShown = Date.now() - new Date(userProfile.last_feedback_shown).getTime();
+      
+      // Respect 24-hour cooldown for better user experience
+      if (timeSinceLastShown < COOLDOWN_PERIOD && attemptCount > 0) return;
+    }
 
-    const determinePopupTiming = () => {
-      const now = Date.now();
-      const lastFeedbackTime = userProfile.last_feedback_shown 
-        ? new Date(userProfile.last_feedback_shown).getTime() 
-        : 0;
-      const timeSinceLastFeedback = now - lastFeedbackTime;
-      const timeSinceLastActivity = now - lastActivityTime;
+    let timeoutId: NodeJS.Timeout;
 
-      // Only show if user has been active in the last 2 minutes
-      if (timeSinceLastActivity > 120000) return;
-
-      let delay = FIRST_POPUP_DELAY;
-
-      if (userProfile.feedback_count === 0) {
-        // First time user - show after 3 minutes
-        delay = FIRST_POPUP_DELAY;
-      } else if (userProfile.feedback_count === 1) {
-        // Second popup - 10 minutes after first
-        if (timeSinceLastFeedback < SECOND_POPUP_DELAY) return;
-        delay = SECOND_POPUP_DELAY;
-      } else {
-        // Recurring popups - every 20 minutes
-        if (timeSinceLastFeedback < RECURRING_POPUP_DELAY) return;
-        delay = RECURRING_POPUP_DELAY;
+    const showPopupWithEngagementCheck = async () => {
+      // Ensure user is actively engaged (activity within last 30 seconds)
+      const timeSinceActivity = Date.now() - lastActivityTime;
+      const isEngaged = timeSinceActivity < 30000;
+      
+      // Check if user has low credits (psychological trigger)
+      const hasLowCredits = userProfile.credits <= 5;
+      
+      // Only show if user is engaged
+      if (isEngaged && !hasShownInSession) {
+        setShouldShowFeedback(true);
+        setHasShownInSession(true);
+        setAttemptCount(prev => prev + 1);
+        
+        // Update last shown timestamp
+        await supabase
+          .from('profiles')
+          .update({ last_feedback_shown: new Date().toISOString() })
+          .eq('user_id', user.id);
       }
-
-      // Set timer to show popup
-      const timer = setTimeout(() => {
-        // Final activity check before showing
-        const finalActivityCheck = Date.now() - lastActivityTime;
-        if (finalActivityCheck < 120000) {
-          setShouldShowFeedback(true);
-          setPopupsShownInSession(prev => prev + 1);
-        }
-      }, delay);
-
-      return timer;
     };
 
-    const timer = determinePopupTiming();
+    // Calculate strategic delay based on user behavior
+    const getStrategicDelay = () => {
+      const timeOnSite = Date.now() - sessionStartTime;
+      
+      // First attempt: 60 seconds (as requested)
+      if (attemptCount === 0) {
+        return INITIAL_POPUP_DELAY;
+      }
+      
+      // Second attempt: Only if user has been engaged for 5+ minutes
+      if (attemptCount === 1 && timeOnSite >= SECOND_ATTEMPT_DELAY) {
+        return SECOND_ATTEMPT_DELAY;
+      }
+      
+      // No more attempts in this session
+      return null;
+    };
+
+    const delay = getStrategicDelay();
+    
+    if (delay !== null) {
+      timeoutId = setTimeout(showPopupWithEngagementCheck, delay);
+    }
+
     return () => {
-      if (timer) clearTimeout(timer);
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user, userProfile, lastActivityTime, popupsShownInSession]);
+  }, [user, userProfile, lastActivityTime, sessionStartTime, hasShownInSession, attemptCount]);
 
   const handleFeedbackClose = () => {
     setShouldShowFeedback(false);
+    
+    // If user closes without submitting, prepare for next attempt
+    if (attemptCount < 2) {
+      setTimeout(() => {
+        setHasShownInSession(false);
+      }, SECOND_ATTEMPT_DELAY);
+    }
   };
 
   const handleFeedbackComplete = async () => {
     setShouldShowFeedback(false);
-    // Refresh profile to get updated feedback count
+    setHasShownInSession(true); // Prevent further popups this session
+    
+    // Refresh profile to get updated feedback count and credits
     if (user) {
       const { data } = await supabase
         .from('profiles')
