@@ -190,17 +190,17 @@ export default function Pricing() {
                   
                   {/* Price & Credits */}
                   <div className="mb-6">
-                    <div className="text-center py-3 px-4 rounded-lg bg-muted/30 border border-border/50 min-w-full">
+                    <div className="text-center py-4 px-4 rounded-lg bg-muted/50 border border-border">
                       {plan.price !== "Custom" ? (
-                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <span className="text-2xl font-semibold text-black dark:text-white">{plan.price}</span>
-                          <span className="text-base font-medium text-black dark:text-white">for</span>
-                          <span className="text-2xl font-semibold text-black dark:text-white">{plan.credits} credits</span>
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                          <span className="text-3xl font-bold text-foreground">{plan.price}</span>
+                          <span className="text-sm text-muted-foreground">for</span>
+                          <span className="text-xl font-semibold text-foreground">{plan.credits} credits</span>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <span className="text-2xl font-semibold text-black dark:text-white">{plan.price}</span>
-                          <span className="text-base font-medium text-black dark:text-white">pricing</span>
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                          <span className="text-2xl font-bold text-foreground">{plan.price}</span>
+                          <span className="text-base text-muted-foreground">pricing</span>
                         </div>
                       )}
                     </div>
