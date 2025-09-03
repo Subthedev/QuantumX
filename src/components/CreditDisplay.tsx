@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Coins, Gift } from "lucide-react";
+import { Coins, Gift, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface CreditDisplayProps {
   onGetCredits?: () => void;
@@ -11,6 +12,7 @@ interface CreditDisplayProps {
 export default function CreditDisplay({ onGetCredits }: CreditDisplayProps) {
   const { user } = useAuth();
   const [credits, setCredits] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) {
@@ -70,6 +72,14 @@ export default function CreditDisplay({ onGetCredits }: CreditDisplayProps) {
           <span className="text-xs font-semibold">Get Free Credits</span>
         </Button>
       )}
+      <Button 
+        onClick={() => navigate("/pricing")}
+        size="sm"
+        className="flex items-center gap-1.5 h-8 px-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground"
+      >
+        <ShoppingCart className="h-3.5 w-3.5" />
+        <span className="text-xs font-semibold">Buy Credits</span>
+      </Button>
     </div>
   );
 }
