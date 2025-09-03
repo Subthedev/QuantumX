@@ -162,9 +162,9 @@ export default function FeedbackModal({
   return <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] !bg-white dark:!bg-gray-900 !border-2 !border-gray-300 dark:!border-gray-700 !shadow-2xl">
         <DialogHeader>
-          {currentStep === 0 && <div className="mb-4 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20">
+          {currentStep === 0 && <div className="mb-4 px-4 py-2.5 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20">
               
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-foreground/80 font-medium">
                 Help us improve IgniteX. Share brief feedback and receive 5 credits.
               </p>
             </div>}
