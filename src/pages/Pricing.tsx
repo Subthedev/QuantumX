@@ -70,7 +70,7 @@ export default function Pricing() {
       window.open(link, "_blank");
     } else {
       // Contact for enterprise
-      window.location.href = "mailto:support@ignitex.ai?subject=Enterprise Pricing Inquiry";
+      window.location.href = "mailto:contact@ignitexagency.com?subject=Enterprise Pricing Inquiry";
     }
   };
 
