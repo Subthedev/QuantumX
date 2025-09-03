@@ -5,68 +5,47 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/ai-brain-icon";
-
-const pricingPlans = [
-  {
-    name: "PRO",
-    price: "$9",
-    credits: 30,
-    badge: "MOST POPULAR",
-    description: "Perfect for active traders",
-    paymentLink: "https://nowpayments.io/payment/?iid=4356497370",
-    features: [
-      "30 AI prediction credits per month",
-      "Technical & sentiment analysis reports",
-      "AI-driven entry/exit signals & risk scores",
-      "Standard email support"
-    ],
-    highlighted: false,
-    gradient: "from-primary/10 to-primary/5"
-  },
-  {
-    name: "ELITE",
-    price: "$25",
-    credits: 100,
-    badge: "BEST VALUE",
-    description: "For serious crypto investors",
-    paymentLink: "https://nowpayments.io/payment/?iid=6122943694",
-    features: [
-      "100 AI prediction credits per month",
-      "Advanced ML model with higher accuracy",
-      "Pattern recognition & momentum indicators",
-      "Priority 24/7 support access"
-    ],
-    highlighted: true,
-    gradient: "from-primary/10 to-primary/5"
-  },
-  {
-    name: "ENTERPRISE",
-    price: "Custom",
-    credits: "Unlimited",
-    badge: "TAILORED",
-    description: "Built for institutions",
-    paymentLink: null,
-    features: [
-      "Unlimited AI predictions & API access",
-      "Custom model training & deployment",
-      "Dedicated success manager",
-      "99.9% uptime guarantee"
-    ],
-    highlighted: false,
-    gradient: "from-muted/30 to-muted/10"
-  }
-];
-
+const pricingPlans = [{
+  name: "PRO",
+  price: "$9",
+  credits: 30,
+  badge: "MOST POPULAR",
+  description: "Perfect for active traders",
+  paymentLink: "https://nowpayments.io/payment/?iid=4356497370",
+  features: ["30 AI prediction credits per month", "Technical & sentiment analysis reports", "AI-driven entry/exit signals & risk scores", "Standard email support"],
+  highlighted: false,
+  gradient: "from-primary/10 to-primary/5"
+}, {
+  name: "ELITE",
+  price: "$25",
+  credits: 100,
+  badge: "BEST VALUE",
+  description: "For serious crypto investors",
+  paymentLink: "https://nowpayments.io/payment/?iid=6122943694",
+  features: ["100 AI prediction credits per month", "Advanced ML model with higher accuracy", "Pattern recognition & momentum indicators", "Priority 24/7 support access"],
+  highlighted: true,
+  gradient: "from-primary/10 to-primary/5"
+}, {
+  name: "ENTERPRISE",
+  price: "Custom",
+  credits: "Unlimited",
+  badge: "TAILORED",
+  description: "Built for institutions",
+  paymentLink: null,
+  features: ["Unlimited AI predictions & API access", "Custom model training & deployment", "Dedicated success manager", "99.9% uptime guarantee"],
+  highlighted: false,
+  gradient: "from-muted/30 to-muted/10"
+}];
 export default function Pricing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-
+  const {
+    user
+  } = useAuth();
   const handlePurchase = (link: string | null) => {
     if (!user) {
       navigate("/auth");
       return;
     }
-    
     if (link) {
       window.open(link, "_blank");
     } else {
@@ -74,16 +53,11 @@ export default function Pricing() {
       window.location.href = "mailto:contact@ignitexagency.com?subject=Enterprise Pricing Inquiry";
     }
   };
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/50 backdrop-blur-xl bg-background/80">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div 
-            className="flex items-center gap-3 cursor-pointer" 
-            onClick={() => navigate("/")}
-          >
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
             <AIBrainIcon className="h-8 w-8" />
             <h1 className="text-xl font-bold text-foreground">
               IgniteX
@@ -91,27 +65,15 @@ export default function Pricing() {
           </div>
           
           <nav className="flex items-center gap-6">
-            {user ? (
-              <>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => navigate("/dashboard")}
-                >
-                  Dashboard
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => navigate("/dashboard")}
-                >
+            {user ? <>
+                
+                <Button variant="outline" onClick={() => navigate("/dashboard")}>
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Back to Dashboard
                 </Button>
-              </>
-            ) : (
-              <Button onClick={() => navigate("/auth")}>
+              </> : <Button onClick={() => navigate("/auth")}>
                 Sign In
-              </Button>
-            )}
+              </Button>}
           </nav>
         </div>
       </header>
@@ -155,32 +117,16 @@ export default function Pricing() {
       {/* Pricing Cards */}
       <section className="container mx-auto px-4 pb-20">
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {pricingPlans.map((plan) => (
-            <Card 
-              key={plan.name}
-              className={`relative overflow-hidden border-2 transition-all duration-300 hover:scale-105 ${
-                plan.highlighted 
-                  ? 'border-accent shadow-2xl shadow-accent/20' 
-                  : 'border-border hover:border-primary/50'
-              }`}
-            >
+          {pricingPlans.map(plan => <Card key={plan.name} className={`relative overflow-hidden border-2 transition-all duration-300 hover:scale-105 ${plan.highlighted ? 'border-accent shadow-2xl shadow-accent/20' : 'border-border hover:border-primary/50'}`}>
               {/* Background Gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${plan.gradient}`} />
               
               {/* Badge */}
-              {plan.badge && (
-                <div className="absolute -top-px -right-px">
-                  <Badge 
-                    className={`rounded-none rounded-bl-lg px-4 py-1.5 ${
-                      plan.highlighted 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-primary text-primary-foreground'
-                    }`}
-                  >
+              {plan.badge && <div className="absolute -top-px -right-px">
+                  <Badge className={`rounded-none rounded-bl-lg px-4 py-1.5 ${plan.highlighted ? 'bg-primary text-primary-foreground' : 'bg-primary text-primary-foreground'}`}>
                     {plan.badge}
                   </Badge>
-                </div>
-              )}
+                </div>}
 
               <div className="relative p-8">
                 {/* Plan Header */}
@@ -191,63 +137,42 @@ export default function Pricing() {
                   {/* Price & Credits */}
                   <div className="mb-6">
                     <div className="text-center py-4 px-4 rounded-lg bg-muted/50 border border-border">
-                      {plan.price !== "Custom" ? (
-                        <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
+                      {plan.price !== "Custom" ? <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
                           <span>{plan.price}</span>
                           <span>for</span>
                           <span>{plan.credits} credits</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
+                        </div> : <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
                           <span>{plan.price}</span>
                           <span>pricing</span>
-                        </div>
-                      )}
+                        </div>}
                     </div>
                   </div>
                 </div>
 
                 {/* Features */}
                 <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
+                  {plan.features.map(feature => <li key={feature} className="flex items-start gap-3">
                       <Check className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
+                    </li>)}
                 </ul>
 
                 {/* CTA Button */}
-                <Button
-                  className={`w-full h-12 font-semibold text-base ${
-                    plan.name === "ENTERPRISE"
-                      ? 'bg-muted hover:bg-muted/80'
-                      : 'bg-orange-500 hover:bg-orange-600 text-white'
-                  }`}
-                  variant={plan.name === "ENTERPRISE" ? "secondary" : "default"}
-                  onClick={() => handlePurchase(plan.paymentLink)}
-                >
-                  {plan.name === "ENTERPRISE" ? (
-                    <>Contact Sales</>
-                  ) : (
-                    <>
+                <Button className={`w-full h-12 font-semibold text-base ${plan.name === "ENTERPRISE" ? 'bg-muted hover:bg-muted/80' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} variant={plan.name === "ENTERPRISE" ? "secondary" : "default"} onClick={() => handlePurchase(plan.paymentLink)}>
+                  {plan.name === "ENTERPRISE" ? <>Contact Sales</> : <>
                       Pay with Crypto
                       <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
+                    </>}
                 </Button>
 
                 {/* Savings Badge for ELITE */}
-                {plan.name === "ELITE" && (
-                  <div className="mt-4 text-center">
+                {plan.name === "ELITE" && <div className="mt-4 text-center">
                     <Badge variant="outline" className="bg-accent/10 border-accent/30">
                       Save $2 per credit
                     </Badge>
-                  </div>
-                )}
+                  </div>}
               </div>
-            </Card>
-          ))}
+            </Card>)}
         </div>
 
         {/* Additional Benefits */}
@@ -309,6 +234,5 @@ export default function Pricing() {
           </div>
         </div>
       </section>
-    </div>
-  );
+    </div>;
 }
