@@ -75,7 +75,8 @@ export default function CreditDisplay({ onGetCredits }: CreditDisplayProps) {
       <Button 
         onClick={() => navigate("/pricing")}
         size="sm"
-        className="flex items-center gap-1.5 h-8 px-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground"
+        variant="default"
+        className="flex items-center gap-1.5 h-8 px-3"
       >
         <ShoppingCart className="h-3.5 w-3.5" />
         <span className="text-xs font-semibold">Buy Credits</span>
