@@ -183,7 +183,7 @@ export default function FeedbackModal({
                 </DialogDescription>
               </div>
             </div>
-            <div className="px-3 py-1.5 rounded-full bg-accent text-background text-sm font-bold">
+            <div className="px-3 py-1.5 rounded-full bg-black text-white text-sm font-bold">
               +1 credit
             </div>
           </div>
