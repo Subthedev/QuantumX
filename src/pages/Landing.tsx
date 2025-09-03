@@ -49,7 +49,7 @@ const Landing = () => {
   };
   
   return <div className="min-h-screen bg-background">
-      {/* Enhanced Navigation */}
+      {/* Professional Navigation Header */}
       <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -60,6 +60,26 @@ const Landing = () => {
               </h1>
             </div>
             
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center gap-6">
+              <Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                About
+              </Link>
+              <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Services
+              </Link>
+              <a href="#features" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Features
+              </a>
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Pricing
+              </Link>
+              <a href="mailto:contact@ignitexagency.com" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Contact
+              </a>
+            </div>
+            
+            {/* Auth Buttons */}
             <div className="flex items-center gap-3">
               {user ? <Link to="/dashboard">
                   <Button size="sm" className="shadow-lg">
