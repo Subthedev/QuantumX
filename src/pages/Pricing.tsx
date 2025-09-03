@@ -15,7 +15,7 @@ const pricingPlans = [
     paymentLink: "https://nowpayments.io/payment/?iid=4356497370",
     features: [
       "30 AI prediction credits per month",
-      "Advanced ML model with higher accuracy",
+      "Technical & sentiment analysis reports",
       "4-hour price movement forecasts",
       "Standard email support"
     ],
@@ -31,7 +31,7 @@ const pricingPlans = [
     paymentLink: "https://nowpayments.io/payment/?iid=6122943694",
     features: [
       "100 AI prediction credits per month",
-      "Whale wallet tracking & alerts",
+      "Advanced ML model with higher accuracy",
       "24-hour advanced forecasts",
       "Priority 24/7 support access"
     ],
