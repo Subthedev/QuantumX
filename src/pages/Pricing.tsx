@@ -21,7 +21,7 @@ const pricingPlans = [
       "Risk assessment tools"
     ],
     highlighted: false,
-    gradient: "from-primary/10 to-primary/5"
+    gradient: "from-muted/10 to-muted/5"
   },
   {
     name: "ELITE",
@@ -39,7 +39,7 @@ const pricingPlans = [
       "Portfolio optimization"
     ],
     highlighted: true,
-    gradient: "from-accent/20 to-accent/5"
+    gradient: "from-primary/20 to-primary/5"
   },
   {
     name: "ENTERPRISE",
