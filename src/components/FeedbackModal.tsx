@@ -133,8 +133,8 @@ export default function FeedbackModal({
       });
       if (creditError) throw creditError;
       toast({
-        title: "🎉 Thank you for your feedback!",
-        description: "You've earned 5 credits! Use them to generate more crypto reports.",
+        title: "Thank you for your feedback",
+        description: "You've earned 5 credits. Thanks for helping improve IgniteX.",
         className: "bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30"
       });
       onComplete();
@@ -164,11 +164,8 @@ export default function FeedbackModal({
         <DialogHeader>
           {currentStep === 0 && <div className="mb-4 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20">
               
-              <p className="text-xs text-muted-foreground mb-2">
-                Your honest feedback directly shapes our AI algorithms. Every response helps thousands of traders make better decisions.
-              </p>
-              <p className="text-xs font-semibold text-primary">
-                💡 Your insights = Better predictions for everyone
+              <p className="text-xs text-muted-foreground">
+                Help us improve IgniteX. Share brief feedback and receive 5 credits.
               </p>
             </div>}
           
@@ -186,9 +183,8 @@ export default function FeedbackModal({
                 </DialogDescription>
               </div>
             </div>
-            <div className="flex items-center gap-1 px-3 py-1 bg-accent/10 rounded-full">
-              <Gift className="h-4 w-4 text-accent" />
-              <span className="text-sm font-bold text-accent">+5</span>
+            <div className="px-3 py-1 rounded-full border border-accent/30 text-accent text-xs font-medium">
+              +5 credits
             </div>
           </div>
           
@@ -227,7 +223,7 @@ export default function FeedbackModal({
               Previous
             </Button>
             <Button onClick={handleNext} disabled={loading} className="flex-1 bg-primary hover:bg-primary/90 text-white font-semibold">
-              {currentStep === questions.length - 1 ? loading ? "Submitting..." : "Submit & Earn 5 Credits" : "Next"}
+              {currentStep === questions.length - 1 ? (loading ? "Submitting..." : "Submit") : "Next"}
             </Button>
           </div>
         </div>
