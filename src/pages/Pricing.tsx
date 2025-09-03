@@ -16,7 +16,7 @@ const pricingPlans = [
     features: [
       "30 AI prediction credits per month",
       "Technical & sentiment analysis reports",
-      "4-hour price movement forecasts",
+      "AI-driven entry/exit signals & risk scores",
       "Standard email support"
     ],
     highlighted: false,
@@ -32,7 +32,7 @@ const pricingPlans = [
     features: [
       "100 AI prediction credits per month",
       "Advanced ML model with higher accuracy",
-      "24-hour advanced forecasts",
+      "Pattern recognition & momentum indicators",
       "Priority 24/7 support access"
     ],
     highlighted: true,
