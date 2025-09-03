@@ -39,7 +39,7 @@ const pricingPlans = [
       "Portfolio optimization"
     ],
     highlighted: true,
-    gradient: "from-accent/20 to-accent/5"
+    gradient: "from-primary/10 to-primary/5"
   },
   {
     name: "ENTERPRISE",
@@ -179,7 +179,7 @@ export default function Pricing() {
                   <Badge 
                     className={`rounded-none rounded-bl-lg px-4 py-1.5 ${
                       plan.highlighted 
-                        ? 'bg-accent text-accent-foreground' 
+                        ? 'bg-primary text-primary-foreground' 
                         : 'bg-primary text-primary-foreground'
                     }`}
                   >
