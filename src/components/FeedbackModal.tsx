@@ -187,7 +187,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
           </div>
           
           {/* Progress bar */}
-          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
               style={{ width: `${progress}%` }}
