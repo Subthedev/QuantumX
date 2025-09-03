@@ -164,7 +164,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-background border-2 border-primary/30 shadow-2xl">
+      <DialogContent className="sm:max-w-[600px] !bg-white dark:!bg-gray-900 !border-2 !border-gray-300 dark:!border-gray-700 !shadow-2xl">
         <DialogHeader>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
