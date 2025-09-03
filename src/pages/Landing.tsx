@@ -319,7 +319,7 @@ const Landing = () => {
           </div>
           
           <div className="border-t border-border mt-8 pt-6 text-center">
-            <p className="text-sm text-muted-foreground">© 2024 IgniteX. Professional crypto analysis powered by artificial intelligence.</p>
+            <p className="text-sm text-muted-foreground">© 2023 IgniteX. Professional crypto analysis powered by artificial intelligence.</p>
           </div>
         </div>
       </footer>
