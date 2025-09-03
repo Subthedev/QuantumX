@@ -68,7 +68,7 @@ export default function CreditDisplay({ onGetCredits }: CreditDisplayProps) {
           variant="outline"
           className="flex items-center gap-1.5 h-8 px-3 border-accent/30 hover:bg-accent/10 hover:border-accent/50"
         >
-          <Gift className="h-3.5 w-3.5 text-accent" />
+          <Gift className="h-3.5 w-3.5 text-primary" />
           <span className="text-xs font-semibold">Get Free Credits</span>
         </Button>
       )}
