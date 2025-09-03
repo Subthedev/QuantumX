@@ -191,7 +191,7 @@ export default function Pricing() {
                   
                   {/* Price & Credits */}
                   <div className="mb-6">
-                    <div className="text-center py-4 px-6 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="text-center py-4 px-8 rounded-lg bg-muted/30 border border-border/50">
                       {plan.price !== "Custom" ? (
                         <div className="flex items-center justify-center gap-1 md:gap-2 whitespace-nowrap tracking-tight">
                           <span className="text-2xl md:text-3xl font-bold">{plan.price}</span>
