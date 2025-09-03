@@ -172,7 +172,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
                 {currentQuestion.icon}
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                <DialogTitle className="text-xl font-bold text-foreground">
                   {currentQuestion.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-1">
