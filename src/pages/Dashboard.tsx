@@ -29,6 +29,7 @@ const Dashboard = () => {
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
   const [userCredits, setUserCredits] = useState(0);
+  const [userFeedbackCount, setUserFeedbackCount] = useState(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Feedback popup management  
@@ -53,9 +54,10 @@ const Dashboard = () => {
     if (!user) return;
     const {
       data
-    } = await supabase.from('profiles').select('credits').eq('user_id', user.id).single();
+    } = await supabase.from('profiles').select('credits, feedback_count').eq('user_id', user.id).single();
     if (data) {
       setUserCredits(data.credits || 0);
+      setUserFeedbackCount(data.feedback_count || 0);
     }
   };
   useEffect(() => {
@@ -147,7 +149,7 @@ const Dashboard = () => {
             </nav>
           </div>
           <div className="flex items-center gap-4">
-            <CreditDisplay onGetCredits={() => setShowFeedbackModal(true)} />
+            <CreditDisplay onGetCredits={userFeedbackCount === 0 ? () => setShowFeedbackModal(true) : undefined} />
             <span className="text-sm text-muted-foreground hidden sm:block">
               Welcome, {user.email}
             </span>
@@ -223,10 +225,12 @@ const Dashboard = () => {
                   </div>
                   <CardDescription>Use credits to generate reports</CardDescription>
                 </div>
-                <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
-                  <Gift className="h-4 w-4 text-accent" />
-                  <span className="text-xs font-semibold">Get Free Credits</span>
-                </Button>
+                {userFeedbackCount === 0 && (
+                  <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
+                    <Gift className="h-4 w-4 text-accent" />
+                    <span className="text-xs font-semibold">Get Free Credits</span>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
