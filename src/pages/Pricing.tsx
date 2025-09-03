@@ -191,7 +191,7 @@ export default function Pricing() {
                   
                   {/* Price & Credits */}
                   <div className="mb-6">
-                    <div className="text-center py-4 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="text-center py-4 px-6 rounded-lg bg-muted/30 border border-border/50">
                       {plan.price !== "Custom" ? (
                         <div className="flex items-center justify-center gap-1 md:gap-2 whitespace-nowrap tracking-tight">
                           <span className="text-2xl md:text-3xl font-bold">{plan.price}</span>
@@ -225,9 +225,9 @@ export default function Pricing() {
                       ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
                       : plan.name === "ENTERPRISE"
                       ? 'bg-muted hover:bg-muted/80'
-                      : ''
+                      : 'bg-gradient-to-r from-orange-500/80 to-primary/80 hover:from-orange-500 hover:to-primary text-white'
                   }`}
-                  variant={plan.highlighted ? "default" : plan.name === "ENTERPRISE" ? "secondary" : "outline"}
+                  variant={plan.highlighted ? "default" : plan.name === "ENTERPRISE" ? "secondary" : "default"}
                   onClick={() => handlePurchase(plan.paymentLink)}
                 >
                   {plan.name === "ENTERPRISE" ? (
