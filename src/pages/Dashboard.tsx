@@ -10,6 +10,7 @@ import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
 import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -131,28 +132,31 @@ const Dashboard = () => {
   }
   return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2">
-              <Zap className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-primary"></h1>
+      <header className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3">
+            <AIBrainIcon className="h-8 w-8" />
+            <span className="text-xl font-bold text-foreground">IgniteX</span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-2">
+            <Link to="/">
+              <Button variant="ghost" size="sm">
+                <Home className="h-4 w-4 mr-2" />
+                Home
+              </Button>
             </Link>
-            <nav className="hidden md:flex items-center gap-4">
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <Home className="h-4 w-4 mr-2" />
-                  Home
-                </Button>
-              </Link>
-              
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
+            <Link to="/pricing">
+              <Button variant="ghost" size="sm">
+                <Coins className="h-4 w-4 mr-2" />
+                Pricing
+              </Button>
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
             <CreditDisplay onGetCredits={(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') ? () => setShowFeedbackModal(true) : undefined} />
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              Welcome, {user.email}
-            </span>
+            <span className="hidden sm:block text-sm text-muted-foreground">Welcome, {user.email}</span>
             <Button variant="outline" onClick={handleSignOut} size="sm">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
