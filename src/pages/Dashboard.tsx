@@ -211,17 +211,23 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
+              <div className="space-y-4">
                 <div>
                   <div className="text-2xl font-bold text-primary">
                     {userCredits}
                   </div>
                   <CardDescription>Use credits to generate reports</CardDescription>
                 </div>
-                {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
-                    <Gift className="h-4 w-4 text-accent" />
-                    <span className="text-xs font-semibold">Get Free Credits</span>
-                  </Button>}
+                {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && 
+                  <Button 
+                    onClick={() => setShowFeedbackModal(true)} 
+                    size="sm" 
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white border-orange-500 hover:border-orange-600"
+                  >
+                    <Gift className="h-4 w-4 mr-2" />
+                    <span className="text-sm font-semibold">Get Free Credits</span>
+                  </Button>
+                }
               </div>
             </CardContent>
           </Card>
