@@ -137,7 +137,7 @@ export default function Pricing() {
             {/* Trust Indicators */}
             <div className="flex flex-wrap items-center justify-center gap-8 mb-12">
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-accent" />
+                <Shield className="h-5 w-5 text-orange-500" />
                 <span className="text-sm font-medium">Secure Crypto Payments</span>
               </div>
               <div className="flex items-center gap-2">
