@@ -225,9 +225,9 @@ export default function Pricing() {
                       ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
                       : plan.name === "ENTERPRISE"
                       ? 'bg-muted hover:bg-muted/80'
-                      : 'bg-gradient-to-r from-orange-500/80 to-primary/80 hover:from-orange-500 hover:to-primary text-white'
+                      : 'bg-muted/30 hover:bg-muted/50 border border-border/50'
                   }`}
-                  variant={plan.highlighted ? "default" : plan.name === "ENTERPRISE" ? "secondary" : "default"}
+                  variant={plan.highlighted ? "default" : "outline"}
                   onClick={() => handlePurchase(plan.paymentLink)}
                 >
                   {plan.name === "ENTERPRISE" ? (
