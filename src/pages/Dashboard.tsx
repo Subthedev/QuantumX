@@ -30,9 +30,13 @@ const Dashboard = () => {
   const [loadingReports, setLoadingReports] = useState(true);
   const [userCredits, setUserCredits] = useState(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  
+
   // Feedback popup management  
-  const { shouldShowFeedback, handleFeedbackClose, handleFeedbackComplete } = useFeedbackPopup();
+  const {
+    shouldShowFeedback,
+    handleFeedbackClose,
+    handleFeedbackComplete
+  } = useFeedbackPopup();
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -45,15 +49,11 @@ const Dashboard = () => {
       fetchUserCredits();
     }
   }, [user]);
-  
   const fetchUserCredits = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('user_id', user.id)
-      .single();
-    
+    const {
+      data
+    } = await supabase.from('profiles').select('credits').eq('user_id', user.id).single();
     if (data) {
       setUserCredits(data.credits || 0);
     }
@@ -143,9 +143,7 @@ const Dashboard = () => {
                   Home
                 </Button>
               </Link>
-              <Button variant="ghost" size="sm" className="bg-primary/10 text-primary">
-                Dashboard
-              </Button>
+              
             </nav>
           </div>
           <div className="flex items-center gap-4">
@@ -225,12 +223,7 @@ const Dashboard = () => {
                   </div>
                   <CardDescription>Use credits to generate reports</CardDescription>
                 </div>
-                <Button 
-                  onClick={() => setShowFeedbackModal(true)}
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50"
-                >
+                <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="flex items-center gap-1.5 border-accent/30 hover:bg-accent/10 hover:border-accent/50">
                   <Gift className="h-4 w-4 text-accent" />
                   <span className="text-xs font-semibold">Get Free Credits</span>
                 </Button>
@@ -271,21 +264,13 @@ const Dashboard = () => {
       </main>
       
       {/* Feedback Modal - Manual Trigger */}
-      <FeedbackModal 
-        isOpen={showFeedbackModal}
-        onClose={() => setShowFeedbackModal(false)}
-        onComplete={() => {
-          setShowFeedbackModal(false);
-          fetchUserCredits(); // Refresh credits after completion
-        }}
-      />
+      <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} onComplete={() => {
+      setShowFeedbackModal(false);
+      fetchUserCredits(); // Refresh credits after completion
+    }} />
       
       {/* Feedback Modal - Auto Popup */}
-      <FeedbackModal 
-        isOpen={shouldShowFeedback}
-        onClose={handleFeedbackClose}
-        onComplete={handleFeedbackComplete}
-      />
+      <FeedbackModal isOpen={shouldShowFeedback} onClose={handleFeedbackClose} onComplete={handleFeedbackComplete} />
     </div>;
 };
 export default Dashboard;
