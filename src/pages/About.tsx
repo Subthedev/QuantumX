@@ -107,12 +107,12 @@ const About = () => {
             {/* Trust Indicators */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary mb-1">99.9%</div>
-                <div className="text-sm text-muted-foreground">Uptime Guarantee</div>
+                <div className="text-3xl font-bold text-primary mb-1">85%</div>
+                <div className="text-sm text-muted-foreground">Prediction Accuracy</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary mb-1">24/7</div>
-                <div className="text-sm text-muted-foreground">Real-time Analysis</div>
+                <div className="text-3xl font-bold text-primary mb-1">99.9%</div>
+                <div className="text-sm text-muted-foreground">Uptime Guarantee</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-primary mb-1">100%</div>
@@ -288,7 +288,7 @@ const About = () => {
             <div className="flex flex-col items-center">
               <Globe className="h-12 w-12 text-primary mb-3" />
               <span className="text-sm font-semibold">Global Coverage</span>
-              <span className="text-xs text-muted-foreground">150+ Countries</span>
+              <span className="text-xs text-muted-foreground">15+ Countries</span>
             </div>
             <div className="flex flex-col items-center">
               <Zap className="h-12 w-12 text-primary mb-3" />

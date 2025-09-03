@@ -50,7 +50,7 @@ const pricingPlans = [
       "Unlimited AI predictions & API access",
       "Custom model training & deployment",
       "Dedicated success manager",
-      "99.9% uptime SLA guarantee"
+      "99.9% uptime guarantee"
     ],
     highlighted: false,
     gradient: "from-muted/30 to-muted/10"
