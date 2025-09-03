@@ -8,46 +8,44 @@ import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
 import { toast } from '@/hooks/use-toast';
 const Landing = () => {
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
-  
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!email) {
       toast({
         title: "Email required",
         description: "Please enter your email address to subscribe.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-    
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       toast({
         title: "Invalid email",
         description: "Please enter a valid email address.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-    
     setIsSubscribing(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       toast({
         title: "Successfully subscribed!",
-        description: "Thank you for subscribing to our newsletter. You'll receive weekly crypto insights.",
+        description: "Thank you for subscribing to our newsletter. You'll receive weekly crypto insights."
       });
       setEmail('');
       setIsSubscribing(false);
     }, 1000);
   };
-  
   return <div className="min-h-screen bg-background">
       {/* Professional Navigation Header */}
       <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
@@ -74,9 +72,7 @@ const Landing = () => {
               <Link to="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 Pricing
               </Link>
-              <a href="mailto:contact@ignitexagency.com" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Contact
-              </a>
+              
             </div>
             
             {/* Auth Buttons */}
@@ -323,22 +319,12 @@ const Landing = () => {
                 for Bitcoin and Ethereum traders worldwide.
               </p>
               <div className="flex items-center gap-4">
-                <a href="https://x.com/IgniteXagency" target="_blank" rel="noopener noreferrer" 
-                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
+                <a href="https://x.com/IgniteXagency" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
                   <Twitter className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                 </a>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
-                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
-                  <Instagram className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                </a>
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"
-                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
-                  <svg className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                  </svg>
-                </a>
-                <a href="mailto:contact@ignitexagency.com"
-                   className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
+                
+                
+                <a href="mailto:contact@ignitexagency.com" className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
                   <Mail className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                 </a>
               </div>
@@ -437,14 +423,7 @@ const Landing = () => {
                 </p>
               </div>
               <form onSubmit={handleSubscribe} className="flex gap-2">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 px-4 py-2 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                  disabled={isSubscribing}
-                />
+                <input type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)} className="flex-1 px-4 py-2 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors" disabled={isSubscribing} />
                 <Button type="submit" className="px-6" disabled={isSubscribing}>
                   {isSubscribing ? 'Subscribing...' : 'Subscribe'}
                 </Button>
