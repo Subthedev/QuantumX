@@ -131,7 +131,7 @@ export default function Pricing() {
               <Sparkles className="h-3 w-3 mr-1" />
               LIMITED TIME OFFER
             </Badge>
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 text-foreground">
               Unlock AI-Powered Crypto Intelligence
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
