@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import ignitexLogo from '@/assets/ignitex-new-logo.png';
+import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
 
 const TermsOfService = () => {
   return (
@@ -10,7 +10,7 @@ const TermsOfService = () => {
       <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src={ignitexLogo} alt="IgniteX" className="h-8 w-8" />
+            <AIBrainIcon className="h-8 w-8" />
             <span className="font-bold text-lg">IgniteX</span>
           </Link>
           <Link to="/">
