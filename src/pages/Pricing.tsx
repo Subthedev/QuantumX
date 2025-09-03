@@ -127,7 +127,7 @@ export default function Pricing() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         <div className="container mx-auto px-4 relative">
           <div className="text-center max-w-3xl mx-auto">
-            <Badge className="mb-4 px-4 py-1.5 bg-accent/10 text-accent border-accent/20">
+            <Badge className="mb-4 px-4 py-1.5 bg-accent text-accent-foreground border-accent">
               <Sparkles className="h-3 w-3 mr-1" />
               LIMITED TIME OFFER
             </Badge>
