@@ -151,7 +151,7 @@ const Landing = () => {
             {/* Social Proof */}
             <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">87%</div>
+                <div className="text-2xl font-bold text-foreground">85%</div>
                 <div className="text-sm text-muted-foreground">Avg. Confidence</div>
               </div>
               <div className="text-center">
