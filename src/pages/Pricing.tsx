@@ -145,7 +145,7 @@ export default function Pricing() {
                 <span className="text-sm font-medium">Instant Activation</span>
               </div>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-accent" />
+                <TrendingUp className="h-5 w-5 text-orange-500" />
                 <span className="text-sm font-medium">85% Accuracy Rate</span>
               </div>
             </div>
