@@ -303,7 +303,7 @@ const Landing = () => {
                 for Bitcoin and Ethereum traders worldwide.
               </p>
               <div className="flex items-center gap-4">
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
+                <a href="https://x.com/IgniteXagency" target="_blank" rel="noopener noreferrer" 
                    className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
                   <Twitter className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                 </a>
