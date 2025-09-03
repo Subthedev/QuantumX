@@ -12,51 +12,32 @@ const Landing = () => {
   return <div className="min-h-screen bg-background">
       {/* Enhanced Navigation */}
       <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Logo */}
             <div className="flex items-center gap-3">
-              <AIBrainIcon className="h-9 w-9" />
-              <h1 className="text-2xl font-bold text-foreground">
+              <AIBrainIcon className="h-8 w-8" />
+              <h1 className="text-xl font-bold text-foreground">
                 IgniteX
               </h1>
             </div>
             
-            {/* Center Navigation Menu */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link to="/dashboard" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
-                Services
-              </Link>
-              <Link to="/pricing" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
-                Pricing
-              </Link>
-              <Link to="/about" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
-                About Us
-              </Link>
-            </div>
-            
-            {/* Right Actions */}
-            <div className="flex items-center gap-4">
-              {user ? (
-                <Link to="/dashboard">
-                  <Button size="default" className="shadow-lg bg-primary hover:bg-primary-hover">
+            <div className="flex items-center gap-3">
+              {user ? <Link to="/dashboard">
+                  <Button size="sm" className="shadow-lg">
                     Dashboard
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-1 h-4 w-4" />
                   </Button>
-                </Link>
-              ) : (
-                <>
-                  <Link to="/auth" className="hidden md:block">
-                    <Button variant="ghost" size="default">Sign In</Button>
+                </Link> : <>
+                  <Link to="/auth">
+                    <Button variant="ghost" size="sm">Sign In</Button>
                   </Link>
                   <Link to="/auth">
-                    <Button size="default" className="shadow-lg bg-primary hover:bg-primary-hover">
-                      Get Started
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                    <Button size="sm" className="shadow-lg">
+                      Start Free
+                      <ArrowRight className="ml-1 h-4 w-4" />
                     </Button>
                   </Link>
-                </>
-              )}
+                </>}
             </div>
           </div>
         </div>
@@ -111,8 +92,8 @@ const Landing = () => {
             {/* Social Proof */}
             <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">85%</div>
-                <div className="text-sm text-muted-foreground">Prediction Accuracy</div>
+                <div className="text-2xl font-bold text-foreground">87%</div>
+                <div className="text-sm text-muted-foreground">Avg. Confidence</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">24/7</div>
@@ -128,7 +109,7 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-muted/20">
+      <section className="py-20 bg-muted/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -192,7 +173,7 @@ const Landing = () => {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-background">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
@@ -318,8 +299,8 @@ const Landing = () => {
             </div>
           </div>
           
-          <div className="border-t border-border mt-8 pt-6 text-center">
-            <p className="text-sm text-muted-foreground">© 2023 IgniteX. Professional crypto analysis powered by artificial intelligence.</p>
+          <div className="border-t border-border mt-8 pt-6 text-center font-bold">
+            <p className="text-sm text-muted-foreground">© 2024 IgniteX. Professional crypto analysis powered by artificial intelligence.</p>
           </div>
         </div>
       </footer>
