@@ -1,14 +1,53 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { toast } from '@/hooks/use-toast';
 const Landing = () => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address to subscribe.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubscribing(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      toast({
+        title: "Successfully subscribed!",
+        description: "Thank you for subscribing to our newsletter. You'll receive weekly crypto insights.",
+      });
+      setEmail('');
+      setIsSubscribing(false);
+    }, 1000);
+  };
+  
   return <div className="min-h-screen bg-background">
       {/* Enhanced Navigation */}
       <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
@@ -377,16 +416,19 @@ const Landing = () => {
                   Get weekly crypto insights and market analysis delivered to your inbox.
                 </p>
               </div>
-              <div className="flex gap-2">
+              <form onSubmit={handleSubscribe} className="flex gap-2">
                 <input 
                   type="email" 
                   placeholder="Enter your email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 px-4 py-2 rounded-lg bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isSubscribing}
                 />
-                <Button className="px-6">
-                  Subscribe
+                <Button type="submit" className="px-6" disabled={isSubscribing}>
+                  {isSubscribing ? 'Subscribing...' : 'Subscribe'}
                 </Button>
-              </div>
+              </form>
             </div>
           </div>
           
