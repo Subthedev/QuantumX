@@ -1,54 +1,48 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Production-grade timing strategy based on user engagement psychology:
-// - Initial popup: After 60 seconds (quick enough to catch engaged users)
-// - Second attempt: 5 minutes later (if declined, gives breathing room)
-// - Third attempt: Next session or 24 hours later
-// - Never spam: Max 1 popup per session after submission
-
+// Production-grade timing: 60 seconds initial, with smart retry logic
 const INITIAL_POPUP_DELAY = 60000; // 60 seconds as requested
-const SECOND_ATTEMPT_DELAY = 300000; // 5 minutes
-const SESSION_LIMIT = 1; // Only show once per session after initial attempts
-const COOLDOWN_PERIOD = 86400000; // 24 hours between attempts
+const RETRY_DELAY = 300000; // 5 minutes for retry if closed
+const COOLDOWN_PERIOD = 86400000; // 24 hours between sessions
 
 export function useFeedbackPopup() {
   const { user } = useAuth();
   const [shouldShowFeedback, setShouldShowFeedback] = useState(false);
   const [hasShownInSession, setHasShownInSession] = useState(false);
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [sessionStartTime] = useState(Date.now());
-  const [attemptCount, setAttemptCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track user activity for engagement detection
+  // Fetch user profile
   useEffect(() => {
-    const handleActivity = () => {
-      setLastActivityTime(Date.now());
-    };
-
-    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-    events.forEach(event => window.addEventListener(event, handleActivity));
-
-    return () => {
-      events.forEach(event => window.removeEventListener(event, handleActivity));
-    };
-  }, []);
-
-  // Fetch user profile with credits and feedback data
-  useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
     const fetchProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('feedback_count, last_feedback_shown, credits')
-        .eq('user_id', user.id)
-        .single();
+      try {
+        console.log('[Feedback] Fetching profile for user:', user.email);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('feedback_count, last_feedback_shown, credits')
+          .eq('user_id', user.id)
+          .single();
 
-      if (data) {
+        if (error) {
+          console.error('[Feedback] Error fetching profile:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('[Feedback] Profile data:', data);
         setUserProfile(data);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('[Feedback] Unexpected error:', err);
+        setIsLoading(false);
       }
     };
 
@@ -56,10 +50,13 @@ export function useFeedbackPopup() {
 
     // Subscribe to profile changes
     const subscription = supabase
-      .channel('profile_changes')
+      .channel('profile_feedback_changes')
       .on('postgres_changes', 
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` },
-        fetchProfile
+        (payload) => {
+          console.log('[Feedback] Profile updated:', payload.new);
+          setUserProfile(payload.new);
+        }
       )
       .subscribe();
 
@@ -68,98 +65,96 @@ export function useFeedbackPopup() {
     };
   }, [user]);
 
-  // Strategic popup timing with psychological triggers
+  // Handle popup timing
   useEffect(() => {
-    if (!user || !userProfile || hasShownInSession) return;
-    
-    // Don't show if user already submitted feedback (except for test email)
-    if (userProfile.feedback_count > 0 && user.email !== 'contactsubhrajeet@gmail.com') return;
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
 
-    // Check cooldown period
-    if (userProfile.last_feedback_shown) {
+    // Early exits
+    if (!user || isLoading || !userProfile || hasShownInSession) {
+      console.log('[Feedback] Early exit - User:', !!user, 'Loading:', isLoading, 'Profile:', !!userProfile, 'Shown:', hasShownInSession);
+      return;
+    }
+    
+    // Check if user already submitted feedback (except test email)
+    const isTestUser = user.email === 'contactsubhrajeet@gmail.com';
+    if (userProfile.feedback_count > 0 && !isTestUser) {
+      console.log('[Feedback] User already submitted feedback, skipping popup');
+      return;
+    }
+
+    // Check cooldown period (except for first-time users and test user)
+    if (userProfile.last_feedback_shown && !isTestUser) {
       const timeSinceLastShown = Date.now() - new Date(userProfile.last_feedback_shown).getTime();
-      
-      // Respect 24-hour cooldown for better user experience
-      if (timeSinceLastShown < COOLDOWN_PERIOD && attemptCount > 0) return;
+      if (timeSinceLastShown < COOLDOWN_PERIOD) {
+        console.log('[Feedback] Still in cooldown period, skipping popup');
+        return;
+      }
     }
 
-    let timeoutId: NodeJS.Timeout;
-
-    const showPopupWithEngagementCheck = async () => {
-      // Ensure user is actively engaged (activity within last 30 seconds)
-      const timeSinceActivity = Date.now() - lastActivityTime;
-      const isEngaged = timeSinceActivity < 30000;
-      
-      // Check if user has low credits (psychological trigger)
-      const hasLowCredits = userProfile.credits <= 5;
-      
-      // Only show if user is engaged
-      if (isEngaged && !hasShownInSession) {
-        setShouldShowFeedback(true);
-        setHasShownInSession(true);
-        setAttemptCount(prev => prev + 1);
-        
-        // Update last shown timestamp
-        await supabase
-          .from('profiles')
-          .update({ last_feedback_shown: new Date().toISOString() })
-          .eq('user_id', user.id);
-      }
-    };
-
-    // Calculate strategic delay based on user behavior
-    const getStrategicDelay = () => {
-      const timeOnSite = Date.now() - sessionStartTime;
-      
-      // First attempt: 60 seconds (as requested)
-      if (attemptCount === 0) {
-        return INITIAL_POPUP_DELAY;
-      }
-      
-      // Second attempt: Only if user has been engaged for 5+ minutes
-      if (attemptCount === 1 && timeOnSite >= SECOND_ATTEMPT_DELAY) {
-        return SECOND_ATTEMPT_DELAY;
-      }
-      
-      // No more attempts in this session
-      return null;
-    };
-
-    const delay = getStrategicDelay();
+    console.log('[Feedback] Setting timer for popup in 60 seconds');
     
-    if (delay !== null) {
-      timeoutId = setTimeout(showPopupWithEngagementCheck, delay);
-    }
+    // Set timer for popup
+    timerRef.current = setTimeout(() => {
+      console.log('[Feedback] Timer triggered, showing popup');
+      setShouldShowFeedback(true);
+      setHasShownInSession(true);
+      
+      // Update last shown timestamp
+      supabase
+        .from('profiles')
+        .update({ last_feedback_shown: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[Feedback] Error updating last_feedback_shown:', error);
+          }
+        });
+    }, INITIAL_POPUP_DELAY);
 
+    // Cleanup function
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timerRef.current) {
+        console.log('[Feedback] Cleaning up timer');
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [user, userProfile, lastActivityTime, sessionStartTime, hasShownInSession, attemptCount]);
+  }, [user, userProfile, isLoading, hasShownInSession]);
 
   const handleFeedbackClose = () => {
+    console.log('[Feedback] User closed feedback form');
     setShouldShowFeedback(false);
     
-    // If user closes without submitting, prepare for next attempt
-    if (attemptCount < 2) {
+    // Allow retry after 5 minutes if user didn't submit
+    if (userProfile?.feedback_count === 0) {
       setTimeout(() => {
+        console.log('[Feedback] Resetting for retry');
         setHasShownInSession(false);
-      }, SECOND_ATTEMPT_DELAY);
+      }, RETRY_DELAY);
     }
   };
 
   const handleFeedbackComplete = async () => {
+    console.log('[Feedback] User completed feedback form');
     setShouldShowFeedback(false);
-    setHasShownInSession(true); // Prevent further popups this session
+    setHasShownInSession(true);
     
-    // Refresh profile to get updated feedback count and credits
+    // Refresh profile to get updated data
     if (user) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('feedback_count, last_feedback_shown, credits')
         .eq('user_id', user.id)
         .single();
 
-      if (data) {
+      if (error) {
+        console.error('[Feedback] Error refreshing profile:', error);
+      } else {
+        console.log('[Feedback] Profile refreshed:', data);
         setUserProfile(data);
       }
     }
