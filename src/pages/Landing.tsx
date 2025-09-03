@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
-import ignitexLogo from '@/assets/ignitex-new-logo.png';
 import { toast } from '@/hooks/use-toast';
 const Landing = () => {
   const {
@@ -53,7 +52,7 @@ const Landing = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src={ignitexLogo} alt="IgniteX Logo" className="h-10 w-10" />
+              <AIBrainIcon className="h-8 w-8" />
               <h1 className="text-xl font-bold text-foreground">
                 IgniteX
               </h1>
