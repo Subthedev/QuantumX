@@ -150,13 +150,8 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-4">
             <CreditDisplay onGetCredits={userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com' ? () => setShowFeedbackModal(true) : undefined} />
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              Welcome, {user.email}
-            </span>
-            <Button variant="outline" onClick={handleSignOut} size="sm">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+            
+            
           </div>
         </div>
       </header>
