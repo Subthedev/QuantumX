@@ -168,7 +168,7 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
               <p className="text-xs text-muted-foreground mb-2">
                 Your honest feedback directly shapes our AI algorithms. Every response helps thousands of traders make better decisions.
               </p>
-              <p className="text-xs font-semibold text-accent">
+              <p className="text-xs font-semibold text-primary">
                 💡 Your insights = Better predictions for everyone
               </p>
             </div>
