@@ -31,56 +31,50 @@ export default function FeedbackModal({ isOpen, onClose, onComplete }: FeedbackM
   const questions = [
     {
       id: "question_1",
-      title: "What's your vision?",
-      question: "What's the ONE feature you deeply crave from IgniteX to stay ahead in the crypto market?",
-      type: "text",
-      icon: <Star className="h-5 w-5" />
+      title: "Satisfaction & Usage",
+      question: "How satisfied are you with IgniteX's prediction accuracy and how frequently do you use our platform?",
+      type: "radio",
+      icon: <Star className="h-5 w-5" />,
+      options: [
+        { value: "very_satisfied_daily", label: "Very satisfied, use daily for most trading decisions" },
+        { value: "satisfied_weekly", label: "Satisfied, use 2-3 times per week for key trades" },
+        { value: "somewhat_satisfied_occasional", label: "Somewhat satisfied, use occasionally when uncertain" },
+        { value: "not_satisfied_rarely", label: "Not very satisfied, rarely use despite having access" }
+      ]
     },
     {
       id: "question_2",
-      title: "Your trading style",
-      question: "What's the ONE outcome you want most from a crypto prediction tool?",
-      type: "radio",
-      icon: <Zap className="h-5 w-5" />,
-      options: [
-        { value: "intraday", label: "Precise intraday entries (0–24h)" },
-        { value: "swing", label: "Swing entries (1–7 days)" },
-        { value: "exit", label: "Exit timing with TP/SL" },
-        { value: "longterm", label: "Long-term trend bias (1–12 months)" }
-      ]
+      title: "Most Valuable Feature",
+      question: "Which specific feature of IgniteX provides you the most value in your crypto trading?",
+      type: "text",
+      icon: <Zap className="h-5 w-5" />
     },
     {
       id: "question_3",
-      title: "Level up your game",
-      question: "The ONE feature that would most improve your results next",
-      type: "radio",
-      icon: <Zap className="h-5 w-5" />,
-      options: [
-        { value: "autotrading", label: "Auto-trading via exchange API" },
-        { value: "alerts", label: "Faster alerts (<30s)" },
-        { value: "exchange", label: "Support my exchange/pairs" },
-        { value: "guidance", label: "Per-signal explanations & risk guidance" }
-      ]
+      title: "Challenges & Frustrations",
+      question: "What is the biggest challenge or frustration you currently face when using IgniteX that prevents you from relying on it more heavily for your trading decisions?",
+      type: "text",
+      icon: <Zap className="h-5 w-5" />
     },
     {
       id: "question_4",
-      title: "Value perception",
-      question: "If IgniteX reliably delivered your chosen outcome, what monthly price would you pay?",
-      type: "radio",
-      icon: <Gift className="h-5 w-5" />,
-      options: [
-        { value: "0", label: "₹0 (I wouldn't pay)" },
-        { value: "499", label: "₹499" },
-        { value: "999", label: "₹999" },
-        { value: "1999", label: "₹1,999+" }
-      ]
+      title: "Feature Requests",
+      question: "If you could add ONE new feature to IgniteX tomorrow, what would it be? Or what feature needs improvement for you to become a more active user for our platform?",
+      type: "text",
+      icon: <Gift className="h-5 w-5" />
     },
     {
       id: "question_5",
-      title: "Help us improve",
-      question: "Overall experience with IgniteX today and how can we improve?",
-      type: "text",
-      icon: <Star className="h-5 w-5" />
+      title: "Would You Recommend?",
+      question: "How likely are you to recommend IgniteX to a fellow crypto trader?",
+      type: "radio",
+      icon: <Star className="h-5 w-5" />,
+      options: [
+        { value: "extremely_likely", label: "Extremely likely (9-10) - I actively recommend it" },
+        { value: "very_likely", label: "Very likely (7-8) - I would recommend with minor reservations" },
+        { value: "somewhat_likely", label: "Somewhat likely (5-6) - I might recommend in specific situations" },
+        { value: "not_likely", label: "Not likely (0-4) - I would not recommend in its current state" }
+      ]
     }
   ];
 
