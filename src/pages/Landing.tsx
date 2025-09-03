@@ -24,23 +24,14 @@ const Landing = () => {
             
             {/* Center Navigation Menu */}
             <div className="hidden md:flex items-center gap-8">
-              <button 
-                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-muted-foreground hover:text-foreground font-medium transition-colors"
-              >
+              <Link to="/dashboard" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
                 Services
-              </button>
+              </Link>
               <Link to="/pricing" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
                 Pricing
               </Link>
-              <button 
-                onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-muted-foreground hover:text-foreground font-medium transition-colors"
-              >
+              <Link to="/about" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
                 About Us
-              </button>
-              <Link to="/dashboard" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
-                Reports
               </Link>
             </div>
             
