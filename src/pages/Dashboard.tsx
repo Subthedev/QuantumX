@@ -10,6 +10,7 @@ import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
 import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
+import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -131,27 +132,29 @@ const Dashboard = () => {
   }
   return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+      <header className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3 grid grid-cols-3 items-center">
+          {/* Left: Logo (match Landing) */}
+          <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2">
-              <Zap className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-primary"></h1>
+              <AIBrainIcon className="h-8 w-8" />
+              <h1 className="text-xl font-bold text-foreground">IgniteX</h1>
             </Link>
-            <nav className="hidden md:flex items-center gap-4">
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <Home className="h-4 w-4 mr-2" />
-                  Home
-                </Button>
-              </Link>
-              
-            </nav>
           </div>
-          <div className="flex items-center gap-4">
+
+          {/* Center: Credits + Buy Credits */}
+          <div className="flex justify-center">
             <CreditDisplay onGetCredits={userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com' ? () => setShowFeedbackModal(true) : undefined} />
-            
-            
+          </div>
+
+          {/* Right: Home */}
+          <div className="flex justify-end">
+            <Link to="/">
+              <Button variant="ghost" size="sm">
+                <Home className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
