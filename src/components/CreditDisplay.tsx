@@ -55,7 +55,7 @@ export default function CreditDisplay({ onGetCredits }: CreditDisplayProps) {
   if (!user) return null;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-4">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20">
         <Coins className="h-4 w-4 text-primary" />
         <span className="text-sm font-bold text-foreground">{credits}</span>
