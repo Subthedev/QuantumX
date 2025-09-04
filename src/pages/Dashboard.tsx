@@ -168,7 +168,7 @@ const Dashboard = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto px-6 py-6 space-y-8">
         {/* AI Analysis Dashboard */}
         <ProfessionalAnalysisDashboard />
 
