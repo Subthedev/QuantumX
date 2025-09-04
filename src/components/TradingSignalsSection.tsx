@@ -76,6 +76,11 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {/* Coin Identification */}
+              <div className="flex items-center gap-2 px-3 py-1 bg-muted/30 rounded-lg border border-border">
+                {coinSymbol === 'BTC' ? <BTCLogo className="w-5 h-5" /> : <ETHLogo className="w-5 h-5" />}
+                <span className="font-bold text-sm">{coinSymbol}</span>
+              </div>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
                 Trading Signal
@@ -88,11 +93,6 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
                   </TooltipContent>
                 </Tooltip>
               </CardTitle>
-              {/* Coin Identification */}
-              <div className="flex items-center gap-2 px-3 py-1 bg-muted/30 rounded-lg border border-border">
-                {coinSymbol === 'BTC' ? <BTCLogo className="w-5 h-5" /> : <ETHLogo className="w-5 h-5" />}
-                <span className="font-bold text-sm">{coinSymbol}</span>
-              </div>
             </div>
             {signal && (
               <div className="flex items-center gap-3">
