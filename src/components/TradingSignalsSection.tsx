@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Target, Activity, Clock, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Activity, Clock, Shield, Info } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { BTCLogo } from '@/components/ui/btc-logo';
 import { ETHLogo } from '@/components/ui/eth-logo';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TradingSignalsProps {
   signal: any;
@@ -70,26 +71,42 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
   };
 
   return (
-    <Card className="border-2 border-primary/20 shadow-xl bg-gradient-to-br from-background to-muted/20">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              Trading Signal
-            </CardTitle>
-            {/* Coin Identification */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-muted/30 rounded-lg border border-border">
-              {coinSymbol === 'BTC' ? <BTCLogo className="w-5 h-5" /> : <ETHLogo className="w-5 h-5" />}
-              <span className="font-bold text-sm">{coinSymbol}</span>
-            </div>
-          </div>
-          {signal && (
+    <TooltipProvider>
+      <Card className="border-2 border-primary/20 shadow-xl bg-gradient-to-br from-background to-muted/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* 4H Timeframe Badge */}
-              <Badge variant="secondary" className="text-xs font-mono">
-                4H
-              </Badge>
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Trading Signal
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">This signal is based on <strong>4H timeframe technical analysis</strong> and may differ from longer-term sentiment. Short-term corrections can occur even in bullish markets.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+              {/* Coin Identification */}
+              <div className="flex items-center gap-2 px-3 py-1 bg-muted/30 rounded-lg border border-border">
+                {coinSymbol === 'BTC' ? <BTCLogo className="w-5 h-5" /> : <ETHLogo className="w-5 h-5" />}
+                <span className="font-bold text-sm">{coinSymbol}</span>
+              </div>
+            </div>
+            {signal && (
+              <div className="flex items-center gap-3">
+                {/* 4H Timeframe Badge with Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Badge variant="secondary" className="text-xs font-mono">
+                      4H Chart
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">Signal based on 4-hour candlestick patterns</p>
+                  </TooltipContent>
+                </Tooltip>
               
               {/* Validity Timer */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-background/60 rounded-lg border border-border">
@@ -271,5 +288,6 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
         )}
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 };
