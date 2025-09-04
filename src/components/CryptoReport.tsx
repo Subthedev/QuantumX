@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { TrendingUp, TrendingDown, Target, Shield, BarChart3, Activity, DollarSign, AlertTriangle, Loader2, ArrowUp, ArrowDown, Minus } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Loader2 } from 'lucide-react';
+import { TradingSignalsSection } from './TradingSignalsSection';
+import { RiskManagementSection } from './RiskManagementSection';
+import { TechnicalAnalysisSection } from './TechnicalAnalysisSection';
+import { FundamentalAnalysisSection } from './FundamentalAnalysisSection';
+import { SentimentAnalysisSection } from './SentimentAnalysisSection';
+import { IgniteXSummarySection } from './IgniteXSummarySection';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
