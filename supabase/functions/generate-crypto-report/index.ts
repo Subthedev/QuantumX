@@ -108,6 +108,45 @@ serve(async (req) => {
   }
 });
 
+// Cache for market data
+const marketDataCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+
+async function fetchCoinGeckoData(symbol: string) {
+  const coinId = symbol === 'BTC' ? 'bitcoin' : 'ethereum';
+  
+  try {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`CoinGecko API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const coinData = data[coinId];
+    
+    return {
+      price: coinData.usd,
+      marketCap: coinData.usd_market_cap,
+      volume24h: coinData.usd_24h_vol,
+      percentChange24h: coinData.usd_24h_change,
+      percentChange1h: 0, // CoinGecko doesn't provide 1h change in simple endpoint
+      percentChange7d: 0, // Would need different endpoint
+      percentChange30d: 0,
+      circulatingSupply: 0,
+      totalSupply: 0,
+      maxSupply: symbol === 'BTC' ? 21000000 : null,
+      description: '',
+      symbol: symbol,
+      name: symbol === 'BTC' ? 'Bitcoin' : 'Ethereum'
+    };
+  } catch (error) {
+    console.error('Error fetching CoinGecko data:', error);
+    throw error;
+  }
+}
+
 async function fetchCMCData(symbol: string) {
   const cmcSymbol = symbol === 'BTC' ? 'bitcoin' : 'ethereum';
   
@@ -156,6 +195,44 @@ async function fetchCMCData(symbol: string) {
   } catch (error) {
     console.error('Error fetching CMC data:', error);
     throw error;
+  }
+}
+
+// Fetch market data with caching and fallback
+async function fetchMarketData(symbol: string) {
+  const cacheKey = `market_${symbol}`;
+  const cached = marketDataCache.get(cacheKey);
+  
+  // Return cached data if still fresh
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log(`Using cached market data for ${symbol}`);
+    return cached.data;
+  }
+  
+  try {
+    // Try CMC first (more comprehensive data)
+    const data = await fetchCMCData(symbol);
+    marketDataCache.set(cacheKey, { data, timestamp: Date.now() });
+    return data;
+  } catch (cmcError) {
+    console.error('CMC failed, trying CoinGecko:', cmcError);
+    
+    try {
+      // Fallback to CoinGecko
+      const data = await fetchCoinGeckoData(symbol);
+      marketDataCache.set(cacheKey, { data, timestamp: Date.now() });
+      return data;
+    } catch (geckoError) {
+      console.error('Both APIs failed:', geckoError);
+      
+      // Return cached data even if stale
+      if (cached) {
+        console.log('Returning stale cached data');
+        return cached.data;
+      }
+      
+      throw new Error('Unable to fetch market data from any source');
+    }
   }
 }
 
@@ -270,7 +347,7 @@ function atr(highs: number[], lows: number[], closes: number[], period = 14) {
 async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') {
   try {
     console.log(`Fetching comprehensive market data for ${coin}...`);
-    const marketData = await fetchCMCData(coin);
+    const marketData = await fetchMarketData(coin); // Now uses caching and fallback
 
     // Map to Binance symbols
     const binanceSymbol = coin === 'BTC' ? 'BTCUSDT' : 'ETHUSDT';
@@ -383,7 +460,7 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       return String(text);
     }
 
-    async function generateWithChat(model: string, temperature: number = 0.15) {
+    async function generateWithChat(model: string, temperature: number = 0.1) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },

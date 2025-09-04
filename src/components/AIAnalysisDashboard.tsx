@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain, ArrowUp, ArrowDown, Target, Shield } from "lucide-react";
+import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain, ArrowUp, ArrowDown, Target, Shield, RefreshCw, Clock, Activity, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,6 +46,43 @@ const AIAnalysisDashboard: React.FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [marketData, setMarketData] = useState<any>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Fetch market data from CoinGecko
+  const fetchMarketData = async () => {
+    try {
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true'
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setMarketData(data);
+        setLastRefresh(new Date());
+      }
+    } catch (error) {
+      console.error('Error fetching market data:', error);
+    }
+  };
+
+  // Auto-refresh market data every 2 minutes
+  useEffect(() => {
+    fetchMarketData();
+    
+    if (autoRefresh) {
+      const interval = setInterval(fetchMarketData, 2 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh]);
+
+  const formatNumber = (num: number) => {
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+    return `$${num.toFixed(2)}`;
+  };
 
   const handleAnalyzeCrypto = async (symbol: string) => {
     if (!user) {
@@ -80,8 +117,8 @@ const AIAnalysisDashboard: React.FC = () => {
         throw functionError;
       }
 
-      if (data?.report) {
-        const report = data.report;
+      if (data) {
+        const report = data.report_data || data;
         
         // Transform the report data to match our interface
         const result: AnalysisResult = {
@@ -170,6 +207,91 @@ const AIAnalysisDashboard: React.FC = () => {
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
           Professional Crypto Trading Signals & Analysis
         </p>
+      </div>
+
+      {/* Market Data Cards */}
+      {marketData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="border-l-4 border-l-primary">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg">Bitcoin (BTC)</CardTitle>
+                <Badge variant={marketData.bitcoin.usd_24h_change >= 0 ? "default" : "destructive"}>
+                  {marketData.bitcoin.usd_24h_change >= 0 ? '+' : ''}{marketData.bitcoin.usd_24h_change.toFixed(2)}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Price:</span>
+                <span className="font-semibold">${marketData.bitcoin.usd.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Market Cap:</span>
+                <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_market_cap)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">24h Volume:</span>
+                <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_24h_vol)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-primary">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg">Ethereum (ETH)</CardTitle>
+                <Badge variant={marketData.ethereum.usd_24h_change >= 0 ? "default" : "destructive"}>
+                  {marketData.ethereum.usd_24h_change >= 0 ? '+' : ''}{marketData.ethereum.usd_24h_change.toFixed(2)}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Price:</span>
+                <span className="font-semibold">${marketData.ethereum.usd.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Market Cap:</span>
+                <span className="font-semibold">{formatNumber(marketData.ethereum.usd_market_cap)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">24h Volume:</span>
+                <span className="font-semibold">{formatNumber(marketData.ethereum.usd_24h_vol)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Refresh Controls */}
+      <div className="flex justify-between items-center px-2">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchMarketData}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Data
+          </Button>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              Last updated: {lastRefresh.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={autoRefresh}
+            onChange={(e) => setAutoRefresh(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          <span className="text-sm text-muted-foreground">Auto-refresh (2 min)</span>
+        </label>
       </div>
 
       {/* Analysis Controls */}
