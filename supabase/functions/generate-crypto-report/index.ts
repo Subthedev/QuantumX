@@ -383,7 +383,7 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       return String(text);
     }
 
-    async function generateWithChat(model: string) {
+    async function generateWithChat(model: string, temperature: number = 0.15) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
@@ -393,8 +393,8 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.15,
-          max_tokens: 1500
+          temperature,
+          max_tokens: model === 'gpt-4-turbo-preview' ? 2000 : 1500
         })
       });
       if (!res.ok) {
@@ -408,19 +408,24 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
 
     let analysisText: string | null = null;
     try {
-      // 1) Try GPT-5 via Responses API (no temperature, use max_completion_tokens)
-      analysisText = await generateWithResponses('gpt-5-2025-08-07');
+      // 1) Primary: Use GPT-4-turbo-preview with low temperature for financial analysis
+      analysisText = await generateWithChat('gpt-4-turbo-preview', 0.1);
     } catch (e1) {
       try {
-        // 2) Fallback to GPT-4.1 via Responses API (same parameters rules)
-        analysisText = await generateWithResponses('gpt-4.1-2025-04-14');
+        // 2) First fallback: Try GPT-5 via Responses API
+        analysisText = await generateWithResponses('gpt-5-2025-08-07');
       } catch (e2) {
         try {
-          // 3) Last-resort fallback to legacy chat completions with a supported model
-          analysisText = await generateWithChat('gpt-4o-mini');
+          // 3) Second fallback: GPT-4.1 via Responses API
+          analysisText = await generateWithResponses('gpt-4.1-2025-04-14');
         } catch (e3) {
-          console.error('All OpenAI calls failed; proceeding with deterministic local fallback.', e1, e2, e3);
-          analysisText = null;
+          try {
+            // 4) Last-resort fallback to legacy chat completions with a supported model
+            analysisText = await generateWithChat('gpt-4o-mini');
+          } catch (e4) {
+            console.error('All OpenAI calls failed; proceeding with deterministic local fallback.', e1, e2, e3, e4);
+            analysisText = null;
+          }
         }
       }
     }
