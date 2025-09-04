@@ -651,8 +651,13 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       signalValidation.warnings.push('Stop loss is more than 5% from entry');
     }
 
+    // Ensure we always have a robust non-empty summary for DB NOT NULL constraint
+    const robustSummary = (typeof analysis.summary === 'string' && analysis.summary.trim().length > 0)
+      ? analysis.summary.trim()
+      : `${coin} ${timeframe} signal: ${direction} @ ${Math.round(analysis.confidence)}% conf. Price $${priceNow.toFixed(2)} | RSI ${rsiNow.toFixed(1)} | MACD ${macdHistNow.toFixed(4)} | ATR ${atrPct.toFixed(2)}%.`;
+
     return {
-      summary: analysis.summary,
+      summary: robustSummary,
       confidence: analysis.confidence,
       data: {
         ...analysis,
