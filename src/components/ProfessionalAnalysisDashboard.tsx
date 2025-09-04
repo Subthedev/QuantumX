@@ -225,7 +225,7 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
       if (data) {
         // The edge function returns the database record with report_data field
         const reportData = data.report_data || data;
-        
+
         // Check if this is a new enhanced report
         if (reportData.version !== 'v2_enhanced') {
           console.warn('WARNING: Old report format detected. Clearing cache and regenerating...');
@@ -235,7 +235,6 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
             description: "Regenerating with enhanced analysis sections"
           });
         }
-        
         const result: AnalysisResult = {
           symbol,
           signal: reportData.signal_4h?.direction || 'HOLD',
@@ -253,14 +252,12 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
           signalExpiry: reportData.signal_expiry,
           fullReport: reportData // Pass the entire report data for the new sections
         };
-        
         console.log('Report version:', reportData.version);
         console.log('Has analysis sections:', {
           technical: !!reportData.analysis?.technical,
           fundamental: !!reportData.analysis?.fundamental,
           sentiment: !!reportData.analysis?.sentiment
         });
-        
         setAnalysisResult(result);
         await loadSignalHistory();
         toast({
@@ -311,25 +308,20 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
     if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
     return `$${num.toFixed(2)}`;
   };
-  return <div className="w-full">
-      <div className="space-y-6">
+  return <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         
         {/* Premium Header */}
-        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                AI-Powered Trading Signals
-                <span className="text-primary">🧠</span>
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Professional crypto analysis with real-time market data
-              </p>
-            </div>
-            <div className="text-right text-sm text-muted-foreground">
-              <span className="font-medium">Shortcuts:</span> B = Analyze BTC | E = Analyze ETH
-            </div>
-          </div>
+        <div className="text-center py-8 animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-bold text-gradient mb-4">
+            AI-Powered Analysis Dashboard
+          </h1>
+          <p className="text-xl text-muted-foreground">
+            Institutional-Grade Crypto Trading Signals
+          </p>
+          
+          {/* Keyboard Shortcuts Info */}
+          
         </div>
 
         {/* Live Market Data */}
@@ -392,7 +384,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               <div className="flex gap-4 w-full md:w-auto">
                 <Button size="lg" onClick={() => handleAnalyzeCrypto('BTC')} disabled={loading !== null} className="flex-1 md:flex-initial btn-premium">
                   {loading === 'BTC' ? <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      
                       Analyzing...
                     </> : <>
                       <BarChart3 className="mr-2 h-5 w-5" />
@@ -426,43 +418,25 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
         </Card>
 
         {/* Main Analysis Results */}
-        {analysisResult && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {analysisResult && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - New Enhanced Sections */}
             <div className="lg:col-span-2 space-y-6">
-              <TradingSignalsSection
-                signal={analysisResult.fullReport?.signal_4h}
-                marketData={analysisResult.fullReport?.market_data}
-              />
+              <TradingSignalsSection signal={analysisResult.fullReport?.signal_4h} marketData={analysisResult.fullReport?.market_data} />
 
-              <RiskManagementSection
-                signal={analysisResult.fullReport?.signal_4h}
-                marketData={analysisResult.fullReport?.market_data}
-              />
+              <RiskManagementSection signal={analysisResult.fullReport?.signal_4h} marketData={analysisResult.fullReport?.market_data} />
 
-              <TechnicalAnalysisSection
-                analysis={analysisResult.fullReport?.analysis?.technical}
-                marketData={analysisResult.fullReport?.market_data}
-              />
+              <TechnicalAnalysisSection analysis={analysisResult.fullReport?.analysis?.technical} marketData={analysisResult.fullReport?.market_data} />
             </div>
 
             {/* Right Column - New Enhanced Sections */}
             <div className="space-y-6">
-              <FundamentalAnalysisSection
-                analysis={analysisResult.fullReport?.analysis?.fundamental}
-                marketData={analysisResult.fullReport?.market_data}
-              />
+              <FundamentalAnalysisSection analysis={analysisResult.fullReport?.analysis?.fundamental} marketData={analysisResult.fullReport?.market_data} />
 
-              <SentimentAnalysisSection
-                analysis={analysisResult.fullReport?.analysis?.sentiment}
-              />
+              <SentimentAnalysisSection analysis={analysisResult.fullReport?.analysis?.sentiment} />
 
-              <IgniteXSummarySection
-                report={analysisResult.fullReport}
-              />
+              <IgniteXSummarySection report={analysisResult.fullReport} />
             </div>
-          </div>
-        )}
+          </div>}
 
         {/* Loading State */}
         {loading && <div className="space-y-4">
