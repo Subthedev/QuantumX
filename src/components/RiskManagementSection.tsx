@@ -304,7 +304,7 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
                 {riskScore}%
               </span>
             </div>
-            <Progress value={riskScore} className="h-3 bg-muted" />
+            
             <div className="flex justify-between mt-2">
               <span className="text-[10px] text-muted-foreground">Poor</span>
               <span className="text-[10px] text-muted-foreground">Fair</span>
