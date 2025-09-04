@@ -20,6 +20,18 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Generic fetch with timeout to prevent function timeouts
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 interface RequestBody {
   coin: 'BTC' | 'ETH';
   userId: string;
@@ -116,9 +128,9 @@ async function fetchCoinGeckoData(symbol: string) {
   try {
     // Fetch comprehensive data from multiple endpoints
     const [priceResponse, marketResponse, historicalResponse] = await Promise.all([
-      fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`),
-      fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true&sparkline=false`),
-      fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30&interval=daily`)
+      fetchWithTimeout(`https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`, {}, 7000),
+      fetchWithTimeout(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true&sparkline=false`, {}, 7000),
+      fetchWithTimeout(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30&interval=daily`, {}, 7000)
     ]);
     
     const priceData = await priceResponse.json();
@@ -179,24 +191,24 @@ async function fetchCMCData(symbol: string) {
   try {
     // Fetch comprehensive data from CMC
     const [quoteResponse, metadataResponse, statsResponse] = await Promise.all([
-      fetch(`https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=${symbol}&convert=USD`, {
+      fetchWithTimeout(`https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=${symbol}&convert=USD`, {
         headers: {
           'X-CMC_PRO_API_KEY': cmcApiKey,
           'Accept': 'application/json'
         }
-      }),
-      fetch(`https://pro-api.coinmarketcap.com/v1/cryptocurrency/info?symbol=${symbol}`, {
+      }, 7000),
+      fetchWithTimeout(`https://pro-api.coinmarketcap.com/v1/cryptocurrency/info?symbol=${symbol}`, {
         headers: {
           'X-CMC_PRO_API_KEY': cmcApiKey,
           'Accept': 'application/json'
         }
-      }),
-      fetch(`https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest`, {
+      }, 7000),
+      fetchWithTimeout(`https://pro-api.coinmarketcap.com/v1/global-metrics/quotes/latest`, {
         headers: {
           'X-CMC_PRO_API_KEY': cmcApiKey,
           'Accept': 'application/json'
         }
-      })
+      }, 7000)
     ]);
     
     const quoteData = await quoteResponse.json();
@@ -292,7 +304,7 @@ async function fetchMarketData(symbol: string) {
 // Enhanced Binance data fetchers for technical analysis
 async function fetchBinanceKlines(symbol: string, interval: string, limit = 200) {
   const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 7000);
   if (!res.ok) throw new Error(`Binance klines error: ${res.status}`);
   const data: any[] = await res.json();
   return data.map((k) => ({
@@ -312,7 +324,7 @@ async function fetchBinanceKlines(symbol: string, interval: string, limit = 200)
 
 async function fetchFundingRate(symbol: string) {
   const url = `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}&limit=1`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 7000);
   if (!res.ok) return null;
   const data = await res.json();
   if (Array.isArray(data) && data.length) {
@@ -324,7 +336,7 @@ async function fetchFundingRate(symbol: string) {
 
 async function fetchOrderbookImbalance(symbol: string) {
   const url = `https://fapi.binance.com/fapi/v1/depth?symbol=${symbol}&limit=100`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 7000);
   if (!res.ok) return null;
   const data = await res.json();
   const bids = (data.bids || []).reduce((sum: number, b: any) => sum + parseFloat(b[1] || 0), 0);
@@ -335,7 +347,7 @@ async function fetchOrderbookImbalance(symbol: string) {
 
 async function fetchOpenInterest(symbol: string) {
   const url = `https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 7000);
   if (!res.ok) return null;
   const data = await res.json();
   return parseFloat(data.openInterest) || null;
@@ -343,7 +355,7 @@ async function fetchOpenInterest(symbol: string) {
 
 async function fetchLongShortRatio(symbol: string) {
   const url = `https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=${symbol}&period=5m&limit=1`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 7000);
   if (!res.ok) return null;
   const data = await res.json();
   if (Array.isArray(data) && data.length) {
@@ -788,7 +800,7 @@ CRITICAL: Fill EVERY field with SPECIFIC, REAL data. No placeholders. Use actual
 
   try {
     console.log('Generating AI analysis...');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
@@ -801,10 +813,10 @@ CRITICAL: Fill EVERY field with SPECIFIC, REAL data. No placeholders. Use actual
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 4000,
+        max_tokens: 1200,
         response_format: { type: "json_object" }
       }),
-    });
+    }, 6000);
 
     if (!response.ok) {
       const error = await response.text();
