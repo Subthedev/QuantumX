@@ -156,11 +156,6 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
               {symbol === 'BTC' ? <BTCLogo className="w-4 h-4" /> : <ETHLogo className="w-4 h-4" />}
               <span className="text-sm font-medium">{symbol}/USD</span>
             </div>
-            {signal && (
-              <div className="px-2 py-1 bg-primary/10 rounded-lg border border-primary/20">
-                <span className="text-xs font-semibold text-primary">Signal Loaded</span>
-              </div>
-            )}
           </div>
         </div>
       </CardHeader>
