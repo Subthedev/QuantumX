@@ -149,17 +149,10 @@ const Dashboard = () => {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-3">
-              {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
-                <Button 
-                  onClick={() => setShowFeedbackModal(true)} 
-                  size="sm" 
-                  variant="outline"
-                  className="hidden sm:flex"
-                >
+              {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="hidden sm:flex">
                   <Gift className="h-4 w-4 mr-2" />
                   Get Free Credits
-                </Button>
-              )}
+                </Button>}
               <Link to="/">
                 <Button variant="ghost" size="sm">
                   <Home className="h-4 w-4 sm:mr-2" />
@@ -227,17 +220,7 @@ const Dashboard = () => {
                   </div>
                   <CardDescription className="text-xs">Use credits to generate reports</CardDescription>
                 </div>
-                {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && 
-                  <Button 
-                    onClick={() => setShowFeedbackModal(true)} 
-                    size="sm" 
-                    variant="default"
-                    className="w-full group"
-                  >
-                    <Gift className="h-4 w-4 mr-2 group-hover:animate-pulse" />
-                    <span className="text-sm">Get Free Credits</span>
-                  </Button>
-                }
+                {userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com'}
               </div>
             </CardContent>
           </Card>
