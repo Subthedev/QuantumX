@@ -3,11 +3,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import CryptoReport from '@/components/CryptoReport';
+import AIAnalysisDashboard from '@/components/AIAnalysisDashboard';
 import CreditDisplay from '@/components/CreditDisplay';
 import FeedbackModal from '@/components/FeedbackModal';
 import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
-import { Bitcoin, Zap, LogOut, TrendingUp, Home, Coins, Gift } from 'lucide-react';
+import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
@@ -163,13 +163,8 @@ const Dashboard = () => {
           
         </div>
 
-        {/* 4H Signal Cards */}
-        
-
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <CryptoReport coin="BTC" icon={<Bitcoin className="h-6 w-6 text-orange-500" />} name="Bitcoin" existingReport={reports.BTC} />
-          <CryptoReport coin="ETH" icon={<Zap className="h-6 w-6 text-blue-500" />} name="Ethereum" existingReport={reports.ETH} />
-        </div>
+        {/* AI Analysis Dashboard */}
+        <AIAnalysisDashboard />
 
         {/* Stats Section */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
