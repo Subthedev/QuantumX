@@ -450,39 +450,44 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
         )}
 
         {/* Main Analysis Results */}
-        {analysisResult && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - New Enhanced Sections */}
-            <div className="lg:col-span-2 space-y-6">
-              <TradingSignalsSection 
-                signal={analysisResult.fullReport?.signal_4h} 
-                marketData={analysisResult.fullReport?.market_data} 
-                reportGeneratedAt={analysisResult.fullReport?.created_at || new Date().toISOString()}
-                coinSymbol={analysisResult.symbol}
-              />
+        {analysisResult && <div className="space-y-6">
+            {/* All sections in a single column for cleaner layout */}
+            <TradingSignalsSection 
+              signal={analysisResult.fullReport?.signal_4h} 
+              marketData={analysisResult.fullReport?.market_data} 
+              reportGeneratedAt={analysisResult.fullReport?.created_at || new Date().toISOString()}
+              coinSymbol={analysisResult.symbol}
+            />
 
-              <RiskManagementSection 
-                signal={analysisResult.fullReport?.signal_4h} 
-                marketData={analysisResult.fullReport?.market_data}
-                symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
-              />
-              
-              <CompleteTechnicalAnalysisDashboard 
-                signal={analysisResult.fullReport?.signal_4h} 
-                marketData={analysisResult.fullReport?.market_data}
-                symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
-              />
+            <RiskManagementSection 
+              signal={analysisResult.fullReport?.signal_4h} 
+              marketData={analysisResult.fullReport?.market_data}
+              symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
+            />
+            
+            <CompleteTechnicalAnalysisDashboard 
+              signal={analysisResult.fullReport?.signal_4h} 
+              marketData={analysisResult.fullReport?.market_data}
+              symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
+            />
 
-              <TechnicalAnalysisSection analysis={analysisResult.fullReport?.analysis?.technical} marketData={analysisResult.fullReport?.market_data} />
-            </div>
+            <TechnicalAnalysisSection 
+              analysis={analysisResult.fullReport?.analysis?.technical} 
+              marketData={analysisResult.fullReport?.market_data} 
+            />
 
-            {/* Right Column - New Enhanced Sections */}
-            <div className="space-y-6">
-              <FundamentalAnalysisSection analysis={analysisResult.fullReport?.fundamentalAnalysis || analysisResult.fullReport?.analysis?.fundamental} marketData={analysisResult.fullReport?.market_data} />
+            <FundamentalAnalysisSection 
+              analysis={analysisResult.fullReport?.fundamentalAnalysis || analysisResult.fullReport?.analysis?.fundamental} 
+              marketData={analysisResult.fullReport?.market_data} 
+            />
 
-              <SentimentAnalysisSection analysis={analysisResult.fullReport?.sentimentAnalysis || analysisResult.fullReport?.analysis?.sentiment} />
+            <SentimentAnalysisSection 
+              analysis={analysisResult.fullReport?.sentimentAnalysis || analysisResult.fullReport?.analysis?.sentiment} 
+            />
 
-              <IgniteXSummarySection report={analysisResult.fullReport} />
-            </div>
+            <IgniteXSummarySection 
+              report={analysisResult.fullReport} 
+            />
           </div>}
 
         {/* Loading State */}
