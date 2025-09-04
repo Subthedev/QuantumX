@@ -17,10 +17,18 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 22 91% 55%;
+    --primary: 16 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 22 91% 45%;
-    --primary-light: 22 91% 95%;
+    --primary-hover: 16 91% 50%;
+    --primary-light: 16 91% 95%;
+    --primary-glow: 16 100% 65%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(16 91% 60%), hsl(16 100% 65%));
+    --gradient-subtle: linear-gradient(180deg, hsl(16 91% 98%), hsl(0 0% 100%));
+    --gradient-glow: linear-gradient(135deg, hsl(16 91% 55%), hsl(22 100% 62%));
+    
+    --shadow-elegant: 0 10px 30px -10px hsl(16 91% 60% / 0.3);
+    --shadow-glow: 0 0 40px hsl(16 100% 65% / 0.2);
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -67,10 +75,18 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 22 91% 55%;
+    --primary: 16 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 22 91% 45%;
-    --primary-light: 22 91% 10%;
+    --primary-hover: 16 91% 50%;
+    --primary-light: 16 91% 10%;
+    --primary-glow: 16 100% 65%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(16 91% 60%), hsl(16 100% 65%));
+    --gradient-subtle: linear-gradient(180deg, hsl(222.2 84% 8%), hsl(222.2 84% 4.9%));
+    --gradient-glow: linear-gradient(135deg, hsl(16 91% 55%), hsl(22 100% 62%));
+    
+    --shadow-elegant: 0 10px 30px -10px hsl(16 91% 60% / 0.2);
+    --shadow-glow: 0 0 40px hsl(16 100% 65% / 0.15);
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
