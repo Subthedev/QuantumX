@@ -18,6 +18,8 @@ import { TechnicalAnalysisSection } from './TechnicalAnalysisSection';
 import { FundamentalAnalysisSection } from './FundamentalAnalysisSection';
 import { SentimentAnalysisSection } from './SentimentAnalysisSection';
 import { IgniteXSummarySection } from './IgniteXSummarySection';
+import btcLogo from "@/assets/btc-logo.png";
+import ethLogo from "@/assets/eth-logo.png";
 interface SignalHistory {
   id: string;
   symbol: string;
@@ -326,10 +328,13 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
 
         {/* Live Market Data */}
         {marketData && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
-            <Card className="card-premium border-l-4 border-l-primary shadow-elegant hover:shadow-glow transition-all duration-300">
+            <Card className="card-premium border-l-4 border-l-orange-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg font-semibold">Bitcoin (BTC)</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <img src={btcLogo} alt="Bitcoin" className="w-8 h-8" />
+                    <CardTitle className="text-lg font-semibold">Bitcoin (BTC)</CardTitle>
+                  </div>
                   <Badge className={marketData.bitcoin.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
                     {marketData.bitcoin.usd_24h_change >= 0 ? '+' : ''}{marketData.bitcoin.usd_24h_change.toFixed(2)}%
                   </Badge>
@@ -351,10 +356,13 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               </CardContent>
             </Card>
 
-            <Card className="card-premium border-l-4 border-l-primary shadow-elegant hover:shadow-glow transition-all duration-300">
+            <Card className="card-premium border-l-4 border-l-blue-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg font-semibold">Ethereum (ETH)</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <img src={ethLogo} alt="Ethereum" className="w-8 h-8" />
+                    <CardTitle className="text-lg font-semibold">Ethereum (ETH)</CardTitle>
+                  </div>
                   <Badge className={marketData.ethereum.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
                     {marketData.ethereum.usd_24h_change >= 0 ? '+' : ''}{marketData.ethereum.usd_24h_change.toFixed(2)}%
                   </Badge>
@@ -415,10 +423,12 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
                 Select BTC or ETH to generate professional trading signals
               </p>
               <div className="flex gap-4 justify-center">
-                <Button onClick={() => handleAnalyzeCrypto('BTC')} className="btn-premium">
+                <Button onClick={() => handleAnalyzeCrypto('BTC')} className="btn-premium group">
+                  <img src={btcLogo} alt="BTC" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Start BTC Analysis
                 </Button>
-                <Button onClick={() => handleAnalyzeCrypto('ETH')} className="btn-premium">
+                <Button onClick={() => handleAnalyzeCrypto('ETH')} className="btn-premium group">
+                  <img src={ethLogo} alt="ETH" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Start ETH Analysis
                 </Button>
               </div>
