@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from "@/hooks/use-toast";
-import btcLogo from "@/assets/btc-logo.png";
-import ethLogo from "@/assets/eth-logo.png";
+import { BTCLogo } from '@/components/ui/btc-logo';
+import { ETHLogo } from '@/components/ui/eth-logo';
 
 interface AnalysisResult {
   symbol: string;
@@ -271,7 +271,7 @@ const AIAnalysisDashboard: React.FC = () => {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <img src={btcLogo} alt="Bitcoin" className="w-8 h-8" />
+                  <BTCLogo className="w-8 h-8" />
                   <CardTitle className="text-lg">Bitcoin (BTC)</CardTitle>
                 </div>
                 <Badge variant={marketData.bitcoin.usd_24h_change >= 0 ? "default" : "destructive"}>
@@ -299,7 +299,7 @@ const AIAnalysisDashboard: React.FC = () => {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <img src={ethLogo} alt="Ethereum" className="w-8 h-8" />
+                  <ETHLogo className="w-8 h-8" />
                   <CardTitle className="text-lg">Ethereum (ETH)</CardTitle>
                 </div>
                 <Badge variant={marketData.ethereum.usd_24h_change >= 0 ? "default" : "destructive"}>
@@ -381,7 +381,7 @@ const AIAnalysisDashboard: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <img src={btcLogo} alt="BTC" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  <BTCLogo className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Analyze BTC
                 </>
               )}
@@ -399,7 +399,7 @@ const AIAnalysisDashboard: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <img src={ethLogo} alt="ETH" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  <ETHLogo className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Analyze ETH
                 </>
               )}

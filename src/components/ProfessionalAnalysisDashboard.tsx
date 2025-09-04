@@ -18,8 +18,8 @@ import { TechnicalAnalysisSection } from './TechnicalAnalysisSection';
 import { FundamentalAnalysisSection } from './FundamentalAnalysisSection';
 import { SentimentAnalysisSection } from './SentimentAnalysisSection';
 import { IgniteXSummarySection } from './IgniteXSummarySection';
-import btcLogo from "@/assets/btc-logo.png";
-import ethLogo from "@/assets/eth-logo.png";
+import { BTCLogo } from '@/components/ui/btc-logo';
+import { ETHLogo } from '@/components/ui/eth-logo';
 interface SignalHistory {
   id: string;
   symbol: string;
@@ -332,7 +332,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <img src={btcLogo} alt="Bitcoin" className="w-8 h-8" />
+                    <BTCLogo className="w-8 h-8" />
                     <CardTitle className="text-lg font-semibold">Bitcoin (BTC)</CardTitle>
                   </div>
                   <Badge className={marketData.bitcoin.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
@@ -360,7 +360,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <img src={ethLogo} alt="Ethereum" className="w-8 h-8" />
+                    <ETHLogo className="w-8 h-8" />
                     <CardTitle className="text-lg font-semibold">Ethereum (ETH)</CardTitle>
                   </div>
                   <Badge className={marketData.ethereum.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
@@ -424,11 +424,11 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               </p>
               <div className="flex gap-4 justify-center">
                 <Button onClick={() => handleAnalyzeCrypto('BTC')} className="btn-premium group">
-                  <img src={btcLogo} alt="BTC" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  <BTCLogo className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Start BTC Analysis
                 </Button>
                 <Button onClick={() => handleAnalyzeCrypto('ETH')} className="btn-premium group">
-                  <img src={ethLogo} alt="ETH" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                  <ETHLogo className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Start ETH Analysis
                 </Button>
               </div>
