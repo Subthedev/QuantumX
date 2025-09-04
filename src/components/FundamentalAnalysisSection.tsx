@@ -164,7 +164,7 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
 
               <div className="bg-background border rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-muted-foreground">Health Score</span>
+                  <span className="text-xs text-muted-foreground">Network Health</span>
                   <Target className="h-3 w-3 text-muted-foreground" />
                 </div>
                 <div className="text-xl font-bold">{healthScore}/100</div>
