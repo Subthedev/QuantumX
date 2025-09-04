@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Sparkles } from 'lucide-react';
 import { TradingSignalsSection } from './TradingSignalsSection';
 import { RiskManagementSection } from './RiskManagementSection';
+import { CompleteTechnicalAnalysisDashboard } from './CompleteTechnicalAnalysisDashboard';
 import { TechnicalAnalysisSection } from './TechnicalAnalysisSection';
 import { FundamentalAnalysisSection } from './FundamentalAnalysisSection';
 import { SentimentAnalysisSection } from './SentimentAnalysisSection';
@@ -267,24 +268,31 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
               symbol={coin}
             />
 
-            {/* 3. Technical Analysis */}
+            {/* 3. Complete Technical Analysis Dashboard */}
+            <CompleteTechnicalAnalysisDashboard 
+              signal={report.report_data?.signal_4h}
+              marketData={report.report_data?.market_data}
+              symbol={coin}
+            />
+
+            {/* 4. Technical Analysis Details */}
             <TechnicalAnalysisSection 
               analysis={report.report_data?.analysis?.technical}
               marketData={report.report_data?.market_data}
             />
 
-            {/* 4. Fundamental Analysis */}
+            {/* 5. Fundamental Analysis */}
             <FundamentalAnalysisSection 
               analysis={report.report_data?.analysis?.fundamental}
               marketData={report.report_data?.market_data}
             />
 
-            {/* 5. Sentiment Analysis */}
+            {/* 6. Sentiment Analysis */}
             <SentimentAnalysisSection 
               analysis={report.report_data?.analysis?.sentiment}
             />
 
-            {/* 6. IgniteX AI Summary */}
+            {/* 7. IgniteX AI Summary */}
             <IgniteXSummarySection 
               report={report.report_data}
             />
