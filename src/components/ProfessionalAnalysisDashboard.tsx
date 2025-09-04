@@ -400,7 +400,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               <RiskManagementSection 
                 signal={analysisResult.fullReport?.signal_4h} 
                 marketData={analysisResult.fullReport?.market_data}
-                symbol={analysisResult.symbol === 'bitcoin' ? 'BTC' : 'ETH'}
+                symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
               />
 
               <TechnicalAnalysisSection analysis={analysisResult.fullReport?.analysis?.technical} marketData={analysisResult.fullReport?.market_data} />
