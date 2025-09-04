@@ -139,67 +139,33 @@ const Dashboard = () => {
       {/* Use the new professional header */}
       <AppHeader />
 
-      {/* Strategic Credit Alert Banner - Top Priority */}
-      {userCredits <= 2 && (
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
-          <div className="container mx-auto px-4 py-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Zap className="h-5 w-5 animate-pulse" />
-                <span className="text-sm font-semibold">
-                  {userCredits === 0 
-                    ? "⚠️ No credits remaining! Get credits to continue analyzing" 
-                    : `⚠️ Only ${userCredits} credit${userCredits === 1 ? '' : 's'} left!`}
-                </span>
-              </div>
-              <Button 
-                size="sm" 
-                variant="secondary"
-                onClick={() => navigate('/pricing')}
-                className="animate-pulse"
-              >
-                <Crown className="h-4 w-4 mr-1" />
-                Get Credits Now
-              </Button>
+      {/* Professional Credit Alert - Only when critically low */}
+      {userCredits === 0 && (
+        <Alert className="border-0 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-none">
+          <AlertDescription className="flex items-center justify-between py-1">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-orange-500" />
+              <span className="text-sm font-medium">No credits remaining</span>
             </div>
-          </div>
-        </div>
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => navigate('/pricing')}
+              className="h-7 px-3"
+            >
+              Get Credits
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Main Content */}
       <main className="px-4 sm:px-6 pb-6 space-y-6">
         
-        {/* Strategic Credit Display with Action */}
-        <div className="mt-4">
-          <StrategicCreditPrompt 
-            credits={userCredits} 
-            variant="action"
-            showFreeOption={userFeedbackCount === 0}
-            onGetFreeCredits={() => setShowFeedbackModal(true)}
-          />
-        </div>
-
-        {/* Low Credits Warning */}
-        {userCredits > 0 && userCredits <= 2 && (
-          <StrategicCreditPrompt credits={userCredits} variant="low" />
-        )}
-        
         {/* AI Analysis Dashboard */}
-        <div className="-mx-4 sm:-mx-6">
+        <div className="-mx-4 sm:-mx-6 mt-4">
           <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
-
-        {/* Empty State Prompt when no credits */}
-        {userCredits === 0 && (
-          <div className="mt-6">
-            <StrategicCreditPrompt 
-              credits={userCredits} 
-              variant="empty"
-              showFreeOption={userFeedbackCount === 0}
-              onGetFreeCredits={() => setShowFeedbackModal(true)}
-            />
-          </div>
-        )}
 
         {/* Stats Section with Enhanced Credit Card */}
         <div className="grid md:grid-cols-3 gap-4 mt-8">
@@ -340,9 +306,6 @@ const Dashboard = () => {
       
       {/* Feedback Modal - Auto Popup */}
       <FeedbackModal isOpen={shouldShowFeedback} onClose={handleFeedbackClose} onComplete={handleFeedbackComplete} />
-      
-      {/* Floating Credit Prompt - Bottom Right */}
-      <StrategicCreditPrompt credits={userCredits} variant="floating" />
     </div>;
 };
 export default Dashboard;
