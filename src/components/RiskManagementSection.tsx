@@ -292,28 +292,6 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
           </div>
         </div>
         
-        {/* Risk Score Visualization */}
-        {showResults && rrData && (
-          <div className={`bg-gradient-to-r from-background to-muted/30 rounded-xl p-4 border border-border animate-fade-in`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-semibold">Trade Quality Score</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                {riskScore}%
-              </span>
-            </div>
-            
-            <div className="flex justify-between mt-2">
-              <span className="text-[10px] text-muted-foreground">Poor</span>
-              <span className="text-[10px] text-muted-foreground">Fair</span>
-              <span className="text-[10px] text-muted-foreground">Good</span>
-              <span className="text-[10px] text-muted-foreground">Excellent</span>
-            </div>
-          </div>
-        )}
-        
         {/* Animated Results Cards */}
         {positionData && showResults && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
