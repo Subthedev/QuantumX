@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Target, AlertTriangle, Activity, Clock, Shield, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, AlertTriangle, Activity, Clock, Shield, Zap, DollarSign } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 
@@ -66,6 +66,11 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
     return percentage >= 0 ? `+${percentage.toFixed(2)}` : percentage.toFixed(2);
   };
 
+  const getPriceDirection = (entry: number, current: number) => {
+    const diff = ((current - entry) / entry * 100);
+    return diff >= 0 ? '+' : '';
+  };
+
   return (
     <Card className="border-2 border-primary/20 shadow-xl bg-gradient-to-br from-background to-muted/20">
       <CardHeader className="pb-3">
@@ -75,7 +80,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
             Trading Signals
           </CardTitle>
           {signal && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* Validity Timer */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-background/60 rounded-lg border border-border">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -177,7 +182,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
                       : 'bg-yellow-500/10 text-yellow-700 border border-yellow-500/20'
                   }`}>
                     <span className="text-xs font-medium">
-                      {Math.abs((marketData.price - signal.entry) / signal.entry) < 0.02 ? 'Near Entry' : 'Wait for Entry'}
+                      {Math.abs((marketData.price - signal.entry) / signal.entry) < 0.02 ? '✓ Near Entry' : '⏳ Wait for Entry'}
                     </span>
                   </div>
                 )}
@@ -197,7 +202,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
                     {formatPrice(signal.stop_loss)}
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Max Risk:</span>
+                    <span className="text-muted-foreground">Risk:</span>
                     <span className="font-bold text-red-700 font-mono">
                       {calculatePercentage(signal.entry, signal.stop_loss)}%
                     </span>
@@ -211,7 +216,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
               {/* Risk/Reward - Clear Visual Display */}
               <div className="p-4 bg-gradient-to-br from-purple-500/5 to-purple-500/10 rounded-lg border border-purple-500/20">
                 <div className="flex items-center gap-2 mb-3">
-                  <Target className="h-4 w-4 text-purple-600" />
+                  <DollarSign className="h-4 w-4 text-purple-600" />
                   <span className="text-sm font-semibold">Risk : Reward</span>
                 </div>
                 <div className="space-y-2">
@@ -253,7 +258,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
                   
                   return (
                     <div key={i} className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-500/5 to-green-500/10 rounded-lg border border-green-500/20">
-                      <div className="flex items-center gap-2 min-w-[80px]">
+                      <div className="flex items-center gap-2 min-w-[100px]">
                         <Badge className="bg-green-600 text-white text-xs">
                           TP{i + 1}
                         </Badge>
@@ -265,13 +270,13 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
                         <span className="font-bold text-green-700 font-mono">
                           {formatPrice(tp)}
                         </span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <span className="text-sm font-bold text-green-600">
                             {percentGain}%
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            {isConservative ? '33% position' : isModerate ? '33% position' : '34% position'}
-                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {isConservative ? '33% exit' : isModerate ? '33% exit' : '34% exit'}
+                          </Badge>
                         </div>
                       </div>
                     </div>
