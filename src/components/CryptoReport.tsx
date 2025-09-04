@@ -264,6 +264,7 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
             <RiskManagementSection 
               signal={report.report_data?.signal_4h}
               marketData={report.report_data?.market_data}
+              symbol={coin}
             />
 
             {/* 3. Technical Analysis */}

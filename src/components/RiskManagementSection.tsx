@@ -12,7 +12,7 @@ interface RiskManagementProps {
 export const RiskManagementSection: React.FC<RiskManagementProps> = ({ 
   signal, 
   marketData,
-  accountBalance = 10000,
+  accountBalance = 100000,
   symbol = 'BTC'
 }) => {
   // Calculate position size based on 1% risk rule
@@ -49,11 +49,24 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
     const potentialProfit2 = reward2 ? potentialLoss * (reward2 / risk) : null;
     const potentialProfit3 = reward3 ? potentialLoss * (reward3 / risk) : null;
     
+    // Format ratios properly
+    const formatRatio = (ratio: number) => {
+      if (ratio < 1) {
+        return `1:${(1/ratio).toFixed(1)}`;
+      }
+      return `1:${ratio.toFixed(1)}`;
+    };
+    
     return {
       ratios: {
-        tp1: (reward1 / risk).toFixed(2),
-        tp2: reward2 ? (reward2 / risk).toFixed(2) : null,
-        tp3: reward3 ? (reward3 / risk).toFixed(2) : null
+        tp1: formatRatio(reward1 / risk),
+        tp2: reward2 ? formatRatio(reward2 / risk) : null,
+        tp3: reward3 ? formatRatio(reward3 / risk) : null
+      },
+      rawRatios: {
+        tp1: reward1 / risk,
+        tp2: reward2 ? reward2 / risk : null,
+        tp3: reward3 ? reward3 / risk : null
       },
       profits: {
         tp1: potentialProfit1,
@@ -126,42 +139,42 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
               
               <div className="space-y-2">
                 {rrData?.ratios.tp1 && (
-                  <div className="flex items-center justify-between p-2 bg-background rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">TP1</span>
-                      <span className="text-xs text-muted-foreground">
-                        1:{rrData.ratios.tp1}
+                  <div className="flex items-center justify-between p-2 bg-background rounded-lg border border-green-500/20">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold">TP1</span>
+                      <span className="text-xs px-2 py-0.5 bg-green-500/10 rounded text-green-600 font-medium">
+                        {rrData.ratios.tp1} R:R
                       </span>
                     </div>
-                    <div className="text-sm font-medium text-green-500">
+                    <div className="text-sm font-bold text-green-500">
                       +${rrData.profits.tp1?.toFixed(0)}
                     </div>
                   </div>
                 )}
                 
                 {rrData?.ratios.tp2 && (
-                  <div className="flex items-center justify-between p-2 bg-background rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">TP2</span>
-                      <span className="text-xs text-muted-foreground">
-                        1:{rrData.ratios.tp2}
+                  <div className="flex items-center justify-between p-2 bg-background rounded-lg border border-green-500/20">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold">TP2</span>
+                      <span className="text-xs px-2 py-0.5 bg-green-500/10 rounded text-green-600 font-medium">
+                        {rrData.ratios.tp2} R:R
                       </span>
                     </div>
-                    <div className="text-sm font-medium text-green-500">
+                    <div className="text-sm font-bold text-green-500">
                       +${rrData.profits.tp2?.toFixed(0)}
                     </div>
                   </div>
                 )}
                 
                 {rrData?.ratios.tp3 && (
-                  <div className="flex items-center justify-between p-2 bg-background rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">TP3</span>
-                      <span className="text-xs text-muted-foreground">
-                        1:{rrData.ratios.tp3}
+                  <div className="flex items-center justify-between p-2 bg-background rounded-lg border border-green-500/20">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold">TP3</span>
+                      <span className="text-xs px-2 py-0.5 bg-green-500/10 rounded text-green-600 font-medium">
+                        {rrData.ratios.tp3} R:R
                       </span>
                     </div>
-                    <div className="text-sm font-medium text-green-500">
+                    <div className="text-sm font-bold text-green-500">
                       +${rrData.profits.tp3?.toFixed(0)}
                     </div>
                   </div>
@@ -208,24 +221,24 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
 
             {/* Overall Risk Assessment */}
             <div className={`p-3 rounded-lg border-2 ${
-              Number(rrData?.ratios.tp1) >= 2 
+              rrData?.rawRatios?.tp1 && rrData.rawRatios.tp1 >= 2 
                 ? 'bg-green-500/10 border-green-500/30' 
-                : Number(rrData?.ratios.tp1) >= 1.5 
+                : rrData?.rawRatios?.tp1 && rrData.rawRatios.tp1 >= 1.5 
                 ? 'bg-blue-500/10 border-blue-500/30' 
                 : 'bg-red-500/10 border-red-500/30'
             }`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Risk Assessment</span>
                 <span className={`text-sm font-bold ${
-                  Number(rrData?.ratios.tp1) >= 2 
+                  rrData?.rawRatios?.tp1 && rrData.rawRatios.tp1 >= 2 
                     ? 'text-green-500' 
-                    : Number(rrData?.ratios.tp1) >= 1.5 
+                    : rrData?.rawRatios?.tp1 && rrData.rawRatios.tp1 >= 1.5 
                     ? 'text-blue-500' 
                     : 'text-red-500'
                 }`}>
-                  {Number(rrData?.ratios.tp1) >= 2 
+                  {rrData?.rawRatios?.tp1 && rrData.rawRatios.tp1 >= 2 
                     ? 'FAVORABLE' 
-                    : Number(rrData?.ratios.tp1) >= 1.5 
+                    : rrData?.rawRatios?.tp1 && rrData.rawRatios.tp1 >= 1.5 
                     ? 'MODERATE' 
                     : 'HIGH RISK'}
                 </span>
