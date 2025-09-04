@@ -48,16 +48,13 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
     // Calculate potential profit/loss in USD
     const positionSize = calculatePositionSize();
     const potentialLoss = positionSize?.riskAmount || 0;
-    const potentialProfit1 = potentialLoss * (reward1 / risk);
-    const potentialProfit2 = reward2 ? potentialLoss * (reward2 / risk) : null;
-    const potentialProfit3 = reward3 ? potentialLoss * (reward3 / risk) : null;
+    const potentialProfit1 = (reward1 / risk) * potentialLoss;
+    const potentialProfit2 = reward2 ? (reward2 / risk) * potentialLoss : null;
+    const potentialProfit3 = reward3 ? (reward3 / risk) * potentialLoss : null;
     
-    // Format ratios properly
-    const formatRatio = (ratio: number) => {
-      if (ratio < 1) {
-        return `1:${(1/ratio).toFixed(1)}`;
-      }
-      return `1:${ratio.toFixed(1)}`;
+    // Format ratios properly - always show as 1:X where X is the reward multiple
+    const formatRatio = (rewardToRisk: number) => {
+      return `1:${rewardToRisk.toFixed(1)}`;
     };
     
     return {
