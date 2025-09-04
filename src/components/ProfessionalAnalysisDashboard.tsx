@@ -410,15 +410,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
                       </Badge>
                       <div>
                         <h2 className="text-2xl font-bold">{analysisResult.symbol} Signal</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                          {analysisResult.validation?.passed ? <Badge className="bg-green-500">
-                              <CheckCircle className="mr-1 h-4 w-4" />
-                              APPROVED
-                            </Badge> : <Badge className="bg-yellow-500">
-                              <AlertTriangle className="mr-1 h-4 w-4" />
-                              REVIEW REQUIRED
-                            </Badge>}
-                        </div>
+                        
                       </div>
                     </div>
                     <div className="text-right">
