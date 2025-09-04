@@ -312,50 +312,49 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
     return `$${num.toFixed(2)}`;
   };
   return <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
         
-        {/* Header - Clean & Minimal */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">
+        {/* Header - Compact */}
+        <div>
+          <h1 className="text-2xl font-medium text-foreground">
             Market Analysis
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Real-time crypto analysis powered by AI
           </p>
         </div>
 
-        {/* Live Market Data - Clean Cards */}
+        {/* Live Market Data - Compact Cards */}
         {marketData && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card className="border">
-              <CardHeader className="pb-3">
+              <CardHeader className="py-3 px-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <BTCLogo className="w-6 h-6" />
-                    <span className="font-medium">Bitcoin</span>
+                    <BTCLogo className="w-5 h-5" />
+                    <span className="font-medium text-sm">Bitcoin</span>
                   </div>
                   <Badge 
                     variant="outline" 
-                    className={marketData.bitcoin.usd_24h_change >= 0 ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'}
+                    className={`text-xs ${marketData.bitcoin.usd_24h_change >= 0 ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'}`}
                   >
                     {marketData.bitcoin.usd_24h_change >= 0 ? '+' : ''}{marketData.bitcoin.usd_24h_change.toFixed(2)}%
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
+              <CardContent className="pt-0 pb-3 px-4">
+                <div className="space-y-2">
                   <div>
-                    <p className="text-2xl font-semibold">${marketData.bitcoin.usd.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Current Price</p>
+                    <p className="text-xl font-semibold">${marketData.bitcoin.usd.toLocaleString()}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <p className="text-sm font-medium">{formatNumber(marketData.bitcoin.usd_market_cap)}</p>
-                      <p className="text-xs text-muted-foreground">Market Cap</p>
+                      <p className="font-medium">{formatNumber(marketData.bitcoin.usd_market_cap)}</p>
+                      <p className="text-muted-foreground">Market Cap</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{formatNumber(marketData.bitcoin.usd_24h_vol)}</p>
-                      <p className="text-xs text-muted-foreground">24h Volume</p>
+                      <p className="font-medium">{formatNumber(marketData.bitcoin.usd_24h_vol)}</p>
+                      <p className="text-muted-foreground">24h Volume</p>
                     </div>
                   </div>
                 </div>
@@ -363,34 +362,33 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             </Card>
 
             <Card className="border">
-              <CardHeader className="pb-3">
+              <CardHeader className="py-3 px-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <ETHLogo className="w-6 h-6" />
-                    <span className="font-medium">Ethereum</span>
+                    <ETHLogo className="w-5 h-5" />
+                    <span className="font-medium text-sm">Ethereum</span>
                   </div>
                   <Badge 
                     variant="outline" 
-                    className={marketData.ethereum.usd_24h_change >= 0 ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'}
+                    className={`text-xs ${marketData.ethereum.usd_24h_change >= 0 ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600'}`}
                   >
                     {marketData.ethereum.usd_24h_change >= 0 ? '+' : ''}{marketData.ethereum.usd_24h_change.toFixed(2)}%
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
+              <CardContent className="pt-0 pb-3 px-4">
+                <div className="space-y-2">
                   <div>
-                    <p className="text-2xl font-semibold">${marketData.ethereum.usd.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Current Price</p>
+                    <p className="text-xl font-semibold">${marketData.ethereum.usd.toLocaleString()}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <p className="text-sm font-medium">{formatNumber(marketData.ethereum.usd_market_cap)}</p>
-                      <p className="text-xs text-muted-foreground">Market Cap</p>
+                      <p className="font-medium">{formatNumber(marketData.ethereum.usd_market_cap)}</p>
+                      <p className="text-muted-foreground">Market Cap</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{formatNumber(marketData.ethereum.usd_24h_vol)}</p>
-                      <p className="text-xs text-muted-foreground">24h Volume</p>
+                      <p className="font-medium">{formatNumber(marketData.ethereum.usd_24h_vol)}</p>
+                      <p className="text-muted-foreground">24h Volume</p>
                     </div>
                   </div>
                 </div>
@@ -399,12 +397,12 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         )}
 
-        {/* CTA Buttons - Clean & Accessible */}
-        {!analysisResult && !loading && (
-          <div className="flex gap-3">
+        {/* CTA Buttons - Compact */}
+        {!analysisResult && !loading && marketData && (
+          <div className="flex gap-2">
             <Button 
               onClick={() => handleAnalyzeCrypto('BTC')} 
-              size="lg"
+              size="default"
               className="flex-1 md:flex-initial"
             >
               <BTCLogo className="w-4 h-4 mr-2" />
@@ -412,7 +410,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             </Button>
             <Button 
               onClick={() => handleAnalyzeCrypto('ETH')} 
-              size="lg"
+              size="default"
               variant="outline"
               className="flex-1 md:flex-initial"
             >
@@ -427,11 +425,11 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
             <Card className="w-full max-w-xs">
               <CardContent className="pt-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <div className="flex flex-col items-center space-y-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   <div className="text-center">
-                    <p className="font-medium">Analyzing {loading}</p>
-                    <p className="text-sm text-muted-foreground">Please wait...</p>
+                    <p className="text-sm font-medium">Analyzing {loading}</p>
+                    <p className="text-xs text-muted-foreground">Please wait...</p>
                   </div>
                 </div>
               </CardContent>
@@ -439,11 +437,11 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         )}
 
-        {/* Main Analysis Results - Clean Grid */}
+        {/* Main Analysis Results - Tighter Grid */}
         {analysisResult && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left Column - Primary Analysis */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4">
               <TradingSignalsSection 
                 signal={analysisResult.fullReport?.signal_4h} 
                 marketData={analysisResult.fullReport?.market_data} 
@@ -470,7 +468,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             </div>
 
             {/* Right Column - Supporting Analysis */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <FundamentalAnalysisSection 
                 analysis={analysisResult.fullReport?.fundamentalAnalysis || analysisResult.fullReport?.analysis?.fundamental} 
                 marketData={analysisResult.fullReport?.market_data} 
@@ -487,16 +485,34 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         )}
 
-        {/* Empty State - Minimal */}
+        {/* Empty State - Compact */}
         {!analysisResult && !loading && !marketData && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center space-y-4 max-w-md">
-              <h2 className="text-xl font-medium text-foreground">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-3 max-w-md">
+              <h2 className="text-lg font-medium text-foreground">
                 Select a cryptocurrency to analyze
               </h2>
               <p className="text-sm text-muted-foreground">
                 Get comprehensive market analysis with AI-powered insights
               </p>
+              <div className="flex gap-2 justify-center pt-2">
+                <Button 
+                  onClick={() => handleAnalyzeCrypto('BTC')} 
+                  variant="outline"
+                  size="default"
+                >
+                  <BTCLogo className="w-4 h-4 mr-2" />
+                  Bitcoin
+                </Button>
+                <Button 
+                  onClick={() => handleAnalyzeCrypto('ETH')} 
+                  variant="outline"
+                  size="default"
+                >
+                  <ETHLogo className="w-4 h-4 mr-2" />
+                  Ethereum
+                </Button>
+              </div>
             </div>
           </div>
         )}
