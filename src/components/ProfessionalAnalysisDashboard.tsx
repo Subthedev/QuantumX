@@ -390,7 +390,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
         {analysisResult && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - New Enhanced Sections */}
             <div className="lg:col-span-2 space-y-6">
-              <TradingSignalsSection signal={analysisResult.fullReport?.signal_4h} marketData={analysisResult.fullReport?.market_data} />
+              <TradingSignalsSection signal={analysisResult.fullReport?.signal_4h} marketData={analysisResult.fullReport?.market_data} reportGeneratedAt={analysisResult.fullReport?.created_at || new Date().toISOString()} />
 
               <RiskManagementSection signal={analysisResult.fullReport?.signal_4h} marketData={analysisResult.fullReport?.market_data} />
 
