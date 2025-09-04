@@ -103,6 +103,17 @@ interface CryptoReportData {
         holdingDistribution?: string;
       };
     };
+    sentimentAnalysis?: {
+      overall?: string;
+      factors?: string[];
+      risk_level?: string;
+      score?: number;
+      newsFlow?: any;
+      socialMetrics?: any;
+      fearGreedIndex?: any;
+      derivativesData?: any;
+      crowdPositioning?: any;
+    };
     targets: {
       take_profit_1: number;
       take_profit_2: number;
@@ -308,40 +319,33 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
             />
 
             {/* 5. Fundamental Analysis */}
-            {(() => {
-              console.log('Fundamental Analysis Debug:');
-              console.log('Full report data:', report.report_data);
-              console.log('fundamentalAnalysis path:', report.report_data?.fundamentalAnalysis);
-              console.log('analysis.fundamental path:', report.report_data?.analysis?.fundamental);
-              
-              const fundamentalData = {
+            <FundamentalAnalysisSection 
+              analysis={{
                 strengths: report.report_data?.fundamentalAnalysis?.strengths || [],
                 weaknesses: report.report_data?.fundamentalAnalysis?.weaknesses || [],
                 market_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || '',
                 adoption_metrics: report.report_data?.fundamentalAnalysis?.metrics?.adoptionRate || '',
                 network_health: report.report_data?.fundamentalAnalysis?.metrics?.networkHealth || '',
                 institutional_flow: report.report_data?.fundamentalAnalysis?.metrics?.institutionalFlow || '',
-                macro_environment: report.report_data?.fundamentalAnalysis?.macroFactors?.marketRegime || '',
+                macro_environment: report.report_data?.fundamentalAnalysis?.macroFactors?.marketRegime || 
+                                   report.report_data?.fundamentalAnalysis?.macroFactors?.regulatoryOutlook || '',
                 competitive_landscape: report.report_data?.fundamentalAnalysis?.macroFactors?.correlation || '',
-                catalysts: Array.isArray(report.report_data?.fundamentalAnalysis?.catalysts?.bullish) 
-                  ? report.report_data.fundamentalAnalysis.catalysts.bullish.join(', ') 
-                  : '',
+                catalysts: (() => {
+                  const bullish = report.report_data?.fundamentalAnalysis?.catalysts?.bullish || [];
+                  const bearish = report.report_data?.fundamentalAnalysis?.catalysts?.bearish || [];
+                  if (bullish.length > 0 || bearish.length > 0) {
+                    return `Bullish: ${bullish.slice(0, 2).join(', ')}. Bearish: ${bearish.slice(0, 2).join(', ')}`;
+                  }
+                  return '';
+                })(),
                 competitive_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || '',
-              };
-              
-              console.log('Prepared fundamental data:', fundamentalData);
-              
-              return (
-                <FundamentalAnalysisSection 
-                  analysis={fundamentalData}
-                  marketData={report.report_data?.market_data}
-                />
-              );
-            })()}
+              }}
+              marketData={report.report_data?.market_data}
+            />
 
             {/* 6. Sentiment Analysis */}
             <SentimentAnalysisSection 
-              analysis={report.report_data?.analysis?.sentiment}
+              analysis={report.report_data?.analysis?.sentiment || report.report_data?.sentimentAnalysis || {}}
             />
 
             {/* 7. IgniteX AI Summary */}
