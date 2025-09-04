@@ -29,6 +29,9 @@ interface SignalHistory {
   timestamp: string;
   profit?: number;
 }
+interface ProfessionalAnalysisDashboardProps {
+  onCreditUsed?: () => void;
+}
 interface AnalysisResult {
   symbol: string;
   signal: 'LONG' | 'SHORT' | 'HOLD';
@@ -71,7 +74,7 @@ interface AnalysisResult {
   signalExpiry?: string;
   fullReport?: any;
 }
-const ProfessionalAnalysisDashboard: React.FC = () => {
+const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps> = ({ onCreditUsed }) => {
   const {
     user
   } = useAuth();
@@ -208,8 +211,32 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
       });
       return;
     }
+    
+    // Check if user has credits before proceeding
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile || profile.credits < 1) {
+      toast({
+        title: "No credits available",
+        description: "You need credits to generate reports. Visit the pricing page to get more.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(symbol);
     try {
+      // Consume a credit first
+      const { data: consumed, error: consumeError } = await supabase
+        .rpc('consume_credit', { _user_id: user.id });
+
+      if (!consumed || consumeError) {
+        throw new Error('Failed to consume credit');
+      }
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Analysis timed out')), 30000);
       });
@@ -263,9 +290,15 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
         });
         setAnalysisResult(result);
         await loadSignalHistory();
+        
+        // Notify parent component that credit was used
+        if (onCreditUsed) {
+          onCreditUsed();
+        }
+        
         toast({
           title: "✅ Analysis Complete",
-          description: `Professional ${symbol} analysis generated successfully`
+          description: `Professional ${symbol} analysis generated successfully. Credit consumed.`
         });
       }
     } catch (error: any) {

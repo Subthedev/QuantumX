@@ -186,7 +186,7 @@ const Dashboard = () => {
         
         {/* AI Analysis Dashboard */}
         <div className="-mx-4 sm:-mx-6">
-          <ProfessionalAnalysisDashboard />
+          <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
 
         {/* Empty State Prompt when no credits */}
