@@ -10,6 +10,8 @@ interface FundamentalAnalysisProps {
 }
 
 export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({ analysis, marketData }) => {
+  console.log('FundamentalAnalysisSection received analysis:', analysis);
+  console.log('FundamentalAnalysisSection received marketData:', marketData);
   const formatMarketCap = (value: number) => {
     if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;

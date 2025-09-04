@@ -10,7 +10,11 @@ interface TradingSignalsProps {
 }
 
 export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, marketData }) => {
+  console.log('TradingSignalsSection received signal:', signal);
+  console.log('TradingSignalsSection received marketData:', marketData);
+  
   const formatPrice = (value: number) => {
+    if (!value || isNaN(value)) return '$0.00';
     if (value >= 100) return `$${value.toFixed(2)}`;
     if (value >= 1) return `$${value.toFixed(4)}`;
     return `$${value.toFixed(6)}`;
@@ -25,6 +29,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({ signal, m
   };
 
   const calculatePercentage = (entry: number, target: number) => {
+    if (!entry || !target) return '0.00';
     return ((target - entry) / entry * 100).toFixed(2);
   };
 
