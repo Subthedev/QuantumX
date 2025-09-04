@@ -203,18 +203,42 @@ const Dashboard = () => {
 
         {/* Stats Section with Enhanced Credit Card */}
         <div className="grid md:grid-cols-3 gap-4 mt-8">
-          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5 group">
+          <Card className="border-2 border-green-500/30 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-500/10 to-emerald-600/10 group relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2">
+              <Badge className="bg-green-500/20 text-green-700 border-green-500/30 animate-pulse">
+                💰 High ROI
+              </Badge>
+            </div>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <TrendingUp className="h-4 w-4 text-status-success group-hover:scale-110 transition-transform" />
-                Reports Generated
+                <Sparkles className="h-4 w-4 text-green-500 group-hover:scale-110 transition-transform animate-pulse" />
+                Potential Profits Missed
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {totalReportsCount}
+              <div className="space-y-2">
+                <div className="text-3xl font-bold text-green-600">
+                  +${(totalReportsCount * 127).toLocaleString()}
+                </div>
+                <CardDescription className="text-xs font-medium text-muted-foreground">
+                  Avg. user gains $127 per signal
+                </CardDescription>
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-orange-600 font-semibold animate-pulse">
+                    ⚡ {Math.max(0, 5 - userCredits)} signals you can't access
+                  </p>
+                </div>
+                {userCredits < 5 && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="w-full mt-2 text-xs hover:bg-green-500/10 text-green-700"
+                    onClick={() => navigate('/pricing')}
+                  >
+                    Unlock Profits →
+                  </Button>
+                )}
               </div>
-              <CardDescription className="text-xs">in the last 24 hours</CardDescription>
             </CardContent>
           </Card>
           
