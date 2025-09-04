@@ -190,7 +190,7 @@ export default function Pricing() {
             </div>
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-4">
-                <Shield className="h-8 w-8 text-accent" />
+                <Shield className="h-8 w-8 text-white" />
               </div>
               <h3 className="font-semibold mb-2">Risk Management</h3>
               <p className="text-sm text-muted-foreground">
