@@ -50,8 +50,16 @@ serve(async (req) => {
       );
     }
 
-    // Fetch real-time market data and generate professional analysis
-    const prediction = await generateProfessionalReport(coin, tf);
+    // Create a timeout promise (25 seconds to leave buffer for response)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Analysis timed out')), 25000);
+    });
+
+    // Fetch real-time market data and generate professional analysis with timeout
+    const prediction = await Promise.race([
+      generateProfessionalReport(coin, tf),
+      timeoutPromise
+    ]) as any;
 
     // Save the report to the database
     const { data: report, error: insertError } = await supabase
@@ -60,7 +68,7 @@ serve(async (req) => {
         user_id: userId,
         coin_symbol: coin,
         prediction_summary: prediction.summary,
-        confidence_score: prediction.confidence,
+        confidence_score: prediction.confidence, // This is now a number
         report_data: prediction.data
       })
       .select()
@@ -82,10 +90,16 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in generate-crypto-report function:', error);
+    
+    // Return more specific error messages
+    const errorMessage = error.message === 'Analysis timed out' 
+      ? 'Analysis took too long. Please try again.' 
+      : error.message || 'An error occurred generating the report';
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
-        status: 500,
+        status: error.message === 'Analysis timed out' ? 504 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
@@ -546,16 +560,17 @@ async function generateTechnicalAnalysis(symbol: string, timeframe: string) {
   }
 }
 
-// Generate AI-powered comprehensive analysis
+// Generate AI-powered comprehensive analysis (optimized for speed)
 async function generateAIAnalysis(symbol: string, marketData: any, technicalData: any, timeframe: string) {
+  // Skip AI if no API key and use fallback immediately
   if (!openaiApiKey) {
-    console.error('OpenAI API key not configured');
-    throw new Error('AI analysis unavailable');
+    console.log('OpenAI API key not configured, using fallback analysis');
+    return generateFallbackAnalysis(symbol, marketData, technicalData, timeframe);
   }
   
   console.log(`Generating institution-grade AI analysis for ${symbol} with ${timeframe} signal ${technicalData.trendDirection} @ conf ${Math.round(Math.random() * 20 + 80)}%`);
   
-  const systemPrompt = `You are an elite institutional crypto analyst at a top-tier hedge fund. Generate a COMPREHENSIVE, ACTIONABLE trading report with SPECIFIC metrics and data points. Your analysis must be:
+  const systemPrompt = `You are a crypto analyst. Generate a CONCISE trading report with SPECIFIC numbers. Be FAST and ACCURATE.
 
 1. ULTRA-SPECIFIC with exact numbers, percentages, and price levels
 2. ACTIONABLE with clear entry/exit strategies and risk management
