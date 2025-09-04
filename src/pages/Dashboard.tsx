@@ -7,7 +7,7 @@ import ProfessionalAnalysisDashboard from '@/components/ProfessionalAnalysisDash
 import CreditDisplay from '@/components/CreditDisplay';
 import FeedbackModal from '@/components/FeedbackModal';
 import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
-import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb, CreditCard, Crown, Sparkles } from 'lucide-react';
+import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb, CreditCard, Crown, Sparkles, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
@@ -15,7 +15,6 @@ import { BTCLogo } from '@/components/ui/btc-logo';
 import { ETHLogo } from '@/components/ui/eth-logo';
 import { StrategicCreditPrompt } from '@/components/StrategicCreditPrompt';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -203,41 +202,40 @@ const Dashboard = () => {
 
         {/* Stats Section with Enhanced Credit Card */}
         <div className="grid md:grid-cols-3 gap-4 mt-8">
-          <Card className="border-2 border-green-500/30 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-500/10 to-emerald-600/10 group relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-2">
-              <Badge className="bg-green-500/20 text-green-700 border-green-500/30 animate-pulse">
-                💰 High ROI
-              </Badge>
-            </div>
+          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-card group">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Sparkles className="h-4 w-4 text-green-500 group-hover:scale-110 transition-transform animate-pulse" />
-                Potential Profits Missed
+                <Shield className="h-4 w-4 text-primary" />
+                Trusted Signals & Transparency
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-green-600">
-                  +${(totalReportsCount * 127).toLocaleString()}
+              <div className="space-y-3">
+                <div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {totalReportsCount}
+                  </div>
+                  <CardDescription className="text-xs">reports generated in the last 24h</CardDescription>
                 </div>
-                <CardDescription className="text-xs font-medium text-muted-foreground">
-                  Avg. user gains $127 per signal
-                </CardDescription>
-                <div className="pt-2 border-t">
-                  <p className="text-xs text-orange-600 font-semibold animate-pulse">
-                    ⚡ {Math.max(0, 5 - userCredits)} signals you can't access
-                  </p>
-                </div>
-                {userCredits < 5 && (
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="w-full mt-2 text-xs hover:bg-green-500/10 text-green-700"
-                    onClick={() => navigate('/pricing')}
-                  >
-                    Unlock Profits →
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Data from reputable sources (CoinGecko, order books)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Clear entries, stops, and TPs with risk controls
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Transparent methodology and disclosures
+                  </li>
+                </ul>
+                <div className="pt-1">
+                  <Button variant="outline" size="sm" onClick={() => navigate('/disclaimer')} className="gap-2">
+                    Learn more
                   </Button>
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>
