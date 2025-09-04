@@ -311,20 +311,25 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
     if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
     return `$${num.toFixed(2)}`;
   };
-  return <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
-      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+  return <div className="w-full">
+      <div className="space-y-6">
         
         {/* Premium Header */}
-        <div className="text-center py-8 animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold text-gradient mb-4">
-            AI-Powered Analysis Dashboard
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Institutional-Grade Crypto Trading Signals
-          </p>
-          
-          {/* Keyboard Shortcuts Info */}
-          
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                AI-Powered Trading Signals
+                <span className="text-primary">🧠</span>
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Professional crypto analysis with real-time market data
+              </p>
+            </div>
+            <div className="text-right text-sm text-muted-foreground">
+              <span className="font-medium">Shortcuts:</span> B = Analyze BTC | E = Analyze ETH
+            </div>
+          </div>
         </div>
 
         {/* Live Market Data */}

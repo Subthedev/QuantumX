@@ -130,26 +130,37 @@ const Dashboard = () => {
   if (!user) {
     return null;
   }
-  return <div className="min-h-screen bg-gradient-to-br from-primary-light to-background">
+  return <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="bg-card border-b border-border sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           {/* Left: Logo + Credits */}
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2">
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <AIBrainIcon className="h-8 w-8" />
-              <h1 className="text-xl font-bold text-foreground">IgniteX</h1>
+              <span className="text-xl font-bold text-foreground">IgniteX</span>
             </Link>
+            <div className="h-6 w-px bg-border hidden sm:block" />
             <CreditDisplay />
           </div>
 
-          {/* Right: Get Free Credits + Home */}
-          <div className="flex justify-end items-center gap-3">
-            {userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com'}
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
+              <Button 
+                onClick={() => setShowFeedbackModal(true)} 
+                size="sm" 
+                variant="outline"
+                className="hidden sm:flex"
+              >
+                <Gift className="h-4 w-4 mr-2" />
+                Get Free Credits
+              </Button>
+            )}
             <Link to="/">
               <Button variant="ghost" size="sm">
-                <Home className="h-4 w-4 mr-2" />
-                Home
+                <Home className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Home</span>
               </Button>
             </Link>
           </div>
@@ -157,70 +168,66 @@ const Dashboard = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Your AI Prediction Dashboard</h2>
-          
-        </div>
-
+      <main className="container mx-auto px-4 py-6 space-y-8">
         {/* AI Analysis Dashboard */}
         <ProfessionalAnalysisDashboard />
 
         {/* Stats Section */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+        <div className="grid md:grid-cols-3 gap-4 mt-8">
+          <Card className="border-border/50 hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <TrendingUp className="h-4 w-4 text-status-success" />
                 Reports Generated
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-foreground">
                 {totalReportsCount}
               </div>
-              <CardDescription>in the last 24 hours</CardDescription>
+              <CardDescription className="text-xs">in the last 24 hours</CardDescription>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bitcoin className="h-5 w-5 text-orange-500" />
+          <Card className="border-border/50 hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Bitcoin className="h-4 w-4 text-status-warning" />
                 Average Confidence
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-500">
+              <div className="text-2xl font-bold text-foreground">
                 {Object.keys(reports).length > 0 ? Math.round(Object.values(reports).reduce((acc, report) => acc + report.confidence_score, 0) / Object.keys(reports).length) : 0}%
               </div>
-              <CardDescription>across all predictions</CardDescription>
+              <CardDescription className="text-xs">across all predictions</CardDescription>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-primary" />
+          <Card className="border-border/50 hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Coins className="h-4 w-4 text-primary" />
                 Available Credits
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <div className="text-2xl font-bold text-primary">
+                  <div className="text-2xl font-bold text-foreground">
                     {userCredits}
                   </div>
-                  <CardDescription>Use credits to generate reports</CardDescription>
+                  <CardDescription className="text-xs">Use credits to generate reports</CardDescription>
                 </div>
                 {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && 
                   <Button 
                     onClick={() => setShowFeedbackModal(true)} 
                     size="sm" 
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white border-orange-500 hover:border-orange-600"
+                    variant="default"
+                    className="w-full"
                   >
                     <Gift className="h-4 w-4 mr-2" />
-                    <span className="text-sm font-semibold">Get Free Credits</span>
+                    <span className="text-sm">Get Free Credits</span>
                   </Button>
                 }
               </div>
