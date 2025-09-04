@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain } from "lucide-react";
+import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain, ArrowUp, ArrowDown, Target, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from "@/hooks/use-toast";
 
 interface AnalysisResult {
   symbol: string;
-  signal: 'bullish' | 'bearish' | 'neutral';
+  signal: 'LONG' | 'SHORT' | 'HOLD';
   confidence: number;
   summary: string;
   keyPoints: string[];
@@ -16,46 +19,119 @@ interface AnalysisResult {
     macd: string;
     support: number;
     resistance: number;
+    atr_percent?: number;
+    ema_trend?: string;
   };
   riskLevel: 'low' | 'medium' | 'high';
+  entryPrice?: number;
+  stopLoss?: number;
+  takeProfits?: number[];
+  marketData?: {
+    price: number;
+    percentChange24h: number;
+    volume24h: number;
+    marketCap: number;
+  };
+  analysis?: {
+    technical?: any;
+    fundamental?: any;
+    sentiment?: any;
+    multi_directional_signals?: any;
+  };
 }
 
 const AIAnalysisDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalyzeCrypto = async (symbol: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to generate analysis",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(symbol);
     setError(null);
     
     try {
-      // Placeholder for analysis logic
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create a timeout promise (30 seconds)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Analysis timed out after 30 seconds')), 30000);
+      });
+
+      // Call the edge function with timeout
+      const analysisPromise = supabase.functions.invoke('generate-crypto-report', {
+        body: { coin: symbol, userId: user.id, timeframe: '4H' }
+      });
+
+      const { data, error: functionError } = await Promise.race([
+        analysisPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (functionError) {
+        throw functionError;
+      }
+
+      if (data?.report) {
+        const report = data.report;
+        
+        // Transform the report data to match our interface
+        const result: AnalysisResult = {
+          symbol,
+          signal: report.signal_4h?.direction || 'HOLD',
+          confidence: report.confidence || 50,
+          summary: report.summary || `${symbol} analysis completed with ${report.signal_4h?.direction || 'HOLD'} signal`,
+          keyPoints: report.signal_4h?.reasoning || [
+            "Technical analysis completed",
+            "Market conditions assessed",
+            "Risk parameters evaluated"
+          ],
+          technicalIndicators: {
+            rsi: report.signal_4h?.indicators?.rsi14 || 50,
+            macd: report.signal_4h?.indicators?.macd_hist ? 
+              (report.signal_4h.indicators.macd_hist > 0 ? 'Bullish' : 'Bearish') : 'Neutral',
+            support: report.analysis?.technical?.support_levels ? 
+              parseFloat(report.analysis.technical.support_levels.split(',')[0].replace(/[^0-9.]/g, '')) : 0,
+            resistance: report.analysis?.technical?.resistance_levels ? 
+              parseFloat(report.analysis.technical.resistance_levels.split(',')[0].replace(/[^0-9.]/g, '')) : 0,
+            atr_percent: report.signal_4h?.indicators?.atr_percent,
+            ema_trend: report.signal_4h?.indicators?.ema50_above_ema200 ? 'Bullish' : 'Bearish'
+          },
+          riskLevel: report.confidence > 75 ? 'low' : report.confidence > 50 ? 'medium' : 'high',
+          entryPrice: report.signal_4h?.entry,
+          stopLoss: report.signal_4h?.stop_loss,
+          takeProfits: report.signal_4h?.take_profits,
+          marketData: report.market_data,
+          analysis: report.analysis
+        };
+        
+        setAnalysisResults(result);
+        
+        toast({
+          title: "Analysis Complete",
+          description: `Professional ${symbol} analysis generated successfully`,
+        });
+      } else {
+        throw new Error('Invalid response from analysis service');
+      }
+    } catch (err: any) {
+      console.error('Analysis error:', err);
+      const errorMessage = err.message || 'Failed to generate analysis. Please try again.';
+      setError(errorMessage);
       
-      // Mock result for demonstration
-      const mockResult: AnalysisResult = {
-        symbol,
-        signal: symbol === 'BTC' ? 'bullish' : 'bearish',
-        confidence: symbol === 'BTC' ? 78 : 65,
-        summary: `${symbol} is showing ${symbol === 'BTC' ? 'strong bullish momentum' : 'bearish pressure'} with key support levels holding.`,
-        keyPoints: [
-          "Technical indicators align for potential breakout",
-          "Volume confirms trend direction",
-          "Risk/reward ratio favorable for entry"
-        ],
-        technicalIndicators: {
-          rsi: symbol === 'BTC' ? 62 : 38,
-          macd: symbol === 'BTC' ? 'Bullish Cross' : 'Bearish Divergence',
-          support: symbol === 'BTC' ? 92500 : 3200,
-          resistance: symbol === 'BTC' ? 98000 : 3450
-        },
-        riskLevel: symbol === 'BTC' ? 'medium' : 'high'
-      };
-      
-      setAnalysisResults(mockResult);
-    } catch (err) {
-      setError('Failed to analyze. Please try again.');
+      toast({
+        title: "Analysis Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setLoading(null);
     }
@@ -63,9 +139,10 @@ const AIAnalysisDashboard: React.FC = () => {
 
   const getSignalColor = (signal: string) => {
     switch(signal) {
-      case 'bullish': return 'text-green-600 bg-green-50';
-      case 'bearish': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'LONG': return 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950';
+      case 'SHORT': return 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950';
+      case 'HOLD': return 'text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-950';
+      default: return 'text-gray-600 bg-gray-50 dark:text-gray-400 dark:bg-gray-950';
     }
   };
 
@@ -117,7 +194,7 @@ const AIAnalysisDashboard: React.FC = () => {
               {loading === 'BTC' ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
+                  Generating professional analysis...
                 </>
               ) : (
                 <>
@@ -135,7 +212,7 @@ const AIAnalysisDashboard: React.FC = () => {
               {loading === 'ETH' ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
+                  Generating professional analysis...
                 </>
               ) : (
                 <>
@@ -208,11 +285,71 @@ const AIAnalysisDashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Entry/Exit Points - Professional Trading Recommendations */}
+            {analysisResults.signal !== 'HOLD' && analysisResults.entryPrice && (
+              <Card className="bg-gradient-to-br from-primary-light/10 to-transparent border-primary/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    Trading Execution Levels
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        {analysisResults.signal === 'LONG' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                        Entry Price
+                      </div>
+                      <div className="text-lg font-bold text-primary">
+                        ${analysisResults.entryPrice?.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        Stop Loss
+                      </div>
+                      <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                        ${analysisResults.stopLoss?.toLocaleString()}
+                      </div>
+                    </div>
+                    {analysisResults.takeProfits && analysisResults.takeProfits[0] && (
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Take Profit 1</div>
+                        <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                          ${analysisResults.takeProfits[0].toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                    {analysisResults.takeProfits && analysisResults.takeProfits[1] && (
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Take Profit 2</div>
+                        <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                          ${analysisResults.takeProfits[1].toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {analysisResults.takeProfits && analysisResults.takeProfits[2] && (
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Final Target</span>
+                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                          ${analysisResults.takeProfits[2].toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Technical Indicators */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">RSI</div>
-                <div className="text-xl font-bold">{analysisResults.technicalIndicators.rsi}</div>
+                <div className="text-xl font-bold">{analysisResults.technicalIndicators.rsi.toFixed(1)}</div>
               </div>
               <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">MACD</div>
@@ -227,6 +364,30 @@ const AIAnalysisDashboard: React.FC = () => {
                 <div className="text-xl font-bold">${analysisResults.technicalIndicators.resistance.toLocaleString()}</div>
               </div>
             </div>
+
+            {/* Market Data - if available */}
+            {analysisResults.marketData && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="text-sm text-muted-foreground">Current Price</div>
+                  <div className="text-xl font-bold">${analysisResults.marketData.price.toLocaleString()}</div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="text-sm text-muted-foreground">24h Change</div>
+                  <div className={`text-xl font-bold ${analysisResults.marketData.percentChange24h > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {analysisResults.marketData.percentChange24h > 0 ? '+' : ''}{analysisResults.marketData.percentChange24h.toFixed(2)}%
+                  </div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="text-sm text-muted-foreground">Volume 24h</div>
+                  <div className="text-lg font-bold">${(analysisResults.marketData.volume24h / 1e9).toFixed(2)}B</div>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="text-sm text-muted-foreground">Market Cap</div>
+                  <div className="text-lg font-bold">${(analysisResults.marketData.marketCap / 1e9).toFixed(0)}B</div>
+                </div>
+              </div>
+            )}
 
             {/* Risk Level */}
             <div className="flex items-center justify-between p-4 border rounded-lg">
