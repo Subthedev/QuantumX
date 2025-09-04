@@ -150,7 +150,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({
                     Current: {formatPrice(marketData.price)}
                   </span>}
               </div>
-              <div className="text-2xl font-bold text-blue-600 font-mono">
+              <div className="text-2xl font-bold text-blue-600">
                 {formatPrice(signal.entry)}
               </div>
               {signal.entry_range && <div className="text-xs text-muted-foreground mt-1">
@@ -166,7 +166,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({
                   <Shield className="h-3.5 w-3.5 text-red-600" />
                   <span className="text-xs font-medium">Stop Loss</span>
                 </div>
-                <div className="text-lg font-bold text-red-600 font-mono">
+                <div className="text-lg font-bold text-red-600">
                   {formatPrice(signal.stop_loss)}
                 </div>
                 <div className="text-xs text-red-600 font-medium mt-1">
@@ -201,7 +201,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({
                       TP{i + 1}
                     </Badge>
                     <div className="flex-1 flex items-center justify-between">
-                      <span className="font-bold text-green-700 font-mono text-sm">
+                      <span className="font-bold text-green-700 text-sm">
                         {formatPrice(tp)}
                       </span>
                       <span className="text-sm font-bold text-green-600">
