@@ -15,21 +15,24 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
   accountBalance = 100000,
   symbol = 'BTC'
 }) => {
-  // Calculate position size based on 1% risk rule
+  // Calculate position size using fixed $10,000 allocation
   const calculatePositionSize = () => {
     if (!signal || !signal.entry || !signal.stop_loss) return null;
-    
-    const riskAmount = accountBalance * 0.01; // 1% risk per trade
+
     const stopLossDistance = Math.abs(signal.entry - signal.stop_loss);
     const stopLossPercent = (stopLossDistance / signal.entry) * 100;
-    const positionInUSD = riskAmount / (stopLossPercent / 100);
+
+    const positionInUSD = 10000; // Fixed trade allocation
     const positionInCrypto = positionInUSD / signal.entry;
-    
+
+    // Max loss at stop for this fixed allocation
+    const riskAmount = positionInUSD * (stopLossPercent / 100);
+
     return {
       usd: positionInUSD,
       crypto: positionInCrypto,
       stopLossPercent,
-      riskAmount
+      riskAmount,
     };
   };
 
@@ -102,7 +105,7 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
             {/* Position Size & Risk Amount */}
             <div className="bg-muted/30 rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Position Size (1% Risk)</span>
+                <span className="text-sm font-medium text-muted-foreground">Position Size ($10,000 Allocation)</span>
                 <span className="text-xs text-muted-foreground">Account: ${accountBalance.toLocaleString()}</span>
               </div>
               
@@ -123,7 +126,7 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Max Risk per Trade</span>
+                <span className="text-muted-foreground">Max Loss at Stop</span>
                 <span className="font-medium text-red-500">
                   -${positionData?.riskAmount.toFixed(0)} ({positionData?.stopLossPercent.toFixed(2)}%)
                 </span>
