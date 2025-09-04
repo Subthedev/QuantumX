@@ -241,14 +241,6 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
                     placeholder={signal?.stop_loss?.toFixed(2) || "0.00"}
                     className="bg-background border-border transition-all duration-200 hover:border-red-500/50 focus:border-red-500"
                   />
-                  {stopLoss && entryPrice && (
-                    <div className="absolute -right-2 -top-2 animate-scale-in">
-                      {Math.abs(parseFloat(entryPrice) - parseFloat(stopLoss)) / parseFloat(entryPrice) * 100 < 3 
-                        ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        : <XCircle className="h-4 w-4 text-red-500" />
-                      }
-                    </div>
-                  )}
                 </div>
               </div>
               
