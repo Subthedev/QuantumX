@@ -463,33 +463,33 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
         {/* Empty State */}
         {!analysisResult && !loading && (
           <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center space-y-6 max-w-md">
-              <div className="space-y-3">
-                <h2 className="text-2xl font-medium text-foreground">
+            <div className="text-center space-y-8 max-w-lg">
+              <div className="space-y-4">
+                <h2 className="text-3xl md:text-4xl font-medium text-foreground">
                   Select a cryptocurrency to analyze
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base md:text-lg text-muted-foreground">
                   Generate comprehensive market analysis with AI-powered insights
                 </p>
               </div>
               
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-4 justify-center">
                 <Button 
                   onClick={() => handleAnalyzeCrypto('BTC')} 
                   variant="outline"
                   size="lg"
-                  className="min-w-[140px]"
+                  className="min-w-[160px] text-base py-6"
                 >
-                  <BTCLogo className="w-4 h-4 mr-2" />
+                  <BTCLogo className="w-5 h-5 mr-2" />
                   Bitcoin
                 </Button>
                 <Button 
                   onClick={() => handleAnalyzeCrypto('ETH')} 
                   variant="outline"
                   size="lg"
-                  className="min-w-[140px]"
+                  className="min-w-[160px] text-base py-6"
                 >
-                  <ETHLogo className="w-4 h-4 mr-2" />
+                  <ETHLogo className="w-5 h-5 mr-2" />
                   Ethereum
                 </Button>
               </div>
