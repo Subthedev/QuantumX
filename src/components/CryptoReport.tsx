@@ -22,7 +22,7 @@ interface CryptoReportData {
     summary: string;
     confidence: number;
     market_direction?: string;
-    analysis: {
+    analysis?: {
       technical: {
         trend?: string;
         primary_trend?: string;
@@ -75,6 +75,32 @@ interface CryptoReportData {
           duration: string;
           breakout_catalysts: string;
         };
+      };
+    };
+    fundamentalAnalysis?: {
+      metrics?: {
+        competitivePosition?: string;
+        adoptionRate?: string;
+        networkHealth?: string;
+        institutionalFlow?: string;
+        tokenomics?: string;
+      };
+      strengths?: string[];
+      weaknesses?: string[];
+      catalysts?: {
+        bullish?: string[];
+        bearish?: string[];
+      };
+      macroFactors?: {
+        marketRegime?: string;
+        correlation?: string;
+        regulatoryOutlook?: string;
+      };
+      onChainData?: {
+        exchangeFlows?: string;
+        activeAddresses?: string;
+        transactionVolume?: string;
+        holdingDistribution?: string;
       };
     };
     targets: {
@@ -283,7 +309,18 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
 
             {/* 5. Fundamental Analysis */}
             <FundamentalAnalysisSection 
-              analysis={report.report_data?.analysis?.fundamental}
+              analysis={{
+                strengths: report.report_data?.fundamentalAnalysis?.strengths || report.report_data?.analysis?.fundamental?.strengths,
+                weaknesses: report.report_data?.fundamentalAnalysis?.weaknesses || report.report_data?.analysis?.fundamental?.weaknesses,
+                market_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || report.report_data?.analysis?.fundamental?.market_position,
+                adoption_metrics: report.report_data?.fundamentalAnalysis?.metrics?.adoptionRate || report.report_data?.analysis?.fundamental?.adoption_metrics,
+                network_health: report.report_data?.fundamentalAnalysis?.metrics?.networkHealth || report.report_data?.analysis?.fundamental?.network_health,
+                institutional_flow: report.report_data?.fundamentalAnalysis?.metrics?.institutionalFlow || report.report_data?.analysis?.fundamental?.institutional_flow,
+                macro_environment: report.report_data?.fundamentalAnalysis?.macroFactors?.marketRegime || report.report_data?.analysis?.fundamental?.macro_environment,
+                competitive_landscape: report.report_data?.fundamentalAnalysis?.macroFactors?.correlation || report.report_data?.analysis?.fundamental?.competitive_landscape,
+                catalysts: report.report_data?.fundamentalAnalysis?.catalysts?.bullish?.join(', ') || report.report_data?.analysis?.fundamental?.catalysts,
+                competitive_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || report.report_data?.analysis?.fundamental?.competitive_position,
+              }}
               marketData={report.report_data?.market_data}
             />
 
