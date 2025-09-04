@@ -39,30 +39,13 @@ export const TechnicalAnalysisSection: React.FC<TechnicalAnalysisProps> = ({
     return [];
   };
   if (!analysis) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Technical Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground py-8">
-            No technical analysis data available
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return;
   }
-
   const trendStrength = getTrendStrength(analysis.primary_trend || analysis.trend);
   const supportLevels = parseLevels(analysis.support_levels);
   const resistanceLevels = parseLevels(analysis.resistance_levels);
   const indicators = parseIndicators(analysis.indicators);
-
-  return (
-    <Card className="w-full">
+  return <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5" />
@@ -75,11 +58,7 @@ export const TechnicalAnalysisSection: React.FC<TechnicalAnalysisProps> = ({
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Primary Trend</span>
             <div className="flex items-center gap-2">
-              {analysis.primary_trend?.toLowerCase().includes('bullish') ? (
-                <TrendingUp className="h-4 w-4 text-success" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-destructive" />
-              )}
+              {analysis.primary_trend?.toLowerCase().includes('bullish') ? <TrendingUp className="h-4 w-4 text-success" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
               <span className="font-medium">{analysis.primary_trend || analysis.trend || 'Neutral'}</span>
             </div>
           </div>
@@ -91,53 +70,36 @@ export const TechnicalAnalysisSection: React.FC<TechnicalAnalysisProps> = ({
           <div>
             <div className="text-sm text-muted-foreground mb-2">Support Levels</div>
             <div className="space-y-1">
-              {supportLevels.length > 0 ? (
-                supportLevels.map((level: number, idx: number) => (
-                  <div key={idx} className="flex items-center gap-2">
+              {supportLevels.length > 0 ? supportLevels.map((level: number, idx: number) => <div key={idx} className="flex items-center gap-2">
                     <ArrowDownRight className="h-3 w-3 text-destructive" />
                     <span className="text-sm font-mono">{formatPrice(level)}</span>
-                  </div>
-                ))
-              ) : (
-                <span className="text-sm text-muted-foreground">No data</span>
-              )}
+                  </div>) : <span className="text-sm text-muted-foreground">No data</span>}
             </div>
           </div>
           <div>
             <div className="text-sm text-muted-foreground mb-2">Resistance Levels</div>
             <div className="space-y-1">
-              {resistanceLevels.length > 0 ? (
-                resistanceLevels.map((level: number, idx: number) => (
-                  <div key={idx} className="flex items-center gap-2">
+              {resistanceLevels.length > 0 ? resistanceLevels.map((level: number, idx: number) => <div key={idx} className="flex items-center gap-2">
                     <ArrowUpRight className="h-3 w-3 text-success" />
                     <span className="text-sm font-mono">{formatPrice(level)}</span>
-                  </div>
-                ))
-              ) : (
-                <span className="text-sm text-muted-foreground">No data</span>
-              )}
+                  </div>) : <span className="text-sm text-muted-foreground">No data</span>}
             </div>
           </div>
         </div>
 
         {/* Key Indicators */}
-        {indicators.length > 0 && (
-          <div>
+        {indicators.length > 0 && <div>
             <div className="text-sm text-muted-foreground mb-2">Active Indicators</div>
             <div className="flex flex-wrap gap-2">
-              {indicators.map((indicator: string, idx: number) => (
-                <Badge key={idx} variant="secondary" className="flex items-center gap-1">
+              {indicators.map((indicator: string, idx: number) => <Badge key={idx} variant="secondary" className="flex items-center gap-1">
                   <Activity className="h-3 w-3" />
                   {indicator}
-                </Badge>
-              ))}
+                </Badge>)}
             </div>
-          </div>
-        )}
+          </div>}
 
         {/* Breakout Scenarios */}
-        {analysis.breakout_scenarios && (
-          <div>
+        {analysis.breakout_scenarios && <div>
             <div className="text-sm text-muted-foreground mb-2">Breakout Scenarios</div>
             <div className="p-3 bg-muted/30 rounded-lg">
               <div className="flex items-start gap-2">
@@ -145,9 +107,7 @@ export const TechnicalAnalysisSection: React.FC<TechnicalAnalysisProps> = ({
                 <p className="text-sm">{analysis.breakout_scenarios}</p>
               </div>
             </div>
-          </div>
-        )}
+          </div>}
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
