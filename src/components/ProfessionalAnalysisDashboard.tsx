@@ -461,62 +461,41 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>}
 
         {/* Empty State */}
-        {!analysisResult && !loading && <Card className="border-2 border-dashed border-muted-foreground/20 bg-card/50 backdrop-blur-sm">
-            <CardContent className="py-12 px-8">
-              <div className="max-w-md mx-auto space-y-6">
-                {/* Icon */}
-                <div className="relative mx-auto w-16 h-16">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse"></div>
-                  <Brain className="relative h-16 w-16 text-primary/60" />
-                </div>
-                
-                {/* Text */}
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold">Ready to Analyze</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Generate institutional-grade AI analysis with real-time market data, 
-                    technical indicators, and risk management insights.
-                  </p>
-                </div>
-
-                {/* Key Features */}
-                <div className="grid grid-cols-3 gap-4 text-xs text-muted-foreground">
-                  <div className="flex flex-col items-center gap-1">
-                    <Target className="h-4 w-4 text-primary/60" />
-                    <span>Entry Points</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <Shield className="h-4 w-4 text-primary/60" />
-                    <span>Risk Analysis</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <TrendingUp className="h-4 w-4 text-primary/60" />
-                    <span>Price Targets</span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 justify-center pt-2">
-                  <Button 
-                    onClick={() => handleAnalyzeCrypto('BTC')} 
-                    size="lg"
-                    className="relative overflow-hidden bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white border-0"
-                  >
-                    <BTCLogo className="w-5 h-5 mr-2" />
-                    Analyze Bitcoin
-                  </Button>
-                  <Button 
-                    onClick={() => handleAnalyzeCrypto('ETH')} 
-                    size="lg"
-                    className="relative overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
-                  >
-                    <ETHLogo className="w-5 h-5 mr-2" />
-                    Analyze Ethereum
-                  </Button>
-                </div>
+        {!analysisResult && !loading && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center space-y-6 max-w-md">
+              <div className="space-y-3">
+                <h2 className="text-2xl font-medium text-foreground">
+                  Select a cryptocurrency to analyze
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Generate comprehensive market analysis with AI-powered insights
+                </p>
               </div>
-            </CardContent>
-          </Card>}
+              
+              <div className="flex gap-3 justify-center">
+                <Button 
+                  onClick={() => handleAnalyzeCrypto('BTC')} 
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[140px]"
+                >
+                  <BTCLogo className="w-4 h-4 mr-2" />
+                  Bitcoin
+                </Button>
+                <Button 
+                  onClick={() => handleAnalyzeCrypto('ETH')} 
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[140px]"
+                >
+                  <ETHLogo className="w-4 h-4 mr-2" />
+                  Ethereum
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>;
 };
