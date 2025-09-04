@@ -415,9 +415,9 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
 
             {/* Right Column - New Enhanced Sections */}
             <div className="space-y-6">
-              <FundamentalAnalysisSection analysis={analysisResult.fullReport?.analysis?.fundamental} marketData={analysisResult.fullReport?.market_data} />
+              <FundamentalAnalysisSection analysis={analysisResult.fullReport?.fundamentalAnalysis || analysisResult.fullReport?.analysis?.fundamental} marketData={analysisResult.fullReport?.market_data} />
 
-              <SentimentAnalysisSection analysis={analysisResult.fullReport?.analysis?.sentiment} />
+              <SentimentAnalysisSection analysis={analysisResult.fullReport?.sentimentAnalysis || analysisResult.fullReport?.analysis?.sentiment} />
 
               <IgniteXSummarySection report={analysisResult.fullReport} />
             </div>
