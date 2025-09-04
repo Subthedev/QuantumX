@@ -202,6 +202,28 @@ All colors MUST be HSL.
   .font-mono-tech {
     @apply font-mono text-sm text-muted-foreground;
   }
+
+  /* Loading animations */
+  @keyframes spin-reverse {
+    from {
+      transform: rotate(360deg);
+    }
+    to {
+      transform: rotate(0deg);
+    }
+  }
+
+  .animate-spin-reverse {
+    animation: spin-reverse 2s linear infinite;
+  }
+
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .delay-200 {
+    animation-delay: 200ms;
+  }
 }
 
 @layer base {
