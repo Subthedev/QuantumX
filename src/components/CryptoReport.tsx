@@ -308,21 +308,36 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
             />
 
             {/* 5. Fundamental Analysis */}
-            <FundamentalAnalysisSection 
-              analysis={{
-                strengths: report.report_data?.fundamentalAnalysis?.strengths || report.report_data?.analysis?.fundamental?.strengths,
-                weaknesses: report.report_data?.fundamentalAnalysis?.weaknesses || report.report_data?.analysis?.fundamental?.weaknesses,
-                market_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || report.report_data?.analysis?.fundamental?.market_position,
-                adoption_metrics: report.report_data?.fundamentalAnalysis?.metrics?.adoptionRate || report.report_data?.analysis?.fundamental?.adoption_metrics,
-                network_health: report.report_data?.fundamentalAnalysis?.metrics?.networkHealth || report.report_data?.analysis?.fundamental?.network_health,
-                institutional_flow: report.report_data?.fundamentalAnalysis?.metrics?.institutionalFlow || report.report_data?.analysis?.fundamental?.institutional_flow,
-                macro_environment: report.report_data?.fundamentalAnalysis?.macroFactors?.marketRegime || report.report_data?.analysis?.fundamental?.macro_environment,
-                competitive_landscape: report.report_data?.fundamentalAnalysis?.macroFactors?.correlation || report.report_data?.analysis?.fundamental?.competitive_landscape,
-                catalysts: report.report_data?.fundamentalAnalysis?.catalysts?.bullish?.join(', ') || report.report_data?.analysis?.fundamental?.catalysts,
-                competitive_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || report.report_data?.analysis?.fundamental?.competitive_position,
-              }}
-              marketData={report.report_data?.market_data}
-            />
+            {(() => {
+              console.log('Fundamental Analysis Debug:');
+              console.log('Full report data:', report.report_data);
+              console.log('fundamentalAnalysis path:', report.report_data?.fundamentalAnalysis);
+              console.log('analysis.fundamental path:', report.report_data?.analysis?.fundamental);
+              
+              const fundamentalData = {
+                strengths: report.report_data?.fundamentalAnalysis?.strengths || [],
+                weaknesses: report.report_data?.fundamentalAnalysis?.weaknesses || [],
+                market_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || '',
+                adoption_metrics: report.report_data?.fundamentalAnalysis?.metrics?.adoptionRate || '',
+                network_health: report.report_data?.fundamentalAnalysis?.metrics?.networkHealth || '',
+                institutional_flow: report.report_data?.fundamentalAnalysis?.metrics?.institutionalFlow || '',
+                macro_environment: report.report_data?.fundamentalAnalysis?.macroFactors?.marketRegime || '',
+                competitive_landscape: report.report_data?.fundamentalAnalysis?.macroFactors?.correlation || '',
+                catalysts: Array.isArray(report.report_data?.fundamentalAnalysis?.catalysts?.bullish) 
+                  ? report.report_data.fundamentalAnalysis.catalysts.bullish.join(', ') 
+                  : '',
+                competitive_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || '',
+              };
+              
+              console.log('Prepared fundamental data:', fundamentalData);
+              
+              return (
+                <FundamentalAnalysisSection 
+                  analysis={fundamentalData}
+                  marketData={report.report_data?.market_data}
+                />
+              );
+            })()}
 
             {/* 6. Sentiment Analysis */}
             <SentimentAnalysisSection 
