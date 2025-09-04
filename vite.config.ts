@@ -32,14 +32,6 @@ export default defineConfig(({ mode }) => ({
     },
     // Optimize chunk size
     chunkSizeWarningLimit: 1000,
-    // Enable minification
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production',
-        drop_debugger: true,
-      },
-    },
     // Enable source maps for production debugging
     sourcemap: mode === 'production' ? 'hidden' : true,
   },
