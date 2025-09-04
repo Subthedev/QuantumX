@@ -193,7 +193,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
-                75%
+                85%
               </div>
               <CardDescription className="text-xs">across all predictions</CardDescription>
             </CardContent>
