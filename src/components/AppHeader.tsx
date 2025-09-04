@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-export const AppHeader = () => {
+const AppHeaderComponent = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -240,3 +241,6 @@ export const AppHeader = () => {
     </nav>
   );
 };
+
+// Memoize the header to prevent unnecessary re-renders
+export const AppHeader = memo(AppHeaderComponent);
