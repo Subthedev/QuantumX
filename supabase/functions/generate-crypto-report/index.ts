@@ -7,10 +7,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const cmcApiKey = Deno.env.get('CMC_API_KEY')!;
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const cmcApiKey = Deno.env.get('CMC_API_KEY');
+const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+
+// Validate required environment variables
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing required Supabase environment variables');
+  throw new Error('Server configuration error');
+}
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -148,6 +154,12 @@ async function fetchCoinGeckoData(symbol: string) {
 }
 
 async function fetchCMCData(symbol: string) {
+  // Skip CMC if API key is not available
+  if (!cmcApiKey) {
+    console.log('CMC API key not configured, skipping CMC data fetch');
+    throw new Error('CMC API key not configured');
+  }
+  
   const cmcSymbol = symbol === 'BTC' ? 'bitcoin' : 'ethereum';
   
   try {
@@ -518,25 +530,25 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
     }
 
     let analysisText: string | null = null;
-    try {
-      // 1) Primary: Use GPT-4-turbo-preview with low temperature for financial analysis
-      analysisText = await generateWithChat('gpt-4-turbo-preview', 0.1);
-    } catch (e1) {
+    
+    // Check if OpenAI API key is configured
+    if (!openaiApiKey) {
+      console.log('OpenAI API key not configured, using deterministic fallback');
+      analysisText = null;
+    } else {
       try {
-        // 2) First fallback: Try GPT-5 via Responses API
-        analysisText = await generateWithResponses('gpt-5-2025-08-07');
-      } catch (e2) {
+        // 1) Primary: Use GPT-4-turbo-preview with low temperature for financial analysis
+        console.log('Attempting GPT-4-turbo-preview...');
+        analysisText = await generateWithChat('gpt-4-turbo-preview', 0.1);
+      } catch (e1) {
+        console.error('GPT-4-turbo-preview failed:', e1);
         try {
-          // 3) Second fallback: GPT-4.1 via Responses API
-          analysisText = await generateWithResponses('gpt-4.1-2025-04-14');
-        } catch (e3) {
-          try {
-            // 4) Last-resort fallback to legacy chat completions with a supported model
-            analysisText = await generateWithChat('gpt-4o-mini');
-          } catch (e4) {
-            console.error('All OpenAI calls failed; proceeding with deterministic local fallback.', e1, e2, e3, e4);
-            analysisText = null;
-          }
+          // 2) Fallback to GPT-4o-mini which is more reliable
+          console.log('Attempting GPT-4o-mini fallback...');
+          analysisText = await generateWithChat('gpt-4o-mini');
+        } catch (e2) {
+          console.error('All OpenAI calls failed, using deterministic fallback:', e2);
+          analysisText = null;
         }
       }
     }
