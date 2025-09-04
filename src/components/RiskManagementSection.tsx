@@ -1,59 +1,71 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, AlertTriangle, Calculator, DollarSign, TrendingDown, Info } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Shield, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 
 interface RiskManagementProps {
   signal: any;
   marketData: any;
   accountBalance?: number;
+  symbol?: string;
 }
 
 export const RiskManagementSection: React.FC<RiskManagementProps> = ({ 
   signal, 
   marketData,
-  accountBalance = 10000 // Default account balance for calculations
+  accountBalance = 10000,
+  symbol = 'BTC'
 }) => {
+  // Calculate position size based on 1% risk rule
   const calculatePositionSize = () => {
     if (!signal || !signal.entry || !signal.stop_loss) return null;
     
-    const riskPerTrade = accountBalance * 0.01; // 1% risk per trade
+    const riskAmount = accountBalance * 0.01; // 1% risk per trade
     const stopLossDistance = Math.abs(signal.entry - signal.stop_loss);
     const stopLossPercent = (stopLossDistance / signal.entry) * 100;
-    const positionSize = riskPerTrade / (stopLossPercent / 100);
+    const positionInUSD = riskAmount / (stopLossPercent / 100);
+    const positionInCrypto = positionInUSD / signal.entry;
     
     return {
-      conservative: positionSize * 0.5,
-      moderate: positionSize,
-      aggressive: positionSize * 1.5,
-      stopLossPercent
+      usd: positionInUSD,
+      crypto: positionInCrypto,
+      stopLossPercent,
+      riskAmount
     };
   };
 
-  const calculateMaxDrawdown = () => {
-    if (!signal || !signal.stop_loss || !signal.entry) return null;
-    
-    const stopLossPercent = Math.abs((signal.stop_loss - signal.entry) / signal.entry * 100);
-    
-    return {
-      conservative: stopLossPercent * 0.5,
-      moderate: stopLossPercent,
-      aggressive: stopLossPercent * 1.5
-    };
-  };
-
-  const getRiskRewardRatio = () => {
+  // Calculate risk to reward ratio
+  const calculateRiskReward = () => {
     if (!signal || !signal.entry || !signal.stop_loss || !signal.take_profits) return null;
     
     const risk = Math.abs(signal.entry - signal.stop_loss);
-    const rewards = signal.take_profits.map((tp: number) => Math.abs(tp - signal.entry));
+    const reward1 = Math.abs(signal.take_profits[0] - signal.entry);
+    const reward2 = signal.take_profits[1] ? Math.abs(signal.take_profits[1] - signal.entry) : null;
+    const reward3 = signal.take_profits[2] ? Math.abs(signal.take_profits[2] - signal.entry) : null;
     
-    return rewards.map((reward: number) => (reward / risk).toFixed(2));
+    // Calculate potential profit/loss in USD
+    const positionSize = calculatePositionSize();
+    const potentialLoss = positionSize?.riskAmount || 0;
+    const potentialProfit1 = potentialLoss * (reward1 / risk);
+    const potentialProfit2 = reward2 ? potentialLoss * (reward2 / risk) : null;
+    const potentialProfit3 = reward3 ? potentialLoss * (reward3 / risk) : null;
+    
+    return {
+      ratios: {
+        tp1: (reward1 / risk).toFixed(2),
+        tp2: reward2 ? (reward2 / risk).toFixed(2) : null,
+        tp3: reward3 ? (reward3 / risk).toFixed(2) : null
+      },
+      profits: {
+        tp1: potentialProfit1,
+        tp2: potentialProfit2,
+        tp3: potentialProfit3
+      },
+      loss: potentialLoss
+    };
   };
 
-  const positionSizing = calculatePositionSize();
-  const maxDrawdown = calculateMaxDrawdown();
-  const rrRatios = getRiskRewardRatio();
+  const positionData = calculatePositionSize();
+  const rrData = calculateRiskReward();
 
   return (
     <Card className="border-2 border-accent/20 shadow-xl bg-gradient-to-br from-background to-accent/5">
@@ -63,143 +75,160 @@ export const RiskManagementSection: React.FC<RiskManagementProps> = ({
             <Shield className="h-5 w-5 text-accent" />
             Risk Management Dashboard
           </CardTitle>
+          {signal && (
+            <div className="text-sm font-medium text-muted-foreground">
+              {symbol}/USD · 4H Trade
+            </div>
+          )}
         </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
         {signal ? (
           <>
-            {/* Position Sizing Calculator */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Calculator className="h-4 w-4 text-primary" />
-                Position Sizing Calculator
+            {/* Position Size & Risk Amount */}
+            <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">Position Size (1% Risk)</span>
+                <span className="text-xs text-muted-foreground">Account: ${accountBalance.toLocaleString()}</span>
               </div>
               
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <div className="text-xs text-green-700 font-medium mb-1">Conservative</div>
-                  <div className="font-bold text-green-700">
-                    ${positionSizing?.conservative.toFixed(0)}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-background rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground mb-1">Position in USD</div>
+                  <div className="text-lg font-bold text-foreground">
+                    ${positionData?.usd.toFixed(0)}
                   </div>
-                  <div className="text-xs text-green-600/70 mt-1">0.5% Risk</div>
                 </div>
                 
-                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                  <div className="text-xs text-blue-700 font-medium mb-1">Moderate</div>
-                  <div className="font-bold text-blue-700">
-                    ${positionSizing?.moderate.toFixed(0)}
-                  </div>
-                  <div className="text-xs text-blue-600/70 mt-1">1% Risk</div>
-                </div>
-                
-                <div className="p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                  <div className="text-xs text-orange-700 font-medium mb-1">Aggressive</div>
-                  <div className="font-bold text-orange-700">
-                    ${positionSizing?.aggressive.toFixed(0)}
-                  </div>
-                  <div className="text-xs text-orange-600/70 mt-1">1.5% Risk</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Risk Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingDown className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-medium">Max Drawdown</span>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Conservative</span>
-                    <span className="font-medium text-green-600">
-                      -{maxDrawdown?.conservative.toFixed(2)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Moderate</span>
-                    <span className="font-medium text-yellow-600">
-                      -{maxDrawdown?.moderate.toFixed(2)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Aggressive</span>
-                    <span className="font-medium text-red-600">
-                      -{maxDrawdown?.aggressive.toFixed(2)}%
-                    </span>
+                <div className="bg-background rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground mb-1">Position in {symbol}</div>
+                  <div className="text-lg font-bold text-foreground">
+                    {positionData?.crypto.toFixed(4)} {symbol}
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium">Risk/Reward Ratios</span>
-                </div>
-                <div className="space-y-1">
-                  {rrRatios?.map((ratio: string, i: number) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">TP{i + 1}</span>
-                      <span className={`font-medium ${
-                        Number(ratio) >= 2 ? 'text-green-600' : 
-                        Number(ratio) >= 1.5 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        1:{ratio}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Trade Management Rules */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Trade Management Rules</div>
-              <div className="space-y-2">
-                <Alert className="border-blue-200 bg-blue-50/50">
-                  <Info className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-sm">
-                    <strong>Entry:</strong> Scale in with 50% at entry, 30% on pullback, 20% at support
-                  </AlertDescription>
-                </Alert>
-                
-                <Alert className="border-green-200 bg-green-50/50">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-sm">
-                    <strong>Profit Taking:</strong> Close 40% at TP1, 30% at TP2, let 30% ride with trailing stop
-                  </AlertDescription>
-                </Alert>
-                
-                <Alert className="border-red-200 bg-red-50/50">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-sm">
-                    <strong>Stop Loss:</strong> Move to breakeven after TP1 hit, trail by 1 ATR after TP2
-                  </AlertDescription>
-                </Alert>
-              </div>
-            </div>
-
-            {/* Risk Score */}
-            <div className="p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border border-primary/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Overall Risk Score</span>
-                <span className={`text-lg font-bold ${
-                  Number(rrRatios?.[0]) >= 2 && positionSizing?.stopLossPercent && positionSizing.stopLossPercent < 5 
-                    ? 'text-green-600' 
-                    : Number(rrRatios?.[0]) >= 1.5 
-                    ? 'text-yellow-600' 
-                    : 'text-red-600'
-                }`}>
-                  {Number(rrRatios?.[0]) >= 2 && positionSizing?.stopLossPercent && positionSizing.stopLossPercent < 5 
-                    ? 'LOW RISK' 
-                    : Number(rrRatios?.[0]) >= 1.5 
-                    ? 'MEDIUM RISK' 
-                    : 'HIGH RISK'}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Max Risk per Trade</span>
+                <span className="font-medium text-red-500">
+                  -${positionData?.riskAmount.toFixed(0)} ({positionData?.stopLossPercent.toFixed(2)}%)
                 </span>
               </div>
-              <div className="text-xs text-muted-foreground">
-                Based on R:R ratio, position sizing, and stop loss distance
+            </div>
+
+            {/* Risk to Reward Analysis */}
+            <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium">Risk to Reward Analysis</span>
+              </div>
+              
+              <div className="space-y-2">
+                {rrData?.ratios.tp1 && (
+                  <div className="flex items-center justify-between p-2 bg-background rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">TP1</span>
+                      <span className="text-xs text-muted-foreground">
+                        1:{rrData.ratios.tp1}
+                      </span>
+                    </div>
+                    <div className="text-sm font-medium text-green-500">
+                      +${rrData.profits.tp1?.toFixed(0)}
+                    </div>
+                  </div>
+                )}
+                
+                {rrData?.ratios.tp2 && (
+                  <div className="flex items-center justify-between p-2 bg-background rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">TP2</span>
+                      <span className="text-xs text-muted-foreground">
+                        1:{rrData.ratios.tp2}
+                      </span>
+                    </div>
+                    <div className="text-sm font-medium text-green-500">
+                      +${rrData.profits.tp2?.toFixed(0)}
+                    </div>
+                  </div>
+                )}
+                
+                {rrData?.ratios.tp3 && (
+                  <div className="flex items-center justify-between p-2 bg-background rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">TP3</span>
+                      <span className="text-xs text-muted-foreground">
+                        1:{rrData.ratios.tp3}
+                      </span>
+                    </div>
+                    <div className="text-sm font-medium text-green-500">
+                      +${rrData.profits.tp3?.toFixed(0)}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between p-2 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="h-3 w-3 text-red-500" />
+                    <span className="text-sm font-medium text-red-600">Stop Loss</span>
+                  </div>
+                  <div className="text-sm font-medium text-red-500">
+                    -${rrData?.loss.toFixed(0)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Trade Execution Rules */}
+            <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium">Trade Execution Rules</span>
+              </div>
+              
+              <div className="space-y-2 text-xs">
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">1.</span>
+                  <span className="text-muted-foreground">Enter with full position at signal price: ${signal.entry?.toFixed(2)}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">2.</span>
+                  <span className="text-muted-foreground">Set stop loss immediately at: ${signal.stop_loss?.toFixed(2)}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">3.</span>
+                  <span className="text-muted-foreground">Take 50% profit at TP1, 30% at TP2, let 20% ride</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">4.</span>
+                  <span className="text-muted-foreground">Move stop to breakeven after TP1 is hit</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Overall Risk Assessment */}
+            <div className={`p-3 rounded-lg border-2 ${
+              Number(rrData?.ratios.tp1) >= 2 
+                ? 'bg-green-500/10 border-green-500/30' 
+                : Number(rrData?.ratios.tp1) >= 1.5 
+                ? 'bg-blue-500/10 border-blue-500/30' 
+                : 'bg-red-500/10 border-red-500/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Risk Assessment</span>
+                <span className={`text-sm font-bold ${
+                  Number(rrData?.ratios.tp1) >= 2 
+                    ? 'text-green-500' 
+                    : Number(rrData?.ratios.tp1) >= 1.5 
+                    ? 'text-blue-500' 
+                    : 'text-red-500'
+                }`}>
+                  {Number(rrData?.ratios.tp1) >= 2 
+                    ? 'FAVORABLE' 
+                    : Number(rrData?.ratios.tp1) >= 1.5 
+                    ? 'MODERATE' 
+                    : 'HIGH RISK'}
+                </span>
               </div>
             </div>
           </>
