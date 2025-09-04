@@ -377,45 +377,6 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             </Card>
           </div>}
 
-        {/* Analysis Controls */}
-        <Card className="card-premium bg-gradient-premium shadow-xl">
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex gap-4 w-full md:w-auto">
-                <Button size="lg" onClick={() => handleAnalyzeCrypto('BTC')} disabled={loading !== null} className="flex-1 md:flex-initial btn-premium">
-                  {loading === 'BTC' ? <>
-                      
-                      Analyzing...
-                    </> : <>
-                      <BarChart3 className="mr-2 h-5 w-5" />
-                      Analyze BTC
-                    </>}
-                </Button>
-                <Button size="lg" onClick={() => handleAnalyzeCrypto('ETH')} disabled={loading !== null} className="flex-1 md:flex-initial btn-premium">
-                  {loading === 'ETH' ? <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Analyzing...
-                    </> : <>
-                      <BarChart3 className="mr-2 h-5 w-5" />
-                      Analyze ETH
-                    </>}
-                </Button>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon" onClick={copySignalToClipboard} disabled={!analysisResult} title="Copy Signal">
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={exportToPDF} disabled={!analysisResult} title="Export PDF">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={fetchMarketData} title="Refresh Data">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Main Analysis Results */}
         {analysisResult && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
