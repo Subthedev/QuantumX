@@ -7,10 +7,12 @@ import ProfessionalAnalysisDashboard from '@/components/ProfessionalAnalysisDash
 import CreditDisplay from '@/components/CreditDisplay';
 import FeedbackModal from '@/components/FeedbackModal';
 import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
-import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap } from 'lucide-react';
+import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import btcLogo from '@/assets/btc-logo.png';
+import ethLogo from '@/assets/eth-logo.png';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -175,10 +177,10 @@ const Dashboard = () => {
         </div>
         {/* Stats Section */}
         <div className="grid md:grid-cols-3 gap-4 mt-8">
-          <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5 group">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <TrendingUp className="h-4 w-4 text-status-success" />
+                <TrendingUp className="h-4 w-4 text-status-success group-hover:scale-110 transition-transform" />
                 Reports Generated
               </CardTitle>
             </CardHeader>
@@ -190,10 +192,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-green-500/5 to-emerald-600/5 group">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Bitcoin className="h-4 w-4 text-status-warning" />
+                <BarChart3 className="h-4 w-4 text-status-warning group-hover:scale-110 transition-transform" />
                 Average Confidence
               </CardTitle>
             </CardHeader>
@@ -205,10 +207,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="border-border/50 hover:shadow-md transition-shadow">
+          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-500/5 to-pink-600/5 group">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Coins className="h-4 w-4 text-primary" />
+                <Zap className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 Available Credits
               </CardTitle>
             </CardHeader>
@@ -225,9 +227,9 @@ const Dashboard = () => {
                     onClick={() => setShowFeedbackModal(true)} 
                     size="sm" 
                     variant="default"
-                    className="w-full"
+                    className="w-full group"
                   >
-                    <Gift className="h-4 w-4 mr-2" />
+                    <Gift className="h-4 w-4 mr-2 group-hover:animate-pulse" />
                     <span className="text-sm">Get Free Credits</span>
                   </Button>
                 }
@@ -237,29 +239,29 @@ const Dashboard = () => {
         </div>
 
         {/* Tips Section */}
-        <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+        <Card className="bg-gradient-to-r from-indigo-500/5 to-blue-600/5 border-indigo-500/20 hover:shadow-lg transition-all duration-300">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-primary" />
+              <Lightbulb className="h-5 w-5 text-indigo-500 animate-pulse" />
               Pro Tips for Better Predictions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                <span>Generate reports during high market volatility for more accurate predictions</span>
+            <ul className="space-y-3 text-sm">
+              <li className="flex items-start gap-3 hover:text-foreground transition-colors">
+                <img src={btcLogo} alt="BTC" className="w-4 h-4 mt-0.5" />
+                <span>Generate BTC reports during high market volatility for more accurate predictions</span>
               </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                <span>Compare confidence scores across different time periods to identify trends</span>
+              <li className="flex items-start gap-3 hover:text-foreground transition-colors">
+                <img src={ethLogo} alt="ETH" className="w-4 h-4 mt-0.5" />
+                <span>Compare ETH confidence scores across different time periods to identify trends</span>
               </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
+              <li className="flex items-start gap-2 hover:text-foreground transition-colors">
+                <span className="text-indigo-500">•</span>
                 <span>Use the key insights to understand the reasoning behind each prediction</span>
               </li>
-              <li className="flex items-start gap-2">
-                <span className="text-primary">•</span>
+              <li className="flex items-start gap-2 hover:text-foreground transition-colors">
+                <span className="text-indigo-500">•</span>
                 <span>Consider both technical and fundamental factors mentioned in the reports</span>
               </li>
             </ul>

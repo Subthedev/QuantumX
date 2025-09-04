@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from "@/hooks/use-toast";
+import btcLogo from "@/assets/btc-logo.png";
+import ethLogo from "@/assets/eth-logo.png";
 
 interface AnalysisResult {
   symbol: string;
@@ -265,10 +267,13 @@ const AIAnalysisDashboard: React.FC = () => {
       {/* Market Data Cards */}
       {marketData && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="border-l-4 border-l-primary">
+          <Card className="border-l-4 border-l-primary hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-lg">Bitcoin (BTC)</CardTitle>
+                <div className="flex items-center gap-3">
+                  <img src={btcLogo} alt="Bitcoin" className="w-8 h-8" />
+                  <CardTitle className="text-lg">Bitcoin (BTC)</CardTitle>
+                </div>
                 <Badge variant={marketData.bitcoin.usd_24h_change >= 0 ? "default" : "destructive"}>
                   {marketData.bitcoin.usd_24h_change >= 0 ? '+' : ''}{marketData.bitcoin.usd_24h_change.toFixed(2)}%
                 </Badge>
@@ -290,10 +295,13 @@ const AIAnalysisDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-primary">
+          <Card className="border-l-4 border-l-primary hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-lg">Ethereum (ETH)</CardTitle>
+                <div className="flex items-center gap-3">
+                  <img src={ethLogo} alt="Ethereum" className="w-8 h-8" />
+                  <CardTitle className="text-lg">Ethereum (ETH)</CardTitle>
+                </div>
                 <Badge variant={marketData.ethereum.usd_24h_change >= 0 ? "default" : "destructive"}>
                   {marketData.ethereum.usd_24h_change >= 0 ? '+' : ''}{marketData.ethereum.usd_24h_change.toFixed(2)}%
                 </Badge>
@@ -364,7 +372,7 @@ const AIAnalysisDashboard: React.FC = () => {
               size="lg"
               onClick={() => handleAnalyzeCrypto('BTC')}
               disabled={loading !== null}
-              className="flex-1 bg-gradient-to-r from-primary to-primary-glow hover:from-primary-hover hover:to-primary text-primary-foreground shadow-elegant transition-all duration-300 hover:shadow-glow"
+              className="flex-1 bg-gradient-to-r from-primary to-primary-glow hover:from-primary-hover hover:to-primary text-primary-foreground shadow-elegant transition-all duration-300 hover:shadow-glow group"
             >
               {loading === 'BTC' ? (
                 <>
@@ -373,7 +381,7 @@ const AIAnalysisDashboard: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <DollarSign className="mr-2 h-4 w-4" />
+                  <img src={btcLogo} alt="BTC" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Analyze BTC
                 </>
               )}
@@ -382,7 +390,7 @@ const AIAnalysisDashboard: React.FC = () => {
               size="lg"
               onClick={() => handleAnalyzeCrypto('ETH')}
               disabled={loading !== null}
-              className="flex-1 bg-gradient-to-r from-primary to-primary-glow hover:from-primary-hover hover:to-primary text-primary-foreground shadow-elegant transition-all duration-300 hover:shadow-glow"
+              className="flex-1 bg-gradient-to-r from-primary to-primary-glow hover:from-primary-hover hover:to-primary text-primary-foreground shadow-elegant transition-all duration-300 hover:shadow-glow group"
             >
               {loading === 'ETH' ? (
                 <>
@@ -391,7 +399,7 @@ const AIAnalysisDashboard: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <DollarSign className="mr-2 h-4 w-4" />
+                  <img src={ethLogo} alt="ETH" className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Analyze ETH
                 </>
               )}
