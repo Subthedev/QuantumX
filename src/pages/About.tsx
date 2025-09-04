@@ -107,7 +107,7 @@ const About = () => {
             {/* Trust Indicators */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary mb-1">85%</div>
+                <div className="text-3xl font-bold text-primary mb-1">78%</div>
                 <div className="text-sm text-muted-foreground">Prediction Accuracy</div>
               </div>
               <div className="text-center">
