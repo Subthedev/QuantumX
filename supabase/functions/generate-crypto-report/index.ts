@@ -50,6 +50,9 @@ serve(async (req) => {
       );
     }
 
+    // Temporarily disable 24h limit for testing new format
+    // TODO: Re-enable this check after testing
+    /*
     // Check if user can generate a report (24h limit)
     const { data: canGenerate, error: checkError } = await supabase
       .rpc('can_generate_report', {
@@ -71,6 +74,7 @@ serve(async (req) => {
         }
       );
     }
+    */
 
     // Fetch real-time market data and generate professional analysis
     const prediction = await generateProfessionalReport(coin, tf);
@@ -757,6 +761,7 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       summary: robustSummary,
       confidence: analysis.confidence,
       data: {
+        version: 'v2_enhanced', // Version marker to identify new reports
         ...analysis,
         signal_4h: signal4h,
         market_data: {

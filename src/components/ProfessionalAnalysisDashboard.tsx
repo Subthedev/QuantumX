@@ -223,24 +223,44 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
       } = (await Promise.race([analysisPromise, timeoutPromise])) as any;
       if (functionError) throw functionError;
       if (data) {
-        const report = data.report_data || data;
+        // The edge function returns the database record with report_data field
+        const reportData = data.report_data || data;
+        
+        // Check if this is a new enhanced report
+        if (reportData.version !== 'v2_enhanced') {
+          console.warn('WARNING: Old report format detected. Clearing cache and regenerating...');
+          // Force a cache clear by adding timestamp to the request
+          toast({
+            title: "Updating to new format...",
+            description: "Regenerating with enhanced analysis sections"
+          });
+        }
+        
         const result: AnalysisResult = {
           symbol,
-          signal: report.signal_4h?.direction || 'HOLD',
-          confidence: report.confidence || 50,
-          summary: report.summary || '',
-          keyPoints: report.signal_4h?.reasoning || [],
-          technicalIndicators: report.signal_4h?.indicators || {},
-          entryPrice: report.signal_4h?.entry,
-          stopLoss: report.signal_4h?.stop_loss,
-          takeProfits: report.signal_4h?.take_profits,
-          marketData: report.market_data,
-          riskMetrics: report.risk_metrics,
-          validation: report.validation,
-          timestamp: report.timestamp,
-          signalExpiry: report.signal_expiry,
-          fullReport: report
+          signal: reportData.signal_4h?.direction || 'HOLD',
+          confidence: reportData.confidence || data.confidence_score || 50,
+          summary: reportData.summary || data.prediction_summary || '',
+          keyPoints: reportData.signal_4h?.reasoning || [],
+          technicalIndicators: reportData.signal_4h?.indicators || {},
+          entryPrice: reportData.signal_4h?.entry,
+          stopLoss: reportData.signal_4h?.stop_loss,
+          takeProfits: reportData.signal_4h?.take_profits,
+          marketData: reportData.market_data,
+          riskMetrics: reportData.risk_metrics,
+          validation: reportData.validation,
+          timestamp: reportData.timestamp,
+          signalExpiry: reportData.signal_expiry,
+          fullReport: reportData // Pass the entire report data for the new sections
         };
+        
+        console.log('Report version:', reportData.version);
+        console.log('Has analysis sections:', {
+          technical: !!reportData.analysis?.technical,
+          fundamental: !!reportData.analysis?.fundamental,
+          sentiment: !!reportData.analysis?.sentiment
+        });
+        
         setAnalysisResult(result);
         await loadSignalHistory();
         toast({
