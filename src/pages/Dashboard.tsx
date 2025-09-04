@@ -7,12 +7,15 @@ import ProfessionalAnalysisDashboard from '@/components/ProfessionalAnalysisDash
 import CreditDisplay from '@/components/CreditDisplay';
 import FeedbackModal from '@/components/FeedbackModal';
 import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
-import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb } from 'lucide-react';
+import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb, CreditCard, Crown, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
 import { BTCLogo } from '@/components/ui/btc-logo';
 import { ETHLogo } from '@/components/ui/eth-logo';
+import { StrategicCreditPrompt } from '@/components/StrategicCreditPrompt';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -136,13 +139,69 @@ const Dashboard = () => {
       {/* Use the new professional header */}
       <AppHeader />
 
+      {/* Strategic Credit Alert Banner - Top Priority */}
+      {userCredits <= 2 && (
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Zap className="h-5 w-5 animate-pulse" />
+                <span className="text-sm font-semibold">
+                  {userCredits === 0 
+                    ? "⚠️ No credits remaining! Get credits to continue analyzing" 
+                    : `⚠️ Only ${userCredits} credit${userCredits === 1 ? '' : 's'} left!`}
+                </span>
+              </div>
+              <Button 
+                size="sm" 
+                variant="secondary"
+                onClick={() => navigate('/pricing')}
+                className="animate-pulse"
+              >
+                <Crown className="h-4 w-4 mr-1" />
+                Get Credits Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <main className="px-4 sm:px-6 pb-6 space-y-8">
+      <main className="px-4 sm:px-6 pb-6 space-y-6">
+        
+        {/* Strategic Credit Display with Action */}
+        <div className="mt-4">
+          <StrategicCreditPrompt 
+            credits={userCredits} 
+            variant="action"
+            showFreeOption={userFeedbackCount === 0}
+            onGetFreeCredits={() => setShowFeedbackModal(true)}
+          />
+        </div>
+
+        {/* Low Credits Warning */}
+        {userCredits > 0 && userCredits <= 2 && (
+          <StrategicCreditPrompt credits={userCredits} variant="low" />
+        )}
+        
         {/* AI Analysis Dashboard */}
         <div className="-mx-4 sm:-mx-6">
           <ProfessionalAnalysisDashboard />
         </div>
-        {/* Stats Section */}
+
+        {/* Empty State Prompt when no credits */}
+        {userCredits === 0 && (
+          <div className="mt-6">
+            <StrategicCreditPrompt 
+              credits={userCredits} 
+              variant="empty"
+              showFreeOption={userFeedbackCount === 0}
+              onGetFreeCredits={() => setShowFeedbackModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Stats Section with Enhanced Credit Card */}
         <div className="grid md:grid-cols-3 gap-4 mt-8">
           <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5 group">
             <CardHeader className="pb-3">
@@ -174,22 +233,69 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-500/5 to-pink-600/5 group">
+          {/* Enhanced Credit Card with Strategic CTA */}
+          <Card className={`
+            border-2 hover:shadow-xl transition-all duration-300 group
+            ${userCredits === 0 ? 'border-red-500/50 bg-gradient-to-br from-red-500/10 to-orange-500/10' : 
+              userCredits <= 2 ? 'border-orange-500/50 bg-gradient-to-br from-orange-500/10 to-yellow-500/10' : 
+              'border-primary/50 bg-gradient-to-br from-purple-500/5 to-pink-600/5'}
+          `}>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <Zap className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                Available Credits
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                  <Zap className={`h-4 w-4 group-hover:scale-110 transition-transform ${
+                    userCredits === 0 ? 'text-red-500 animate-pulse' : 
+                    userCredits <= 2 ? 'text-orange-500' : 
+                    'text-primary'
+                  }`} />
+                  Credits
+                </CardTitle>
+                {userCredits <= 2 && (
+                  <Badge variant={userCredits === 0 ? "destructive" : "outline"} className="animate-pulse">
+                    {userCredits === 0 ? "Empty" : "Low"}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div>
-                  <div className="text-2xl font-bold text-foreground">
+                  <div className={`text-3xl font-bold ${
+                    userCredits === 0 ? 'text-red-500' : 
+                    userCredits <= 2 ? 'text-orange-500' : 
+                    'text-foreground'
+                  }`}>
                     {userCredits}
                   </div>
-                  <CardDescription className="text-xs">Use credits to generate reports</CardDescription>
+                  <CardDescription className="text-xs">
+                    {userCredits === 0 ? 'Get credits to start analyzing' : 
+                     userCredits === 1 ? 'Last credit remaining!' : 
+                     'Use credits to generate reports'}
+                  </CardDescription>
                 </div>
-                {userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com'}
+                
+                <div className="flex gap-2">
+                  {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
+                    <Button 
+                      onClick={() => setShowFeedbackModal(true)}
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Gift className="h-3.5 w-3.5 mr-1" />
+                      Free
+                    </Button>
+                  )}
+                  <Button 
+                    onClick={() => navigate('/pricing')}
+                    size="sm"
+                    variant={userCredits === 0 ? "default" : "outline"}
+                    className={`flex-1 ${userCredits === 0 ? 'animate-pulse bg-gradient-to-r from-primary to-primary/80' : ''}`}
+                  >
+                    <CreditCard className="h-3.5 w-3.5 mr-1" />
+                    Buy
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -234,6 +340,9 @@ const Dashboard = () => {
       
       {/* Feedback Modal - Auto Popup */}
       <FeedbackModal isOpen={shouldShowFeedback} onClose={handleFeedbackClose} onComplete={handleFeedbackComplete} />
+      
+      {/* Floating Credit Prompt - Bottom Right */}
+      <StrategicCreditPrompt credits={userCredits} variant="floating" />
     </div>;
 };
 export default Dashboard;
