@@ -787,7 +787,7 @@ PROVIDE A COMPREHENSIVE JSON RESPONSE WITH ALL SECTIONS FILLED WITH REAL, ACTION
 CRITICAL: Fill EVERY field with SPECIFIC, REAL data. No placeholders. Use actual calculations and current market conditions.`;
 
   try {
-    console.log('Attempting GPT-4-turbo-preview...');
+    console.log('Generating AI analysis...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -795,7 +795,7 @@ CRITICAL: Fill EVERY field with SPECIFIC, REAL data. No placeholders. Use actual
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini', // Using stable model that supports all parameters
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -814,6 +814,17 @@ CRITICAL: Fill EVERY field with SPECIFIC, REAL data. No placeholders. Use actual
 
     const data = await response.json();
     const analysis = JSON.parse(data.choices[0].message.content);
+    
+    // Ensure confidence is always a number
+    if (analysis.tradingSignals?.primary?.confidence) {
+      analysis.tradingSignals.primary.confidence = parseInt(String(analysis.tradingSignals.primary.confidence).replace('%', ''));
+    }
+    if (analysis.aiPrediction?.shortTerm?.confidence) {
+      analysis.aiPrediction.shortTerm.confidence = parseInt(String(analysis.aiPrediction.shortTerm.confidence).replace('%', ''));
+    }
+    if (analysis.aiPrediction?.mediumTerm?.confidence) {
+      analysis.aiPrediction.mediumTerm.confidence = parseInt(String(analysis.aiPrediction.mediumTerm.confidence).replace('%', ''));
+    }
     
     return analysis;
   } catch (error) {
