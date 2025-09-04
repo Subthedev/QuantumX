@@ -205,7 +205,7 @@ export const TradingSignalsSection: React.FC<TradingSignalsProps> = ({
                         {formatPrice(tp)}
                       </span>
                       <span className="text-sm font-bold text-green-600">
-                        {percentGain}%
+                        +{percentGain.replace(/^[+-]/, '')}%
                       </span>
                     </div>
                   </div>;
