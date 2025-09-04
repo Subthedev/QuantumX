@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { TradingSignalsSection } from './TradingSignalsSection';
 import { RiskManagementSection } from './RiskManagementSection';
+import { CompleteTechnicalAnalysisDashboard } from './CompleteTechnicalAnalysisDashboard';
 import { TechnicalAnalysisSection } from './TechnicalAnalysisSection';
 import { FundamentalAnalysisSection } from './FundamentalAnalysisSection';
 import { SentimentAnalysisSection } from './SentimentAnalysisSection';
@@ -398,6 +399,12 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
               />
 
               <RiskManagementSection 
+                signal={analysisResult.fullReport?.signal_4h} 
+                marketData={analysisResult.fullReport?.market_data}
+                symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
+              />
+              
+              <CompleteTechnicalAnalysisDashboard 
                 signal={analysisResult.fullReport?.signal_4h} 
                 marketData={analysisResult.fullReport?.market_data}
                 symbol={/^(btc|bitcoin)$/i.test(analysisResult.symbol || '') ? 'BTC' : 'ETH'}
