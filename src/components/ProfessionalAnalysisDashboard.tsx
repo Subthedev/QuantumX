@@ -12,6 +12,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { TradingSignalsSection } from './TradingSignalsSection';
+import { RiskManagementSection } from './RiskManagementSection';
+import { TechnicalAnalysisSection } from './TechnicalAnalysisSection';
+import { FundamentalAnalysisSection } from './FundamentalAnalysisSection';
+import { SentimentAnalysisSection } from './SentimentAnalysisSection';
+import { IgniteXSummarySection } from './IgniteXSummarySection';
 interface SignalHistory {
   id: string;
   symbol: string;
@@ -60,6 +66,7 @@ interface AnalysisResult {
   };
   timestamp?: string;
   signalExpiry?: string;
+  fullReport?: any;
 }
 const ProfessionalAnalysisDashboard: React.FC = () => {
   const {
@@ -231,7 +238,8 @@ const ProfessionalAnalysisDashboard: React.FC = () => {
           riskMetrics: report.risk_metrics,
           validation: report.validation,
           timestamp: report.timestamp,
-          signalExpiry: report.signal_expiry
+          signalExpiry: report.signal_expiry,
+          fullReport: report
         };
         setAnalysisResult(result);
         await loadSignalHistory();
@@ -393,282 +401,43 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
         </Card>
 
         {/* Main Analysis Results */}
-        {analysisResult && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left Column - Signal & Risk Management */}
+        {analysisResult && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - New Enhanced Sections */}
             <div className="lg:col-span-2 space-y-6">
-              
-              {/* Signal Card */}
-              <Card className={`card-premium ${analysisResult.validation?.passed ? 'border-green-500' : 'border-yellow-500'} border-2`}>
-                <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <Badge className={`px-6 py-3 text-2xl font-bold ${analysisResult.signal === 'LONG' ? 'bg-green-500' : analysisResult.signal === 'SHORT' ? 'bg-red-500' : 'bg-orange-500'}`}>
-                        {analysisResult.signal === 'LONG' && <ArrowUp className="mr-2 h-6 w-6" />}
-                        {analysisResult.signal === 'SHORT' && <ArrowDown className="mr-2 h-6 w-6" />}
-                        {analysisResult.signal}
-                      </Badge>
-                      <div>
-                        <h2 className="text-2xl font-bold">{analysisResult.symbol} Signal</h2>
-                        
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="outline" className="mb-2">
-                        <Timer className="mr-1 h-4 w-4" />
-                        {timeRemaining}
-                      </Badge>
-                      {timeRemaining === 'EXPIRED' && <Badge variant="destructive" className="block mt-1">EXPIRED</Badge>}
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="pt-6">
-                  {/* Animated Confidence Meter */}
-                  <div className="mb-6">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-semibold text-lg">Confidence Level</span>
-                      <span className="text-3xl font-bold text-gradient">{analysisResult.confidence}%</span>
-                    </div>
-                    <Progress value={analysisResult.confidence} className="h-4 bg-gray-200" />
-                    {analysisResult.confidence < 75 && <Alert className="mt-3">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          Confidence below 75% threshold for institutional trading
-                        </AlertDescription>
-                      </Alert>}
-                  </div>
+              <TradingSignalsSection
+                signal={analysisResult.fullReport?.signal_4h}
+                marketData={analysisResult.fullReport?.market_data}
+              />
 
-                  {/* Trading Levels */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
-                      <CardContent className="p-4">
-                        <div className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-1">
-                          Entry Price
-                        </div>
-                        <div className="text-2xl font-bold text-blue-600">
-                          ${analysisResult.entryPrice?.toLocaleString()}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card className="border-red-500 bg-red-50 dark:bg-red-950/20">
-                      <CardContent className="p-4">
-                        <div className="text-sm text-red-700 dark:text-red-400 font-medium mb-1">
-                          Stop Loss
-                        </div>
-                        <div className="text-2xl font-bold text-red-600">
-                          ${analysisResult.stopLoss?.toLocaleString()}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    {analysisResult.takeProfits?.map((tp, index) => <Card key={index} className="border-green-500 bg-green-50 dark:bg-green-950/20">
-                        <CardContent className="p-4">
-                          <div className="text-sm text-green-700 dark:text-green-400 font-medium mb-1">
-                            Take Profit {index + 1}
-                          </div>
-                          <div className="text-2xl font-bold text-green-600">
-                            ${tp.toLocaleString()}
-                          </div>
-                        </CardContent>
-                      </Card>)}
-                  </div>
-                </CardContent>
-              </Card>
+              <RiskManagementSection
+                signal={analysisResult.fullReport?.signal_4h}
+                marketData={analysisResult.fullReport?.market_data}
+              />
 
-              {/* Risk Management Panel */}
-              <Card className={`card-premium ${analysisResult.riskMetrics && analysisResult.riskMetrics.risk_reward_ratios.tp1 >= 2 ? 'card-risk-low' : analysisResult.riskMetrics && analysisResult.riskMetrics.risk_reward_ratios.tp1 >= 1.5 ? 'card-risk-medium' : 'card-risk-high'}`}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Risk Management Dashboard
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {analysisResult.riskMetrics && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="space-y-1">
-                        <div className="text-sm text-muted-foreground">R:R Ratio (TP1)</div>
-                        <div className={`text-2xl font-bold ${analysisResult.riskMetrics.risk_reward_ratios.tp1 >= 1.5 ? 'text-green-600' : 'text-yellow-600'}`}>
-                          1:{analysisResult.riskMetrics.risk_reward_ratios.tp1.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-sm text-muted-foreground">Position Size</div>
-                        <div className="text-2xl font-bold">
-                          {analysisResult.riskMetrics.position_size.toFixed(4)}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-sm text-muted-foreground">Risk Amount</div>
-                        <div className="text-2xl font-bold text-red-600">
-                          ${analysisResult.riskMetrics.dollar_risk.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-sm text-muted-foreground">Max Loss</div>
-                        <div className="text-2xl font-bold text-red-600">
-                          ${analysisResult.riskMetrics.max_loss.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>}
-                  
-                  <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                    <p className="text-sm text-orange-700 dark:text-orange-400">
-                      <strong>2% Portfolio Rule:</strong> Never risk more than 2% of your total portfolio on a single trade
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Technical Analysis */}
-              <Collapsible open={expandedSections.technical} onOpenChange={open => setExpandedSections({
-            ...expandedSections,
-            technical: open
-          })}>
-                <Card className="card-premium">
-                  <CollapsibleTrigger className="w-full">
-                    <CardHeader className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                      <CardTitle className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <Activity className="h-5 w-5 text-primary" />
-                          Technical Analysis
-                        </span>
-                        {expandedSections.technical ? <ChevronUp /> : <ChevronDown />}
-                      </CardTitle>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent>
-                    <CardContent className="space-y-4">
-                      <ScrollArea className="h-64 w-full rounded-md border p-4">
-                        <pre className="font-mono-tech whitespace-pre-wrap">
-                      {`Technical Indicators:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RSI (14): ${analysisResult.technicalIndicators.rsi?.toFixed(2) || 'N/A'}
-MACD Histogram: ${analysisResult.technicalIndicators.macd?.toFixed(4) || 'N/A'}
-ATR %: ${analysisResult.technicalIndicators.atr_percent?.toFixed(2) || 'N/A'}%
-EMA50 > EMA200: ${analysisResult.technicalIndicators.ema50_above_ema200 ? 'YES ✓' : 'NO ✗'}
-Funding Rate: ${analysisResult.technicalIndicators.funding_rate?.toFixed(6) || 'N/A'}
-Order Book Imbalance: ${analysisResult.technicalIndicators.orderbook_imbalance_pct?.toFixed(2) || 'N/A'}%
-
-Key Analysis Points:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${analysisResult.keyPoints.join('\n')}
-
-Market Summary:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${analysisResult.summary}`}
-                        </pre>
-                      </ScrollArea>
-                      
-                      <Button variant="outline" size="sm" onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(analysisResult.technicalIndicators, null, 2));
-                    toast({
-                      title: "Technical data copied to clipboard"
-                    });
-                  }}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy Technical Data
-                      </Button>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
+              <TechnicalAnalysisSection
+                analysis={analysisResult.fullReport?.analysis?.technical}
+                marketData={analysisResult.fullReport?.market_data}
+              />
             </div>
 
-            {/* Right Column - Signal History & Stats */}
+            {/* Right Column - New Enhanced Sections */}
             <div className="space-y-6">
-              
-              {/* Performance Metrics */}
-              <Card className="card-premium">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Performance Metrics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Signals</span>
-                      <span className="font-bold">{signalHistory.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Win Rate</span>
-                      <span className="font-bold text-green-600">
-                        {(signalHistory.filter(s => (s.profit || 0) > 0).length / signalHistory.length * 100 || 0).toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Avg Confidence</span>
-                      <span className="font-bold">
-                        {(signalHistory.reduce((acc, s) => acc + s.confidence, 0) / signalHistory.length || 0).toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <Progress value={signalHistory.filter(s => (s.profit || 0) > 0).length / signalHistory.length * 100 || 0} className="h-2" />
-                </CardContent>
-              </Card>
+              <FundamentalAnalysisSection
+                analysis={analysisResult.fullReport?.analysis?.fundamental}
+                marketData={analysisResult.fullReport?.market_data}
+              />
 
-              {/* Signal History */}
-              <Card className="card-premium">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <History className="h-5 w-5 text-primary" />
-                    Signal History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-64">
-                    <div className="space-y-2">
-                      {signalHistory.map(signal => <div key={signal.id} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <Badge className={signal.signal === 'LONG' ? 'bg-green-500' : signal.signal === 'SHORT' ? 'bg-red-500' : 'bg-orange-500'}>
-                                {signal.signal}
-                              </Badge>
-                              <span className="font-semibold">{signal.symbol}</span>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-bold">{signal.confidence}%</div>
-                              <div className={`text-xs ${signal.profit && signal.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {signal.profit && signal.profit > 0 ? '+' : ''}{signal.profit?.toFixed(2)}%
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {new Date(signal.timestamp).toLocaleString()}
-                          </div>
-                        </div>)}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+              <SentimentAnalysisSection
+                analysis={analysisResult.fullReport?.analysis?.sentiment}
+              />
 
-              {/* Quick Actions */}
-              <Card className="card-premium">
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start" onClick={() => window.print()}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print Report
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={exportToPDF}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export as PDF
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => setShowFullReport(!showFullReport)}>
-                    {showFullReport ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-                    {showFullReport ? 'Hide' : 'Show'} Full Report
-                  </Button>
-                </CardContent>
-              </Card>
+              <IgniteXSummarySection
+                report={analysisResult.fullReport}
+              />
             </div>
-          </div>}
+          </div>
+        )}
 
         {/* Loading State */}
         {loading && <div className="space-y-4">
