@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, Clock, RefreshCw, CheckCircle, AlertTriangle, Timer, Shield, Target, Copy, Download, History, ChevronDown, ChevronUp, Keyboard, FileText, Printer, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, Clock, RefreshCw, CheckCircle, AlertTriangle, Timer, Shield, Target, Copy, Download, History, ChevronDown, ChevronUp, Keyboard, FileText, Printer, ArrowUp, ArrowDown, Eye, EyeOff, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -386,6 +386,36 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             </Card>
           </div>}
 
+
+        {/* Loading State with Creative Animation */}
+        {loading && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="text-center space-y-6 animate-fade-in">
+              <div className="relative">
+                <div className="w-32 h-32 mx-auto">
+                  <div className="absolute inset-0 border-4 border-orange-500/20 rounded-full"></div>
+                  <div className="absolute inset-0 border-4 border-t-orange-500 rounded-full animate-spin"></div>
+                  <div className="absolute inset-2 border-4 border-blue-500/20 rounded-full"></div>
+                  <div className="absolute inset-2 border-4 border-t-blue-500 rounded-full animate-spin-reverse"></div>
+                  <div className="absolute inset-4 flex items-center justify-center">
+                    <Brain className="w-12 h-12 text-orange-500 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-gradient">AI Analysis in Progress</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Our advanced AI is analyzing market patterns, technical indicators, and sentiment data to generate your personalized trading signals...
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <Badge variant="secondary" className="animate-pulse">Scanning Markets</Badge>
+                  <Badge variant="secondary" className="animate-pulse delay-100">Analyzing Patterns</Badge>
+                  <Badge variant="secondary" className="animate-pulse delay-200">Calculating Signals</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Analysis Results */}
         {analysisResult && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
