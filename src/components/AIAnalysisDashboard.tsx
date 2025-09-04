@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain, ArrowUp, ArrowDown, Target, Shield, RefreshCw, Clock, Activity, BarChart3 } from "lucide-react";
+import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain, ArrowUp, ArrowDown, Target, Shield, RefreshCw, Clock, Activity, BarChart3, CheckCircle, XCircle, AlertTriangle, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -38,6 +38,31 @@ interface AnalysisResult {
     sentiment?: any;
     multi_directional_signals?: any;
   };
+  riskMetrics?: {
+    risk_reward_ratios: {
+      tp1: number;
+      tp2: number;
+      tp3: number;
+    };
+    position_size: number;
+    dollar_risk: number;
+    risk_percentage: number;
+    max_loss: number;
+  };
+  validation?: {
+    passed: boolean;
+    checks: {
+      confidenceCheck: boolean;
+      entryPriceCheck: boolean;
+      riskRewardCheck: boolean;
+      stopLossCheck: boolean;
+      overallValid: boolean;
+    };
+    warnings: string[];
+    status: 'APPROVED' | 'REVIEW_REQUIRED';
+  };
+  timestamp?: string;
+  signalExpiry?: string;
 }
 
 const AIAnalysisDashboard: React.FC = () => {
@@ -49,6 +74,7 @@ const AIAnalysisDashboard: React.FC = () => {
   const [marketData, setMarketData] = useState<any>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
 
   // Fetch market data from CoinGecko
   const fetchMarketData = async () => {
@@ -76,6 +102,29 @@ const AIAnalysisDashboard: React.FC = () => {
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
+
+  // Countdown timer for signal expiry
+  useEffect(() => {
+    if (analysisResults?.signalExpiry) {
+      const interval = setInterval(() => {
+        const now = new Date();
+        const expiry = new Date(analysisResults.signalExpiry);
+        const diff = expiry.getTime() - now.getTime();
+        
+        if (diff <= 0) {
+          setTimeRemaining('EXPIRED');
+          clearInterval(interval);
+        } else {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [analysisResults?.signalExpiry]);
 
   const formatNumber = (num: number) => {
     if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
@@ -147,7 +196,11 @@ const AIAnalysisDashboard: React.FC = () => {
           stopLoss: report.signal_4h?.stop_loss,
           takeProfits: report.signal_4h?.take_profits,
           marketData: report.market_data,
-          analysis: report.analysis
+          analysis: report.analysis,
+          riskMetrics: report.risk_metrics,
+          validation: report.validation,
+          timestamp: report.timestamp,
+          signalExpiry: report.signal_expiry
         };
         
         setAnalysisResults(result);
@@ -358,169 +411,260 @@ const AIAnalysisDashboard: React.FC = () => {
 
       {/* Analysis Results */}
       {analysisResults && !loading && (
-        <Card className="border-0 shadow-xl overflow-hidden">
-          <div className="h-2 bg-gradient-to-r from-primary to-primary-glow" />
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">
-                {analysisResults.symbol} Analysis Results
-              </CardTitle>
-              <Badge className={`px-4 py-1 text-sm font-semibold ${getSignalColor(analysisResults.signal)}`}>
-                {analysisResults.signal.toUpperCase()}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Confidence Score */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary-light/20 to-transparent rounded-lg">
-              <span className="font-medium">AI Confidence Score</span>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="space-y-6">
+          {/* Professional Signal Card with Validation */}
+          <Card className={`border-2 ${analysisResults.validation?.passed ? 'border-green-500' : 'border-yellow-500'} shadow-2xl`}>
+            <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <Badge className={`px-6 py-3 text-2xl font-bold ${
+                    analysisResults.signal === 'LONG' ? 'bg-green-500 text-white' : 
+                    analysisResults.signal === 'SHORT' ? 'bg-red-500 text-white' : 
+                    'bg-orange-500 text-white'
+                  }`}>
+                    {analysisResults.signal}
+                  </Badge>
+                  <div>
+                    <h2 className="text-2xl font-bold">{analysisResults.symbol} Signal</h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      {analysisResults.validation?.passed ? (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="h-5 w-5" />
+                          <span className="font-semibold">APPROVED</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-yellow-600">
+                          <AlertTriangle className="h-5 w-5" />
+                          <span className="font-semibold">REVIEW REQUIRED</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Timer className="h-4 w-4" />
+                    <span>Valid for: {timeRemaining}</span>
+                  </div>
+                  {timeRemaining === 'EXPIRED' ? (
+                    <Badge variant="destructive">EXPIRED</Badge>
+                  ) : timeRemaining && timeRemaining.startsWith('0h') ? (
+                    <Badge variant="outline" className="text-yellow-600">Expiring Soon</Badge>
+                  ) : null}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {/* Animated Confidence Meter */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-lg">Confidence Level</span>
+                  <span className="text-2xl font-bold text-primary">{analysisResults.confidence}%</span>
+                </div>
+                <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-primary to-primary-glow transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-1000 ease-out"
                     style={{ width: `${analysisResults.confidence}%` }}
                   />
                 </div>
-                <span className="font-bold text-primary">{analysisResults.confidence}%</span>
+                {analysisResults.confidence < 75 && (
+                  <p className="text-sm text-yellow-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    Confidence below 75% threshold for institutional trading
+                  </p>
+                )}
               </div>
-            </div>
 
-            {/* Summary */}
-            <div>
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Market Summary
-              </h3>
-              <p className="text-muted-foreground">{analysisResults.summary}</p>
-            </div>
+              {/* Validation Warnings */}
+              {analysisResults.validation?.warnings && analysisResults.validation.warnings.length > 0 && (
+                <Alert className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertTitle>Validation Warnings</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      {analysisResults.validation.warnings.map((warning, index) => (
+                        <li key={index} className="text-sm">{warning}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            {/* Key Points */}
-            <div>
-              <h3 className="font-semibold mb-3">Key Trading Points</h3>
-              <div className="space-y-2">
-                {analysisResults.keyPoints.map((point, index) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                    <span className="text-sm text-muted-foreground">{point}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Entry/Exit Points - Professional Trading Recommendations */}
-            {analysisResults.signal !== 'HOLD' && analysisResults.entryPrice && (
-              <Card className="bg-gradient-to-br from-primary-light/10 to-transparent border-primary/20">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    Trading Execution Levels
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+              {/* Risk Metrics Grid */}
+              {analysisResults.riskMetrics && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Risk Management Metrics
+                  </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        {analysisResults.signal === 'LONG' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                    <div className="p-3 bg-gradient-to-br from-primary/10 to-transparent rounded-lg">
+                      <div className="text-sm text-muted-foreground">R:R Ratio (TP1)</div>
+                      <div className={`text-xl font-bold ${
+                        analysisResults.riskMetrics.risk_reward_ratios.tp1 >= 1.5 ? 'text-green-600' : 'text-yellow-600'
+                      }`}>
+                        1:{analysisResults.riskMetrics.risk_reward_ratios.tp1.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-primary/10 to-transparent rounded-lg">
+                      <div className="text-sm text-muted-foreground">Position Size</div>
+                      <div className="text-xl font-bold">
+                        {analysisResults.riskMetrics.position_size.toFixed(4)} units
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-primary/10 to-transparent rounded-lg">
+                      <div className="text-sm text-muted-foreground">Risk Amount</div>
+                      <div className="text-xl font-bold text-red-600">
+                        ${analysisResults.riskMetrics.dollar_risk.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gradient-to-br from-primary/10 to-transparent rounded-lg">
+                      <div className="text-sm text-muted-foreground">Max Loss</div>
+                      <div className="text-xl font-bold text-red-600">
+                        ${analysisResults.riskMetrics.max_loss.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Trading Levels in Professional Grid */}
+              <div className="mb-6">
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Professional Trading Levels
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
+                    <CardContent className="p-4">
+                      <div className="text-sm text-blue-700 dark:text-blue-400 font-medium mb-1">
                         Entry Price
                       </div>
-                      <div className="text-lg font-bold text-primary">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                         ${analysisResults.entryPrice?.toLocaleString()}
                       </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Shield className="h-3 w-3" />
+                    </CardContent>
+                  </Card>
+                  <Card className="border-red-500 bg-red-50 dark:bg-red-950/20">
+                    <CardContent className="p-4">
+                      <div className="text-sm text-red-700 dark:text-red-400 font-medium mb-1">
                         Stop Loss
                       </div>
-                      <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                         ${analysisResults.stopLoss?.toLocaleString()}
                       </div>
-                    </div>
-                    {analysisResults.takeProfits && analysisResults.takeProfits[0] && (
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Take Profit 1</div>
-                        <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                          ${analysisResults.takeProfits[0].toLocaleString()}
+                    </CardContent>
+                  </Card>
+                  {analysisResults.takeProfits?.map((tp, index) => (
+                    <Card key={index} className="border-green-500 bg-green-50 dark:bg-green-950/20">
+                      <CardContent className="p-4">
+                        <div className="text-sm text-green-700 dark:text-green-400 font-medium mb-1">
+                          Take Profit {index + 1}
                         </div>
-                      </div>
-                    )}
-                    {analysisResults.takeProfits && analysisResults.takeProfits[1] && (
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Take Profit 2</div>
-                        <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                          ${analysisResults.takeProfits[1].toLocaleString()}
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          ${tp.toLocaleString()}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                  {analysisResults.takeProfits && analysisResults.takeProfits[2] && (
-                    <div className="pt-2 border-t">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Final Target</span>
-                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                          ${analysisResults.takeProfits[2].toLocaleString()}
-                        </span>
-                      </div>
+                        {analysisResults.riskMetrics && (
+                          <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            R:R = 1:{
+                              index === 0 ? analysisResults.riskMetrics.risk_reward_ratios.tp1.toFixed(1) :
+                              index === 1 ? analysisResults.riskMetrics.risk_reward_ratios.tp2.toFixed(1) :
+                              analysisResults.riskMetrics.risk_reward_ratios.tp3.toFixed(1)
+                            }
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="bg-gradient-to-r from-primary/5 to-transparent p-4 rounded-lg">
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Executive Summary
+                </h3>
+                <p className="text-muted-foreground">{analysisResults.summary}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Detailed Analysis Card */}
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-primary to-primary-glow" />
+            <CardHeader>
+              <CardTitle className="text-xl">Detailed Technical Analysis</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Key Points */}
+              <div>
+                <h3 className="font-semibold mb-3">Key Trading Points</h3>
+                <div className="space-y-2">
+                  {analysisResults.keyPoints.map((point, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                      <span className="text-sm text-muted-foreground">{point}</span>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                  ))}
+                </div>
+              </div>
 
-            {/* Technical Indicators */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">RSI</div>
-                <div className="text-xl font-bold">{analysisResults.technicalIndicators.rsi.toFixed(1)}</div>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">MACD</div>
-                <div className="text-sm font-semibold">{analysisResults.technicalIndicators.macd}</div>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Support</div>
-                <div className="text-xl font-bold">${analysisResults.technicalIndicators.support.toLocaleString()}</div>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Resistance</div>
-                <div className="text-xl font-bold">${analysisResults.technicalIndicators.resistance.toLocaleString()}</div>
-              </div>
-            </div>
-
-            {/* Market Data - if available */}
-            {analysisResults.marketData && (
+              {/* Technical Indicators */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Current Price</div>
-                  <div className="text-xl font-bold">${analysisResults.marketData.price.toLocaleString()}</div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">RSI</div>
+                  <div className="text-xl font-bold">{analysisResults.technicalIndicators.rsi.toFixed(1)}</div>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">24h Change</div>
-                  <div className={`text-xl font-bold ${analysisResults.marketData.percentChange24h > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {analysisResults.marketData.percentChange24h > 0 ? '+' : ''}{analysisResults.marketData.percentChange24h.toFixed(2)}%
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">MACD</div>
+                  <div className="text-sm font-semibold">{analysisResults.technicalIndicators.macd}</div>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Support</div>
+                  <div className="text-xl font-bold">${analysisResults.technicalIndicators.support.toLocaleString()}</div>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Resistance</div>
+                  <div className="text-xl font-bold">${analysisResults.technicalIndicators.resistance.toLocaleString()}</div>
+                </div>
+              </div>
+
+              {/* Market Data - if available */}
+              {analysisResults.marketData && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="text-sm text-muted-foreground">Current Price</div>
+                    <div className="text-xl font-bold">${analysisResults.marketData.price.toLocaleString()}</div>
+                  </div>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="text-sm text-muted-foreground">24h Change</div>
+                    <div className={`text-xl font-bold ${analysisResults.marketData.percentChange24h > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {analysisResults.marketData.percentChange24h > 0 ? '+' : ''}{analysisResults.marketData.percentChange24h.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="text-sm text-muted-foreground">Volume 24h</div>
+                    <div className="text-lg font-bold">${(analysisResults.marketData.volume24h / 1e9).toFixed(2)}B</div>
+                  </div>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="text-sm text-muted-foreground">Market Cap</div>
+                    <div className="text-lg font-bold">${(analysisResults.marketData.marketCap / 1e9).toFixed(0)}B</div>
                   </div>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Volume 24h</div>
-                  <div className="text-lg font-bold">${(analysisResults.marketData.volume24h / 1e9).toFixed(2)}B</div>
-                </div>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Market Cap</div>
-                  <div className="text-lg font-bold">${(analysisResults.marketData.marketCap / 1e9).toFixed(0)}B</div>
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* Risk Level */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <span className="font-medium">Risk Level</span>
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${getRiskColor(analysisResults.riskLevel)}`} />
-                <span className="font-semibold capitalize">{analysisResults.riskLevel}</span>
+              {/* Risk Level */}
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <span className="font-medium">Risk Level</span>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${getRiskColor(analysisResults.riskLevel)}`} />
+                  <span className="font-semibold capitalize">{analysisResults.riskLevel}</span>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Empty State */}

@@ -381,41 +381,75 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
     const fundingRate = await fetchFundingRate(binanceSymbol);
     const obImbalance = await fetchOrderbookImbalance(binanceSymbol);
 
-    // Scoring engine to reduce HOLD bias
+    // Enhanced scoring engine for higher confidence signals
     let bullish = 0, bearish = 0;
-    // Trend bias
-    if (ema50Above200) bullish += 2; else bearish += 2;
-    // Momentum
-    if (macdHistNow > 0) bullish += 1; else bearish += 1;
-    // RSI zones
-    if (rsiNow >= 55 && rsiNow <= 70) bullish += 1;
-    if (rsiNow <= 45 && rsiNow >= 30) bearish += 1;
-    if (rsiNow > 75) bearish += 1; // overbought
-    if (rsiNow < 25) bullish += 1; // oversold
-    // Orderbook imbalance
-    if ((obImbalance ?? 0) > 5) bullish += 1;
-    if ((obImbalance ?? 0) < -5) bearish += 1;
+    // Trend bias (weighted more heavily)
+    if (ema50Above200) bullish += 3; else bearish += 3;
+    // Momentum (weighted)
+    if (macdHistNow > 0) bullish += 2; else bearish += 2;
+    // RSI zones (refined for stronger signals)
+    if (rsiNow >= 60 && rsiNow <= 70) bullish += 2;
+    if (rsiNow <= 40 && rsiNow >= 30) bearish += 2;
+    if (rsiNow > 80) bearish += 2; // strong overbought
+    if (rsiNow < 20) bullish += 2; // strong oversold
+    // Orderbook imbalance (stronger thresholds)
+    if ((obImbalance ?? 0) > 10) bullish += 2;
+    if ((obImbalance ?? 0) < -10) bearish += 2;
     // Funding rate heuristics
     if ((fundingRate ?? 0) > 0.01) bearish += 1; // crowded longs
     if ((fundingRate ?? 0) < -0.005) bullish += 1; // crowded shorts
 
     const scoreDiff = bullish - bearish;
 
+    // Require stronger conviction for directional trades
     let direction: 'LONG' | 'SHORT' | 'HOLD' = 'HOLD';
-    if (scoreDiff >= 1) direction = 'LONG';
-    if (scoreDiff <= -1) direction = 'SHORT';
+    if (scoreDiff >= 3) direction = 'LONG';
+    if (scoreDiff <= -3) direction = 'SHORT';
 
-    // Confidence mapping (prefer >=70 when directional)
+    // Enhanced confidence calculation for institutional-grade signals
     const alignedSignals = Math.max(bullish, bearish);
-    let confidence = Math.min(95, Math.max(50, 60 + alignedSignals * 5 - Math.abs(atrPct - 3))); // favor 70+
-    if (direction === 'HOLD') confidence = Math.min(confidence, 65);
+    let confidence = Math.min(95, Math.max(50, 65 + alignedSignals * 4 - Math.abs(atrPct - 2.5)));
+    
+    // Boost confidence for strong directional alignment
+    if (Math.abs(scoreDiff) >= 5) confidence = Math.min(95, confidence + 10);
+    if (direction === 'HOLD') confidence = Math.min(confidence, 70);
 
-    // Build 4H signal execution levels using ATR
-    const entry = direction === 'LONG' ? priceNow - 0.3 * atrNow : direction === 'SHORT' ? priceNow + 0.3 * atrNow : priceNow;
-    const stop = direction === 'LONG' ? priceNow - 1.0 * atrNow : direction === 'SHORT' ? priceNow + 1.0 * atrNow : priceNow - 1.0 * atrNow;
+    // Professional trading levels with risk management
+    const entry = direction === 'LONG' ? priceNow - 0.2 * atrNow : direction === 'SHORT' ? priceNow + 0.2 * atrNow : priceNow;
+    const stop = direction === 'LONG' ? priceNow - 0.8 * atrNow : direction === 'SHORT' ? priceNow + 0.8 * atrNow : priceNow - 0.8 * atrNow;
     const tp1 = direction === 'LONG' ? priceNow + 0.5 * atrNow : priceNow - 0.5 * atrNow;
     const tp2 = direction === 'LONG' ? priceNow + 1.0 * atrNow : priceNow - 1.0 * atrNow;
     const tp3 = direction === 'LONG' ? priceNow + 1.5 * atrNow : priceNow - 1.5 * atrNow;
+
+    // Calculate risk/reward ratios
+    const riskAmount = Math.abs(entry - stop);
+    const reward1 = Math.abs(tp1 - entry);
+    const reward2 = Math.abs(tp2 - entry);
+    const reward3 = Math.abs(tp3 - entry);
+    const riskRewardRatio1 = reward1 / riskAmount;
+    const riskRewardRatio2 = reward2 / riskAmount;
+    const riskRewardRatio3 = reward3 / riskAmount;
+
+    // Position sizing based on risk (2% rule)
+    const accountBalance = 10000; // Default for demo, can be parameterized
+    const riskPercentage = 0.02; // 2% risk per trade
+    const dollarRisk = accountBalance * riskPercentage;
+    const positionSize = dollarRisk / riskAmount;
+
+    // Validation checks
+    const validationResults = {
+      confidenceCheck: confidence >= 75,
+      entryPriceCheck: Math.abs((entry - priceNow) / priceNow) <= 0.02,
+      riskRewardCheck: riskRewardRatio1 >= 1.5,
+      stopLossCheck: Math.abs((stop - entry) / entry) <= 0.05,
+      overallValid: false
+    };
+    
+    validationResults.overallValid = 
+      validationResults.confidenceCheck &&
+      validationResults.entryPriceCheck &&
+      validationResults.riskRewardCheck &&
+      validationResults.stopLossCheck;
 
     // Existing broader analysis (kept for compatibility)
     // Enhanced market analysis calculations
@@ -584,6 +618,27 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
       ]
     };
 
+    // Add validation and risk metrics to the response
+    const signalValidation = {
+      passed: validationResults.overallValid,
+      checks: validationResults,
+      warnings: [],
+      status: validationResults.overallValid ? 'APPROVED' : 'REVIEW_REQUIRED'
+    };
+    
+    if (!validationResults.confidenceCheck) {
+      signalValidation.warnings.push(`Confidence ${confidence}% is below 75% threshold`);
+    }
+    if (!validationResults.entryPriceCheck) {
+      signalValidation.warnings.push('Entry price is more than 2% from current price');
+    }
+    if (!validationResults.riskRewardCheck) {
+      signalValidation.warnings.push(`Risk/Reward ratio ${riskRewardRatio1.toFixed(2)} is below 1.5:1`);
+    }
+    if (!validationResults.stopLossCheck) {
+      signalValidation.warnings.push('Stop loss is more than 5% from entry');
+    }
+
     return {
       summary: analysis.summary,
       confidence: analysis.confidence,
@@ -598,7 +653,20 @@ async function generateProfessionalReport(coin: 'BTC' | 'ETH', timeframe: '4H') 
           name: marketData.name,
           symbol: marketData.symbol
         },
+        risk_metrics: {
+          risk_reward_ratios: {
+            tp1: parseFloat(riskRewardRatio1.toFixed(2)),
+            tp2: parseFloat(riskRewardRatio2.toFixed(2)),
+            tp3: parseFloat(riskRewardRatio3.toFixed(2))
+          },
+          position_size: parseFloat(positionSize.toFixed(4)),
+          dollar_risk: parseFloat(dollarRisk.toFixed(2)),
+          risk_percentage: riskPercentage,
+          max_loss: parseFloat((riskAmount * positionSize).toFixed(2))
+        },
+        validation: signalValidation,
         timestamp: new Date().toISOString(),
+        signal_expiry: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4 hours from now
         coin: coin
       }
     };
