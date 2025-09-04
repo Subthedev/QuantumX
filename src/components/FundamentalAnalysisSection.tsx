@@ -45,7 +45,19 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
     return 35;
   };
 
-  if (!analysis) {
+  // Handle both direct analysis object and metrics nested structure
+  const hasData = analysis && (
+    analysis.strengths?.length > 0 || 
+    analysis.weaknesses?.length > 0 || 
+    analysis.metrics?.competitivePosition ||
+    analysis.metrics?.adoptionRate ||
+    analysis.metrics?.networkHealth ||
+    analysis.metrics?.institutionalFlow ||
+    analysis.catalysts?.bullish?.length > 0 ||
+    analysis.catalysts?.bearish?.length > 0
+  );
+
+  if (!hasData) {
     return (
       <Card className="w-full">
         <CardHeader>
@@ -63,8 +75,29 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
     );
   }
 
-  const marketPositionScore = getMarketPositionScore(analysis.market_position);
-  const networkHealthScore = getNetworkHealthScore(analysis.network_health);
+  // Map the data from the API structure to the component's expected structure
+  const mappedAnalysis = {
+    strengths: analysis.strengths || [],
+    weaknesses: analysis.weaknesses || [],
+    market_position: analysis.metrics?.competitivePosition || analysis.market_position || '',
+    adoption_metrics: analysis.metrics?.adoptionRate || analysis.adoption_metrics || '',
+    network_health: analysis.metrics?.networkHealth || analysis.network_health || '',
+    institutional_flow: analysis.metrics?.institutionalFlow || analysis.institutional_flow || '',
+    macro_environment: analysis.macroFactors?.marketRegime || analysis.macro_environment || '',
+    competitive_landscape: analysis.macroFactors?.correlation || analysis.competitive_landscape || '',
+    competitive_position: analysis.metrics?.competitivePosition || analysis.competitive_position || '',
+    catalysts: (() => {
+      if (analysis.catalysts?.bullish || analysis.catalysts?.bearish) {
+        const bullish = analysis.catalysts.bullish || [];
+        const bearish = analysis.catalysts.bearish || [];
+        return `Bullish: ${bullish.slice(0, 2).join(', ')}. Bearish: ${bearish.slice(0, 2).join(', ')}`;
+      }
+      return analysis.catalysts || '';
+    })()
+  };
+
+  const marketPositionScore = getMarketPositionScore(mappedAnalysis.market_position);
+  const networkHealthScore = getNetworkHealthScore(mappedAnalysis.network_health);
   const volToMcapRatio = marketData ? (marketData.volume24h / marketData.marketCap) * 100 : 0;
   const isHighVolume = volToMcapRatio > 10;
 
@@ -132,7 +165,7 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
             </div>
 
             {/* Market Position Score */}
-            {analysis.market_position && (
+            {mappedAnalysis.market_position && (
               <div className="bg-muted/20 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium flex items-center gap-2">
@@ -144,7 +177,7 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
                   </Badge>
                 </div>
                 <Progress value={marketPositionScore} className="h-2 mb-3" />
-                <p className="text-sm text-muted-foreground">{analysis.market_position}</p>
+                <p className="text-sm text-muted-foreground">{mappedAnalysis.market_position}</p>
               </div>
             )}
           </div>
@@ -152,14 +185,14 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
 
         {/* Strengths & Weaknesses Analysis */}
         <div className="grid md:grid-cols-2 gap-4">
-          {analysis.strengths && analysis.strengths.length > 0 && (
+          {mappedAnalysis.strengths && mappedAnalysis.strengths.length > 0 && (
             <div className="bg-success/5 border border-success/20 rounded-lg p-4">
               <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                 <Shield className="h-4 w-4 text-success" />
                 Fundamental Strengths
               </h4>
               <ul className="space-y-2">
-                {analysis.strengths.slice(0, 4).map((strength: string, idx: number) => (
+                {mappedAnalysis.strengths.slice(0, 4).map((strength: string, idx: number) => (
                   <li key={idx} className="text-xs flex items-start gap-2">
                     <span className="text-success mt-0.5">✓</span>
                     <span className="text-muted-foreground">{strength}</span>
@@ -169,14 +202,14 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
             </div>
           )}
           
-          {analysis.weaknesses && analysis.weaknesses.length > 0 && (
+          {mappedAnalysis.weaknesses && mappedAnalysis.weaknesses.length > 0 && (
             <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
               <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
                 Risk Factors
               </h4>
               <ul className="space-y-2">
-                {analysis.weaknesses.slice(0, 4).map((weakness: string, idx: number) => (
+                {mappedAnalysis.weaknesses.slice(0, 4).map((weakness: string, idx: number) => (
                   <li key={idx} className="text-xs flex items-start gap-2">
                     <span className="text-destructive mt-0.5">⚠</span>
                     <span className="text-muted-foreground">{weakness}</span>
@@ -189,17 +222,17 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
 
         {/* Key Fundamental Metrics */}
         <div className="grid md:grid-cols-2 gap-4">
-          {analysis.adoption_metrics && (
+          {mappedAnalysis.adoption_metrics && (
             <div className="border rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">Adoption Metrics</span>
               </div>
-              <p className="text-xs text-muted-foreground">{analysis.adoption_metrics}</p>
+              <p className="text-xs text-muted-foreground">{mappedAnalysis.adoption_metrics}</p>
             </div>
           )}
           
-          {analysis.network_health && (
+          {mappedAnalysis.network_health && (
             <div className="border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -211,59 +244,59 @@ export const FundamentalAnalysisSection: React.FC<FundamentalAnalysisProps> = ({
                 </Badge>
               </div>
               <Progress value={networkHealthScore} className="h-1 mb-2" />
-              <p className="text-xs text-muted-foreground">{analysis.network_health}</p>
+              <p className="text-xs text-muted-foreground">{mappedAnalysis.network_health}</p>
             </div>
           )}
         </div>
 
         {/* Institutional & Macro Factors */}
         <div className="space-y-3">
-          {analysis.institutional_flow && (
+          {mappedAnalysis.institutional_flow && (
             <div className="bg-primary/5 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Building2 className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">Institutional Flow Analysis</span>
               </div>
-              <p className="text-sm text-muted-foreground">{analysis.institutional_flow}</p>
+              <p className="text-sm text-muted-foreground">{mappedAnalysis.institutional_flow}</p>
             </div>
           )}
           
-          {analysis.macro_environment && (
+          {mappedAnalysis.macro_environment && (
             <div className="bg-muted/30 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Globe className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">Macro Environment Impact</span>
               </div>
-              <p className="text-sm text-muted-foreground">{analysis.macro_environment}</p>
+              <p className="text-sm text-muted-foreground">{mappedAnalysis.macro_environment}</p>
             </div>
           )}
         </div>
 
         {/* Competitive Analysis & Catalysts */}
         <div className="space-y-3">
-          {analysis.competitive_landscape && (
+          {mappedAnalysis.competitive_landscape && (
             <div className="border-l-2 border-primary pl-4">
               <div className="text-sm font-medium mb-2">Competitive Landscape</div>
-              <p className="text-xs text-muted-foreground">{analysis.competitive_landscape}</p>
+              <p className="text-xs text-muted-foreground">{mappedAnalysis.competitive_landscape}</p>
             </div>
           )}
           
-          {analysis.catalysts && (
+          {mappedAnalysis.catalysts && (
             <div className="bg-warning/5 border border-warning/20 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="h-4 w-4 text-warning" />
                 <span className="text-sm font-medium">Upcoming Catalysts</span>
               </div>
-              <p className="text-sm">{analysis.catalysts}</p>
+              <p className="text-sm">{mappedAnalysis.catalysts}</p>
             </div>
           )}
         </div>
 
         {/* Additional Metrics if available */}
-        {analysis.competitive_position && (
+        {mappedAnalysis.competitive_position && (
           <div className="bg-muted/20 rounded-lg p-3">
             <div className="text-xs font-medium text-muted-foreground mb-1">Competitive Position</div>
-            <p className="text-sm">{analysis.competitive_position}</p>
+            <p className="text-sm">{mappedAnalysis.competitive_position}</p>
           </div>
         )}
       </CardContent>

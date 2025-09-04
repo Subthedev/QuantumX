@@ -320,32 +320,13 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
 
             {/* 5. Fundamental Analysis */}
             <FundamentalAnalysisSection 
-              analysis={{
-                strengths: report.report_data?.fundamentalAnalysis?.strengths || [],
-                weaknesses: report.report_data?.fundamentalAnalysis?.weaknesses || [],
-                market_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || '',
-                adoption_metrics: report.report_data?.fundamentalAnalysis?.metrics?.adoptionRate || '',
-                network_health: report.report_data?.fundamentalAnalysis?.metrics?.networkHealth || '',
-                institutional_flow: report.report_data?.fundamentalAnalysis?.metrics?.institutionalFlow || '',
-                macro_environment: report.report_data?.fundamentalAnalysis?.macroFactors?.marketRegime || 
-                                   report.report_data?.fundamentalAnalysis?.macroFactors?.regulatoryOutlook || '',
-                competitive_landscape: report.report_data?.fundamentalAnalysis?.macroFactors?.correlation || '',
-                catalysts: (() => {
-                  const bullish = report.report_data?.fundamentalAnalysis?.catalysts?.bullish || [];
-                  const bearish = report.report_data?.fundamentalAnalysis?.catalysts?.bearish || [];
-                  if (bullish.length > 0 || bearish.length > 0) {
-                    return `Bullish: ${bullish.slice(0, 2).join(', ')}. Bearish: ${bearish.slice(0, 2).join(', ')}`;
-                  }
-                  return '';
-                })(),
-                competitive_position: report.report_data?.fundamentalAnalysis?.metrics?.competitivePosition || '',
-              }}
+              analysis={report.report_data?.fundamentalAnalysis}
               marketData={report.report_data?.market_data}
             />
 
             {/* 6. Sentiment Analysis */}
             <SentimentAnalysisSection 
-              analysis={report.report_data?.analysis?.sentiment || report.report_data?.sentimentAnalysis || {}}
+              analysis={report.report_data?.sentimentAnalysis || report.report_data?.analysis?.sentiment}
             />
 
             {/* 7. IgniteX AI Summary */}
