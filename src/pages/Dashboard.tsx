@@ -10,7 +10,7 @@ import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
 import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
-import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { AppHeader } from '@/components/AppHeader';
 import { BTCLogo } from '@/components/ui/btc-logo';
 import { ETHLogo } from '@/components/ui/eth-logo';
 interface CryptoReportData {
@@ -133,39 +133,8 @@ const Dashboard = () => {
     return null;
   }
   return <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Left: Logo (similar to landing page) */}
-            <div className="flex items-center gap-6">
-              <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <AIBrainIcon className="h-8 w-8" />
-                <h1 className="text-xl font-bold text-foreground">IgniteX</h1>
-              </Link>
-              <div className="h-6 w-px bg-border hidden sm:block" />
-              <CreditDisplay />
-            </div>
-
-            {/* Right: Actions */}
-            <div className="flex items-center gap-3">
-              {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && <Button onClick={() => setShowFeedbackModal(true)} size="sm" variant="outline" className="hidden sm:flex">
-                  <Gift className="h-4 w-4 mr-2" />
-                  Get Free Credits
-                </Button>}
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <Home className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Home</span>
-                </Button>
-              </Link>
-              <Button onClick={handleSignOut} variant="outline" size="sm">
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Use the new professional header */}
+      <AppHeader />
 
       {/* Main Content */}
       <main className="px-4 sm:px-6 pb-6 space-y-8">

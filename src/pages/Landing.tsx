@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { AppHeader } from '@/components/AppHeader';
 import { toast } from '@/hooks/use-toast';
 const Landing = () => {
   const {
@@ -47,56 +48,8 @@ const Landing = () => {
     }, 1000);
   };
   return <div className="min-h-screen bg-background">
-      {/* Professional Navigation Header */}
-      <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AIBrainIcon className="h-8 w-8" />
-              <h1 className="text-xl font-bold text-foreground">
-                IgniteX
-              </h1>
-            </div>
-            
-            {/* Navigation Links */}
-            <div className="hidden md:flex items-center gap-6">
-              <Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                About
-              </Link>
-              <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Services
-              </Link>
-              <a href="#features" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Features
-              </a>
-              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Pricing
-              </Link>
-              
-            </div>
-            
-            {/* Auth Buttons */}
-            <div className="flex items-center gap-3">
-              {user ? <Link to="/dashboard">
-                  <Button size="sm" className="shadow-lg">
-                    Dashboard
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </Link> : <>
-                  <Link to="/auth">
-                    <Button variant="ghost" size="sm">Sign In</Button>
-                  </Link>
-                  <Link to="/auth">
-                    <Button size="sm" className="shadow-lg">
-                      Start Free
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </>}
-            </div>
-          </div>
-        </div>
-      </nav>
+      {/* Use the new professional header */}
+      <AppHeader />
 
       {/* Hero Section */}
       <section className="relative py-24 overflow-hidden">
