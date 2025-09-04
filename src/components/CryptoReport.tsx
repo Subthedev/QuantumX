@@ -282,8 +282,11 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
             >
               {loading ? (
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating Professional Report...
+                  <div className="relative w-4 h-4">
+                    <div className="absolute inset-0 border-2 border-primary/30 rounded-full"></div>
+                    <div className="absolute inset-0 border-2 border-t-primary rounded-full animate-spin"></div>
+                  </div>
+                  <span>Generating Report...</span>
                 </div>
               ) : (
                 'Generate Professional Trading Report'

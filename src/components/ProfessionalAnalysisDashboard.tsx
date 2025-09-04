@@ -387,30 +387,30 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>}
 
 
-        {/* Loading State with Creative Animation */}
+        {/* Loading State - Clean & Professional */}
         {loading && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="text-center space-y-6 animate-fade-in">
-              <div className="relative">
-                <div className="w-32 h-32 mx-auto">
-                  <div className="absolute inset-0 border-4 border-orange-500/20 rounded-full"></div>
-                  <div className="absolute inset-0 border-4 border-t-orange-500 rounded-full animate-spin"></div>
-                  <div className="absolute inset-2 border-4 border-blue-500/20 rounded-full"></div>
-                  <div className="absolute inset-2 border-4 border-t-blue-500 rounded-full animate-spin-reverse"></div>
-                  <div className="absolute inset-4 flex items-center justify-center">
-                    <Brain className="w-12 h-12 text-orange-500 animate-pulse" />
-                  </div>
+          <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-card border rounded-xl p-8 shadow-2xl max-w-sm w-full mx-4 animate-fade-in">
+              <div className="space-y-4">
+                {/* Minimal Spinner */}
+                <div className="relative w-12 h-12 mx-auto">
+                  <div className="absolute inset-0 border-3 border-muted rounded-full"></div>
+                  <div className="absolute inset-0 border-3 border-t-primary rounded-full animate-spin"></div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-gradient">AI Analysis in Progress</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Our advanced AI is analyzing market patterns, technical indicators, and sentiment data to generate your personalized trading signals...
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <Badge variant="secondary" className="animate-pulse">Scanning Markets</Badge>
-                  <Badge variant="secondary" className="animate-pulse delay-100">Analyzing Patterns</Badge>
-                  <Badge variant="secondary" className="animate-pulse delay-200">Calculating Signals</Badge>
+                
+                {/* Text Content */}
+                <div className="text-center space-y-2">
+                  <h3 className="font-semibold text-lg">Analyzing Markets</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Processing real-time data...
+                  </p>
+                </div>
+                
+                {/* Progress Indicator */}
+                <div className="flex justify-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></div>
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                 </div>
               </div>
             </div>
