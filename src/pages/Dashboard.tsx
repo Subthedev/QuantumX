@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import AIAnalysisDashboard from '@/components/AIAnalysisDashboard';
+import ProfessionalAnalysisDashboard from '@/components/ProfessionalAnalysisDashboard';
 import CreditDisplay from '@/components/CreditDisplay';
 import FeedbackModal from '@/components/FeedbackModal';
 import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
@@ -164,7 +164,7 @@ const Dashboard = () => {
         </div>
 
         {/* AI Analysis Dashboard */}
-        <AIAnalysisDashboard />
+        <ProfessionalAnalysisDashboard />
 
         {/* Stats Section */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
