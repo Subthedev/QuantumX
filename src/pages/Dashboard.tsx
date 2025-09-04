@@ -11,8 +11,8 @@ import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb } fro
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
-import btcLogo from '@/assets/btc-logo.png';
-import ethLogo from '@/assets/eth-logo.png';
+import { BTCLogo } from '@/components/ui/btc-logo';
+import { ETHLogo } from '@/components/ui/eth-logo';
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -254,11 +254,11 @@ const Dashboard = () => {
           <CardContent>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-3 hover:text-foreground transition-colors">
-                <img src={btcLogo} alt="BTC" className="w-4 h-4 mt-0.5" />
+                <BTCLogo className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>Generate BTC reports during high market volatility for more accurate predictions</span>
               </li>
               <li className="flex items-start gap-3 hover:text-foreground transition-colors">
-                <img src={ethLogo} alt="ETH" className="w-4 h-4 mt-0.5" />
+                <ETHLogo className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>Compare ETH confidence scores across different time periods to identify trends</span>
               </li>
               <li className="flex items-start gap-2 hover:text-foreground transition-colors">
