@@ -72,7 +72,7 @@ const Landing = () => {
                 Smart Crypto
               </span>
               <br />
-              <span className="text-foreground">Predictions</span>
+              <span className="text-foreground">Analytics</span>
             </h1>
             
             {/* Subheadline */}
