@@ -199,25 +199,16 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
-          {/* Enhanced Credit Card with Strategic CTA */}
-          <Card className={`
-            border-2 hover:shadow-xl transition-all duration-300 group
-            ${userCredits === 0 ? 'border-red-500/50 bg-gradient-to-br from-red-500/10 to-orange-500/10' : 
-              userCredits <= 2 ? 'border-orange-500/50 bg-gradient-to-br from-orange-500/10 to-yellow-500/10' : 
-              'border-primary/50 bg-gradient-to-br from-purple-500/5 to-pink-600/5'}
-          `}>
+          {/* Credit Card - Static Design */}
+          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-500/5 to-pink-600/5 group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <Zap className={`h-4 w-4 group-hover:scale-110 transition-transform ${
-                    userCredits === 0 ? 'text-red-500 animate-pulse' : 
-                    userCredits <= 2 ? 'text-orange-500' : 
-                    'text-primary'
-                  }`} />
+                  <Zap className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                   Credits
                 </CardTitle>
                 {userCredits <= 2 && (
-                  <Badge variant={userCredits === 0 ? "destructive" : "outline"} className="animate-pulse">
+                  <Badge variant="outline">
                     {userCredits === 0 ? "Empty" : "Low"}
                   </Badge>
                 )}
@@ -226,11 +217,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="space-y-3">
                 <div>
-                  <div className={`text-3xl font-bold ${
-                    userCredits === 0 ? 'text-red-500' : 
-                    userCredits <= 2 ? 'text-orange-500' : 
-                    'text-foreground'
-                  }`}>
+                  <div className="text-3xl font-bold text-foreground">
                     {userCredits}
                   </div>
                   <CardDescription className="text-xs">
@@ -256,7 +243,7 @@ const Dashboard = () => {
                     onClick={() => navigate('/pricing')}
                     size="sm"
                     variant={userCredits === 0 ? "default" : "outline"}
-                    className={`flex-1 ${userCredits === 0 ? 'animate-pulse bg-gradient-to-r from-primary to-primary/80' : ''}`}
+                    className="flex-1"
                   >
                     <CreditCard className="h-3.5 w-3.5 mr-1" />
                     Buy
