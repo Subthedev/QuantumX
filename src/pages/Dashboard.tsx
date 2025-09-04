@@ -135,36 +135,41 @@ const Dashboard = () => {
   return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="px-4 sm:px-6 py-4 flex items-center justify-between">
-          {/* Left: Logo + Credits */}
-          <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <AIBrainIcon className="h-8 w-8" />
-              <span className="text-xl font-bold text-foreground">IgniteX</span>
-            </Link>
-            <div className="h-6 w-px bg-border hidden sm:block" />
-            <CreditDisplay />
-          </div>
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left: Logo (similar to landing page) */}
+            <div className="flex items-center gap-6">
+              <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <AIBrainIcon className="h-8 w-8" />
+                <h1 className="text-xl font-bold text-foreground">IgniteX</h1>
+              </Link>
+              <div className="h-6 w-px bg-border hidden sm:block" />
+              <CreditDisplay />
+            </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2">
-            {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
-              <Button 
-                onClick={() => setShowFeedbackModal(true)} 
-                size="sm" 
-                variant="outline"
-                className="hidden sm:flex"
-              >
-                <Gift className="h-4 w-4 mr-2" />
-                Get Free Credits
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3">
+              {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
+                <Button 
+                  onClick={() => setShowFeedbackModal(true)} 
+                  size="sm" 
+                  variant="outline"
+                  className="hidden sm:flex"
+                >
+                  <Gift className="h-4 w-4 mr-2" />
+                  Get Free Credits
+                </Button>
+              )}
+              <Link to="/">
+                <Button variant="ghost" size="sm">
+                  <Home className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Home</span>
+                </Button>
+              </Link>
+              <Button onClick={handleSignOut} variant="outline" size="sm">
+                Sign Out
               </Button>
-            )}
-            <Link to="/">
-              <Button variant="ghost" size="sm">
-                <Home className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Home</span>
-              </Button>
-            </Link>
+            </div>
           </div>
         </div>
       </header>
