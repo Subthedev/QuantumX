@@ -379,7 +379,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
 
         {/* Analysis Controls */}
         <Card className="card-premium bg-gradient-premium shadow-xl">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex gap-4 w-full md:w-auto">
                 <Button size="lg" onClick={() => handleAnalyzeCrypto('BTC')} disabled={loading !== null} className="flex-1 md:flex-initial btn-premium">
