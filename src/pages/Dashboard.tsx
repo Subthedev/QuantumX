@@ -170,8 +170,9 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="px-4 sm:px-6 py-6 space-y-8">
         {/* AI Analysis Dashboard */}
-        <ProfessionalAnalysisDashboard />
-
+        <div className="-mx-4 sm:-mx-6">
+          <ProfessionalAnalysisDashboard />
+        </div>
         {/* Stats Section */}
         <div className="grid md:grid-cols-3 gap-4 mt-8">
           <Card className="border-border/50 hover:shadow-md transition-shadow">
