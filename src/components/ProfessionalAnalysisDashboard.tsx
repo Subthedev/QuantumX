@@ -312,10 +312,10 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
     return `$${num.toFixed(2)}`;
   };
   return <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 py-3">
         
         {/* Header - Compact */}
-        <div>
+        <div className="mb-3">
           <h1 className="text-2xl font-medium text-foreground">
             Market Analysis
           </h1>
@@ -326,7 +326,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
 
         {/* Live Market Data - Compact Cards */}
         {marketData && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <Card className="border">
               <CardHeader className="py-3 px-4">
                 <div className="flex justify-between items-center">
@@ -399,7 +399,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
 
         {/* CTA Buttons - Compact */}
         {!analysisResult && !loading && marketData && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-3">
             <Button 
               onClick={() => handleAnalyzeCrypto('BTC')} 
               size="default"
@@ -439,7 +439,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
 
         {/* Main Analysis Results - Tighter Grid */}
         {analysisResult && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
             {/* Left Column - Primary Analysis */}
             <div className="lg:col-span-2 space-y-4">
               <TradingSignalsSection 
