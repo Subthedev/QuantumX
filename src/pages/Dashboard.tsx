@@ -163,7 +163,7 @@ const Dashboard = () => {
       <main className="flex-1 px-4 sm:px-6 pb-6 space-y-6 flex flex-col">
         
         {/* AI Analysis Dashboard */}
-        <div className="flex-1 -mx-4 sm:-mx-6 mt-4">
+        <div className="flex-1 -mx-4 sm:-mx-6">
           <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
 
