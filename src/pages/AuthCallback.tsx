@@ -14,28 +14,13 @@ const AuthCallback = () => {
 
     const handleAuthCallback = async () => {
       try {
-        // Log the full URL for debugging
-        console.log('Auth callback URL:', window.location.href);
-        console.log('Hash:', window.location.hash);
-        console.log('Search:', window.location.search);
+        console.log('Auth callback - Processing magic link');
         
-        // Check if we already have a session
-        const { data: { session: existingSession } } = await supabase.auth.getSession();
-        if (existingSession?.user) {
-          console.log('Existing session found, redirecting to dashboard');
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-
-        // Get the full URL including hash
+        // Parse URL parameters - Supabase can send tokens in either hash or query
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const queryParams = new URLSearchParams(window.location.search);
         
-        // Log all parameters
-        console.log('Hash params:', Object.fromEntries(hashParams));
-        console.log('Query params:', Object.fromEntries(queryParams));
-        
-        // Check for error in URL params
+        // Check for errors first
         const error = queryParams.get('error') || hashParams.get('error');
         const errorDescription = queryParams.get('error_description') || hashParams.get('error_description');
         
@@ -45,40 +30,72 @@ const AuthCallback = () => {
           return;
         }
 
-        // Try to get verification token from either hash or query params
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
+        // Magic link tokens can come in different formats
+        const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+        const type = hashParams.get('type') || queryParams.get('type');
         const code = queryParams.get('code');
 
+        console.log('Auth params:', { 
+          hasAccessToken: !!accessToken, 
+          hasRefreshToken: !!refreshToken, 
+          type, 
+          hasCode: !!code 
+        });
+
         if (accessToken && refreshToken) {
-          // Handle hash fragment tokens (email confirmation)
+          // This is a magic link with tokens - set the session
+          console.log('Setting session from magic link tokens');
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
-          if (sessionError) throw sessionError;
+          if (sessionError) {
+            console.error('Session error:', sessionError);
+            throw sessionError;
+          }
+
           if (data.session?.user) {
-            navigate("/dashboard", { replace: true });
+            console.log('Session established, user:', data.session.user.email);
+            
+            // For email verification, we might need to refresh the session
+            if (type === 'signup' || type === 'magiclink') {
+              await supabase.auth.refreshSession();
+            }
+            
+            // Navigate to dashboard
+            setTimeout(() => {
+              navigate("/dashboard", { replace: true });
+            }, 100);
           }
         } else if (code) {
-          // Handle OAuth code exchange
+          // OAuth code flow
+          console.log('Exchanging code for session');
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           
-          if (exchangeError) throw exchangeError;
+          if (exchangeError) {
+            console.error('Exchange error:', exchangeError);
+            throw exchangeError;
+          }
+
           if (data.session?.user) {
-            navigate("/dashboard", { replace: true });
+            console.log('Session established via code exchange');
+            setTimeout(() => {
+              navigate("/dashboard", { replace: true });
+            }, 100);
           }
         } else {
-          // No tokens or code found, wait for auth state change
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === "SIGNED_IN" && session?.user) {
-              navigate("/dashboard", { replace: true });
-            }
-          });
-
-          // Clean up subscription on unmount
-          return () => subscription.unsubscribe();
+          // No tokens found - check if we already have a session
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user) {
+            console.log('Existing session found');
+            navigate("/dashboard", { replace: true });
+          } else {
+            console.log('No auth tokens found in URL');
+            setError("Invalid or expired authentication link. Please try signing in again.");
+          }
         }
       } catch (err: any) {
         console.error("Auth callback error:", err);
