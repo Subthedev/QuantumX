@@ -14,9 +14,15 @@ const AuthCallback = () => {
 
     const handleAuthCallback = async () => {
       try {
+        // Log the full URL for debugging
+        console.log('Auth callback URL:', window.location.href);
+        console.log('Hash:', window.location.hash);
+        console.log('Search:', window.location.search);
+        
         // Check if we already have a session
         const { data: { session: existingSession } } = await supabase.auth.getSession();
         if (existingSession?.user) {
+          console.log('Existing session found, redirecting to dashboard');
           navigate("/dashboard", { replace: true });
           return;
         }
@@ -25,11 +31,16 @@ const AuthCallback = () => {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const queryParams = new URLSearchParams(window.location.search);
         
+        // Log all parameters
+        console.log('Hash params:', Object.fromEntries(hashParams));
+        console.log('Query params:', Object.fromEntries(queryParams));
+        
         // Check for error in URL params
         const error = queryParams.get('error') || hashParams.get('error');
         const errorDescription = queryParams.get('error_description') || hashParams.get('error_description');
         
         if (error) {
+          console.error('Auth error:', error, errorDescription);
           setError(errorDescription || error);
           return;
         }
