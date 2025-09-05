@@ -135,7 +135,7 @@ const Dashboard = () => {
   if (!user) {
     return null;
   }
-  return <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background flex flex-col">
       {/* Use the new professional header */}
       <AppHeader />
 
@@ -160,10 +160,10 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <main className="px-4 sm:px-6 pb-6 space-y-6">
+      <main className="flex-1 px-4 sm:px-6 pb-6 space-y-6 flex flex-col">
         
         {/* AI Analysis Dashboard */}
-        <div className="-mx-4 sm:-mx-6 mt-4">
+        <div className="flex-1 -mx-4 sm:-mx-6 mt-4">
           <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
 
