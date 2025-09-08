@@ -134,7 +134,7 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
         setMarketData(data);
       }
     } catch (error) {
-      console.error('Error fetching market data:', error);
+      // Silently handle error
     }
   };
 
@@ -199,7 +199,7 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
         setSignalHistory(history);
       }
     } catch (error) {
-      console.error('Error loading signal history:', error);
+      // Silently handle error
     }
   };
   const handleAnalyzeCrypto = async (symbol: 'BTC' | 'ETH') => {
@@ -258,7 +258,6 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
 
         // Check if this is a new enhanced report
         if (reportData.version !== 'v2_enhanced') {
-          console.warn('WARNING: Old report format detected. Clearing cache and regenerating...');
           // Force a cache clear by adding timestamp to the request
           toast({
             title: "Updating to new format...",
@@ -282,12 +281,6 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
           signalExpiry: reportData.signal_expiry,
           fullReport: reportData // Pass the entire report data for the new sections
         };
-        console.log('Report version:', reportData.version);
-        console.log('Has analysis sections:', {
-          technical: !!reportData.analysis?.technical,
-          fundamental: !!reportData.analysis?.fundamental,
-          sentiment: !!reportData.analysis?.sentiment
-        });
         setAnalysisResult(result);
         await loadSignalHistory();
         
@@ -302,7 +295,6 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
         });
       }
     } catch (error: any) {
-      console.error('Analysis error:', error);
       toast({
         title: "Analysis Failed",
         description: error.message || 'Unable to generate analysis',

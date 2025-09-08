@@ -14,8 +14,6 @@ const AuthCallback = () => {
 
     const handleAuthCallback = async () => {
       try {
-        console.log('Auth callback - Processing magic link');
-        
         // Parse URL parameters - Supabase can send tokens in either hash or query
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const queryParams = new URLSearchParams(window.location.search);
@@ -25,7 +23,6 @@ const AuthCallback = () => {
         const errorDescription = queryParams.get('error_description') || hashParams.get('error_description');
         
         if (error) {
-          console.error('Auth error:', error, errorDescription);
           setError(errorDescription || error);
           return;
         }
@@ -36,29 +33,18 @@ const AuthCallback = () => {
         const type = hashParams.get('type') || queryParams.get('type');
         const code = queryParams.get('code');
 
-        console.log('Auth params:', { 
-          hasAccessToken: !!accessToken, 
-          hasRefreshToken: !!refreshToken, 
-          type, 
-          hasCode: !!code 
-        });
-
         if (accessToken && refreshToken) {
           // This is a magic link with tokens - set the session
-          console.log('Setting session from magic link tokens');
           const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           if (sessionError) {
-            console.error('Session error:', sessionError);
             throw sessionError;
           }
 
           if (data.session?.user) {
-            console.log('Session established, user:', data.session.user.email);
-            
             // For email verification, we might need to refresh the session
             if (type === 'signup' || type === 'magiclink') {
               await supabase.auth.refreshSession();
@@ -71,16 +57,13 @@ const AuthCallback = () => {
           }
         } else if (code) {
           // OAuth code flow
-          console.log('Exchanging code for session');
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           
           if (exchangeError) {
-            console.error('Exchange error:', exchangeError);
             throw exchangeError;
           }
 
           if (data.session?.user) {
-            console.log('Session established via code exchange');
             setTimeout(() => {
               navigate("/dashboard", { replace: true });
             }, 100);
@@ -90,15 +73,12 @@ const AuthCallback = () => {
           const { data: { session } } = await supabase.auth.getSession();
           
           if (session?.user) {
-            console.log('Existing session found');
             navigate("/dashboard", { replace: true });
           } else {
-            console.log('No auth tokens found in URL');
             setError("Invalid or expired authentication link. Please try signing in again.");
           }
         }
       } catch (err: any) {
-        console.error("Auth callback error:", err);
         setError(err.message || "Failed to complete sign-in");
       }
     };

@@ -242,7 +242,7 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
         description: `Professional analysis for ${name} has been created successfully. Credit consumed.`
       });
     } catch (error: any) {
-      console.error('Error generating report:', error);
+      // Silently handle error
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate report. Please try again.",

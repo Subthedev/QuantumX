@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ProfessionalAnalysisDashboard from '@/components/ProfessionalAnalysisDashboard';
 import CreditDisplay from '@/components/CreditDisplay';
-import FeedbackModal from '@/components/FeedbackModal';
-import { useFeedbackPopup } from '@/hooks/useFeedbackPopup';
 import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb, CreditCard, Crown, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
@@ -36,14 +34,6 @@ const Dashboard = () => {
   const [loadingReports, setLoadingReports] = useState(true);
   const [userCredits, setUserCredits] = useState(0);
   const [userFeedbackCount, setUserFeedbackCount] = useState(0);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-
-  // Feedback popup management  
-  const {
-    shouldShowFeedback,
-    handleFeedbackClose,
-    handleFeedbackComplete
-  } = useFeedbackPopup();
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -100,7 +90,7 @@ const Dashboard = () => {
       });
       setReports(reportsMap);
     } catch (error) {
-      console.error('Error fetching reports:', error);
+      // Silently handle error
     } finally {
       setLoadingReports(false);
     }
@@ -117,7 +107,7 @@ const Dashboard = () => {
       if (error) throw error;
       setTotalReportsCount(count || 0);
     } catch (error) {
-      console.error('Error fetching total reports count:', error);
+      // Silently handle error
     }
   };
   const handleSignOut = async () => {
@@ -228,17 +218,6 @@ const Dashboard = () => {
                 </div>
                 
                 <div className="flex gap-2">
-                  {(userFeedbackCount === 0 || user.email === 'contactsubhrajeet@gmail.com') && (
-                    <Button 
-                      onClick={() => setShowFeedbackModal(true)}
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <Gift className="h-3.5 w-3.5 mr-1" />
-                      Free
-                    </Button>
-                  )}
                   <Button 
                     onClick={() => navigate('/pricing')}
                     size="sm"
@@ -246,7 +225,7 @@ const Dashboard = () => {
                     className="flex-1"
                   >
                     <CreditCard className="h-3.5 w-3.5 mr-1" />
-                    Buy
+                    Buy Credits
                   </Button>
                 </div>
               </div>
@@ -284,15 +263,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </main>
-      
-      {/* Feedback Modal - Manual Trigger */}
-      <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} onComplete={() => {
-      setShowFeedbackModal(false);
-      fetchUserCredits(); // Refresh credits after completion
-    }} />
-      
-      {/* Feedback Modal - Auto Popup */}
-      <FeedbackModal isOpen={shouldShowFeedback} onClose={handleFeedbackClose} onComplete={handleFeedbackComplete} />
     </div>;
 };
 export default Dashboard;
