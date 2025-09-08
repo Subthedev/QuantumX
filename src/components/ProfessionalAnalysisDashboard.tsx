@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -126,17 +126,21 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
   }, [analysisResult]);
 
   // Fetch market data
-  const fetchMarketData = async () => {
-    try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true');
-      if (response.ok) {
-        const data = await response.json();
-        setMarketData(data);
+  // Memoized fetch market data with debounce
+  const fetchMarketData = useCallback(
+    debounce(async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true');
+        if (response.ok) {
+          const data = await response.json();
+          setMarketData(data);
+        }
+      } catch (error) {
+        // Silently handle error
       }
-    } catch (error) {
-      // Silently handle error
-    }
-  };
+    }, 500),
+    []
+  );
 
   // Auto-refresh market data
   useEffect(() => {
@@ -201,8 +205,7 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
     } catch (error) {
       // Silently handle error
     }
-  };
-  const handleAnalyzeCrypto = async (symbol: 'BTC' | 'ETH') => {
+  const handleAnalyzeCrypto = useCallback(async (symbol: 'BTC' | 'ETH') => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -303,7 +306,7 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
     } finally {
       setLoading(null);
     }
-  };
+  }, [user, onCreditUsed]);
   const copySignalToClipboard = () => {
     if (!analysisResult) return;
     const signal = `
@@ -526,6 +529,8 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         )}
       </div>
-    </div>;
+    </div>
+  );
 };
-export default ProfessionalAnalysisDashboard;
+
+export default memo(ProfessionalAnalysisDashboard);
