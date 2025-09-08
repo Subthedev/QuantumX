@@ -91,7 +91,7 @@ const AIAnalysisDashboard: React.FC = () => {
         setLastRefresh(new Date());
       }
     } catch (error) {
-      console.error('Error fetching market data:', error);
+      // Silently handle error
     }
   };
 
@@ -215,7 +215,7 @@ const AIAnalysisDashboard: React.FC = () => {
         throw new Error('Invalid response from analysis service');
       }
     } catch (err: any) {
-      console.error('Analysis error:', err);
+      // Silently handle error
       const errorMessage = err.message || 'Failed to generate analysis. Please try again.';
       setError(errorMessage);
       
