@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ const Landing = () => {
   } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const handleSubscribe = async (e: React.FormEvent) => {
+  const handleSubscribe = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       toast({
@@ -46,7 +46,7 @@ const Landing = () => {
       setEmail('');
       setIsSubscribing(false);
     }, 1000);
-  };
+  }, [email]);
   return <div className="min-h-screen bg-background">
       {/* Use the new professional header */}
       <AppHeader />

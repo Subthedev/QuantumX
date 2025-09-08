@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { ETHLogo } from '@/components/ui/eth-logo';
 import { StrategicCreditPrompt } from '@/components/StrategicCreditPrompt';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
 interface CryptoReportData {
   id: string;
   coin_symbol: string;
@@ -22,6 +23,7 @@ interface CryptoReportData {
   report_data: any;
   created_at: string;
 }
+
 const Dashboard = () => {
   const {
     user,
@@ -33,7 +35,6 @@ const Dashboard = () => {
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
   const [userCredits, setUserCredits] = useState(0);
-  const [userFeedbackCount, setUserFeedbackCount] = useState(0);
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -46,16 +47,15 @@ const Dashboard = () => {
       fetchUserCredits();
     }
   }, [user]);
-  const fetchUserCredits = async () => {
+  const fetchUserCredits = useCallback(async () => {
     if (!user) return;
     const {
       data
-    } = await supabase.from('profiles').select('credits, feedback_count').eq('user_id', user.id).single();
+    } = await supabase.from('profiles').select('credits').eq('user_id', user.id).single();
     if (data) {
       setUserCredits(data.credits || 0);
-      setUserFeedbackCount(data.feedback_count || 0);
     }
-  };
+  }, [user]);
   useEffect(() => {
     document.title = '4H Crypto Signals Dashboard | Ignitex';
     const metaDesc = 'AI 4H crypto signals for BTC & ETH with confidence, entries, stops, and targets.';
@@ -74,7 +74,7 @@ const Dashboard = () => {
     }
     canonical.href = window.location.origin + '/dashboard';
   }, []);
-  const fetchExistingReports = async () => {
+  const fetchExistingReports = useCallback(async () => {
     if (!user) return;
     try {
       const {
@@ -94,8 +94,9 @@ const Dashboard = () => {
     } finally {
       setLoadingReports(false);
     }
-  };
-  const fetchTotalReportsCount = async () => {
+  }, [user]);
+  
+  const fetchTotalReportsCount = useCallback(async () => {
     try {
       const {
         count,
@@ -109,11 +110,12 @@ const Dashboard = () => {
     } catch (error) {
       // Silently handle error
     }
-  };
-  const handleSignOut = async () => {
+  }, []);
+  
+  const handleSignOut = useCallback(async () => {
     await signOut();
     navigate('/');
-  };
+  }, [signOut, navigate]);
   if (loading || loadingReports) {
     return <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
