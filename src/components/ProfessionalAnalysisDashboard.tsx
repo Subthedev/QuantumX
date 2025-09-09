@@ -21,6 +21,7 @@ import { SentimentAnalysisSection } from './SentimentAnalysisSection';
 import { IgniteXSummarySection } from './IgniteXSummarySection';
 import { BTCLogo } from '@/components/ui/btc-logo';
 import { ETHLogo } from '@/components/ui/eth-logo';
+import { debounce } from '@/utils/performance';
 interface SignalHistory {
   id: string;
   symbol: string;
@@ -205,6 +206,8 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
     } catch (error) {
       // Silently handle error
     }
+  };
+  
   const handleAnalyzeCrypto = useCallback(async (symbol: 'BTC' | 'ETH') => {
     if (!user) {
       toast({
@@ -339,7 +342,9 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
     if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
     return `$${num.toFixed(2)}`;
   };
-  return <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
       <div className="h-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 flex flex-col">
         
         {/* Professional Header */}
