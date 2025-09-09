@@ -344,140 +344,134 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
-      <div className="h-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 flex flex-col">
+    <div className="min-h-full bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+      <div className="max-w-7xl mx-auto p-3 md:p-4 space-y-4">
         
-        {/* Professional Header */}
-        <div className="text-center py-4 md:py-6 animate-fade-in">
-          <div className="flex flex-col items-center gap-2">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-foreground tracking-tight">
-              AI Analysis Dashboard
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto px-4">
-              Professional crypto market analysis powered by advanced AI
-            </p>
-          </div>
+        {/* Compact Professional Header */}
+        <div className="text-center py-2 md:py-3">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold text-foreground tracking-tight">
+            AI Analysis Dashboard
+          </h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">
+            Professional crypto market analysis powered by advanced AI
+          </p>
         </div>
 
-        {/* Live Market Data & Analysis Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
-          <Card className="card-premium border-l-4 border-l-orange-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
-            <CardHeader className="pb-3">
+        {/* Live Market Data & Analysis Actions - Compact */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
+            <CardHeader className="pb-2 pt-3 px-4">
               <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <BTCLogo className="w-8 h-8" />
-                  <CardTitle className="text-lg font-semibold">Bitcoin (BTC)</CardTitle>
+                <div className="flex items-center gap-2">
+                  <BTCLogo className="w-6 h-6" />
+                  <CardTitle className="text-base font-semibold">Bitcoin</CardTitle>
                 </div>
                 {marketData && (
-                  <Badge className={marketData.bitcoin.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
+                  <Badge className={`text-xs ${marketData.bitcoin.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
                     {marketData.bitcoin.usd_24h_change >= 0 ? '+' : ''}{marketData.bitcoin.usd_24h_change.toFixed(2)}%
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 px-4 pb-3">
               {marketData ? (
                 <>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Price</span>
-                    <span className="font-bold text-xl">${marketData.bitcoin.usd.toLocaleString()}</span>
+                    <span className="font-bold">${marketData.bitcoin.usd.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Market Cap</span>
-                    <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_market_cap)}</span>
+                    <span className="font-medium">{formatNumber(marketData.bitcoin.usd_market_cap)}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">24h Volume</span>
-                    <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_24h_vol)}</span>
+                    <span className="font-medium">{formatNumber(marketData.bitcoin.usd_24h_vol)}</span>
                   </div>
                 </>
               ) : (
-                <div className="space-y-2">
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
                 </div>
               )}
-              <div className="pt-2">
-                <Button 
-                  onClick={() => handleAnalyzeCrypto('BTC')}
-                  disabled={loading === 'BTC'}
-                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
-                  size="lg"
-                >
-                  {loading === 'BTC' ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="mr-2 h-4 w-4" />
-                      Generate AI Analysis
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button 
+                onClick={() => handleAnalyzeCrypto('BTC')}
+                disabled={loading === 'BTC'}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white mt-2"
+                size="sm"
+              >
+                {loading === 'BTC' ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="mr-1.5 h-3.5 w-3.5" />
+                    Generate Analysis
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
 
-          <Card className="card-premium border-l-4 border-l-blue-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
-            <CardHeader className="pb-3">
+          <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
+            <CardHeader className="pb-2 pt-3 px-4">
               <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <ETHLogo className="w-8 h-8" />
-                  <CardTitle className="text-lg font-semibold">Ethereum (ETH)</CardTitle>
+                <div className="flex items-center gap-2">
+                  <ETHLogo className="w-6 h-6" />
+                  <CardTitle className="text-base font-semibold">Ethereum</CardTitle>
                 </div>
                 {marketData && (
-                  <Badge className={marketData.ethereum.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
+                  <Badge className={`text-xs ${marketData.ethereum.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}`}>
                     {marketData.ethereum.usd_24h_change >= 0 ? '+' : ''}{marketData.ethereum.usd_24h_change.toFixed(2)}%
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 px-4 pb-3">
               {marketData ? (
                 <>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Price</span>
-                    <span className="font-bold text-xl">${marketData.ethereum.usd.toLocaleString()}</span>
+                    <span className="font-bold">${marketData.ethereum.usd.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Market Cap</span>
-                    <span className="font-semibold">{formatNumber(marketData.ethereum.usd_market_cap)}</span>
+                    <span className="font-medium">{formatNumber(marketData.ethereum.usd_market_cap)}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">24h Volume</span>
-                    <span className="font-semibold">{formatNumber(marketData.ethereum.usd_24h_vol)}</span>
+                    <span className="font-medium">{formatNumber(marketData.ethereum.usd_24h_vol)}</span>
                   </div>
                 </>
               ) : (
-                <div className="space-y-2">
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
                 </div>
               )}
-              <div className="pt-2">
-                <Button 
-                  onClick={() => handleAnalyzeCrypto('ETH')}
-                  disabled={loading === 'ETH'}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                  size="lg"
-                >
-                  {loading === 'ETH' ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="mr-2 h-4 w-4" />
-                      Generate AI Analysis
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button 
+                onClick={() => handleAnalyzeCrypto('ETH')}
+                disabled={loading === 'ETH'}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white mt-2"
+                size="sm"
+              >
+                {loading === 'ETH' ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="mr-1.5 h-3.5 w-3.5" />
+                    Generate Analysis
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -513,9 +507,8 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         )}
 
-        {/* Main Analysis Results */}
-        {analysisResult && <div className="space-y-6">
-            {/* All sections in a single column for cleaner layout */}
+        {/* Main Analysis Results - Compact */}
+        {analysisResult && <div className="space-y-3">
             <TradingSignalsSection 
               signal={analysisResult.fullReport?.signal_4h} 
               marketData={analysisResult.fullReport?.market_data} 
@@ -554,12 +547,13 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             />
           </div>}
 
-        {/* Loading State */}
-        {loading && <div className="space-y-4">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>}
+        {/* Loading State - Compact */}
+        {loading && !analysisResult && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        )}
 
       </div>
     </div>
