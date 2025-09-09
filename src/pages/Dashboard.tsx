@@ -151,117 +151,88 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 sm:px-6 pb-6 space-y-6 flex flex-col">
+      {/* Main Content - Tighter spacing */}
+      <main className="flex-1 px-4 sm:px-6 py-4 space-y-4">
         
-        {/* AI Analysis Dashboard */}
-        <div className="flex-1 -mx-4 sm:-mx-6">
+        {/* AI Analysis Dashboard - Full Width */}
+        <div className="-mx-4 sm:-mx-6">
           <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
 
-        {/* Stats Section with Enhanced Credit Card */}
-        <div className="grid md:grid-cols-3 gap-4 mt-8">
-          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5 group">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <TrendingUp className="h-4 w-4 text-status-success group-hover:scale-110 transition-transform" />
-                Reports Generated
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {totalReportsCount}
-              </div>
-              <CardDescription className="text-xs">in the last 24 hours</CardDescription>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-green-500/5 to-emerald-600/5 group">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <BarChart3 className="h-4 w-4 text-status-warning group-hover:scale-110 transition-transform" />
-                Average Confidence
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                85%
-              </div>
-              <CardDescription className="text-xs">across all predictions</CardDescription>
-            </CardContent>
-          </Card>
-          
-          {/* Credit Card - Static Design */}
-          <Card className="border-border/50 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-500/5 to-pink-600/5 group">
-            <CardHeader className="pb-3">
+        {/* Compact Stats Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <Zap className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                  Credits
-                </CardTitle>
-                {userCredits <= 2 && (
-                  <Badge variant="outline">
-                    {userCredits === 0 ? "Empty" : "Low"}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
                 <div>
-                  <div className="text-3xl font-bold text-foreground">
-                    {userCredits}
-                  </div>
-                  <CardDescription className="text-xs">
-                    {userCredits === 0 ? 'Get credits to start analyzing' : 
-                     userCredits === 1 ? 'Last credit remaining!' : 
-                     'Use credits to generate reports'}
-                  </CardDescription>
+                  <p className="text-xs text-muted-foreground mb-1">Reports (24h)</p>
+                  <p className="text-xl font-bold">{totalReportsCount}</p>
                 </div>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => navigate('/pricing')}
-                    size="sm"
-                    variant={userCredits === 0 ? "default" : "outline"}
-                    className="flex-1"
-                  >
-                    <CreditCard className="h-3.5 w-3.5 mr-1" />
-                    Buy Credits
-                  </Button>
-                </div>
+                <TrendingUp className="h-8 w-8 text-blue-500/20" />
               </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-green-500/5 to-emerald-600/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Avg. Confidence</p>
+                  <p className="text-xl font-bold">85%</p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-green-500/20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-purple-500/5 to-pink-600/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Credits</p>
+                  <p className="text-xl font-bold">{userCredits}</p>
+                </div>
+                <Zap className="h-8 w-8 text-purple-500/20" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-red-600/5">
+            <CardContent className="p-4">
+              <Button 
+                onClick={() => navigate('/pricing')}
+                size="sm"
+                variant={userCredits === 0 ? "default" : "outline"}
+                className="w-full"
+              >
+                <CreditCard className="h-3.5 w-3.5 mr-1" />
+                Buy Credits
+              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tips Section */}
-        <Card className="bg-gradient-to-r from-indigo-500/5 to-blue-600/5 border-indigo-500/20 hover:shadow-lg transition-all duration-300">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-indigo-500 animate-pulse" />
-              Pro Tips for Better Predictions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-3 hover:text-foreground transition-colors">
-                <BTCLogo className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Generate BTC reports during high market volatility for more accurate predictions</span>
-              </li>
-              <li className="flex items-start gap-3 hover:text-foreground transition-colors">
-                <ETHLogo className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Compare ETH confidence scores across different time periods to identify trends</span>
-              </li>
-              <li className="flex items-start gap-2 hover:text-foreground transition-colors">
+        {/* Compact Tips Section */}
+        <Card className="bg-gradient-to-r from-indigo-500/5 to-blue-600/5 border-indigo-500/20">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="flex items-start gap-2">
+                <BTCLogo className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span className="text-muted-foreground">Generate BTC reports during high volatility for better accuracy</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ETHLogo className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span className="text-muted-foreground">Compare ETH scores across periods to identify trends</span>
+              </div>
+              <div className="flex items-start gap-2">
                 <span className="text-indigo-500">•</span>
-                <span>Use the key insights to understand the reasoning behind each prediction</span>
-              </li>
-              <li className="flex items-start gap-2 hover:text-foreground transition-colors">
+                <span className="text-muted-foreground">Use key insights to understand prediction reasoning</span>
+              </div>
+              <div className="flex items-start gap-2">
                 <span className="text-indigo-500">•</span>
-                <span>Consider both technical and fundamental factors mentioned in the reports</span>
-              </li>
-            </ul>
+                <span className="text-muted-foreground">Consider both technical and fundamental factors</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </main>
