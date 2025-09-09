@@ -359,64 +359,128 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         </div>
 
-        {/* Live Market Data */}
-        {marketData && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
-            <Card className="card-premium border-l-4 border-l-orange-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <BTCLogo className="w-8 h-8" />
-                    <CardTitle className="text-lg font-semibold">Bitcoin (BTC)</CardTitle>
-                  </div>
+        {/* Live Market Data & Analysis Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-up">
+          <Card className="card-premium border-l-4 border-l-orange-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <BTCLogo className="w-8 h-8" />
+                  <CardTitle className="text-lg font-semibold">Bitcoin (BTC)</CardTitle>
+                </div>
+                {marketData && (
                   <Badge className={marketData.bitcoin.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
                     {marketData.bitcoin.usd_24h_change >= 0 ? '+' : ''}{marketData.bitcoin.usd_24h_change.toFixed(2)}%
                   </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Price</span>
-                  <span className="font-bold text-xl">${marketData.bitcoin.usd.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Market Cap</span>
-                  <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_market_cap)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">24h Volume</span>
-                  <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_24h_vol)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="card-premium border-l-4 border-l-blue-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <ETHLogo className="w-8 h-8" />
-                    <CardTitle className="text-lg font-semibold">Ethereum (ETH)</CardTitle>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {marketData ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Price</span>
+                    <span className="font-bold text-xl">${marketData.bitcoin.usd.toLocaleString()}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Market Cap</span>
+                    <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_market_cap)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">24h Volume</span>
+                    <span className="font-semibold">{formatNumber(marketData.bitcoin.usd_24h_vol)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                </div>
+              )}
+              <div className="pt-2">
+                <Button 
+                  onClick={() => handleAnalyzeCrypto('BTC')}
+                  disabled={loading === 'BTC'}
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                  size="lg"
+                >
+                  {loading === 'BTC' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="mr-2 h-4 w-4" />
+                      Generate AI Analysis
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-premium border-l-4 border-l-blue-500 shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <ETHLogo className="w-8 h-8" />
+                  <CardTitle className="text-lg font-semibold">Ethereum (ETH)</CardTitle>
+                </div>
+                {marketData && (
                   <Badge className={marketData.ethereum.usd_24h_change >= 0 ? 'bg-green-500' : 'bg-red-500'}>
                     {marketData.ethereum.usd_24h_change >= 0 ? '+' : ''}{marketData.ethereum.usd_24h_change.toFixed(2)}%
                   </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {marketData ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Price</span>
+                    <span className="font-bold text-xl">${marketData.ethereum.usd.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Market Cap</span>
+                    <span className="font-semibold">{formatNumber(marketData.ethereum.usd_market_cap)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">24h Volume</span>
+                    <span className="font-semibold">{formatNumber(marketData.ethereum.usd_24h_vol)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Price</span>
-                  <span className="font-bold text-xl">${marketData.ethereum.usd.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Market Cap</span>
-                  <span className="font-semibold">{formatNumber(marketData.ethereum.usd_market_cap)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">24h Volume</span>
-                  <span className="font-semibold">{formatNumber(marketData.ethereum.usd_24h_vol)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>}
+              )}
+              <div className="pt-2">
+                <Button 
+                  onClick={() => handleAnalyzeCrypto('ETH')}
+                  disabled={loading === 'ETH'}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  size="lg"
+                >
+                  {loading === 'ETH' ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="mr-2 h-4 w-4" />
+                      Generate AI Analysis
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
 
         {/* Loading State - Clean & Professional */}
@@ -497,42 +561,6 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
             <Skeleton className="h-48 w-full" />
           </div>}
 
-        {/* Empty State */}
-        {!analysisResult && !loading && (
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center space-y-8 max-w-lg">
-              <div className="space-y-4">
-                <h2 className="text-3xl md:text-4xl font-medium text-foreground">
-                  Select a cryptocurrency to analyze
-                </h2>
-                <p className="text-base md:text-lg text-muted-foreground">
-                  Generate comprehensive market analysis with AI-powered insights
-                </p>
-              </div>
-              
-              <div className="flex gap-4 justify-center">
-                <Button 
-                  onClick={() => handleAnalyzeCrypto('BTC')} 
-                  variant="outline"
-                  size="lg"
-                  className="min-w-[160px] text-base py-6"
-                >
-                  <BTCLogo className="w-5 h-5 mr-2" />
-                  Bitcoin
-                </Button>
-                <Button 
-                  onClick={() => handleAnalyzeCrypto('ETH')} 
-                  variant="outline"
-                  size="lg"
-                  className="min-w-[160px] text-base py-6"
-                >
-                  <ETHLogo className="w-5 h-5 mr-2" />
-                  Ethereum
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
