@@ -152,15 +152,15 @@ const Dashboard = () => {
       )}
 
       {/* Main Content - Tighter spacing */}
-      <main className="flex-1 px-4 sm:px-6 py-4 space-y-4">
+      <main className="flex-1 px-4 sm:px-6 pt-0 pb-4 space-y-3">
         
         {/* AI Analysis Dashboard - Full Width */}
         <div className="-mx-4 sm:-mx-6">
           <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
 
-        {/* Compact Stats Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Key Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -192,22 +192,21 @@ const Dashboard = () => {
                   <p className="text-xs text-muted-foreground mb-1">Credits</p>
                   <p className="text-xl font-bold">{userCredits}</p>
                 </div>
-                <Zap className="h-8 w-8 text-purple-500/20" />
+                <div className="flex items-center gap-2">
+                  {userCredits <= 2 && (
+                    <Badge variant="outline">{userCredits === 0 ? 'Empty' : 'Low'}</Badge>
+                  )}
+                  <Button 
+                    onClick={() => navigate('/pricing')}
+                    size="sm"
+                    variant={userCredits === 0 ? 'default' : 'outline'}
+                    className="h-8"
+                  >
+                    <CreditCard className="h-3.5 w-3.5 mr-1" />
+                    Buy
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-red-600/5">
-            <CardContent className="p-4">
-              <Button 
-                onClick={() => navigate('/pricing')}
-                size="sm"
-                variant={userCredits === 0 ? "default" : "outline"}
-                className="w-full"
-              >
-                <CreditCard className="h-3.5 w-3.5 mr-1" />
-                Buy Credits
-              </Button>
             </CardContent>
           </Card>
         </div>
