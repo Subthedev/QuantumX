@@ -151,89 +151,72 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      {/* Main Content - Tighter spacing */}
-      <main className="flex-1 px-4 sm:px-6 pt-0 pb-4 space-y-3">
+      {/* Main Content */}
+      <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-7xl">
         
-        {/* AI Analysis Dashboard - Full Width */}
-        <div className="-mx-4 sm:-mx-6">
+        {/* AI Analysis Dashboard */}
+        <div className="w-full">
           <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
         </div>
 
-        {/* Key Stats */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-blue-500/5 to-purple-600/5">
-            <CardContent className="p-4">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Reports (24h)</p>
-                  <p className="text-xl font-bold">{totalReportsCount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Reports Today</p>
+                  <p className="text-2xl font-bold mt-1">{totalReportsCount}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-blue-500/20" />
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-green-500/5 to-emerald-600/5">
-            <CardContent className="p-4">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Avg. Confidence</p>
-                  <p className="text-xl font-bold">85%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Confidence</p>
+                  <p className="text-2xl font-bold mt-1">85%</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-green-500/20" />
+                <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-green-500" />
+                </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-border/50 hover:shadow-md transition-all duration-300 bg-gradient-to-br from-purple-500/5 to-pink-600/5">
-            <CardContent className="p-4">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Credits</p>
-                  <p className="text-xl font-bold">{userCredits}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Credits Balance</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-2xl font-bold">{userCredits}</p>
+                    {userCredits <= 2 && userCredits > 0 && (
+                      <Badge variant="secondary" className="text-xs">Low</Badge>
+                    )}
+                    {userCredits === 0 && (
+                      <Badge variant="destructive" className="text-xs">Empty</Badge>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {userCredits <= 2 && (
-                    <Badge variant="outline">{userCredits === 0 ? 'Empty' : 'Low'}</Badge>
-                  )}
-                  <Button 
-                    onClick={() => navigate('/pricing')}
-                    size="sm"
-                    variant={userCredits === 0 ? 'default' : 'outline'}
-                    className="h-8"
-                  >
-                    <CreditCard className="h-3.5 w-3.5 mr-1" />
-                    Buy
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => navigate('/pricing')}
+                  size="sm"
+                  variant={userCredits === 0 ? 'default' : 'outline'}
+                  className="h-9 px-4"
+                >
+                  <Sparkles className="h-4 w-4 mr-1.5" />
+                  Add
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Compact Tips Section */}
-        <Card className="bg-gradient-to-r from-indigo-500/5 to-blue-600/5 border-indigo-500/20">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <div className="flex items-start gap-2">
-                <BTCLogo className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">Generate BTC reports during high volatility for better accuracy</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <ETHLogo className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">Compare ETH scores across periods to identify trends</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-indigo-500">•</span>
-                <span className="text-muted-foreground">Use key insights to understand prediction reasoning</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-indigo-500">•</span>
-                <span className="text-muted-foreground">Consider both technical and fundamental factors</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </main>
     </div>;
 };
