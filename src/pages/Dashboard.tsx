@@ -152,7 +152,7 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-7xl">
+      <main className="flex-1 container mx-auto px-4 py-8 space-y-8 max-w-7xl">
         
         {/* AI Analysis Dashboard */}
         <div className="w-full">
@@ -160,42 +160,42 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-5">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Reports Today</p>
-                  <p className="text-2xl font-bold mt-1">{totalReportsCount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Reports Today</p>
+                  <p className="text-3xl font-bold mt-2">{totalReportsCount}</p>
                 </div>
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-primary" />
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-5">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Avg Confidence</p>
-                  <p className="text-2xl font-bold mt-1">85%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Avg Confidence</p>
+                  <p className="text-3xl font-bold mt-2">85%</p>
                 </div>
-                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-green-500" />
+                <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <BarChart3 className="h-6 w-6 text-green-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-5">
+            <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Credits Balance</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-2xl font-bold">{userCredits}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Credits Balance</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-3xl font-bold">{userCredits}</p>
                     {userCredits <= 2 && userCredits > 0 && (
                       <Badge variant="secondary" className="text-xs">Low</Badge>
                     )}
@@ -208,9 +208,9 @@ const Dashboard = () => {
                   onClick={() => navigate('/pricing')}
                   size="sm"
                   variant={userCredits === 0 ? 'default' : 'outline'}
-                  className="h-8 px-3 text-xs"
+                  className="h-10 px-4"
                 >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  <Sparkles className="h-4 w-4 mr-2" />
                   Add
                 </Button>
               </div>
@@ -218,192 +218,60 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Recent Signals - Left Column */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  Recent Signals
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {Object.keys(reports).length > 0 ? (
-                  Object.entries(reports).slice(0, 3).map(([symbol, report]) => (
-                    <div key={report.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
-                      <div className="flex items-center gap-3">
-                        {symbol === 'BTC' ? <BTCLogo /> : <ETHLogo />}
-                        <div>
-                          <p className="font-medium text-sm">{symbol}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={report.confidence_score >= 75 ? 'default' : 'secondary'} className="text-xs">
-                          {report.confidence_score}%
-                        </Badge>
-                        <span className={`text-xs font-medium ${report.prediction_summary.includes('Bullish') ? 'text-green-500' : 'text-red-500'}`}>
-                          {report.prediction_summary.split(' ')[0]}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No recent signals</p>
-                    <p className="text-xs mt-1">Generate your first analysis above</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Performance Overview */}
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Performance Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Win Rate</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-background/50 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{ width: '72%' }}></div>
-                        </div>
-                        <span className="text-xs font-medium">72%</span>
-                      </div>
+        {/* Recent Signals */}
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardHeader className="pb-5">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Recent Signals
+            </CardTitle>
+            <CardDescription className="text-sm mt-1">
+              Your latest AI-powered crypto analysis results
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.keys(reports).length > 0 ? (
+              Object.entries(reports).slice(0, 5).map(([symbol, report]) => (
+                <div key={report.id} className="flex items-center justify-between p-4 rounded-lg bg-background/50 border border-border/50 hover:bg-background/70 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="scale-110">
+                      {symbol === 'BTC' ? <BTCLogo /> : <ETHLogo />}
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Accuracy</p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-background/50 rounded-full h-2">
-                          <div className="bg-primary h-2 rounded-full" style={{ width: '85%' }}></div>
-                        </div>
-                        <span className="text-xs font-medium">85%</span>
-                      </div>
+                      <p className="font-semibold text-base">{symbol}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(report.created_at).toLocaleString([], { 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </p>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Total Signals</p>
-                      <p className="text-lg font-bold">247</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Success Rate</p>
-                      <p className="text-lg font-bold text-green-500">+18.4%</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Market Overview & Quick Actions */}
-          <div className="space-y-4">
-            {/* Market Overview */}
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Bitcoin className="h-4 w-4 text-primary" />
-                  Market Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <BTCLogo />
-                      <span className="text-sm font-medium">BTC</span>
-                    </div>
+                  <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="text-sm font-medium">$67,234</p>
-                      <p className="text-xs text-green-500">+2.4%</p>
+                      <p className="text-sm font-medium">Confidence</p>
+                      <p className="text-lg font-bold">{report.confidence_score}%</p>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <ETHLogo />
-                      <span className="text-sm font-medium">ETH</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">$3,456</p>
-                      <p className="text-xs text-red-500">-1.2%</p>
-                    </div>
+                    <Badge 
+                      variant={report.prediction_summary.includes('Bullish') ? 'default' : 'destructive'} 
+                      className="min-w-[80px] justify-center"
+                    >
+                      {report.prediction_summary.split(' ')[0]}
+                    </Badge>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-border/50">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Market Cap</span>
-                    <span className="font-medium">$2.4T</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs mt-2">
-                    <span className="text-muted-foreground">24h Volume</span>
-                    <span className="font-medium">$98B</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" />
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start text-sm h-9"
-                  onClick={() => navigate('/pricing')}
-                >
-                  <CreditCard className="h-3.5 w-3.5 mr-2" />
-                  Upgrade Plan
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start text-sm h-9"
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                >
-                  <Lightbulb className="h-3.5 w-3.5 mr-2" />
-                  New Analysis
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start text-sm h-9"
-                >
-                  <Crown className="h-3.5 w-3.5 mr-2" />
-                  Refer & Earn
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Pro Tips */}
-            <Card className="border-border/50 bg-gradient-to-br from-primary/5 to-primary/10">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Lightbulb className="h-3.5 w-3.5 text-primary" />
-                  Pro Tip
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Use the 4H timeframe analysis for better swing trading opportunities. Our AI analyzes multiple indicators for higher accuracy.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-base font-medium mb-2">No recent signals yet</p>
+                <p className="text-sm">Generate your first AI analysis above to see results here</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>;
 };
