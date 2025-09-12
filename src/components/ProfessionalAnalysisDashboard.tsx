@@ -344,18 +344,7 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
   };
   
   return (
-    <div className="min-h-full bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
-      <div className="max-w-7xl mx-auto p-3 md:p-4 space-y-4">
-        
-        {/* Compact Professional Header */}
-        <div className="text-center py-2 md:py-3">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold text-foreground tracking-tight">
-            AI Analysis Dashboard
-          </h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">
-            Professional crypto market analysis powered by advanced AI
-          </p>
-        </div>
+    <div className="w-full space-y-4">
 
         {/* Live Market Data & Analysis Actions - Compact */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -555,7 +544,6 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
           </div>
         )}
 
-      </div>
     </div>
   );
 };
