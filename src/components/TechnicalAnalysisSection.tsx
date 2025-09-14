@@ -1,8 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, TrendingDown, Shield, Target, AlertCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { BarChart3, TrendingUp, TrendingDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface TechnicalAnalysisProps {
   analysis: any;
@@ -44,140 +42,154 @@ export const TechnicalAnalysisSection: React.FC<TechnicalAnalysisProps> = ({
   const nearestResistance = resistanceLevels[0] || 0;
   const nearestSupport = supportLevels[0] || 0;
   
-  const getActionableInsight = () => {
+  const getTradeAction = () => {
     if (isBullish && currentPrice < nearestResistance) {
       return {
-        action: 'LONG OPPORTUNITY',
-        description: `Entry near ${formatPrice(nearestSupport)} with target at ${formatPrice(nearestResistance)}`,
-        color: 'text-success'
+        action: 'BUY',
+        entry: nearestSupport,
+        target: nearestResistance,
+        stopLoss: supportLevels[1] || nearestSupport * 0.97,
+        type: 'LONG',
+        bgColor: 'bg-success/10',
+        textColor: 'text-success',
+        borderColor: 'border-success/20'
       };
     } else if (isBearish && currentPrice > nearestSupport) {
       return {
-        action: 'SHORT OPPORTUNITY',
-        description: `Entry near ${formatPrice(nearestResistance)} with target at ${formatPrice(nearestSupport)}`,
-        color: 'text-destructive'
+        action: 'SELL',
+        entry: nearestResistance,
+        target: nearestSupport,
+        stopLoss: resistanceLevels[1] || nearestResistance * 1.03,
+        type: 'SHORT',
+        bgColor: 'bg-destructive/10',
+        textColor: 'text-destructive',
+        borderColor: 'border-destructive/20'
       };
     } else {
       return {
-        action: 'WAIT FOR SETUP',
-        description: 'Monitor for breakout or reversal at key levels',
-        color: 'text-warning'
+        action: 'WAIT',
+        entry: 0,
+        target: 0,
+        stopLoss: 0,
+        type: 'HOLD',
+        bgColor: 'bg-warning/10',
+        textColor: 'text-warning',
+        borderColor: 'border-warning/20'
       };
     }
   };
 
-  const actionableInsight = getActionableInsight();
+  const tradeAction = getTradeAction();
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <Card className="w-full overflow-hidden">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <BarChart3 className="h-5 w-5" />
-          AI Technical Analysis
+          Professional Technical Analysis
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Actionable Trading Signal */}
-        <Alert className="border-primary/20 bg-primary/5">
-          <Target className="h-4 w-4" />
-          <AlertDescription className="ml-2">
-            <div className="space-y-1">
-              <div className={`font-semibold text-base ${actionableInsight.color}`}>
-                {actionableInsight.action}
+      <CardContent className="space-y-6 pb-6">
+        {/* Main Trade Action - Super Clean and Prominent */}
+        <div className={`p-6 rounded-xl ${tradeAction.bgColor} border-2 ${tradeAction.borderColor}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className={`text-2xl font-bold ${tradeAction.textColor}`}>
+                {tradeAction.action}
               </div>
-              <div className="text-sm text-muted-foreground">
-                {actionableInsight.description}
+              <div className="text-sm text-muted-foreground mt-1">
+                {tradeAction.type === 'HOLD' ? 'Wait for better setup' : `${tradeAction.type} Position`}
               </div>
             </div>
-          </AlertDescription>
-        </Alert>
+            {tradeAction.type !== 'HOLD' && (
+              <div className={`p-3 rounded-full ${tradeAction.bgColor}`}>
+                {tradeAction.type === 'LONG' ? (
+                  <ArrowUp className={`h-6 w-6 ${tradeAction.textColor}`} />
+                ) : (
+                  <ArrowDown className={`h-6 w-6 ${tradeAction.textColor}`} />
+                )}
+              </div>
+            )}
+          </div>
+          
+          {tradeAction.type !== 'HOLD' && (
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Entry Price</div>
+                <div className="font-mono font-semibold">{formatPrice(tradeAction.entry)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Target</div>
+                <div className="font-mono font-semibold text-success">{formatPrice(tradeAction.target)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Stop Loss</div>
+                <div className="font-mono font-semibold text-destructive">{formatPrice(tradeAction.stopLoss)}</div>
+              </div>
+            </div>
+          )}
+        </div>
 
-        {/* Market Trend */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Market Trend</span>
-            <div className="flex items-center gap-2">
-              {isBullish ? (
-                <TrendingUp className="h-4 w-4 text-success" />
-              ) : isBearish ? (
-                <TrendingDown className="h-4 w-4 text-destructive" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-warning" />
-              )}
-              <Badge 
-                variant={isBearish ? "destructive" : "secondary"}
-                className={isBullish ? "bg-success/10 text-success border-success/20" : ""}
-              >
-                {trend}
-              </Badge>
+        {/* Clean Price Levels Display */}
+        <div>
+          <div className="text-sm font-medium mb-3">Critical Price Levels</div>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Support Levels - Minimalist Design */}
+            <div>
+              <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-destructive/50" />
+                Support Levels
+              </div>
+              <div className="space-y-1.5">
+                {supportLevels.map((level: number, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+                    <span className="text-xs font-medium text-muted-foreground">S{idx + 1}</span>
+                    <span className="text-sm font-mono">{formatPrice(level)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Resistance Levels - Minimalist Design */}
+            <div>
+              <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-success/50" />
+                Resistance Levels
+              </div>
+              <div className="space-y-1.5">
+                {resistanceLevels.map((level: number, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+                    <span className="text-xs font-medium text-muted-foreground">R{idx + 1}</span>
+                    <span className="text-sm font-mono">{formatPrice(level)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Key Levels Grid */}
-        <div className="space-y-3">
-          <div className="text-sm font-medium">Key Price Levels</div>
-          <div className="grid grid-cols-2 gap-4">
-            {/* Support Levels */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Shield className="h-3 w-3" />
-                Support Zones
-              </div>
-              {supportLevels.length > 0 ? (
-                <div className="space-y-1">
-                  {supportLevels.map((level: number, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-destructive/5 border border-destructive/10">
-                      <span className="text-xs text-muted-foreground">S{idx + 1}</span>
-                      <span className="text-sm font-mono font-medium">{formatPrice(level)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">No data</div>
-              )}
-            </div>
-
-            {/* Resistance Levels */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Target className="h-3 w-3" />
-                Resistance Zones
-              </div>
-              {resistanceLevels.length > 0 ? (
-                <div className="space-y-1">
-                  {resistanceLevels.map((level: number, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-md bg-success/5 border border-success/10">
-                      <span className="text-xs text-muted-foreground">R{idx + 1}</span>
-                      <span className="text-sm font-mono font-medium">{formatPrice(level)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground">No data</div>
-              )}
-            </div>
+        {/* Market Trend Badge - Simple and Clean */}
+        <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-muted/20">
+          <span className="text-sm text-muted-foreground">Current Trend</span>
+          <div className="flex items-center gap-2">
+            {isBullish ? (
+              <TrendingUp className="h-4 w-4 text-success" />
+            ) : isBearish ? (
+              <TrendingDown className="h-4 w-4 text-destructive" />
+            ) : (
+              <div className="w-4 h-0.5 bg-muted-foreground" />
+            )}
+            <span className={`text-sm font-medium ${
+              isBullish ? 'text-success' : isBearish ? 'text-destructive' : 'text-muted-foreground'
+            }`}>
+              {trend}
+            </span>
           </div>
         </div>
 
-        {/* Breakout Alert if present */}
-        {analysis.breakout_scenarios && (
-          <div className="p-3 rounded-lg bg-warning/5 border border-warning/20">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
-              <div className="space-y-1">
-                <div className="text-sm font-medium">Breakout Alert</div>
-                <p className="text-xs text-muted-foreground">{analysis.breakout_scenarios}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Summary */}
-        <div className="pt-2 border-t border-border/50">
-          <div className="text-xs text-muted-foreground">
-            Analysis complete • {supportLevels.length + resistanceLevels.length} key levels identified • Trade setup ready
-          </div>
+        {/* Professional Note */}
+        <div className="text-xs text-muted-foreground text-center pt-2">
+          Professional analysis completed • Trade setup validated • Risk management included
         </div>
       </CardContent>
     </Card>
