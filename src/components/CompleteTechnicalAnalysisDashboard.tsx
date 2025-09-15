@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, TrendingUp, TrendingDown, BarChart3, AlertTriangle } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, LineChart, AlertTriangle } from 'lucide-react';
 
 interface TechnicalAnalysisProps {
   signal: any;
@@ -21,6 +21,28 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
   const rsi = indicators.rsi14 || indicators.RSI || 50;
   const macd = indicators.macd_hist || indicators.MACD || 0;
   const confidence = signal?.confidence || 50;
+  const currentPrice = marketData?.current_price || signal?.entry || 0;
+  
+  // Calculate support and resistance levels
+  const calculateLevels = () => {
+    const price = currentPrice;
+    const volatility = 0.02; // 2% volatility for level calculation
+    
+    return {
+      resistance: [
+        price * (1 + volatility),
+        price * (1 + volatility * 2),
+        price * (1 + volatility * 3)
+      ],
+      support: [
+        price * (1 - volatility),
+        price * (1 - volatility * 2),
+        price * (1 - volatility * 3)
+      ]
+    };
+  };
+  
+  const levels = calculateLevels();
   
   // Simplified decision logic
   const getDecision = () => {
@@ -88,8 +110,8 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
     <Card className="w-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          Market Score Analysis
+          <LineChart className="h-4 w-4 text-primary" />
+          Technical Analysis
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,11 +134,41 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
               </div>
             </div>
             <div className="text-right">
-              <div className="text-xs text-muted-foreground">Score</div>
+              <div className="text-xs text-muted-foreground">Confidence</div>
               <div className={`text-sm font-semibold ${decision.color}`}>
                 {decision.confidence}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Support & Resistance Levels */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Support Levels
+            </div>
+            {levels.support.map((level, index) => (
+              <div key={index} className="flex items-center justify-between bg-success/5 rounded px-2 py-1">
+                <span className="text-xs text-muted-foreground">S{index + 1}</span>
+                <span className="text-sm font-mono font-medium text-success">
+                  ${level.toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Resistance Levels
+            </div>
+            {levels.resistance.map((level, index) => (
+              <div key={index} className="flex items-center justify-between bg-destructive/5 rounded px-2 py-1">
+                <span className="text-xs text-muted-foreground">R{index + 1}</span>
+                <span className="text-sm font-mono font-medium text-destructive">
+                  ${level.toFixed(2)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
