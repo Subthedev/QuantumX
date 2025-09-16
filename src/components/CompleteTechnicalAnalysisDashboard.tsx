@@ -196,7 +196,12 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
         {/* Professional Analysis Note */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
           <Activity className="h-3 w-3" />
-          <span>AI analysis based on price action and technical indicators</span>
+          <div className="flex-1">
+            <span>AI analysis based on price action and technical indicators</span>
+            <span className="block mt-1">
+              For unlimited report generation, contact: <span className="text-primary font-medium">contactsubhrajeet@gmail.com</span>
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
