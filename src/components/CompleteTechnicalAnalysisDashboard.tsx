@@ -49,21 +49,21 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
     // RSI - Relative Strength Index
     const rsiValue = signal?.indicators?.rsi14 || signal?.indicators?.RSI || Math.random() * 30 + 35; // 35-65 for neutral
     const getRSIAnalysis = () => {
-      if (rsiValue > 70) return { signal: 'Overbought', action: 'Consider taking profits', color: 'text-destructive' };
-      if (rsiValue < 30) return { signal: 'Oversold', action: 'Good entry opportunity', color: 'text-success' };
-      if (rsiValue > 60) return { signal: 'Strong', action: 'Momentum building', color: 'text-warning' };
-      if (rsiValue < 40) return { signal: 'Weak', action: 'Wait for reversal', color: 'text-warning' };
-      return { signal: 'Neutral', action: 'No clear signal', color: 'text-muted-foreground' };
+      if (rsiValue > 70) return { signal: 'Overbought', action: '⚠️ SELL or reduce position', color: 'text-destructive' };
+      if (rsiValue < 30) return { signal: 'Oversold', action: '✅ BUY opportunity', color: 'text-success' };
+      if (rsiValue > 60) return { signal: 'Strong', action: '📈 Hold, watch for reversal', color: 'text-warning' };
+      if (rsiValue < 40) return { signal: 'Weak', action: '⏳ Wait for bounce signal', color: 'text-warning' };
+      return { signal: 'Neutral', action: '↔️ No action needed', color: 'text-muted-foreground' };
     };
     
     // MACD - Moving Average Convergence Divergence
     const macdValue = signal?.indicators?.macd_hist || signal?.indicators?.MACD || (Math.random() - 0.5) * 2;
     const getMACDAnalysis = () => {
-      if (macdValue > 0.5) return { signal: 'Strong Buy', action: 'Bullish crossover', color: 'text-success' };
-      if (macdValue < -0.5) return { signal: 'Strong Sell', action: 'Bearish crossover', color: 'text-destructive' };
-      if (macdValue > 0) return { signal: 'Bullish', action: 'Upward momentum', color: 'text-success' };
-      if (macdValue < 0) return { signal: 'Bearish', action: 'Downward momentum', color: 'text-destructive' };
-      return { signal: 'Neutral', action: 'Waiting for signal', color: 'text-muted-foreground' };
+      if (macdValue > 0.5) return { signal: 'Strong Buy', action: '🚀 Enter LONG position', color: 'text-success' };
+      if (macdValue < -0.5) return { signal: 'Strong Sell', action: '🔻 Exit or SHORT', color: 'text-destructive' };
+      if (macdValue > 0) return { signal: 'Bullish', action: '📊 Add to position', color: 'text-success' };
+      if (macdValue < 0) return { signal: 'Bearish', action: '⚡ Reduce exposure', color: 'text-destructive' };
+      return { signal: 'Neutral', action: '⏸️ Wait for clear signal', color: 'text-muted-foreground' };
     };
     
     // EMA - Exponential Moving Averages (9, 21, 55)
@@ -71,11 +71,11 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
     const ema21 = price * (1 + (Math.random() - 0.5) * 0.04);
     const ema55 = price * (1 + (Math.random() - 0.5) * 0.06);
     const getEMAAnalysis = () => {
-      if (price > ema9 && ema9 > ema21 && ema21 > ema55) return { signal: 'Strong Uptrend', action: 'Hold/Add positions', color: 'text-success' };
-      if (price < ema9 && ema9 < ema21 && ema21 < ema55) return { signal: 'Strong Downtrend', action: 'Avoid longs', color: 'text-destructive' };
-      if (price > ema21) return { signal: 'Bullish', action: 'Above key average', color: 'text-success' };
-      if (price < ema21) return { signal: 'Bearish', action: 'Below key average', color: 'text-destructive' };
-      return { signal: 'Mixed', action: 'No clear trend', color: 'text-warning' };
+      if (price > ema9 && ema9 > ema21 && ema21 > ema55) return { signal: 'Strong Uptrend', action: '💪 HOLD & add on dips', color: 'text-success' };
+      if (price < ema9 && ema9 < ema21 && ema21 < ema55) return { signal: 'Strong Downtrend', action: '❌ AVOID buying', color: 'text-destructive' };
+      if (price > ema21) return { signal: 'Bullish', action: '✅ Safe to hold', color: 'text-success' };
+      if (price < ema21) return { signal: 'Bearish', action: '⚠️ Consider selling', color: 'text-destructive' };
+      return { signal: 'Mixed', action: '🔄 Wait for clarity', color: 'text-warning' };
     };
     
     // Bollinger Bands
@@ -84,19 +84,19 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
     const bbMiddle = price;
     const getBBAnalysis = () => {
       const position = ((price - bbLower) / (bbUpper - bbLower)) * 100;
-      if (position > 80) return { signal: 'Upper Band', action: 'Potential reversal down', color: 'text-destructive' };
-      if (position < 20) return { signal: 'Lower Band', action: 'Potential bounce up', color: 'text-success' };
-      if (position > 60) return { signal: 'Above Middle', action: 'Bullish pressure', color: 'text-success' };
-      if (position < 40) return { signal: 'Below Middle', action: 'Bearish pressure', color: 'text-destructive' };
-      return { signal: 'Middle Band', action: 'Consolidating', color: 'text-muted-foreground' };
+      if (position > 80) return { signal: 'Upper Band', action: '🔴 SELL - reversal likely', color: 'text-destructive' };
+      if (position < 20) return { signal: 'Lower Band', action: '🟢 BUY - bounce expected', color: 'text-success' };
+      if (position > 60) return { signal: 'Above Middle', action: '📈 Hold position', color: 'text-success' };
+      if (position < 40) return { signal: 'Below Middle', action: '📉 Stay cautious', color: 'text-destructive' };
+      return { signal: 'Middle Band', action: '➖ Sideways - wait', color: 'text-muted-foreground' };
     };
     
     // Volume Analysis
     const volumeTrend = signal?.indicators?.volume || 'stable';
     const getVolumeAnalysis = () => {
-      if (volumeTrend === 'increasing') return { signal: 'Rising', action: 'Strong conviction', color: 'text-success' };
-      if (volumeTrend === 'decreasing') return { signal: 'Falling', action: 'Weak conviction', color: 'text-warning' };
-      return { signal: 'Stable', action: 'Normal activity', color: 'text-muted-foreground' };
+      if (volumeTrend === 'increasing') return { signal: 'Rising', action: '💎 Strong move - follow it', color: 'text-success' };
+      if (volumeTrend === 'decreasing') return { signal: 'Falling', action: '⚠️ Weak move - be careful', color: 'text-warning' };
+      return { signal: 'Stable', action: '👀 Monitor closely', color: 'text-muted-foreground' };
     };
     
     // Fibonacci Retracement Levels
@@ -109,10 +109,10 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
       '100%': price * 0.95
     };
     const getFibAnalysis = () => {
-      if (price > fibLevels['23.6%']) return { signal: 'Above 23.6%', action: 'Strong resistance ahead', color: 'text-success' };
-      if (price < fibLevels['61.8%']) return { signal: 'Below 61.8%', action: 'Key support zone', color: 'text-destructive' };
-      if (price > fibLevels['50%']) return { signal: 'Above 50%', action: 'Bullish continuation', color: 'text-success' };
-      return { signal: 'At 50%', action: 'Decision point', color: 'text-warning' };
+      if (price > fibLevels['23.6%']) return { signal: 'Above 23.6%', action: '🎯 Target next resistance', color: 'text-success' };
+      if (price < fibLevels['61.8%']) return { signal: 'Below 61.8%', action: '🛡️ Strong support - BUY', color: 'text-destructive' };
+      if (price > fibLevels['50%']) return { signal: 'Above 50%', action: '✅ Trend intact - hold', color: 'text-success' };
+      return { signal: 'At 50%', action: '⚖️ Crucial level - watch', color: 'text-warning' };
     };
     
     return {
@@ -229,8 +229,9 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
               <div className="text-xs space-y-0.5">
                 <div>EMA9: {formatPrice(indicators.ema.values.ema9)}</div>
                 <div>EMA21: {formatPrice(indicators.ema.values.ema21)}</div>
+                <div>EMA55: {formatPrice(indicators.ema.values.ema55)}</div>
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className="text-xs text-muted-foreground mt-1 font-medium">
                 {indicators.ema.analysis.action}
               </div>
             </div>
@@ -284,28 +285,63 @@ export const CompleteTechnicalAnalysisDashboard: React.FC<TechnicalAnalysisProps
             </div>
           </div>
           
-          {/* AI Summary Box */}
+          {/* AI Summary Box - Clear Trading Action */}
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
               <Info className="h-3 w-3 text-primary" />
-              <span className="text-xs font-semibold text-primary">AI SIMPLIFIED SUMMARY</span>
+              <span className="text-xs font-semibold text-primary">AI ACTION SUMMARY - WHAT TO DO NOW</span>
             </div>
-            <div className="text-xs text-muted-foreground leading-relaxed">
-              Based on all 6 indicators, the market is showing {
-                indicators.rsi.value > 50 && indicators.macd.value > 0 ? 'bullish momentum' :
-                indicators.rsi.value < 50 && indicators.macd.value < 0 ? 'bearish pressure' :
-                'mixed signals'
-              }. {
-                indicators.rsi.value > 70 ? 'RSI indicates overbought conditions - be cautious with new longs. ' :
-                indicators.rsi.value < 30 ? 'RSI shows oversold territory - potential bounce opportunity. ' :
-                ''
-              }
-              The price is currently {
-                currentPrice > indicators.ema.values.ema21 ? 'above' : 'below'
-              } the key 21-day moving average. 
-              {indicators.volume.trend === 'increasing' ? ' Volume is supporting the current move.' :
-               indicators.volume.trend === 'decreasing' ? ' Declining volume suggests weakening momentum.' :
-               ' Volume remains stable.'}
+            <div className="space-y-2">
+              {/* Overall Market Condition */}
+              <div className="text-sm font-semibold">
+                {indicators.rsi.value > 50 && indicators.macd.value > 0 ? 
+                  <span className="text-success">📈 MARKET CONDITION: BULLISH</span> :
+                  indicators.rsi.value < 50 && indicators.macd.value < 0 ? 
+                  <span className="text-destructive">📉 MARKET CONDITION: BEARISH</span> :
+                  <span className="text-warning">⚖️ MARKET CONDITION: NEUTRAL</span>
+                }
+              </div>
+              
+              {/* Primary Action */}
+              <div className="bg-background/50 rounded p-2">
+                <div className="text-xs font-semibold mb-1">🎯 RECOMMENDED ACTION:</div>
+                <div className="text-sm font-medium">
+                  {indicators.rsi.value > 70 ? 
+                    '🔴 SELL/REDUCE - Take profits now, overbought zone' :
+                    indicators.rsi.value < 30 ? 
+                    '🟢 BUY ZONE - Excellent entry opportunity' :
+                    indicators.macd.value > 0.5 ? 
+                    '🚀 STRONG BUY - Momentum building, enter position' :
+                    indicators.macd.value < -0.5 ? 
+                    '⚠️ EXIT/SHORT - Bearish momentum strong' :
+                    currentPrice > indicators.ema.values.ema21 ? 
+                    '✅ HOLD - Trend is your friend' :
+                    '⏳ WAIT - No clear opportunity yet'
+                  }
+                </div>
+              </div>
+              
+              {/* Risk Level */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium">Risk Level:</span>
+                <span className={`font-semibold ${
+                  indicators.volume.trend === 'decreasing' ? 'text-destructive' :
+                  indicators.volume.trend === 'increasing' ? 'text-success' :
+                  'text-warning'
+                }`}>
+                  {indicators.volume.trend === 'decreasing' ? '⚠️ HIGH - Low volume' :
+                   indicators.volume.trend === 'increasing' ? '✅ LOW - Strong volume' :
+                   '⚡ MEDIUM - Normal volume'}
+                </span>
+              </div>
+              
+              {/* Entry/Exit Points */}
+              <div className="text-xs space-y-1 pt-1 border-t">
+                <div className="font-medium">💡 QUICK TIPS:</div>
+                <div>• Entry: Wait for price near {formatPrice(supportLevels[0])}</div>
+                <div>• Stop Loss: Set below {formatPrice(supportLevels[1])}</div>
+                <div>• Target: Aim for {formatPrice(resistanceLevels[0])}</div>
+              </div>
             </div>
           </div>
         </div>
