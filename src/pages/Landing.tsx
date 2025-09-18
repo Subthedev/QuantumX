@@ -63,53 +63,53 @@ const Landing = () => {
             {/* Status Badge */}
             <Badge className="mb-8 bg-primary/10 text-primary border-primary/20 shadow-lg">
               <Zap className="w-3 h-3 mr-1" />
-              AI-Powered • Real-Time • Professional Grade
+              AI-Powered Analytics • Real-Time Data • Professional Grade
             </Badge>
             
             {/* Main Headline */}
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
               <span className="bg-gradient-to-r from-primary via-primary-hover to-primary bg-clip-text text-transparent">
-                Smart Crypto
+                Intelligent Crypto
               </span>
               <br />
-              <span className="text-foreground">Analytics</span>
+              <span className="text-foreground">Analytics Platform</span>
             </h1>
             
             {/* Subheadline */}
             <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
-              Get professional-grade AI analysis for Bitcoin and Ethereum. 
-              Make informed decisions with <span className="text-primary font-semibold">confidence scores</span>, 
-              <span className="text-primary font-semibold"> risk assessments</span>, and 
-              <span className="text-primary font-semibold"> real-time insights</span>.
+              Professional-grade AI analysis for cryptocurrency markets. 
+              Access <span className="text-primary font-semibold">comprehensive analytics</span>, 
+              <span className="text-primary font-semibold"> market insights</span>, and 
+              <span className="text-primary font-semibold"> technical indicators</span> in real-time.
             </p>
             
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
               <Link to="/auth">
                 <Button size="lg" className="text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all">
-                  Generate Your First Report
+                  Start Your Analysis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span>Free • No Credit Card Required</span>
+                <span>Free Trial • No Credit Card Required</span>
               </div>
             </div>
             
             {/* Social Proof */}
             <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">85%</div>
-                <div className="text-sm text-muted-foreground">Avg. Confidence</div>
+                <div className="text-2xl font-bold text-foreground">10+</div>
+                <div className="text-sm text-muted-foreground">Cryptocurrencies</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">24/7</div>
-                <div className="text-sm text-muted-foreground">Live Analysis</div>
+                <div className="text-sm text-muted-foreground">Live Analytics</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">2</div>
-                <div className="text-sm text-muted-foreground">Major Cryptos</div>
+                <div className="text-2xl font-bold text-foreground">Real-Time</div>
+                <div className="text-sm text-muted-foreground">Market Data</div>
               </div>
             </div>
           </div>
@@ -121,13 +121,13 @@ const Landing = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">
-              Professional Features
+              Professional Analytics
             </Badge>
             <h2 className="text-4xl font-bold mb-4 text-foreground">
-              Enterprise-Grade AI Analysis
+              Comprehensive Market Intelligence
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Institutional-quality insights powered by advanced machine learning algorithms
+              Advanced analytics powered by machine learning and real-time market data
             </p>
           </div>
           
@@ -137,12 +137,12 @@ const Landing = () => {
                 <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <Brain className="h-8 w-8 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Multi-Factor Analysis</CardTitle>
+                <CardTitle className="text-xl">Advanced Analytics</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base leading-relaxed">
-                  Technical indicators, sentiment analysis, market trends, and on-chain data 
-                  combined into actionable intelligence with transparent confidence scoring.
+                  Comprehensive technical analysis with multiple indicators, market trends, 
+                  and AI-powered insights combined into actionable intelligence.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -152,12 +152,12 @@ const Landing = () => {
                 <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <Activity className="h-8 w-8 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Real-Time Signals</CardTitle>
+                <CardTitle className="text-xl">Real-Time Data</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base leading-relaxed">
-                  Live market data processing with instant updates. Get alerts on trend changes, 
-                  support/resistance breaks, and momentum shifts as they happen.
+                  Live market data processing with instant updates. Monitor price movements, 
+                  volume changes, and market sentiment as they happen.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -167,12 +167,12 @@ const Landing = () => {
                 <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <Target className="h-8 w-8 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Risk Management</CardTitle>
+                <CardTitle className="text-xl">Risk Assessment</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base leading-relaxed">
-                  Professional risk assessment with position sizing recommendations, 
-                  stop-loss levels, and portfolio correlation analysis for safer trading.
+                  Professional risk metrics with volatility analysis, position sizing guidance, 
+                  and portfolio correlation insights for informed decision-making.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -189,7 +189,7 @@ const Landing = () => {
             </Badge>
             <h2 className="text-4xl font-bold mb-4 text-foreground">Get Started in Minutes</h2>
             <p className="text-xl text-muted-foreground">
-              Professional crypto analysis in three simple steps
+              Professional crypto analytics in three simple steps
             </p>
           </div>
 
@@ -212,7 +212,7 @@ const Landing = () => {
               </div>
               <h3 className="text-xl font-semibold mb-4 text-foreground">Select Cryptocurrency</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Choose Bitcoin or Ethereum and generate comprehensive AI-powered reports with technical and fundamental analysis.
+                Choose from 10+ major cryptocurrencies and generate comprehensive AI-powered analytics reports.
               </p>
               {/* Connection Line */}
               <div className="hidden md:block absolute top-10 left-full w-full h-0.5 bg-gradient-to-r from-primary to-transparent"></div>
@@ -222,9 +222,9 @@ const Landing = () => {
               <div className="w-20 h-20 bg-primary rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                 <span className="text-2xl font-bold text-primary-foreground">3</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground">Make Informed Decisions</h3>
+              <h3 className="text-xl font-semibold mb-4 text-foreground">Analyze & Act</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Use detailed reports with confidence scores, risk analysis, and actionable trading recommendations.
+                Access detailed analytics with technical indicators, market insights, and risk assessments.
               </p>
             </div>
           </div>
@@ -236,21 +236,21 @@ const Landing = () => {
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready for Professional Crypto Analysis?
+            Ready for Professional Crypto Analytics?
           </h2>
           <p className="text-xl mb-10 opacity-90 max-w-2xl mx-auto">
-            Join traders making data-driven decisions with AI-powered insights. 
-            Start with your first free report today.
+            Join traders using advanced analytics and AI-powered insights. 
+            Start with your free analysis today.
           </p>
           <Link to="/auth">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6 shadow-xl">
-              Generate Free Report Now
+              Start Free Analysis
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
           <div className="mt-6 flex items-center justify-center gap-2 text-sm opacity-80">
             <CheckCircle className="h-4 w-4" />
-            <span>Free • No hidden fees • Professional grade</span>
+            <span>Free Trial • No hidden fees • Professional grade</span>
           </div>
         </div>
       </section>
@@ -268,8 +268,8 @@ const Landing = () => {
                 <h3 className="text-2xl font-bold text-foreground">IgniteX</h3>
               </div>
               <p className="text-muted-foreground mb-6 max-w-sm">
-                Professional-grade AI crypto analysis platform providing institutional-quality insights 
-                for Bitcoin and Ethereum traders worldwide.
+                Professional-grade AI crypto analytics platform providing institutional-quality insights 
+                for cryptocurrency traders and investors worldwide.
               </p>
               <div className="flex items-center gap-4">
                 <a href="https://x.com/IgniteXagency" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-muted hover:bg-primary/10 flex items-center justify-center transition-colors group">
@@ -289,7 +289,7 @@ const Landing = () => {
               <ul className="space-y-3">
                 <li>
                   <Link to="/dashboard" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                    AI Reports
+                    Analytics Dashboard
                   </Link>
                 </li>
                 <li>

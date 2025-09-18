@@ -272,7 +272,7 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
           <div className="text-center py-12">
             <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <div className="text-muted-foreground mb-4">
-              Generate a professional AI-powered analysis for {name}
+              Generate a professional analytics report for {name}
             </div>
             <Button 
               onClick={generateReport} 

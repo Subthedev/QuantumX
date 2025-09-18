@@ -24,8 +24,8 @@ const About = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    document.title = 'About Us - IgniteX | Trusted AI Crypto Analysis';
-    const metaDesc = 'Learn about IgniteX - your trusted partner in AI-powered cryptocurrency analysis. Transparent, reliable, and built for traders who demand excellence.';
+    document.title = 'About Us - IgniteX | Trusted AI Crypto Analytics';
+    const metaDesc = 'Learn about IgniteX - your trusted partner in AI-powered cryptocurrency analytics. Transparent, reliable, and built for traders who demand excellence.';
     let descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!descTag) {
       descTag = document.createElement('meta');
