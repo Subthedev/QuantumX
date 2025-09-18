@@ -354,8 +354,8 @@ Risk/Reward: 1:${analysisResult.riskMetrics?.risk_reward_ratios.tp1.toFixed(2)}
   return (
     <div className="w-full space-y-4">
 
-        {/* Live Market Data & Analysis Actions - Compact */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        {/* Live Market Data & Analysis Actions - Professional Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 gap-3">
           <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-orange-500/5 to-orange-600/5">
             <CardHeader className="pb-2 pt-3 px-4">
               <div className="flex justify-between items-center">
