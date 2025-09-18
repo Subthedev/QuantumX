@@ -14,18 +14,19 @@ export const ADALogo: React.FC<ADALogoProps> = ({ className = "w-6 h-6" }) => {
     >
       <circle cx="16" cy="16" r="16" fill="#0D1E30"/>
       <g fill="#3468D1">
-        <circle cx="16" cy="22" r="1.2"/>
-        <circle cx="12" cy="18" r="1.2"/>
-        <circle cx="20" cy="18" r="1.2"/>
-        <circle cx="16" cy="18" r="1.2"/>
-        <circle cx="10" cy="14" r="1.2"/>
-        <circle cx="22" cy="14" r="1.2"/>
-        <circle cx="13" cy="14" r="1.2"/>
-        <circle cx="19" cy="14" r="1.2"/>
-        <circle cx="16" cy="14" r="1.2"/>
-        <circle cx="12" cy="10" r="1.2"/>
-        <circle cx="20" cy="10" r="1.2"/>
-        <circle cx="16" cy="10" r="1.2"/>
+        <circle cx="16" cy="22.5" r="1.3"/>
+        <circle cx="11.5" cy="19" r="1.3"/>
+        <circle cx="20.5" cy="19" r="1.3"/>
+        <circle cx="16" cy="19" r="1.3"/>
+        <circle cx="9.5" cy="15" r="1.3"/>
+        <circle cx="22.5" cy="15" r="1.3"/>
+        <circle cx="13" cy="15" r="1.3"/>
+        <circle cx="19" cy="15" r="1.3"/>
+        <circle cx="16" cy="15" r="1.3"/>
+        <circle cx="11.5" cy="11" r="1.3"/>
+        <circle cx="20.5" cy="11" r="1.3"/>
+        <circle cx="16" cy="11" r="1.3"/>
+        <circle cx="16" cy="7.5" r="1.3"/>
       </g>
     </svg>
   );

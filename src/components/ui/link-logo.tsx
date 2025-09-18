@@ -14,7 +14,7 @@ export const LINKLogo: React.FC<LINKLogoProps> = ({ className = "w-6 h-6" }) => 
     >
       <circle cx="16" cy="16" r="16" fill="#375BD2"/>
       <path
-        d="M16 6l-6 3.46v12.08L16 26l6-3.46V10.46L16 6zm0 3.5l3.5 2.02v5.96L16 19.5l-3.5-2.02v-5.96L16 9.5z"
+        d="M16 6l-6.5 3.75v11.5L16 25l6.5-3.75v-11.5L16 6zm0 4.5l3 1.73v5.54L16 19.5l-3-1.73v-5.54L16 10.5z"
         fill="white"
       />
     </svg>
