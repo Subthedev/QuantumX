@@ -12,17 +12,11 @@ export const HYPELogo: React.FC<HYPELogoProps> = ({ className = "w-6 h-6" }) => 
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle cx="16" cy="16" r="16" fill="url(#hype-gradient)"/>
+      <circle cx="16" cy="16" r="16" fill="#E26C38"/>
       <path
-        d="M11 11v4h2v-4h4v10h-4v-4h-2v4c0 1.1.9 2 2 2h4c1.1 0 2-.9 2-2v-10c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2zm10 0v10h2v-10h-2z"
+        d="M11 9v6h2v-4h2v4h2v-4h2v4h2V9h-2v2h-2V9h-2v2h-2V9h-2zm0 8v6h10v-6h-2v4h-2v-4h-2v4h-2v-4H11z"
         fill="white"
       />
-      <defs>
-        <linearGradient id="hype-gradient" x1="0" y1="0" x2="32" y2="32">
-          <stop stopColor="#9945FF"/>
-          <stop offset="1" stopColor="#14F195"/>
-        </linearGradient>
-      </defs>
     </svg>
   );
 };

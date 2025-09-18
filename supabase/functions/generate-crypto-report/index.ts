@@ -52,7 +52,8 @@ serve(async (req) => {
     console.log(`Generating comprehensive report for ${coin} for user ${userId}`);
 
     // Validate input
-    if (!coin || !userId || !['BTC', 'ETH'].includes(coin)) {
+    const validCoins = ['BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'DOGE', 'TRX', 'ADA', 'HYPE', 'LINK'];
+    if (!coin || !userId || !validCoins.includes(coin)) {
       return new Response(
         JSON.stringify({ error: 'Invalid coin or userId' }),
         { 
