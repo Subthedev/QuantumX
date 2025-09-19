@@ -12,49 +12,54 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <svg
-        viewBox="0 0 100 100"
+        viewBox="0 0 80 80"
         className="h-full w-auto"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          <linearGradient id="bar1Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FFA366" />
-            <stop offset="100%" stopColor="#FF7F42" />
+          <linearGradient id="orangeGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FFCC80" />
+            <stop offset="100%" stopColor="#FFB366" />
           </linearGradient>
-          <linearGradient id="bar2Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FF9156" />
-            <stop offset="100%" stopColor="#FF6B32" />
+          <linearGradient id="orangeGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FFAB66" />
+            <stop offset="100%" stopColor="#FF9952" />
           </linearGradient>
-          <linearGradient id="bar3Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FF8046" />
-            <stop offset="100%" stopColor="#FF5722" />
+          <linearGradient id="orangeGradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FF9952" />
+            <stop offset="100%" stopColor="#FF7F3F" />
           </linearGradient>
-          <linearGradient id="arrowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#FF5252" />
-            <stop offset="50%" stopColor="#FF4444" />
-            <stop offset="100%" stopColor="#FF6B6B" />
+          <linearGradient id="redArrowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FF6B6B" />
+            <stop offset="50%" stopColor="#FF5757" />
+            <stop offset="100%" stopColor="#FF4444" />
           </linearGradient>
         </defs>
         
-        {/* Three ascending bars */}
-        <rect x="18" y="60" width="12" height="25" fill="url(#bar1Gradient)" rx="2" />
-        <rect x="36" y="45" width="12" height="40" fill="url(#bar2Gradient)" rx="2" />
-        <rect x="54" y="30" width="12" height="55" fill="url(#bar3Gradient)" rx="2" />
+        {/* First bar (shortest) */}
+        <rect x="12" y="50" width="10" height="18" fill="url(#orangeGradient1)" rx="1" />
         
-        {/* Curved arrow path wrapping around bars */}
+        {/* Second bar (medium) */}
+        <rect x="28" y="38" width="10" height="30" fill="url(#orangeGradient2)" rx="1" />
+        
+        {/* Third bar (tallest) */}
+        <rect x="44" y="26" width="10" height="42" fill="url(#orangeGradient3)" rx="1" />
+        
+        {/* Curved arrow wrapping around the bars */}
         <path
-          d="M 15 75 Q 15 65, 25 60 T 45 50 Q 65 40, 70 25"
-          stroke="url(#arrowGradient)"
-          strokeWidth="5"
+          d="M 10 62 C 10 54, 15 50, 22 46 C 30 42, 38 38, 46 32 C 54 26, 60 20, 64 12"
+          stroke="url(#redArrowGradient)"
+          strokeWidth="4"
           strokeLinecap="round"
           fill="none"
         />
         
-        {/* Arrow head */}
+        {/* Arrow head pointing upward */}
         <path
-          d="M 68 28 L 74 22 L 74 30 Z"
-          fill="#FF5252"
+          d="M 62 15 L 68 10 L 68 18 Z"
+          fill="#FF4444"
+          transform="rotate(-35 65 14)"
         />
       </svg>
       {showText && (
