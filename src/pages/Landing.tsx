@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Shield, Brain, BarChart3, ArrowRight, Zap, Target, Activity, CheckCircle, Star, Twitter, Instagram, Mail } from 'lucide-react';
-import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { IgniteXLogo } from '@/components/ui/ignitex-logo';
 import { AppHeader } from '@/components/AppHeader';
 import { toast } from '@/hooks/use-toast';
 const Landing = () => {
@@ -263,9 +263,8 @@ const Landing = () => {
             
             {/* Brand Section */}
             <div className="lg:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
-                <AIBrainIcon size="lg" className="h-10 w-10" />
-                <h3 className="text-2xl font-bold text-foreground">IgniteX</h3>
+              <div className="mb-4">
+                <IgniteXLogo className="h-10" showText={true} />
               </div>
               <p className="text-muted-foreground mb-6 max-w-sm">
                 Professional-grade AI crypto analytics platform providing institutional-quality insights 

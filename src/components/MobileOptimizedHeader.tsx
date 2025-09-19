@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { IgniteXLogo } from '@/components/ui/ignitex-logo';
 import { 
   Menu, 
   User, 
@@ -73,9 +73,8 @@ const MobileOptimizedHeaderComponent = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <AIBrainIcon size="sm" className="h-8 w-8" />
-          <span className="font-bold text-lg md:text-xl">IgniteX</span>
+        <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+          <IgniteXLogo className="h-10" showText={true} />
         </Link>
 
         {/* Desktop Navigation */}
@@ -180,10 +179,7 @@ const MobileOptimizedHeaderComponent = () => {
             <SheetContent side="right" className="w-[280px] sm:w-[350px] p-0">
               {/* Mobile Sheet Header */}
               <div className="flex items-center justify-between p-4 border-b">
-                <div className="flex items-center gap-2">
-                  <AIBrainIcon size="sm" className="h-6 w-6" />
-                  <span className="font-bold text-lg">IgniteX</span>
-                </div>
+                <IgniteXLogo className="h-8" showText={true} />
                 <Button
                   variant="ghost"
                   size="icon"
