@@ -7,10 +7,10 @@ interface IgniteXLogoProps {
 
 export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({ 
   className = "h-10", 
-  showText = false 
+  showText = true 
 }) => {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-3 ${className}`}>
       <svg
         viewBox="0 0 100 100"
         className="h-full w-auto"
@@ -18,40 +18,47 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
-          <linearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FFB366" />
-            <stop offset="100%" stopColor="#FF8C42" />
+          <linearGradient id="bar1Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FFA366" />
+            <stop offset="100%" stopColor="#FF7F42" />
           </linearGradient>
-          <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FF6B6B" />
-            <stop offset="50%" stopColor="#FF5252" />
-            <stop offset="100%" stopColor="#FF8C42" />
+          <linearGradient id="bar2Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FF9156" />
+            <stop offset="100%" stopColor="#FF6B32" />
+          </linearGradient>
+          <linearGradient id="bar3Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FF8046" />
+            <stop offset="100%" stopColor="#FF5722" />
+          </linearGradient>
+          <linearGradient id="arrowGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FF5252" />
+            <stop offset="50%" stopColor="#FF4444" />
+            <stop offset="100%" stopColor="#FF6B6B" />
           </linearGradient>
         </defs>
         
-        {/* Chart bars */}
-        <rect x="25" y="55" width="8" height="20" fill="url(#barGradient)" opacity="0.8" />
-        <rect x="38" y="45" width="8" height="30" fill="url(#barGradient)" opacity="0.9" />
-        <rect x="51" y="35" width="8" height="40" fill="url(#barGradient)" />
+        {/* Three ascending bars */}
+        <rect x="18" y="60" width="12" height="25" fill="url(#bar1Gradient)" rx="2" />
+        <rect x="36" y="45" width="12" height="40" fill="url(#bar2Gradient)" rx="2" />
+        <rect x="54" y="30" width="12" height="55" fill="url(#bar3Gradient)" rx="2" />
         
-        {/* Upward arrow wrapping around */}
+        {/* Curved arrow path wrapping around bars */}
         <path
-          d="M 20 70 C 20 70, 25 65, 35 60 C 45 55, 55 50, 65 40 L 60 42 L 65 40 L 63 45 M 65 40 C 70 35, 75 25, 75 25"
+          d="M 15 75 Q 15 65, 25 60 T 45 50 Q 65 40, 70 25"
           stroke="url(#arrowGradient)"
-          strokeWidth="6"
+          strokeWidth="5"
           strokeLinecap="round"
-          strokeLinejoin="round"
           fill="none"
         />
         
         {/* Arrow head */}
         <path
-          d="M 72 25 L 78 28 L 75 22 Z"
-          fill="url(#arrowGradient)"
+          d="M 68 28 L 74 22 L 74 30 Z"
+          fill="#FF5252"
         />
       </svg>
       {showText && (
-        <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-variant bg-clip-text text-transparent">
+        <span className="text-2xl font-bold text-black">
           IgniteX
         </span>
       )}
