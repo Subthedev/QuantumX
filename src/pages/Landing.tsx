@@ -264,7 +264,7 @@ const Landing = () => {
             {/* Brand Section */}
             <div className="lg:col-span-2">
               <div className="mb-4">
-                <IgniteXLogo className="h-10" showText={true} />
+                <IgniteXLogo size="md" showText={true} />
               </div>
               <p className="text-muted-foreground mb-6 max-w-sm">
                 Professional-grade AI crypto analytics platform providing institutional-quality insights 

@@ -74,7 +74,7 @@ const MobileOptimizedHeaderComponent = () => {
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <IgniteXLogo className="h-10" showText={true} />
+          <IgniteXLogo size="sm" showText={true} />
         </Link>
 
         {/* Desktop Navigation */}
@@ -179,7 +179,7 @@ const MobileOptimizedHeaderComponent = () => {
             <SheetContent side="right" className="w-[280px] sm:w-[350px] p-0">
               {/* Mobile Sheet Header */}
               <div className="flex items-center justify-between p-4 border-b">
-                <IgniteXLogo className="h-8" showText={true} />
+                <IgniteXLogo size="sm" showText={true} />
                 <Button
                   variant="ghost"
                   size="icon"
