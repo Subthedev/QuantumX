@@ -1,19 +1,15 @@
-import { useEffect, useState, useCallback, memo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import ProfessionalAnalysisDashboard from '@/components/ProfessionalAnalysisDashboard';
-import CreditDisplay from '@/components/CreditDisplay';
-import { TrendingUp, Home, Coins, Gift, Bitcoin, Zap, BarChart3, Lightbulb, CreditCard, Crown, Sparkles } from 'lucide-react';
+import CryptoTable from '@/components/CryptoTable';
+import { TrendingUp, Zap, BarChart3, Sparkles, Globe, Activity, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Link } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
-import { BTCLogo } from '@/components/ui/btc-logo';
-import { ETHLogo } from '@/components/ui/eth-logo';
-import { StrategicCreditPrompt } from '@/components/StrategicCreditPrompt';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'sonner';
 
 interface CryptoReportData {
   id: string;
@@ -152,78 +148,91 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8 space-y-8 max-w-7xl">
+      <main className="flex-1 container mx-auto px-4 py-8 space-y-6">
         
-        {/* AI Analysis Dashboard */}
-        <div className="w-full">
-          <ProfessionalAnalysisDashboard onCreditUsed={fetchUserCredits} />
+        {/* Page Header */}
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Cryptocurrency Markets</h1>
+          <p className="text-muted-foreground">
+            Top 50 cryptocurrencies by market capitalization with AI-powered analysis
+          </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Reports Today</p>
-                  <p className="text-3xl font-bold mt-2">{totalReportsCount}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Global Market Cap</p>
+                  <p className="text-2xl font-bold mt-1">$3.42T</p>
+                  <p className="text-xs text-green-500 mt-1">+2.3%</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
+                <Globe className="h-8 w-8 text-muted-foreground/30" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Avg Confidence</p>
-                  <p className="text-3xl font-bold mt-2">85%</p>
+                  <p className="text-xs font-medium text-muted-foreground">24h Volume</p>
+                  <p className="text-2xl font-bold mt-1">$142B</p>
+                  <p className="text-xs text-green-500 mt-1">+8.7%</p>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-green-500" />
-                </div>
+                <Activity className="h-8 w-8 text-muted-foreground/30" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Credits Balance</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <p className="text-3xl font-bold">{userCredits}</p>
+                  <p className="text-xs font-medium text-muted-foreground">AI Reports</p>
+                  <p className="text-2xl font-bold mt-1">{totalReportsCount}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Today</p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-muted-foreground/30" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Credits</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-2xl font-bold">{userCredits}</p>
                     {userCredits <= 2 && userCredits > 0 && (
                       <Badge variant="secondary" className="text-xs">Low</Badge>
-                    )}
-                    {userCredits === 0 && (
-                      <Badge variant="destructive" className="text-xs">Empty</Badge>
                     )}
                   </div>
                 </div>
                 <Button 
                   onClick={() => navigate('/pricing')}
                   size="sm"
-                  variant={userCredits === 0 ? 'default' : 'outline'}
-                  className="h-10 px-4"
+                  variant="ghost"
+                  className="h-8 px-3"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Add
+                  <Sparkles className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Recent Signals */}
+        {/* Main Crypto Table */}
+        <CryptoTable />
+
+        {/* Recent AI Analysis */}
         <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-5">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Recent Signals
+              <Sparkles className="h-5 w-5 text-primary" />
+              Recent AI Analysis
             </CardTitle>
             <CardDescription className="text-sm mt-1">
               Your latest AI-powered crypto analysis results
@@ -234,8 +243,8 @@ const Dashboard = () => {
               Object.entries(reports).slice(0, 5).map(([symbol, report]) => (
                 <div key={report.id} className="flex items-center justify-between p-4 rounded-lg bg-background/50 border border-border/50 hover:bg-background/70 transition-colors">
                   <div className="flex items-center gap-4">
-                    <div className="scale-110">
-                      {symbol === 'BTC' ? <BTCLogo /> : <ETHLogo />}
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="font-bold text-sm">{symbol}</span>
                     </div>
                     <div>
                       <p className="font-semibold text-base">{symbol}</p>
@@ -265,9 +274,9 @@ const Dashboard = () => {
               ))
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="text-base font-medium mb-2">No recent signals yet</p>
-                <p className="text-sm">Generate your first AI analysis above to see results here</p>
+                <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-base font-medium mb-2">No AI analyses yet</p>
+                <p className="text-sm">Click "AI Analysis" on any cryptocurrency above to get started</p>
               </div>
             )}
           </CardContent>
