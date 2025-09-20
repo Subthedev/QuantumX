@@ -386,10 +386,7 @@ const Landing = () => {
           {/* Bottom Bar */}
           <div className="border-t border-border pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Shield className="h-4 w-4" />
-                <span>SSL Secured • Data Protected • GDPR Compliant</span>
-              </div>
+              
               <p className="text-sm text-muted-foreground text-center">
                 © 2023 IgniteX. All rights reserved. Professional crypto analysis powered by AI.
               </p>
