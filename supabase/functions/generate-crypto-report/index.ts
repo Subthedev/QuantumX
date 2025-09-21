@@ -49,7 +49,7 @@ serve(async (req) => {
 
     const tf = timeframe || '4H';
 
-    console.log(`Generating comprehensive report for ${coin} for user ${userId}`);
+    console.log(`Generating comprehensive report for ${coin} (ID: ${coinId}) for user ${userId}`);
 
     // Validate input - coin symbol should be uppercase and not empty
     const coinSymbol = coin?.toUpperCase();
@@ -163,12 +163,12 @@ async function fetchCoinGeckoData(symbol: string) {
       high24h: marketData.market_data?.high_24h?.usd || 0,
       low24h: marketData.market_data?.low_24h?.usd || 0,
       fdv: marketData.market_data?.fully_diluted_valuation?.usd || 0,
-      marketCapToVolume: coinData.usd_market_cap / coinData.usd_24h_vol,
+      marketCapToVolume: coinDataForId.usd_market_cap / coinDataForId.usd_24h_vol,
       historicalPrices: historicalData.prices || [],
       historicalVolumes: historicalData.total_volumes || [],
       description: marketData.description?.en || '',
-      symbol: symbol,
-      name: symbol === 'BTC' ? 'Bitcoin' : 'Ethereum',
+      symbol: symbol.toUpperCase(),
+      name: marketData.name || coinInfo?.name || symbol,
       sentimentVotesUpPercentage: marketData.sentiment_votes_up_percentage || 50,
       sentimentVotesDownPercentage: marketData.sentiment_votes_down_percentage || 50,
       developerScore: marketData.developer_score || 0,
