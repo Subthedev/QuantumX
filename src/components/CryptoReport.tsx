@@ -178,7 +178,7 @@ interface CryptoReportData {
 }
 
 interface CryptoReportProps {
-  coin: string;
+  coin: string;  // This should be the coin ID from CoinGecko (e.g., 'bitcoin', 'ethereum')
   icon: React.ReactNode;
   name: string;
   existingReport?: CryptoReportData;
@@ -226,9 +226,13 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
         throw new Error('Failed to consume credit');
       }
 
+      // Get the coin symbol from coin ID
+      const coinSymbol = coin.split('-')[0].toUpperCase(); // Handle IDs like 'bitcoin' -> 'BTC'
+      
       const { data, error } = await supabase.functions.invoke('generate-crypto-report', {
         body: {
-          coin: coin.toUpperCase(), // Ensure coin symbol is uppercase
+          coin: coinSymbol, // Pass the symbol, not the ID
+          coinId: coin, // Also pass the ID for fetching data
           userId: user.id,
           timeframe: '4H'
         }
