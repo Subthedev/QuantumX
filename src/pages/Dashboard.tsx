@@ -148,13 +148,13 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8 space-y-6">
+      <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-[1400px]">
         
         {/* Page Header */}
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Cryptocurrency Markets</h1>
-          <p className="text-muted-foreground">
-            Top 50 cryptocurrencies by market capitalization with AI-powered analysis
+          <h1 className="text-2xl font-bold tracking-tight">Today's Cryptocurrency Prices by Market Cap</h1>
+          <p className="text-sm text-muted-foreground">
+            The global crypto market cap is <span className="font-semibold">$3.42T</span>, a <span className="text-green-500">+2.3%</span> change over the last 24 hours.
           </p>
         </div>
 
