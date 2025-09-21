@@ -33,7 +33,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 }
 
 interface RequestBody {
-  coin: 'BTC' | 'ETH';
+  coin: string; // Now accepts any coin symbol
   userId: string;
   timeframe?: '4H';
 }
@@ -51,11 +51,11 @@ serve(async (req) => {
 
     console.log(`Generating comprehensive report for ${coin} for user ${userId}`);
 
-    // Validate input
-    const validCoins = ['BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'DOGE', 'TRX', 'ADA', 'HYPE', 'LINK'];
-    if (!coin || !userId || !validCoins.includes(coin)) {
+    // Validate input - coin symbol should be uppercase and not empty
+    const coinSymbol = coin?.toUpperCase();
+    if (!coinSymbol || !userId || coinSymbol.length === 0 || coinSymbol.length > 10) {
       return new Response(
-        JSON.stringify({ error: 'Invalid coin or userId' }),
+        JSON.stringify({ error: 'Invalid coin symbol or userId' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -70,7 +70,7 @@ serve(async (req) => {
 
     // Fetch real-time market data and generate professional analysis with timeout
     const prediction = await Promise.race([
-      generateProfessionalReport(coin, tf),
+      generateProfessionalReport(coinSymbol, tf),
       timeoutPromise
     ]) as any;
 
@@ -79,7 +79,7 @@ serve(async (req) => {
       .from('crypto_reports')
       .insert({
         user_id: userId,
-        coin_symbol: coin,
+        coin_symbol: coinSymbol,
         prediction_summary: prediction.summary,
         confidence_score: prediction.confidence, // This is now a number
         report_data: prediction.data
@@ -92,7 +92,7 @@ serve(async (req) => {
       throw insertError;
     }
 
-    console.log(`Report generated successfully for ${coin}`);
+    console.log(`Report generated successfully for ${coinSymbol}`);
 
     return new Response(
       JSON.stringify(report),

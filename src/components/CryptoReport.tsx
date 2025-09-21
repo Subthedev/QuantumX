@@ -228,7 +228,7 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
 
       const { data, error } = await supabase.functions.invoke('generate-crypto-report', {
         body: {
-          coin: coin,
+          coin: coin.toUpperCase(), // Ensure coin symbol is uppercase
           userId: user.id,
           timeframe: '4H'
         }
