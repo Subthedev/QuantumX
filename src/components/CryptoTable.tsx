@@ -205,7 +205,11 @@ const CryptoTable: React.FC<CryptoTableProps> = ({ onGenerateReport }) => {
             Detailed information about {selectedCrypto?.name}
           </DialogDescription>
           {selectedCrypto && (
-            <CryptoDetailsModal crypto={selectedCrypto} />
+            <CryptoDetailsModal 
+              coin={selectedCrypto}
+              open={!!selectedCrypto}
+              onClose={() => setSelectedCrypto(null)}
+            />
           )}
         </DialogContent>
       </Dialog>

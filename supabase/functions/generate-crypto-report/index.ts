@@ -49,8 +49,6 @@ serve(async (req) => {
 
     const tf = timeframe || '4H';
 
-    console.log(`Generating comprehensive report for ${coin} (ID: ${coinId}) for user ${userId}`);
-
     // Validate input - coin symbol should be uppercase and not empty
     const coinSymbol = coin?.toUpperCase();
     if (!coinSymbol || !userId || coinSymbol.length === 0 || coinSymbol.length > 10) {
@@ -62,6 +60,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log(`Generating comprehensive report for ${coinSymbol} for user ${userId}`);
 
     // Create a timeout promise (25 seconds to leave buffer for response)
     const timeoutPromise = new Promise((_, reject) => {
@@ -124,7 +124,31 @@ const marketDataCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 async function fetchCoinGeckoData(symbol: string) {
-  const coinId = symbol === 'BTC' ? 'bitcoin' : 'ethereum';
+  // Map common symbols to CoinGecko IDs
+  const symbolToCoinId: Record<string, string> = {
+    'BTC': 'bitcoin',
+    'ETH': 'ethereum',
+    'BNB': 'binancecoin',
+    'SOL': 'solana',
+    'ADA': 'cardano',
+    'XRP': 'ripple',
+    'DOT': 'polkadot',
+    'DOGE': 'dogecoin',
+    'AVAX': 'avalanche-2',
+    'SHIB': 'shiba-inu',
+    'MATIC': 'matic-network',
+    'LTC': 'litecoin',
+    'LINK': 'chainlink',
+    'UNI': 'uniswap',
+    'NEAR': 'near',
+    'TRX': 'tron',
+    'ATOM': 'cosmos',
+    'XLM': 'stellar',
+    'FTM': 'fantom',
+    'ALGO': 'algorand'
+  };
+  
+  const coinId = symbolToCoinId[symbol.toUpperCase()] || symbol.toLowerCase();
   
   try {
     // Fetch comprehensive data from multiple endpoints
@@ -163,12 +187,12 @@ async function fetchCoinGeckoData(symbol: string) {
       high24h: marketData.market_data?.high_24h?.usd || 0,
       low24h: marketData.market_data?.low_24h?.usd || 0,
       fdv: marketData.market_data?.fully_diluted_valuation?.usd || 0,
-      marketCapToVolume: coinDataForId.usd_market_cap / coinDataForId.usd_24h_vol,
+      marketCapToVolume: coinData.usd_market_cap / coinData.usd_24h_vol,
       historicalPrices: historicalData.prices || [],
       historicalVolumes: historicalData.total_volumes || [],
       description: marketData.description?.en || '',
       symbol: symbol.toUpperCase(),
-      name: marketData.name || coinInfo?.name || symbol,
+      name: marketData.name || symbol,
       sentimentVotesUpPercentage: marketData.sentiment_votes_up_percentage || 50,
       sentimentVotesDownPercentage: marketData.sentiment_votes_down_percentage || 50,
       developerScore: marketData.developer_score || 0,
@@ -474,7 +498,31 @@ function stochastic(highs: number[], lows: number[], closes: number[], period = 
 
 // Generate comprehensive technical analysis
 async function generateTechnicalAnalysis(symbol: string, timeframe: string) {
-  const binanceSymbol = symbol === 'BTC' ? 'BTCUSDT' : 'ETHUSDT';
+  // Map symbols to Binance trading pairs
+  const symbolToPair: Record<string, string> = {
+    'BTC': 'BTCUSDT',
+    'ETH': 'ETHUSDT',
+    'BNB': 'BNBUSDT',
+    'SOL': 'SOLUSDT',
+    'ADA': 'ADAUSDT',
+    'XRP': 'XRPUSDT',
+    'DOT': 'DOTUSDT',
+    'DOGE': 'DOGEUSDT',
+    'AVAX': 'AVAXUSDT',
+    'SHIB': 'SHIBUSDT',
+    'MATIC': 'MATICUSDT',
+    'LTC': 'LTCUSDT',
+    'LINK': 'LINKUSDT',
+    'UNI': 'UNIUSDT',
+    'NEAR': 'NEARUSDT',
+    'TRX': 'TRXUSDT',
+    'ATOM': 'ATOMUSDT',
+    'XLM': 'XLMUSDT',
+    'FTM': 'FTMUSDT',
+    'ALGO': 'ALGOUSDT'
+  };
+  
+  const binanceSymbol = symbolToPair[symbol.toUpperCase()] || `${symbol.toUpperCase()}USDT`;
   const binanceInterval = timeframe === '4H' ? '4h' : '1h';
   
   try {
