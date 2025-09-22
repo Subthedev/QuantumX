@@ -14,7 +14,7 @@ import {
   Coins,
   Info
 } from 'lucide-react';
-import { formatNumber, formatPercentage } from '@/lib/utils';
+
 import { useState, useEffect } from 'react';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import CryptoReport from './CryptoReport';

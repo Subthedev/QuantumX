@@ -226,13 +226,38 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
         throw new Error('Failed to consume credit');
       }
 
-      // Get the coin symbol from coin ID
-      const coinSymbol = coin.split('-')[0].toUpperCase(); // Handle IDs like 'bitcoin' -> 'BTC'
+      // Map CoinGecko IDs to symbols
+      const idToSymbol: Record<string, string> = {
+        'bitcoin': 'BTC',
+        'ethereum': 'ETH',
+        'binancecoin': 'BNB',
+        'solana': 'SOL',
+        'cardano': 'ADA',
+        'ripple': 'XRP',
+        'polkadot': 'DOT',
+        'dogecoin': 'DOGE',
+        'avalanche-2': 'AVAX',
+        'shiba-inu': 'SHIB',
+        'matic-network': 'MATIC',
+        'litecoin': 'LTC',
+        'chainlink': 'LINK',
+        'uniswap': 'UNI',
+        'near': 'NEAR',
+        'tron': 'TRX',
+        'cosmos': 'ATOM',
+        'stellar': 'XLM',
+        'fantom': 'FTM',
+        'algorand': 'ALGO',
+        'tether': 'USDT',
+        'usd-coin': 'USDC'
+      };
+      
+      // Get the correct symbol for the coin
+      const coinSymbol = idToSymbol[coin] || coin.toUpperCase();
       
       const { data, error } = await supabase.functions.invoke('generate-crypto-report', {
         body: {
-          coin: coinSymbol, // Pass the symbol, not the ID
-          coinId: coin, // Also pass the ID for fetching data
+          coin: coinSymbol, // Pass the correct symbol
           userId: user.id,
           timeframe: '4H'
         }
