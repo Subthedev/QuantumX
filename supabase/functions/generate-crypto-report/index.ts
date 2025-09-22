@@ -145,7 +145,18 @@ async function fetchCoinGeckoData(symbol: string) {
     'ATOM': 'cosmos',
     'XLM': 'stellar',
     'FTM': 'fantom',
-    'ALGO': 'algorand'
+    'ALGO': 'algorand',
+    'USDT': 'tether',
+    'USDC': 'usd-coin',
+    'APT': 'aptos',
+    'ARB': 'arbitrum',
+    'VET': 'vechain',
+    'ICP': 'internet-computer',
+    'HBAR': 'hedera',
+    'FIL': 'filecoin',
+    'CRO': 'crypto-com-chain',
+    'BCH': 'bitcoin-cash',
+    'TON': 'the-open-network'
   };
   
   const coinId = symbolToCoinId[symbol.toUpperCase()] || symbol.toLowerCase();
@@ -519,7 +530,16 @@ async function generateTechnicalAnalysis(symbol: string, timeframe: string) {
     'ATOM': 'ATOMUSDT',
     'XLM': 'XLMUSDT',
     'FTM': 'FTMUSDT',
-    'ALGO': 'ALGOUSDT'
+    'ALGO': 'ALGOUSDT',
+    'APT': 'APTUSDT',
+    'ARB': 'ARBUSDT',
+    'VET': 'VETUSDT',
+    'ICP': 'ICPUSDT',
+    'HBAR': 'HBARUSDT',
+    'FIL': 'FILUSDT',
+    'CRO': 'CROUSDT',
+    'BCH': 'BCHUSDT',
+    'TON': 'TONUSDT'
   };
   
   const binanceSymbol = symbolToPair[symbol.toUpperCase()] || `${symbol.toUpperCase()}USDT`;

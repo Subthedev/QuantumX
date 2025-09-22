@@ -200,30 +200,42 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
       return;
     }
     
-    // Check if user has credits
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('user_id', user.id)
-      .single();
+    // Check if user has tester role (unlimited reports)
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    
+    const isTester = userRoles?.some(r => r.role === 'tester' || r.role === 'admin');
+    
+    // If not a tester, check if user has credits
+    if (!isTester) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('user_id', user.id)
+        .single();
 
-    if (!profile || profile.credits < 1) {
-      toast({
-        title: "No credits available",
-        description: "Complete the feedback form to earn 5 credits!",
-        variant: "destructive"
-      });
-      return;
+      if (!profile || profile.credits < 1) {
+        toast({
+          title: "No credits available",
+          description: "Complete the feedback form to earn 5 credits!",
+          variant: "destructive"
+        });
+        return;
+      }
     }
     
     setLoading(true);
     try {
-      // Consume a credit
-      const { data: consumed, error: consumeError } = await supabase
-        .rpc('consume_credit', { _user_id: user.id });
+      // Consume a credit only if not a tester
+      if (!isTester) {
+        const { data: consumed, error: consumeError } = await supabase
+          .rpc('consume_credit', { _user_id: user.id });
 
-      if (!consumed || consumeError) {
-        throw new Error('Failed to consume credit');
+        if (!consumed || consumeError) {
+          throw new Error('Failed to consume credit');
+        }
       }
 
       // Map CoinGecko IDs to symbols
@@ -249,7 +261,16 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
         'fantom': 'FTM',
         'algorand': 'ALGO',
         'tether': 'USDT',
-        'usd-coin': 'USDC'
+        'usd-coin': 'USDC',
+        'aptos': 'APT',
+        'arbitrum': 'ARB',
+        'vechain': 'VET',
+        'internet-computer': 'ICP',
+        'hedera': 'HBAR',
+        'filecoin': 'FIL',
+        'crypto-com-chain': 'CRO',
+        'bitcoin-cash': 'BCH',
+        'the-open-network': 'TON'
       };
       
       // Get the correct symbol for the coin
@@ -263,15 +284,23 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to generate report');
+      }
+
+      if (!data) {
+        throw new Error('No data received from edge function');
+      }
 
       setReport(data);
+      const creditMessage = isTester ? '(Tester - No credits consumed)' : '(Credit consumed)';
       toast({
         title: "Report Generated",
-        description: `Professional analysis for ${name} has been created successfully. Credit consumed.`
+        description: `Professional analysis for ${name} has been created successfully. ${creditMessage}`
       });
     } catch (error: any) {
-      // Silently handle error
+      console.error('Report generation error:', error);
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate report. Please try again.",
