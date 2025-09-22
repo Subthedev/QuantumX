@@ -12,14 +12,23 @@ import {
   Clock,
   Percent,
   Coins,
-  Info
+  Info,
+  Globe,
+  Github,
+  Twitter,
+  Users,
+  Code,
+  GitFork,
+  Star
 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import { cryptoDataService } from '@/services/cryptoDataService';
+import { enhancedCryptoDataService } from '@/services/enhancedCryptoDataService';
 import CryptoReport from './CryptoReport';
-import { TradingViewChart } from './charts/TradingViewChart';
+import { EnhancedTradingChart } from './charts/EnhancedTradingChart';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { formatNumber, formatPercentage } from '@/lib/utils';
 
 interface CryptoDetailsModalProps {
   coin: any;
@@ -29,6 +38,7 @@ interface CryptoDetailsModalProps {
 
 export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetailsModalProps) {
   const [detailedData, setDetailedData] = useState<any>(null);
+  const [enhancedData, setEnhancedData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -40,8 +50,12 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
   const loadDetailedData = async () => {
     setIsLoading(true);
     try {
-      const data = await cryptoDataService.getCryptoDetails(coin.id);
-      setDetailedData(data);
+      const [basicData, enhanced] = await Promise.all([
+        cryptoDataService.getCryptoDetails(coin.id),
+        enhancedCryptoDataService.getDetailedMarketData(coin.id)
+      ]);
+      setDetailedData(basicData);
+      setEnhancedData(enhanced);
     } catch (error) {
       console.error('Error loading detailed data:', error);
     } finally {
@@ -131,14 +145,12 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
-                {/* TradingView-style Chart */}
+                {/* Enhanced Trading Chart with multiple timeframes */}
                 <div className="col-span-2">
-                  <TradingViewChart 
-                    data={coin.sparkline_in_7d?.price || []}
-                    symbol={coin.symbol.toUpperCase()}
-                    timeframe="7D"
-                    height={300}
-                    showVolume={true}
+                  <EnhancedTradingChart 
+                    coinId={coin.id}
+                    symbol={coin.symbol}
+                    currentPrice={coin.current_price}
                   />
                 </div>
 
@@ -254,13 +266,13 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
               </TabsContent>
 
               <TabsContent value="market" className="space-y-6">
-                {/* Market Stats */}
+                {/* Enhanced Market Stats */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Market Statistics</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <div className="text-sm text-muted-foreground">Market Cap Rank</div>
                         <div className="text-xl font-bold">#{coin.market_cap_rank}</div>
@@ -274,45 +286,120 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
                       <div>
                         <div className="text-sm text-muted-foreground">FDV</div>
                         <div className="text-xl font-bold">
-                          {coin.fully_diluted_valuation ? cryptoDataService.formatNumber(coin.fully_diluted_valuation) : 'N/A'}
+                          {coin.fully_diluted_valuation ? formatNumber(coin.fully_diluted_valuation) : 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Circulating %</div>
+                        <div className="text-xl font-bold">
+                          {coin.max_supply ? ((coin.circulating_supply / coin.max_supply) * 100).toFixed(1) + '%' : 'N/A'}
                         </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Additional market data from detailed data */}
-                {detailedData && (
+                {/* Technical Indicators */}
+                {enhancedData?.technicalIndicators && (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base">Community & Development</CardTitle>
+                      <CardTitle className="text-base">Technical Analysis</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-sm text-muted-foreground">Price Score</div>
+                          <Progress value={enhancedData.technicalIndicators.priceScore} className="h-2 mt-2" />
+                          <div className="text-xs mt-1">{enhancedData.technicalIndicators.priceScore?.toFixed(1)}% from ATL to ATH</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Volatility</div>
+                          <Badge variant={enhancedData.technicalIndicators.volatility === 'Low' ? 'secondary' : 
+                                          enhancedData.technicalIndicators.volatility === 'High' ? 'destructive' : 'default'}>
+                            {enhancedData.technicalIndicators.volatility}
+                          </Badge>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Momentum</div>
+                          <Badge variant={enhancedData.technicalIndicators.momentum?.includes('Bullish') ? 'default' : 'destructive'}>
+                            {enhancedData.technicalIndicators.momentum}
+                          </Badge>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Volume Profile</div>
+                          <Badge variant="outline">{enhancedData.technicalIndicators.volumeProfile}</Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Social & Community Metrics */}
+                {enhancedData?.socialMetrics && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Social & Community
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {enhancedData.socialMetrics.twitterFollowers > 0 && (
+                          <div className="flex items-center gap-2">
+                            <Twitter className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm text-muted-foreground">Twitter</div>
+                              <div className="font-bold">{enhancedCryptoDataService.formatLargeNumber(enhancedData.socialMetrics.twitterFollowers)}</div>
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm text-muted-foreground">Sentiment</div>
+                          <div className="font-bold text-green-500">{enhancedData.socialMetrics.sentimentScore?.toFixed(1)}% Positive</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Community Score</div>
+                          <div className="font-bold">{enhancedData.socialMetrics.communityScore?.toFixed(1)}/100</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Developer Activity */}
+                {enhancedData?.developerMetrics && enhancedData.developerMetrics.githubStars > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Code className="w-4 h-4" />
+                        Developer Activity
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {detailedData.community_score && (
+                        <div className="flex items-center gap-2">
+                          <Star className="w-4 h-4 text-yellow-500" />
                           <div>
-                            <div className="text-sm text-muted-foreground">Community Score</div>
-                            <div className="text-xl font-bold">{detailedData.community_score.toFixed(1)}</div>
+                            <div className="text-sm text-muted-foreground">Stars</div>
+                            <div className="font-bold">{enhancedCryptoDataService.formatLargeNumber(enhancedData.developerMetrics.githubStars)}</div>
                           </div>
-                        )}
-                        {detailedData.developer_score && (
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <GitFork className="w-4 h-4 text-muted-foreground" />
                           <div>
-                            <div className="text-sm text-muted-foreground">Developer Score</div>
-                            <div className="text-xl font-bold">{detailedData.developer_score.toFixed(1)}</div>
+                            <div className="text-sm text-muted-foreground">Forks</div>
+                            <div className="font-bold">{enhancedCryptoDataService.formatLargeNumber(enhancedData.developerMetrics.githubForks)}</div>
                           </div>
-                        )}
-                        {detailedData.liquidity_score && (
-                          <div>
-                            <div className="text-sm text-muted-foreground">Liquidity Score</div>
-                            <div className="text-xl font-bold">{detailedData.liquidity_score.toFixed(1)}</div>
-                          </div>
-                        )}
-                        {detailedData.public_interest_score && (
-                          <div>
-                            <div className="text-sm text-muted-foreground">Public Interest</div>
-                            <div className="text-xl font-bold">{detailedData.public_interest_score.toFixed(1)}</div>
-                          </div>
-                        )}
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Commits (4w)</div>
+                          <div className="font-bold">{enhancedData.developerMetrics.commits4Weeks}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Dev Score</div>
+                          <div className="font-bold">{enhancedData.developerMetrics.developerScore?.toFixed(1)}/100</div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
