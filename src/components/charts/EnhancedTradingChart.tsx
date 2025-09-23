@@ -87,7 +87,7 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
       const ohlcData: number[][] = await ohlcResponse.json();
       
       // Fetch regular market chart data for line charts and volume
-      const marketUrl = `${proxyUrl}${encodeURIComponent(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`)}`;
+      const marketUrl = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`;
       const marketResponse = await fetch(marketUrl);
       
       let marketData = { prices: [], total_volumes: [] };
