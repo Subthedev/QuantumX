@@ -1,22 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  ComposedChart,
+  LineChart,
   Line,
-  Bar,
+  Area,
+  AreaChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
-  ReferenceLine
+  ReferenceLine,
+  Brush
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Activity, TrendingUp, BarChart3, CandlestickChart } from 'lucide-react';
+import { TrendingUp, Activity, BarChart3, Info } from 'lucide-react';
 import { formatNumber } from '@/lib/utils';
 
 interface EnhancedTradingChartProps {
@@ -29,38 +30,24 @@ interface ChartData {
   time: string;
   price: number;
   volume: number;
-  open?: number;
-  high?: number;
-  low?: number;
-  close?: number;
   sma20?: number;
   sma50?: number;
   rsi?: number;
 }
 
-interface OHLCData {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
 export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedTradingChartProps) {
   const [timeframe, setTimeframe] = useState<'1H' | '4H' | '1D' | '1W'>('1D');
-  const [chartType, setChartType] = useState<'line' | 'candle'>('line');
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSMA, setShowSMA] = useState(true);
-  const [showVolume, setShowVolume] = useState(true);
+  const [showVolume, setShowVolume] = useState(false);
   const [showRSI, setShowRSI] = useState(false);
 
   const timeframeConfig = {
-    '1H': { days: 1, interval: 'hourly' },
-    '4H': { days: 7, interval: 'hourly' },
-    '1D': { days: 30, interval: 'daily' },
-    '1W': { days: 90, interval: 'daily' }
+    '1H': { days: 1, interval: 'hourly', points: 24 },
+    '4H': { days: 7, interval: 'hourly', points: 42 },
+    '1D': { days: 30, interval: 'daily', points: 30 },
+    '1W': { days: 90, interval: 'daily', points: 90 }
   };
 
   useEffect(() => {
@@ -72,112 +59,78 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
     try {
       const config = timeframeConfig[timeframe];
       
-      // Fetch OHLC data for candlestick charts directly
-      const ohlcUrl = `https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=${config.days}`;
-      const ohlcResponse = await fetch(ohlcUrl);
+      // Fetch market chart data
+      const marketUrl = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`;
+      const marketResponse = await fetch(marketUrl);
       
-      if (!ohlcResponse.ok) {
-        console.error('Failed to fetch OHLC data');
-        // Generate mock data if API fails
-        const mockData = generateMockChartData(config.days, timeframe);
+      if (!marketResponse.ok) {
+        console.error('Failed to fetch market data');
+        const mockData = generateMockChartData(config.points, timeframe);
         setChartData(mockData);
         return;
       }
       
-      const ohlcData: number[][] = await ohlcResponse.json();
-      
-      // Fetch regular market chart data for line charts and volume
-      const marketUrl = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`;
-      const marketResponse = await fetch(marketUrl);
-      
-      let marketData = { prices: [], total_volumes: [] };
-      if (marketResponse.ok) {
-        marketData = await marketResponse.json();
-      }
-      
-      // Process and combine data
-      const processedData = processOHLCData(ohlcData, marketData, timeframe);
+      const marketData = await marketResponse.json();
+      const processedData = processMarketData(marketData, timeframe);
       setChartData(processedData);
     } catch (error) {
       console.error('Error fetching chart data:', error);
-      // Generate mock data on error
       const config = timeframeConfig[timeframe];
-      const mockData = generateMockChartData(config.days, timeframe);
+      const mockData = generateMockChartData(config.points, timeframe);
       setChartData(mockData);
     } finally {
       setLoading(false);
     }
   };
   
-  const generateMockChartData = (days: number, tf: string): ChartData[] => {
-    const dataPoints = days === 1 ? 24 : days === 7 ? 168 : days === 30 ? 720 : 2160;
+  const processMarketData = (marketData: any, tf: string): ChartData[] => {
+    const prices = marketData.prices || [];
+    const volumes = marketData.total_volumes || [];
+    
+    if (prices.length === 0) {
+      return generateMockChartData(timeframeConfig[tf].points, tf);
+    }
+    
+    const data = prices.map((pricePoint: number[], index: number) => {
+      const [timestamp, price] = pricePoint;
+      const volumePoint = volumes[index] || [timestamp, 0];
+      
+      return {
+        time: formatTimeByTimeframe(new Date(timestamp), tf),
+        price: price,
+        volume: volumePoint[1] || 0
+      };
+    });
+    
+    return calculateIndicators(data);
+  };
+  
+  const generateMockChartData = (points: number, tf: string): ChartData[] => {
     const data: ChartData[] = [];
     const now = Date.now();
-    const interval = (days * 24 * 60 * 60 * 1000) / dataPoints;
+    const interval = timeframe === '1H' ? 3600000 : 
+                     timeframe === '4H' ? 14400000 : 
+                     timeframe === '1D' ? 86400000 : 604800000;
     
     let basePrice = currentPrice || 1000;
     let currentValue = basePrice;
     
-    for (let i = 0; i < dataPoints; i++) {
-      const time = new Date(now - (dataPoints - i) * interval);
-      const volatility = 0.02;
-      const trend = Math.random() > 0.5 ? 1.002 : 0.998;
+    for (let i = 0; i < points; i++) {
+      const time = new Date(now - (points - i) * interval);
+      const volatility = 0.015;
+      const trend = Math.random() > 0.5 ? 1.001 : 0.999;
       
-      currentValue = currentValue * trend;
-      const open = currentValue * (1 + (Math.random() - 0.5) * volatility);
-      const close = open * (1 + (Math.random() - 0.5) * volatility);
-      const high = Math.max(open, close) * (1 + Math.random() * volatility * 0.5);
-      const low = Math.min(open, close) * (1 - Math.random() * volatility * 0.5);
+      currentValue = currentValue * trend * (1 + (Math.random() - 0.5) * volatility);
       const volume = 1000000 + Math.random() * 9000000;
       
       data.push({
         time: formatTimeByTimeframe(time, tf),
-        price: close,
-        open,
-        high,
-        low,
-        close,
-        volume
+        price: currentValue,
+        volume: volume
       });
-      
-      currentValue = close;
     }
     
     return calculateIndicators(data);
-  };
-
-  const processOHLCData = (ohlcData: number[][], marketData: any, tf: string): ChartData[] => {
-    const prices = marketData.prices || [];
-    const volumes = marketData.total_volumes || [];
-    
-    // Handle empty or invalid data
-    if (!ohlcData || ohlcData.length === 0) {
-      return generateMockChartData(timeframeConfig[tf].days, tf);
-    }
-    
-    // For candlestick data
-    const candleData = ohlcData.map((candle, index) => {
-      const [timestamp, open, high, low, close] = candle;
-      const date = new Date(timestamp);
-      
-      // Find corresponding volume
-      const volumeEntry = volumes.find((v: number[]) => 
-        Math.abs(v[0] - timestamp) < 3600000 // Within 1 hour
-      );
-      
-      return {
-        time: formatTimeByTimeframe(date, tf),
-        open: open || 0,
-        high: high || 0,
-        low: low || 0,
-        close: close || 0,
-        price: close || 0,
-        volume: volumeEntry ? volumeEntry[1] : 0
-      };
-    });
-
-    // Calculate technical indicators
-    return calculateIndicators(candleData);
   };
 
   const calculateIndicators = (data: ChartData[]): ChartData[] => {
@@ -232,12 +185,16 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
   const formatTimeByTimeframe = (date: Date, tf: string): string => {
     switch (tf) {
       case '1H':
+        return date.toLocaleString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: '2-digit'
+        });
       case '4H':
         return date.toLocaleString('en-US', { 
           month: 'short', 
           day: 'numeric', 
-          hour: '2-digit',
-          minute: '2-digit'
+          hour: '2-digit'
         });
       case '1D':
         return date.toLocaleDateString('en-US', { 
@@ -247,8 +204,7 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
       case '1W':
         return date.toLocaleDateString('en-US', { 
           month: 'short', 
-          day: 'numeric',
-          year: '2-digit'
+          day: 'numeric'
         });
       default:
         return date.toLocaleDateString();
@@ -259,102 +215,59 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="rounded-lg border bg-background p-3 shadow-sm">
-          <div className="text-xs font-medium mb-2">{label}</div>
-          {chartType === 'candle' && data.open && (
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Open:</span>
-                <span className="font-medium">${formatNumber(data.open)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">High:</span>
-                <span className="font-medium text-green-500">${formatNumber(data.high)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Low:</span>
-                <span className="font-medium text-red-500">${formatNumber(data.low)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Close:</span>
-                <span className="font-medium">${formatNumber(data.close)}</span>
-              </div>
-            </div>
-          )}
-          {chartType === 'line' && (
-            <div className="flex justify-between gap-4 text-xs">
+        <div className="rounded-lg border bg-background/95 backdrop-blur p-3 shadow-lg">
+          <div className="text-xs font-medium mb-2 text-muted-foreground">{label}</div>
+          <div className="space-y-1">
+            <div className="flex justify-between gap-4 text-sm">
               <span className="text-muted-foreground">Price:</span>
-              <span className="font-medium">${formatNumber(data.price)}</span>
+              <span className="font-semibold text-foreground">${formatNumber(data.price)}</span>
             </div>
-          )}
-          {showVolume && data.volume && (
-            <div className="flex justify-between gap-4 text-xs mt-1">
-              <span className="text-muted-foreground">Volume:</span>
-              <span className="font-medium">${formatNumber(data.volume)}</span>
-            </div>
-          )}
-          {showSMA && data.sma20 && (
-            <div className="flex justify-between gap-4 text-xs mt-1">
-              <span className="text-muted-foreground">SMA20:</span>
-              <span className="font-medium text-blue-500">${formatNumber(data.sma20)}</span>
-            </div>
-          )}
-          {showSMA && data.sma50 && (
-            <div className="flex justify-between gap-4 text-xs mt-1">
-              <span className="text-muted-foreground">SMA50:</span>
-              <span className="font-medium text-purple-500">${formatNumber(data.sma50)}</span>
-            </div>
-          )}
-          {showRSI && data.rsi && (
-            <div className="flex justify-between gap-4 text-xs mt-1">
-              <span className="text-muted-foreground">RSI:</span>
-              <span className={`font-medium ${
-                data.rsi > 70 ? 'text-red-500' : 
-                data.rsi < 30 ? 'text-green-500' : 
-                'text-yellow-500'
-              }`}>
-                {data.rsi.toFixed(2)}
-              </span>
-            </div>
-          )}
+            {showVolume && data.volume && (
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">Volume:</span>
+                <span className="font-medium">${formatNumber(data.volume)}</span>
+              </div>
+            )}
+            {showSMA && data.sma20 && (
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">SMA20:</span>
+                <span className="font-medium text-blue-500">${formatNumber(data.sma20)}</span>
+              </div>
+            )}
+            {showSMA && data.sma50 && (
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">SMA50:</span>
+                <span className="font-medium text-purple-500">${formatNumber(data.sma50)}</span>
+              </div>
+            )}
+            {showRSI && data.rsi && (
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">RSI:</span>
+                <span className={`font-medium ${
+                  data.rsi > 70 ? 'text-red-500' : 
+                  data.rsi < 30 ? 'text-green-500' : 
+                  'text-yellow-500'
+                }`}>
+                  {data.rsi.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
     return null;
   };
 
-  const CandlestickBar = (props: any) => {
-    const { x, y, width, height, payload } = props;
-    const isGreen = payload.close >= payload.open;
-    const color = isGreen ? '#16DB65' : '#FF5F6D';
-    
-    const highLowLineX = x + width / 2;
-    const candleHeight = Math.abs(((payload.close - payload.open) / (payload.high - payload.low)) * height) || 1;
-    const candleY = y + ((payload.high - Math.max(payload.open, payload.close)) / (payload.high - payload.low)) * height;
-    
-    return (
-      <g>
-        {/* High-Low line */}
-        <line
-          x1={highLowLineX}
-          y1={y}
-          x2={highLowLineX}
-          y2={y + height}
-          stroke={color}
-          strokeWidth={1}
-        />
-        {/* Open-Close rectangle */}
-        <rect
-          x={x}
-          y={candleY}
-          width={width}
-          height={candleHeight}
-          fill={color}
-          stroke={color}
-        />
-      </g>
-    );
-  };
+  // Calculate price change
+  const priceChange = useMemo(() => {
+    if (chartData.length < 2) return { value: 0, percentage: 0 };
+    const firstPrice = chartData[0].price;
+    const lastPrice = chartData[chartData.length - 1].price;
+    const change = lastPrice - firstPrice;
+    const percentage = (change / firstPrice) * 100;
+    return { value: change, percentage };
+  }, [chartData]);
 
   if (loading) {
     return (
@@ -371,7 +284,7 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
       {/* Chart Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as any)}>
-          <TabsList>
+          <TabsList className="grid grid-cols-4 w-[200px]">
             <TabsTrigger value="1H">1H</TabsTrigger>
             <TabsTrigger value="4H">4H</TabsTrigger>
             <TabsTrigger value="1D">1D</TabsTrigger>
@@ -380,42 +293,23 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
         </Tabs>
         
         <div className="flex gap-2">
-          <Button
-            variant={chartType === 'line' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setChartType('line')}
-          >
-            <TrendingUp className="w-4 h-4 mr-1" />
-            Line
-          </Button>
-          <Button
-            variant={chartType === 'candle' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setChartType('candle')}
-          >
-            <CandlestickChart className="w-4 h-4 mr-1" />
-            Candles
-          </Button>
-        </div>
-        
-        <div className="flex gap-2">
           <Badge
             variant={showSMA ? 'default' : 'outline'}
-            className="cursor-pointer"
+            className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setShowSMA(!showSMA)}
           >
             SMA
           </Badge>
           <Badge
             variant={showVolume ? 'default' : 'outline'}
-            className="cursor-pointer"
+            className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setShowVolume(!showVolume)}
           >
             Volume
           </Badge>
           <Badge
             variant={showRSI ? 'default' : 'outline'}
-            className="cursor-pointer"
+            className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setShowRSI(!showRSI)}
           >
             RSI
@@ -424,59 +318,74 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
       </div>
 
       {/* Main Chart */}
-      <Card>
-        <CardHeader className="pb-0">
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>{symbol.toUpperCase()}/USD</span>
-            {currentPrice && (
-              <span className="text-2xl font-bold">
-                ${formatNumber(currentPrice)}
-              </span>
-            )}
-          </CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">
+              {symbol.toUpperCase()}/USD
+            </CardTitle>
+            <div className="text-right">
+              {currentPrice && (
+                <div className="text-2xl font-bold">
+                  ${formatNumber(currentPrice)}
+                </div>
+              )}
+              <div className={`text-sm font-medium ${priceChange.percentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {priceChange.percentage >= 0 ? '+' : ''}{priceChange.value.toFixed(2)} ({priceChange.percentage.toFixed(2)}%)
+              </div>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 pt-4">
           <ResponsiveContainer width="100%" height={400}>
-            <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+            <AreaChart 
+              data={chartData} 
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
               <XAxis
                 dataKey="time"
                 tick={{ fontSize: 11 }}
                 interval="preserveStartEnd"
+                stroke="hsl(var(--muted-foreground))"
               />
               <YAxis
                 yAxisId="price"
                 orientation="right"
                 tick={{ fontSize: 11 }}
-                domain={['dataMin', 'dataMax']}
+                domain={['auto', 'auto']}
                 tickFormatter={(value) => `$${formatNumber(value)}`}
+                stroke="hsl(var(--muted-foreground))"
               />
               {showVolume && (
                 <YAxis
                   yAxisId="volume"
                   orientation="left"
                   tick={{ fontSize: 11 }}
-                  tickFormatter={(value) => formatNumber(value)}
+                  tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                  stroke="hsl(var(--muted-foreground))"
                 />
               )}
               <Tooltip content={<CustomTooltip />} />
               
-              {chartType === 'line' ? (
-                <Area
-                  yAxisId="price"
-                  type="monotone"
-                  dataKey="price"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary) / 0.1)"
-                  strokeWidth={2}
-                />
-              ) : (
-                <Bar
-                  yAxisId="price"
-                  dataKey="high"
-                  shape={CandlestickBar}
-                />
-              )}
+              <Area
+                yAxisId="price"
+                type="monotone"
+                dataKey="price"
+                stroke="hsl(var(--primary))"
+                fill="url(#colorPrice)"
+                strokeWidth={2}
+              />
               
               {showSMA && (
                 <>
@@ -485,48 +394,54 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
                     type="monotone"
                     dataKey="sma20"
                     stroke="#3B82F6"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
                     dot={false}
-                    name="SMA 20"
+                    strokeDasharray="5 5"
                   />
                   <Line
                     yAxisId="price"
                     type="monotone"
                     dataKey="sma50"
                     stroke="#8B5CF6"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
                     dot={false}
-                    name="SMA 50"
+                    strokeDasharray="5 5"
                   />
                 </>
               )}
               
               {showVolume && (
-                <Bar
+                <Area
                   yAxisId="volume"
+                  type="monotone"
                   dataKey="volume"
-                  fill="hsl(var(--muted-foreground) / 0.3)"
-                  barSize={20}
+                  fill="url(#colorVolume)"
+                  stroke="transparent"
                 />
               )}
-            </ComposedChart>
+            </AreaChart>
           </ResponsiveContainer>
 
           {/* RSI Chart */}
           {showRSI && (
-            <div className="mt-4">
-              <div className="text-sm font-medium mb-2">RSI (14)</div>
+            <div className="mt-4 px-6 pb-4">
+              <div className="text-sm font-medium mb-2 flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                RSI (14)
+              </div>
               <ResponsiveContainer width="100%" height={100}>
-                <ComposedChart data={chartData} margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <LineChart data={chartData} margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
                   <XAxis dataKey="time" hide />
                   <YAxis
                     domain={[0, 100]}
                     ticks={[30, 50, 70]}
                     tick={{ fontSize: 11 }}
+                    stroke="hsl(var(--muted-foreground))"
                   />
-                  <ReferenceLine y={70} stroke="#FF5F6D" strokeDasharray="3 3" />
-                  <ReferenceLine y={30} stroke="#16DB65" strokeDasharray="3 3" />
+                  <ReferenceLine y={70} stroke="#FF5F6D" strokeDasharray="3 3" opacity={0.5} />
+                  <ReferenceLine y={30} stroke="#16DB65" strokeDasharray="3 3" opacity={0.5} />
+                  <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" opacity={0.3} />
                   <Line
                     type="monotone"
                     dataKey="rsi"
@@ -534,8 +449,20 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
                     strokeWidth={2}
                     dot={false}
                   />
-                </ComposedChart>
+                </LineChart>
               </ResponsiveContainer>
+              
+              {/* RSI Legend */}
+              <div className="flex items-center justify-center gap-4 mt-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-[2px] bg-green-500"></div>
+                  <span className="text-muted-foreground">Oversold (&lt;30)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-[2px] bg-red-500"></div>
+                  <span className="text-muted-foreground">Overbought (&gt;70)</span>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
