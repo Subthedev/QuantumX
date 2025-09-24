@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import CryptoTable from '@/components/CryptoTable';
+import Titan10Section from '@/components/Titan10Section';
 import { TrendingUp, Zap, BarChart3, Sparkles, Globe, Activity, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppHeader } from '@/components/AppHeader';
@@ -223,6 +224,9 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Titan 10 Section - Premium Feature */}
+        <Titan10Section />
 
         {/* Main Crypto Table */}
         <CryptoTable />
