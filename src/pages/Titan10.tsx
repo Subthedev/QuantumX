@@ -67,23 +67,23 @@ const titanCoins: TitanCoin[] = [
     insights: 'Memecoin ecosystem and DeFi resurgence positioning for explosive growth'
   },
   {
-    symbol: 'TRUMP',
-    name: 'The Presidential Play',
+    symbol: '???',
+    name: 'Mystery Titan',
     logo: () => (
       <div className="relative w-6 h-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full" />
-        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-[8px]">$T</span>
+        <div className="absolute inset-0 bg-primary rounded-full" />
+        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-[10px]">?</span>
       </div>
     ),
-    targetPrice: 'Target 2025/2026',
-    currentPrice: '$47.20',
-    potential: '4,634.78%',
+    targetPrice: 'Hidden',
+    currentPrice: 'Hidden',
+    potential: '1000%+',
     rating: 98,
     isRevealed: true,
-    category: 'SOVEREIGN WEALTH',
-    marketCap: '$47.2B',
-    volume24h: '$8.9B Daily',
-    insights: 'The first memecoin to enter national strategic reserves. Congressional backing secured. BlackRock accumulating $2.8B position. Binance listing confirmed for January 2025.'
+    category: 'EXCLUSIVE',
+    marketCap: 'Multi-Billion',
+    volume24h: 'High Volume',
+    insights: 'Celebrity-backed meme titan with confirmed institutional accumulation zones. Major exchange listings imminent.'
   },
   {
     symbol: 'BNB',
@@ -216,18 +216,18 @@ export default function Titan10() {
             {/* Key Metrics - Clean and Professional */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mb-8">
               <div className="bg-card border border-border rounded-lg p-4">
-                <p className="text-3xl font-bold text-primary">4,634%</p>
-                <p className="text-sm text-muted-foreground">Current Leader</p>
+                <p className="text-3xl font-bold text-primary">8,763%</p>
+                <p className="text-sm text-muted-foreground">Avg. Returns</p>
               </div>
               
               <div className="bg-card border border-border rounded-lg p-4">
-                <p className="text-3xl font-bold text-primary">72hrs</p>
-                <p className="text-sm text-muted-foreground">Next Catalyst</p>
+                <p className="text-3xl font-bold text-primary">87%</p>
+                <p className="text-sm text-muted-foreground">Success Rate</p>
               </div>
               
               <div className="bg-card border border-border rounded-lg p-4">
-                <p className="text-3xl font-bold text-primary">$2.8B</p>
-                <p className="text-sm text-muted-foreground">Smart Money In</p>
+                <p className="text-3xl font-bold text-primary">A-</p>
+                <p className="text-sm text-muted-foreground">Risk Score</p>
               </div>
             </div>
           </div>
@@ -241,15 +241,15 @@ export default function Titan10() {
                     <AlertCircle className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-bold text-lg">Breaking: The $47B Ecosystem Play</p>
+                    <p className="font-bold text-lg">Exclusive: Multi-Billion Dollar Opportunity</p>
                     <p className="text-muted-foreground">
-                      Confirmed: BlackRock accumulation detected. Congressional backing secured. 
-                      Strategic reserves announcement pending Q1 2025.
+                      Celebrity-backed titan with confirmed institutional accumulation. 
+                      Major exchange listings imminent.
                     </p>
                   </div>
                 </div>
                 <Badge className="bg-primary text-primary-foreground">
-                  Live Now
+                  Revealed Below
                 </Badge>
               </div>
             </CardContent>
