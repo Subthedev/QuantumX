@@ -53,16 +53,16 @@ export default function Titan10Section() {
                 </div>
                 
                 <div className="flex-1">
-                  <p className="text-xs font-bold text-yellow-500 uppercase tracking-wide mb-1">New Pick Alert</p>
-                  <h3 className="font-bold text-lg mb-1">Multi-Billion Dollar Meme King</h3>
+                  <p className="text-xs font-bold text-yellow-500 uppercase tracking-wide mb-1">Strategic Reserve Asset</p>
+                  <h3 className="font-bold text-lg mb-1">The $47B Presidential Play</h3>
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="text-muted-foreground">Potential:</span>
+                    <span className="text-muted-foreground">Returns:</span>
                     <div className="flex items-center gap-1 text-green-500 font-bold">
                       <TrendingUp className="w-3 h-3" />
-                      <span className="blur-sm">???%</span>
+                      <span>4,634%</span>
                     </div>
                     <Badge variant="outline" className="text-xs">
-                      Celebrity Backed
+                      Congressional Backing
                     </Badge>
                   </div>
                 </div>
