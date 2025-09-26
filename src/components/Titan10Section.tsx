@@ -2,9 +2,8 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Sparkles, ArrowRight, Zap, TrendingUp, Lock } from 'lucide-react';
+import { Crown, ArrowRight, TrendingUp, DollarSign, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { DOGELogo } from '@/components/ui/doge-logo';
 
 export default function Titan10Section() {
   const navigate = useNavigate();
@@ -15,86 +14,92 @@ export default function Titan10Section() {
 
   return (
     <div className="space-y-6">
-      {/* Compact Hero Section */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border border-primary/20 p-6">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
-        
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
+      {/* Professional Hero Section */}
+      <div className="rounded-xl bg-card border border-border p-6">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <Crown className="w-6 h-6 text-primary" />
+              <div className="p-2.5 bg-primary/10 rounded-lg">
+                <Crown className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                <h2 className="text-xl font-bold text-foreground">
                   IgniteX Titan 10
                 </h2>
-                <p className="text-sm text-muted-foreground">Expert-Curated Portfolio</p>
+                <p className="text-sm text-muted-foreground">Expert-Curated Portfolio for 2025 Bull Run</p>
               </div>
             </div>
             
-            <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-              <Zap className="w-3 h-3 mr-1" />
-              Limited Access
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+              EXCLUSIVE
             </Badge>
           </div>
           
-          {/* Mystery Coin Teaser */}
-          <Card className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/30 mb-4">
+          {/* Key Metrics - Clean Professional Grid */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card className="border-border bg-background">
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+                  <TrendingUp className="w-4 h-4" />
+                  <p className="text-2xl font-bold">8,763%</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Avg. Returns</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-border bg-background">
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+                  <DollarSign className="w-4 h-4" />
+                  <p className="text-2xl font-bold">$2.8M</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Total Volume</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-border bg-background">
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+                  <Target className="w-4 h-4" />
+                  <p className="text-2xl font-bold">87%</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Hit Rate</p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Strategic Alert */}
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl">
-                    <DOGELogo className="w-8 h-8" />
-                  </div>
-                  <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <Lock className="w-5 h-5 text-muted-foreground opacity-60" />
-                  </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-primary">🔥 Top Performer Alert</p>
+                  <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                    +4,634% YTD
+                  </Badge>
                 </div>
-                
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-yellow-500 uppercase tracking-wide mb-1">New Pick Alert</p>
-                  <h3 className="font-bold text-lg mb-1">Multi-Billion Dollar Meme King</h3>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-muted-foreground">Potential:</span>
-                    <div className="flex items-center gap-1 text-green-500 font-bold">
-                      <TrendingUp className="w-3 h-3" />
-                      <span className="blur-sm">???%</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      Celebrity Backed
-                    </Badge>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Our #4 pick: Multi-billion dollar opportunity with celebrity backing and imminent exchange listings. 
+                  <span className="font-medium text-foreground"> Institutional accumulation confirmed.</span>
+                </p>
               </div>
             </CardContent>
           </Card>
           
-          {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-primary">195%</p>
-              <p className="text-xs text-muted-foreground">Avg. Return</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-accent">10</p>
-              <p className="text-xs text-muted-foreground">Expert Picks</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-500">A+</p>
-              <p className="text-xs text-muted-foreground">Risk Rating</p>
-            </div>
-          </div>
-          
           {/* CTA */}
           <Button 
             onClick={handleViewPortfolio}
-            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+            size="lg"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Unlock Full Titan 10 Portfolio
+            View Complete Titan 10 Portfolio
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
+          
+          <p className="text-xs text-center text-muted-foreground">
+            Limited access • 9 coins locked for premium members • Instant unlock available
+          </p>
         </div>
       </div>
     </div>
