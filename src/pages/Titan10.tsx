@@ -271,12 +271,15 @@ export default function Titan10() {
                   
                   {/* Regular blur overlay for other locked coins */}
                   {!coin.isRevealed && !isLatestPick && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/80">
-                      <Lock className="w-5 h-5 text-muted-foreground" />
+                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/95 backdrop-blur-md">
+                      <div className="text-center">
+                        <Lock className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-xs font-medium text-muted-foreground">Premium Only</p>
+                      </div>
                     </div>
                   )}
                   
-                  <div className={`grid grid-cols-12 gap-4 items-center ${(!coin.isRevealed && !isLatestPick) && 'filter blur-[2px]'}`}>
+                  <div className={`grid grid-cols-12 gap-4 items-center ${(!coin.isRevealed && !isLatestPick) && 'filter blur-[8px] opacity-20'}`}>
                     <div className="col-span-1 text-sm font-medium text-muted-foreground">
                       {index + 1}
                     </div>
