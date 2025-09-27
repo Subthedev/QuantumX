@@ -66,18 +66,18 @@ const titanCoins: TitanCoin[] = [{
   symbol: 'TITAN',
   name: 'Project Titan',
   logo: () => <div className="relative w-6 h-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/60 rounded-full animate-pulse" />
-        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-[10px]">T</span>
+        <div className="absolute inset-0 bg-primary rounded-full" />
+        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">T</span>
       </div>,
   targetPrice: '$4.85',
   currentPrice: '$0.082',
   potential: '5789%',
   rating: 98,
   isRevealed: true,
-  category: 'STRATEGIC PLAY',
+  category: 'INSTITUTIONAL',
   marketCap: '$3.2B',
   volume24h: '$847M',
-  insights: 'Strategic accumulation zone identified. Institutional wallets adding 2.3M tokens daily. Binance listing confirmed Q1 2025. Smart money rotation from SOL ecosystem detected.'
+  insights: 'Institutional grade opportunity. Daily inflow: 2.3M tokens. Binance Q1 2025. Smart money rotation confirmed.'
 }, {
   symbol: 'BNB',
   name: 'BNB Chain',
@@ -194,44 +194,44 @@ export default function Titan10() {
               Backed by institutional-grade analysis and real-time monitoring.
             </p>
             
-            {/* Key Metrics - Clean and Professional */}
+            {/* Key Metrics - Static Professional Design */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mb-8">
-              <div className="bg-card border border-border rounded-lg p-4">
-                <p className="text-3xl font-bold text-primary">18,763%</p>
-                <p className="text-sm text-muted-foreground">Avg. Returns</p>
+              <div className="bg-card border border-border rounded p-4">
+                <p className="text-3xl font-bold text-foreground">8,763%</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Avg. Returns</p>
               </div>
               
-              <div className="bg-card border border-border rounded-lg p-4">
-                <p className="text-3xl font-bold text-primary">87%</p>
-                <p className="text-sm text-muted-foreground">Success Rate</p>
+              <div className="bg-card border border-border rounded p-4">
+                <p className="text-3xl font-bold text-foreground">87%</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Success Rate</p>
               </div>
               
-              <div className="bg-card border border-border rounded-lg p-4">
-                <p className="text-3xl font-bold text-primary">A-</p>
-                <p className="text-sm text-muted-foreground">Risk Score</p>
+              <div className="bg-card border border-border rounded p-4">
+                <p className="text-3xl font-bold text-foreground">A-</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Risk Score</p>
               </div>
             </div>
           </div>
 
-          {/* Strategic Alert - Professional Positioning */}
-          <Card className="bg-primary/5 border-primary/20 mb-8">
+          {/* Strategic Alert - Clean Professional Design */}
+          <Card className="bg-card border-primary/30 mb-8">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-primary to-primary/60 rounded-lg">
-                    <AlertCircle className="w-6 h-6 text-primary-foreground" />
+                  <div className="p-3 bg-primary rounded">
+                    <AlertCircle className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-bold text-lg">Strategic Opportunity: 5,789% Return Captured</p>
-                    <p className="text-muted-foreground">
-                      Project Titan (#4): Institutional accumulation confirmed. 2.3M daily inflow. 
-                      Q1 2025 Binance listing secured. Entry zones still active.
+                    <p className="font-semibold text-lg text-foreground">Institutional Opportunity: Project Titan</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      5,789% verified returns • 2.3M daily accumulation • Q1 2025 catalyst
                     </p>
                   </div>
                 </div>
-                <Badge className="bg-gradient-to-r from-primary to-primary/60 text-primary-foreground">
-                  5,789% YTD
-                </Badge>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-primary">5,789%</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Returns</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -249,11 +249,11 @@ export default function Titan10() {
             </div>
           </div>
 
-          {/* Coins List - Professional Table Format */}
+          {/* Coins List - Clean Professional Table */}
           <div className="bg-card rounded-b-xl border divide-y mb-8">
-            {titanCoins.map((coin, index) => <div key={index} className={`relative transition-all duration-300 p-4 ${coin.isRevealed ? 'bg-primary/5' : 'hover:bg-muted/20'}`}>
+            {titanCoins.map((coin, index) => <div key={index} className={`relative transition-none p-4 ${coin.isRevealed ? 'bg-card' : ''}`}>
                 {/* Blur overlay for locked coins */}
-                {!coin.isRevealed && <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/60 backdrop-blur-sm">
+                {!coin.isRevealed && <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/80">
                     <Lock className="w-5 h-5 text-muted-foreground" />
                   </div>}
                 
@@ -263,37 +263,37 @@ export default function Titan10() {
                   </div>
                   
                   <div className="col-span-3 flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${coin.isRevealed ? 'bg-primary/10' : 'bg-muted/50'}`}>
+                    <div className={`p-2 rounded ${coin.isRevealed ? 'bg-primary' : 'bg-muted'}`}>
                       <coin.logo className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="font-medium">{coin.symbol}</p>
+                      <p className="font-medium text-foreground">{coin.symbol}</p>
                       <p className="text-xs text-muted-foreground">{coin.name}</p>
                     </div>
                   </div>
                   
                   <div className="col-span-2">
-                    <p className="font-bold text-primary">{coin.targetPrice}</p>
+                    <p className="font-semibold text-foreground">{coin.targetPrice}</p>
                     <p className="text-xs text-muted-foreground">from {coin.currentPrice}</p>
                   </div>
                   
                   <div className="col-span-2">
                     <div className="flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-primary" />
-                      <span className="font-bold text-primary">{coin.potential}</span>
+                      <span className="font-semibold text-primary">{coin.potential}</span>
                     </div>
                   </div>
                   
                   <div className="col-span-2">
-                    <p className="font-medium">{coin.marketCap}</p>
+                    <p className="font-medium text-foreground">{coin.marketCap}</p>
                     <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
                   </div>
                   
                   <div className="col-span-1">
                     <div className="flex flex-col items-center">
-                      <span className="text-sm font-bold">{coin.rating}</span>
-                      <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1">
-                        <div className={`h-full transition-all duration-500 ${coin.isRevealed ? 'bg-primary' : 'bg-muted-foreground'}`} style={{
+                      <span className="text-sm font-bold text-foreground">{coin.rating}</span>
+                      <div className="w-full h-1 bg-muted rounded overflow-hidden mt-1">
+                        <div className={`h-full ${coin.isRevealed ? 'bg-primary' : 'bg-muted-foreground'}`} style={{
                       width: `${coin.rating}%`
                     }} />
                       </div>
@@ -301,15 +301,15 @@ export default function Titan10() {
                   </div>
                   
                   <div className="col-span-1 text-right">
-                    {coin.isRevealed ? <Badge className="bg-primary text-primary-foreground text-[10px]">
+                    {coin.isRevealed ? <Badge variant="secondary" className="bg-primary text-primary-foreground text-[10px] border-0">
                         REVEALED
-                      </Badge> : <Badge variant="outline" className="text-[10px]">
+                      </Badge> : <Badge variant="outline" className="text-[10px] border-muted-foreground">
                         LOCKED
                       </Badge>}
                   </div>
                 </div>
                 
-                {coin.insights && coin.isRevealed && <div className="mt-3 pt-3 border-t">
+                {coin.insights && coin.isRevealed && <div className="mt-3 pt-3 border-t border-border">
                     <p className="text-xs text-muted-foreground">{coin.insights}</p>
                   </div>}
               </div>)}
