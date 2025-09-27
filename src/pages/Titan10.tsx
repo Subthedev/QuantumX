@@ -63,21 +63,21 @@ const titanCoins: TitanCoin[] = [{
   volume24h: '$4.3B',
   insights: 'Memecoin ecosystem and DeFi resurgence positioning for explosive growth'
 }, {
-  symbol: 'TITAN',
-  name: 'Project Titan',
+  symbol: '???',
+  name: 'Our Latest Pick',
   logo: () => <div className="relative w-6 h-6">
-        <div className="absolute inset-0 bg-primary rounded-full" />
-        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">T</span>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80 rounded-full animate-pulse" />
+        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">?</span>
       </div>,
-  targetPrice: '$4.85',
-  currentPrice: '$0.082',
+  targetPrice: 'Locked',
+  currentPrice: 'Locked',
   potential: '5789%',
   rating: 98,
-  isRevealed: true,
-  category: 'INSTITUTIONAL',
-  marketCap: '$3.2B',
-  volume24h: '$847M',
-  insights: 'Institutional grade opportunity. Daily inflow: 2.3M tokens. Binance Q1 2025. Smart money rotation confirmed.'
+  isRevealed: false,
+  category: 'EXCLUSIVE',
+  marketCap: 'Locked',
+  volume24h: 'Locked',
+  insights: 'Institutional accumulation detected. Entry window closing Q1 2025. Premium members only.'
 }, {
   symbol: 'BNB',
   name: 'BNB Chain',
@@ -214,23 +214,25 @@ export default function Titan10() {
           </div>
 
           {/* Strategic Alert - Clean Professional Design */}
-          <Card className="bg-card border-primary/30 mb-8">
+          <Card className="bg-card border-primary/20 mb-8">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary rounded">
-                    <AlertCircle className="w-5 h-5 text-primary-foreground" />
+                  <div className="p-3 bg-primary/10 rounded">
+                    <Crown className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-lg text-foreground">Institutional Opportunity: Project Titan</p>
+                    <p className="font-semibold text-lg text-foreground">Our Latest Pick: Premium Exclusive</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      5,789% verified returns • 2.3M daily accumulation • Q1 2025 catalyst
+                      5,789% projected returns • Institutional accumulation detected • Limited access
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">5,789%</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Returns</p>
+                  <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1">
+                    LOCKED
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-1">Premium Only</p>
                 </div>
               </div>
             </CardContent>
@@ -251,61 +253,91 @@ export default function Titan10() {
 
           {/* Coins List - Clean Professional Table */}
           <div className="bg-card rounded-b-xl border divide-y mb-8">
-            {titanCoins.map((coin, index) => <div key={index} className={`relative transition-none p-4 ${coin.isRevealed ? 'bg-card' : ''}`}>
-                {/* Blur overlay for locked coins */}
-                {!coin.isRevealed && <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/80">
-                    <Lock className="w-5 h-5 text-muted-foreground" />
-                  </div>}
-                
-                <div className={`grid grid-cols-12 gap-4 items-center ${!coin.isRevealed && 'filter blur-[2px]'}`}>
-                  <div className="col-span-1 text-sm font-medium text-muted-foreground">
-                    {index + 1}
-                  </div>
-                  
-                  <div className="col-span-3 flex items-center gap-3">
-                    <div className={`p-2 rounded ${coin.isRevealed ? 'bg-primary' : 'bg-muted'}`}>
-                      <coin.logo className="w-6 h-6" />
+            {titanCoins.map((coin, index) => {
+              const isLatestPick = coin.name === 'Our Latest Pick';
+              
+              return (
+                <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
+                  {/* Special overlay for Latest Pick */}
+                  {isLatestPick && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/90 backdrop-blur-sm">
+                      <div className="text-center">
+                        <Lock className="w-8 h-8 text-primary mx-auto mb-2" />
+                        <p className="text-sm font-semibold text-foreground">Our Latest Pick</p>
+                        <p className="text-xs text-muted-foreground mt-1">Unlock to reveal</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">{coin.symbol}</p>
-                      <p className="text-xs text-muted-foreground">{coin.name}</p>
+                  )}
+                  
+                  {/* Regular blur overlay for other locked coins */}
+                  {!coin.isRevealed && !isLatestPick && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/80">
+                      <Lock className="w-5 h-5 text-muted-foreground" />
                     </div>
-                  </div>
+                  )}
                   
-                  <div className="col-span-2">
-                    <p className="font-semibold text-foreground">{coin.targetPrice}</p>
-                    <p className="text-xs text-muted-foreground">from {coin.currentPrice}</p>
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3 text-primary" />
-                      <span className="font-semibold text-primary">{coin.potential}</span>
+                  <div className={`grid grid-cols-12 gap-4 items-center ${(!coin.isRevealed && !isLatestPick) && 'filter blur-[2px]'}`}>
+                    <div className="col-span-1 text-sm font-medium text-muted-foreground">
+                      {index + 1}
                     </div>
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <p className="font-medium text-foreground">{coin.marketCap}</p>
-                    <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
-                  </div>
-                  
-                  <div className="col-span-1">
-                    <p className="font-medium text-foreground">${coin.currentPrice}</p>
-                  </div>
-                  
-                  <div className="col-span-1 text-right">
-                    {coin.isRevealed ? <Badge variant="secondary" className="bg-primary text-primary-foreground text-[10px] border-0">
+                    
+                    <div className="col-span-3 flex items-center gap-3">
+                      <div className={`p-2 rounded ${isLatestPick ? 'bg-primary/20' : 'bg-muted'}`}>
+                        <coin.logo className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{coin.symbol}</p>
+                        <p className="text-xs text-muted-foreground">{coin.name}</p>
+                        {isLatestPick && (
+                          <Badge className="mt-1 bg-primary/10 text-primary border-0 text-[9px] px-1.5 py-0">
+                            EXCLUSIVE
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="col-span-2">
+                      <p className="font-semibold text-foreground">{coin.targetPrice}</p>
+                      {coin.currentPrice !== 'Locked' && (
+                        <p className="text-xs text-muted-foreground">from {coin.currentPrice}</p>
+                      )}
+                    </div>
+                    
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3 text-primary" />
+                        <span className="font-semibold text-primary">{coin.potential}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="col-span-2">
+                      <p className="font-medium text-foreground">{coin.marketCap}</p>
+                      {coin.volume24h !== 'Locked' && (
+                        <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
+                      )}
+                    </div>
+                    
+                    <div className="col-span-1">
+                      <p className="font-medium text-foreground">
+                        {coin.currentPrice === 'Locked' ? '—' : coin.currentPrice}
+                      </p>
+                    </div>
+                    
+                    <div className="col-span-1 text-right">
+                      <Badge variant="outline" className="text-[10px] border-muted-foreground">
                         YES
-                      </Badge> : <Badge variant="outline" className="text-[10px] border-muted-foreground">
-                        YES
-                      </Badge>}
+                      </Badge>
+                    </div>
                   </div>
+                  
+                  {coin.insights && !isLatestPick && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-xs text-muted-foreground">{coin.insights}</p>
+                    </div>
+                  )}
                 </div>
-                
-                {coin.insights && coin.isRevealed && <div className="mt-3 pt-3 border-t border-border">
-                    <p className="text-xs text-muted-foreground">{coin.insights}</p>
-                  </div>}
-              </div>)}
+              );
+            })}
           </div>
 
           {/* CTA Section - Simplified and Professional */}
