@@ -63,21 +63,21 @@ const titanCoins: TitanCoin[] = [{
   volume24h: '$4.3B',
   insights: 'Memecoin ecosystem and DeFi resurgence positioning for explosive growth'
 }, {
-  symbol: '???',
-  name: 'Mystery Titan',
+  symbol: 'TITAN',
+  name: 'Project Titan',
   logo: () => <div className="relative w-6 h-6">
-        <div className="absolute inset-0 bg-primary rounded-full" />
-        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-[10px]">?</span>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/60 rounded-full animate-pulse" />
+        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-[10px]">T</span>
       </div>,
-  targetPrice: 'Hidden',
-  currentPrice: 'Hidden',
-  potential: '1000%+',
+  targetPrice: '$4.85',
+  currentPrice: '$0.082',
+  potential: '5789%',
   rating: 98,
   isRevealed: true,
-  category: 'EXCLUSIVE',
-  marketCap: 'Multi-Billion',
-  volume24h: 'High Volume',
-  insights: 'Celebrity-backed meme titan with confirmed institutional accumulation zones. Major exchange listings imminent.'
+  category: 'STRATEGIC PLAY',
+  marketCap: '$3.2B',
+  volume24h: '$847M',
+  insights: 'Strategic accumulation zone identified. Institutional wallets adding 2.3M tokens daily. Binance listing confirmed Q1 2025. Smart money rotation from SOL ecosystem detected.'
 }, {
   symbol: 'BNB',
   name: 'BNB Chain',
@@ -213,24 +213,24 @@ export default function Titan10() {
             </div>
           </div>
 
-          {/* Mystery Coin Alert - Strategic Positioning */}
+          {/* Strategic Alert - Professional Positioning */}
           <Card className="bg-primary/5 border-primary/20 mb-8">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary rounded-lg">
+                  <div className="p-3 bg-gradient-to-br from-primary to-primary/60 rounded-lg">
                     <AlertCircle className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-bold text-lg">Exclusive: Multi-Billion Dollar Opportunity</p>
+                    <p className="font-bold text-lg">Strategic Opportunity: 5,789% Return Captured</p>
                     <p className="text-muted-foreground">
-                      Celebrity-backed titan with confirmed institutional accumulation. 
-                      Major exchange listings imminent.
+                      Project Titan (#4): Institutional accumulation confirmed. 2.3M daily inflow. 
+                      Q1 2025 Binance listing secured. Entry zones still active.
                     </p>
                   </div>
                 </div>
-                <Badge className="bg-primary text-primary-foreground">
-                  Revealed Below
+                <Badge className="bg-gradient-to-r from-primary to-primary/60 text-primary-foreground">
+                  5,789% YTD
                 </Badge>
               </div>
             </CardContent>
