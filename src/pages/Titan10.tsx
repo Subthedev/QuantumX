@@ -241,11 +241,11 @@ export default function Titan10() {
             <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <div className="col-span-1">#</div>
               <div className="col-span-3">Name</div>
-              <div className="col-span-2">Target</div>
-              <div className="col-span-2">Potential</div>
+              <div className="col-span-2">Target 25/26</div>
+              <div className="col-span-2">Return Till Date</div>
               <div className="col-span-2">Market Cap</div>
-              <div className="col-span-1">Score</div>
-              <div className="col-span-1">Status</div>
+              <div className="col-span-1">Entry Price</div>
+              <div className="col-span-1">Held by Team</div>
             </div>
           </div>
 
@@ -290,21 +290,14 @@ export default function Titan10() {
                   </div>
                   
                   <div className="col-span-1">
-                    <div className="flex flex-col items-center">
-                      <span className="text-sm font-bold text-foreground">{coin.rating}</span>
-                      <div className="w-full h-1 bg-muted rounded overflow-hidden mt-1">
-                        <div className={`h-full ${coin.isRevealed ? 'bg-primary' : 'bg-muted-foreground'}`} style={{
-                      width: `${coin.rating}%`
-                    }} />
-                      </div>
-                    </div>
+                    <p className="font-medium text-foreground">${coin.currentPrice}</p>
                   </div>
                   
                   <div className="col-span-1 text-right">
                     {coin.isRevealed ? <Badge variant="secondary" className="bg-primary text-primary-foreground text-[10px] border-0">
-                        REVEALED
+                        YES
                       </Badge> : <Badge variant="outline" className="text-[10px] border-muted-foreground">
-                        LOCKED
+                        YES
                       </Badge>}
                   </div>
                 </div>
