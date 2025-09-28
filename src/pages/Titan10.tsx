@@ -69,14 +69,14 @@ const titanCoins: TitanCoin[] = [{
         <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80 rounded-full animate-pulse" />
         <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">?</span>
       </div>,
-  targetPrice: 'Locked',
-  currentPrice: 'Locked',
+  targetPrice: '$0.85',
+  currentPrice: '$0.014',
   potential: '5789%',
   rating: 98,
   isRevealed: false,
   category: 'EXCLUSIVE',
-  marketCap: 'Locked',
-  volume24h: 'Locked',
+  marketCap: '$147M',
+  volume24h: '$892K',
   insights: 'Institutional accumulation detected. Entry window closing Q1 2025. Premium members only.'
 }, {
   symbol: 'BNB',
@@ -304,16 +304,16 @@ export default function Titan10() {
                     
                     <div className="col-span-2">
                       <p className="font-semibold text-foreground">
-                        {isLatestPick ? '🔒 Locked' : coin.targetPrice}
+                        {coin.targetPrice}
                       </p>
-                      {!isLatestPick && coin.currentPrice !== 'Locked' && (
+                      {coin.currentPrice !== 'Locked' && (
                         <p className="text-xs text-muted-foreground">from {coin.currentPrice}</p>
                       )}
                     </div>
                     
                     <div className="col-span-1">
                       <p className="font-medium text-foreground">
-                        {isLatestPick ? '—' : coin.currentPrice}
+                        {coin.currentPrice}
                       </p>
                     </div>
                     
@@ -326,9 +326,9 @@ export default function Titan10() {
                     
                     <div className="col-span-2">
                       <p className="font-medium text-foreground">
-                        {isLatestPick ? '🔒 Locked' : coin.marketCap}
+                        {coin.marketCap}
                       </p>
-                      {!isLatestPick && coin.volume24h !== 'Locked' && (
+                      {coin.volume24h !== 'Locked' && (
                         <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
                       )}
                     </div>
