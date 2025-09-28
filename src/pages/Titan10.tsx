@@ -244,9 +244,9 @@ export default function Titan10() {
               <div className="col-span-1">#</div>
               <div className="col-span-3">Name</div>
               <div className="col-span-2">Target 25/26</div>
+              <div className="col-span-1">Entry Price</div>
               <div className="col-span-2">Return Till Date</div>
               <div className="col-span-2">Market Cap</div>
-              <div className="col-span-1">Entry Price</div>
               <div className="col-span-1">Held by Team</div>
             </div>
           </div>
@@ -258,52 +258,63 @@ export default function Titan10() {
               
               return (
                 <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
-                  {/* Special overlay for Latest Pick */}
-                  {isLatestPick && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/90 backdrop-blur-sm">
-                      <div className="text-center">
-                        <Lock className="w-8 h-8 text-primary mx-auto mb-2" />
-                        <p className="text-sm font-semibold text-foreground">Our Latest Pick</p>
-                        <p className="text-xs text-muted-foreground mt-1">Unlock to reveal</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Regular blur overlay for other locked coins */}
-                  {!coin.isRevealed && !isLatestPick && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/95 backdrop-blur-md">
-                      <div className="text-center">
-                        <Lock className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-xs font-medium text-muted-foreground">Premium Only</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className={`grid grid-cols-12 gap-4 items-center ${(!coin.isRevealed && !isLatestPick) && 'filter blur-[8px] opacity-20'}`}>
+                  <div className="grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-1 text-sm font-medium text-muted-foreground">
                       {index + 1}
                     </div>
                     
                     <div className="col-span-3 flex items-center gap-3">
-                      <div className={`p-2 rounded ${isLatestPick ? 'bg-primary/20' : 'bg-muted'}`}>
-                        <coin.logo className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-foreground">{coin.symbol}</p>
-                        <p className="text-xs text-muted-foreground">{coin.name}</p>
-                        {isLatestPick && (
-                          <Badge className="mt-1 bg-primary/10 text-primary border-0 text-[9px] px-1.5 py-0">
-                            EXCLUSIVE
-                          </Badge>
-                        )}
-                      </div>
+                      {/* Only blur the name/symbol for locked coins */}
+                      {!coin.isRevealed && !isLatestPick ? (
+                        <div className="relative flex items-center gap-3">
+                          <div className="p-2 bg-muted rounded">
+                            <div className="w-6 h-6 bg-muted-foreground/20 rounded-full" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground filter blur-[6px]">??????</p>
+                            <p className="text-xs text-muted-foreground filter blur-[6px]">Hidden Gem</p>
+                          </div>
+                          <Lock className="w-4 h-4 text-muted-foreground absolute right-0" />
+                        </div>
+                      ) : isLatestPick ? (
+                        <>
+                          <div className="p-2 bg-primary/20 rounded animate-pulse">
+                            <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">???</p>
+                            <p className="text-xs text-muted-foreground">Our Latest Pick</p>
+                            <Badge className="mt-1 bg-primary/10 text-primary border-0 text-[9px] px-1.5 py-0">
+                              EXCLUSIVE
+                            </Badge>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-2 bg-muted rounded">
+                            <coin.logo className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{coin.symbol}</p>
+                            <p className="text-xs text-muted-foreground">{coin.name}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                     
                     <div className="col-span-2">
-                      <p className="font-semibold text-foreground">{coin.targetPrice}</p>
-                      {coin.currentPrice !== 'Locked' && (
+                      <p className="font-semibold text-foreground">
+                        {isLatestPick ? '🔒 Locked' : coin.targetPrice}
+                      </p>
+                      {!isLatestPick && coin.currentPrice !== 'Locked' && (
                         <p className="text-xs text-muted-foreground">from {coin.currentPrice}</p>
                       )}
+                    </div>
+                    
+                    <div className="col-span-1">
+                      <p className="font-medium text-foreground">
+                        {isLatestPick ? '—' : coin.currentPrice}
+                      </p>
                     </div>
                     
                     <div className="col-span-2">
@@ -314,16 +325,12 @@ export default function Titan10() {
                     </div>
                     
                     <div className="col-span-2">
-                      <p className="font-medium text-foreground">{coin.marketCap}</p>
-                      {coin.volume24h !== 'Locked' && (
+                      <p className="font-medium text-foreground">
+                        {isLatestPick ? '🔒 Locked' : coin.marketCap}
+                      </p>
+                      {!isLatestPick && coin.volume24h !== 'Locked' && (
                         <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
                       )}
-                    </div>
-                    
-                    <div className="col-span-1">
-                      <p className="font-medium text-foreground">
-                        {coin.currentPrice === 'Locked' ? '—' : coin.currentPrice}
-                      </p>
                     </div>
                     
                     <div className="col-span-1 text-right">
