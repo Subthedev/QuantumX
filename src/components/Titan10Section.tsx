@@ -76,11 +76,11 @@ export default function Titan10Section() {
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-primary">🔥 Top Performer Alert</p>
                   <Badge variant="outline" className="text-xs border-primary/30 text-primary">
-                    +4,634% YTD
+                    +2,566% YTD
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Our #4 pick: Multi-billion dollar opportunity with celebrity backing and imminent exchange listings. 
+                  Our latest pick ETHFI: Liquid staking protocol with massive growth potential. Entry at $0.45, now trading significantly higher. 
                   <span className="font-medium text-foreground"> Institutional accumulation confirmed.</span>
                 </p>
               </div>

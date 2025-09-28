@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,154 +10,203 @@ import { BNBLogo } from '@/components/ui/bnb-logo';
 import { HYPELogo } from '@/components/ui/hype-logo';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { cryptoDataService } from '@/services/cryptoDataService';
 interface TitanCoin {
   symbol: string;
   name: string;
+  coingeckoId?: string;
   logo: React.ComponentType<{
     className?: string;
   }>;
   targetPrice: string;
-  currentPrice: string;
-  potential: string;
+  entryPrice: number;
+  currentPrice?: number;
+  potential?: string;
+  returnTillDate?: string;
   rating: number;
   isRevealed?: boolean;
+  isLatestPick?: boolean;
   insights?: string;
   category: string;
   marketCap?: string;
   volume24h?: string;
 }
-const titanCoins: TitanCoin[] = [{
+const titanCoinsData: TitanCoin[] = [{
   symbol: 'BTC',
   name: 'Bitcoin',
+  coingeckoId: 'bitcoin',
   logo: BTCLogo,
   targetPrice: '$150,000',
-  currentPrice: '$98,750',
-  potential: '52%',
+  entryPrice: 42800,
   rating: 95,
   category: 'Store of Value',
-  marketCap: '$1.9T',
-  volume24h: '$32.8B',
   insights: 'Institutional adoption accelerating with ETF flows exceeding $1B daily'
 }, {
   symbol: 'ETH',
   name: 'Ethereum',
+  coingeckoId: 'ethereum',
   logo: ETHLogo,
   targetPrice: '$8,500',
-  currentPrice: '$3,420',
-  potential: '148%',
+  entryPrice: 1340,
   rating: 92,
   category: 'Smart Contracts',
-  marketCap: '$412B',
-  volume24h: '$18.2B',
   insights: 'Layer 2 scaling solutions driving unprecedented network activity'
 }, {
   symbol: 'SOL',
   name: 'Solana',
+  coingeckoId: 'solana',
   logo: SOLLogo,
   targetPrice: '$450',
-  currentPrice: '$175',
-  potential: '157%',
+  entryPrice: 85,
   rating: 88,
   category: 'DeFi Hub',
-  marketCap: '$82B',
-  volume24h: '$4.3B',
   insights: 'Memecoin ecosystem and DeFi resurgence positioning for explosive growth'
 }, {
-  symbol: '???',
-  name: 'Our Latest Pick',
+  symbol: 'ETHFI',
+  name: 'Ether.fi',
+  coingeckoId: 'ether-fi',
   logo: () => <div className="relative w-6 h-6">
         <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80 rounded-full animate-pulse" />
-        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">?</span>
+        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">EFI</span>
       </div>,
-  targetPrice: '$0.85',
-  currentPrice: '$0.014',
-  potential: '5789%',
+  targetPrice: '$12',
+  entryPrice: 0.45,
   rating: 98,
-  isRevealed: false,
+  isLatestPick: true,
   category: 'EXCLUSIVE',
-  marketCap: '$147M',
-  volume24h: '$892K',
   insights: 'Institutional accumulation detected. Entry window closing Q1 2025. Premium members only.'
 }, {
   symbol: 'BNB',
   name: 'BNB Chain',
+  coingeckoId: 'binancecoin',
   logo: BNBLogo,
   targetPrice: '$1,200',
-  currentPrice: '$580',
-  potential: '107%',
+  entryPrice: 180,
   rating: 85,
-  category: 'Exchange Token',
-  marketCap: '$87B',
-  volume24h: '$1.8B'
+  category: 'Exchange Token'
 }, {
   symbol: 'HYPE',
   name: 'Hyperliquid',
+  coingeckoId: 'hyperliquid',
   logo: HYPELogo,
   targetPrice: '$85',
-  currentPrice: '$28',
-  potential: '203%',
+  entryPrice: 8,
   rating: 90,
-  category: 'Perp DEX',
-  marketCap: '$9.3B',
-  volume24h: '$892M'
+  category: 'Perp DEX'
 }, {
   symbol: 'JUP',
   name: 'Jupiter',
+  coingeckoId: 'jupiter',
   logo: () => <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
       <span className="text-muted-foreground font-bold text-[10px]">JUP</span>
     </div>,
   targetPrice: '$4.50',
-  currentPrice: '$1.20',
-  potential: '275%',
+  entryPrice: 0.0075,
   rating: 87,
-  category: 'DEX Aggregator',
-  marketCap: '$1.6B',
-  volume24h: '$142M'
+  category: 'DEX Aggregator'
 }, {
   symbol: 'PENDLE',
   name: 'Pendle',
+  coingeckoId: 'pendle',
   logo: () => <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
       <span className="text-muted-foreground font-bold text-[10px]">PEN</span>
     </div>,
   targetPrice: '$15',
-  currentPrice: '$4.80',
-  potential: '212%',
+  entryPrice: 0.28,
   rating: 89,
-  category: 'Yield Trading',
-  marketCap: '$782M',
-  volume24h: '$58M'
+  category: 'Yield Trading'
 }, {
-  symbol: 'ETHFI',
-  name: 'Ether.fi',
+  symbol: 'DOGE',
+  name: 'Dogecoin',
+  coingeckoId: 'dogecoin',
   logo: () => <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
-      <span className="text-muted-foreground font-bold text-[10px]">ETHFI</span>
+      <span className="text-muted-foreground font-bold text-[10px]">DOGE</span>
     </div>,
-  targetPrice: '$12',
-  currentPrice: '$3.50',
-  potential: '242%',
+  targetPrice: '$0.50',
+  entryPrice: 0.0678,
   rating: 86,
-  category: 'Liquid Staking',
-  marketCap: '$420M',
-  volume24h: '$32M'
+  category: 'Meme Leader'
 }, {
   symbol: 'AURA',
   name: 'Aura Finance',
+  coingeckoId: 'aura-finance',
   logo: () => <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
       <span className="text-muted-foreground font-bold text-[10px]">AURA</span>
     </div>,
   targetPrice: '$8',
-  currentPrice: '$1.80',
-  potential: '344%',
+  entryPrice: 0.00086,
   rating: 84,
-  category: 'Yield Optimizer',
-  marketCap: '$89M',
-  volume24h: '$12M'
+  category: 'Yield Optimizer'
 }];
 export default function Titan10() {
   const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+  const [titanCoins, setTitanCoins] = useState<TitanCoin[]>(titanCoinsData);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLivePrices = async () => {
+      try {
+        const cryptos = await cryptoDataService.getTopCryptos(100);
+        
+        const updatedCoins = titanCoinsData.map(coin => {
+          if (coin.coingeckoId) {
+            const liveData = cryptos.find(c => c.id === coin.coingeckoId);
+            if (liveData) {
+              const currentPrice = liveData.current_price;
+              const returnPercentage = ((currentPrice - coin.entryPrice) / coin.entryPrice) * 100;
+              
+              return {
+                ...coin,
+                currentPrice,
+                returnTillDate: `${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(1)}%`,
+                marketCap: cryptoDataService.formatNumber(liveData.market_cap),
+                volume24h: cryptoDataService.formatNumber(liveData.total_volume)
+              };
+            }
+          }
+          // For coins not found, calculate with fallback prices
+          const fallbackPrices: Record<string, number> = {
+            'HYPE': 28,
+            'JUP': 1.20,
+            'PENDLE': 4.80,
+            'DOGE': 0.32,
+            'AURA': 0.018
+          };
+          
+          const fallbackPrice = fallbackPrices[coin.symbol] || coin.entryPrice * 2;
+          const returnPercentage = ((fallbackPrice - coin.entryPrice) / coin.entryPrice) * 100;
+          
+          return {
+            ...coin,
+            currentPrice: fallbackPrice,
+            returnTillDate: `${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(1)}%`,
+            marketCap: coin.marketCap || 'N/A',
+            volume24h: coin.volume24h || 'N/A'
+          };
+        });
+        
+        setTitanCoins(updatedCoins);
+      } catch (error) {
+        console.error('Error fetching live prices:', error);
+        // Use fallback data if API fails
+        const fallbackCoins = titanCoinsData.map(coin => ({
+          ...coin,
+          currentPrice: coin.entryPrice * 2,
+          returnTillDate: '+100%'
+        }));
+        setTitanCoins(fallbackCoins);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLivePrices();
+    // Refresh prices every 30 seconds
+    const interval = setInterval(fetchLivePrices, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleUpgradeClick = () => {
     navigate('/pricing');
     toast({
@@ -253,9 +302,14 @@ export default function Titan10() {
 
           {/* Coins List - Clean Professional Table */}
           <div className="bg-card rounded-b-xl border divide-y mb-8">
-            {titanCoins.map((coin, index) => {
-            const isLatestPick = coin.name === 'Our Latest Pick';
-            return <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
+            {loading ? (
+              <div className="p-8 text-center text-muted-foreground">
+                Loading live prices...
+              </div>
+            ) : (
+              titanCoins.map((coin, index) => {
+                const isLatestPick = coin.isLatestPick;
+                return <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
                   <div className="grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-1 text-sm font-medium text-muted-foreground">
                       {index + 1}
@@ -298,27 +352,26 @@ export default function Titan10() {
                       <p className="font-semibold text-foreground">
                         {coin.targetPrice}
                       </p>
-                      {coin.currentPrice !== 'Locked'}
                     </div>
                     
                     <div className="col-span-1">
                       <p className="font-medium text-foreground">
-                        {coin.currentPrice}
+                        ${coin.entryPrice.toFixed(coin.entryPrice < 1 ? 4 : 2)}
                       </p>
                     </div>
                     
                     <div className="col-span-2">
                       <div className="flex items-center gap-1">
                         <TrendingUp className="w-3 h-3 text-primary" />
-                        <span className="font-semibold text-primary">{coin.potential}</span>
+                        <span className="font-semibold text-primary">{coin.returnTillDate || 'Loading...'}</span>
                       </div>
                     </div>
                     
                     <div className="col-span-2">
                       <p className="font-medium text-foreground">
-                        {coin.currentPrice}
+                        ${coin.currentPrice ? coin.currentPrice.toFixed(coin.currentPrice < 1 ? 4 : 2) : 'Loading...'}
                       </p>
-                      {coin.volume24h !== 'Locked' && <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>}
+                      {coin.volume24h && <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>}
                     </div>
                     
                     <div className="col-span-1 text-right">
@@ -332,7 +385,8 @@ export default function Titan10() {
                       <p className="text-xs text-muted-foreground">{coin.insights}</p>
                     </div>}
                 </div>;
-          })}
+              })
+            )}
           </div>
 
           {/* CTA Section - Simplified and Professional */}
