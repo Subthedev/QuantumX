@@ -246,7 +246,7 @@ export default function Titan10() {
               <div className="col-span-2">Target 25/26</div>
               <div className="col-span-1">Entry Price</div>
               <div className="col-span-2">Return Till Date</div>
-              <div className="col-span-2">Market Cap</div>
+              <div className="col-span-2">Current Price</div>
               <div className="col-span-1">Held by Team</div>
             </div>
           </div>
@@ -326,7 +326,7 @@ export default function Titan10() {
                     
                     <div className="col-span-2">
                       <p className="font-medium text-foreground">
-                        {coin.marketCap}
+                        {coin.currentPrice}
                       </p>
                       {coin.volume24h !== 'Locked' && (
                         <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
