@@ -254,10 +254,8 @@ export default function Titan10() {
           {/* Coins List - Clean Professional Table */}
           <div className="bg-card rounded-b-xl border divide-y mb-8">
             {titanCoins.map((coin, index) => {
-              const isLatestPick = coin.name === 'Our Latest Pick';
-              
-              return (
-                <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
+            const isLatestPick = coin.name === 'Our Latest Pick';
+            return <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
                   <div className="grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-1 text-sm font-medium text-muted-foreground">
                       {index + 1}
@@ -265,8 +263,7 @@ export default function Titan10() {
                     
                     <div className="col-span-3 flex items-center gap-3">
                       {/* Only blur the name/symbol for locked coins */}
-                      {!coin.isRevealed && !isLatestPick ? (
-                        <div className="relative flex items-center gap-3">
+                      {!coin.isRevealed && !isLatestPick ? <div className="relative flex items-center gap-3">
                           <div className="p-2 bg-muted rounded">
                             <div className="w-6 h-6 bg-muted-foreground/20 rounded-full" />
                           </div>
@@ -275,9 +272,7 @@ export default function Titan10() {
                             <p className="text-xs text-muted-foreground filter blur-[6px]">Hidden Gem</p>
                           </div>
                           <Lock className="w-4 h-4 text-muted-foreground absolute right-0" />
-                        </div>
-                      ) : isLatestPick ? (
-                        <>
+                        </div> : isLatestPick ? <>
                           <div className="p-2 bg-primary/20 rounded animate-pulse">
                             <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full" />
                           </div>
@@ -288,9 +283,7 @@ export default function Titan10() {
                               EXCLUSIVE
                             </Badge>
                           </div>
-                        </>
-                      ) : (
-                        <>
+                        </> : <>
                           <div className="p-2 bg-muted rounded">
                             <coin.logo className="w-6 h-6" />
                           </div>
@@ -298,17 +291,14 @@ export default function Titan10() {
                             <p className="font-medium text-foreground">{coin.symbol}</p>
                             <p className="text-xs text-muted-foreground">{coin.name}</p>
                           </div>
-                        </>
-                      )}
+                        </>}
                     </div>
                     
                     <div className="col-span-2">
                       <p className="font-semibold text-foreground">
                         {coin.targetPrice}
                       </p>
-                      {coin.currentPrice !== 'Locked' && (
-                        <p className="text-xs text-muted-foreground">from {coin.currentPrice}</p>
-                      )}
+                      {coin.currentPrice !== 'Locked'}
                     </div>
                     
                     <div className="col-span-1">
@@ -328,9 +318,7 @@ export default function Titan10() {
                       <p className="font-medium text-foreground">
                         {coin.currentPrice}
                       </p>
-                      {coin.volume24h !== 'Locked' && (
-                        <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>
-                      )}
+                      {coin.volume24h !== 'Locked' && <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>}
                     </div>
                     
                     <div className="col-span-1 text-right">
@@ -340,14 +328,11 @@ export default function Titan10() {
                     </div>
                   </div>
                   
-                  {coin.insights && !isLatestPick && (
-                    <div className="mt-3 pt-3 border-t border-border">
+                  {coin.insights && !isLatestPick && <div className="mt-3 pt-3 border-t border-border">
                       <p className="text-xs text-muted-foreground">{coin.insights}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    </div>}
+                </div>;
+          })}
           </div>
 
           {/* CTA Section - Simplified and Professional */}
