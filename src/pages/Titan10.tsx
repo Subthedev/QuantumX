@@ -66,15 +66,15 @@ const titanCoinsData: TitanCoin[] = [{
   name: 'Ether.fi',
   coingeckoId: 'ether-fi',
   logo: () => <div className="relative w-6 h-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80 rounded-full animate-pulse" />
-        <span className="absolute inset-0 flex items-center justify-center text-primary-foreground font-bold text-xs">EFI</span>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full animate-pulse" />
+        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xs">EFI</span>
       </div>,
   targetPrice: '$12',
   entryPrice: 0.45,
   rating: 98,
   isLatestPick: true,
-  category: 'EXCLUSIVE',
-  insights: 'Institutional accumulation detected. Entry window closing Q1 2025. Premium members only.'
+  category: 'RWA PICK',
+  insights: 'Real World Asset tokenization leader. Institutional partnerships confirmed.'
 }, {
   symbol: 'BNB',
   name: 'BNB Chain',
@@ -83,7 +83,8 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$1,200',
   entryPrice: 180,
   rating: 85,
-  category: 'Exchange Token'
+  category: 'Exchange Token',
+  insights: 'Binance ecosystem growth with new chain launches'
 }, {
   symbol: 'HYPE',
   name: 'Hyperliquid',
@@ -92,7 +93,8 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$85',
   entryPrice: 8,
   rating: 90,
-  category: 'Perp DEX'
+  category: 'Perp DEX',
+  insights: 'Leading decentralized perpetuals platform with massive volume growth'
 }, {
   symbol: 'JUP',
   name: 'Jupiter',
@@ -103,7 +105,8 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$4.50',
   entryPrice: 0.0075,
   rating: 87,
-  category: 'DEX Aggregator'
+  category: 'DEX Aggregator',
+  insights: 'Solana DEX aggregator capturing significant market share'
 }, {
   symbol: 'PENDLE',
   name: 'Pendle',
@@ -114,7 +117,8 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$15',
   entryPrice: 0.28,
   rating: 89,
-  category: 'Yield Trading'
+  category: 'Yield Trading',
+  insights: 'Innovative yield tokenization protocol with growing TVL'
 }, {
   symbol: 'DOGE',
   name: 'Dogecoin',
@@ -125,18 +129,22 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$0.50',
   entryPrice: 0.0678,
   rating: 86,
-  category: 'Meme Leader'
+  category: 'Meme Leader',
+  insights: 'Original meme coin with potential payment integration momentum'
 }, {
   symbol: 'AURA',
   name: 'Aura Finance',
   coingeckoId: 'aura-finance',
-  logo: () => <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
-      <span className="text-muted-foreground font-bold text-[10px]">AURA</span>
+  logo: () => <div className="relative w-6 h-6">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full animate-pulse" />
+      <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xs">AUR</span>
     </div>,
   targetPrice: '$8',
   entryPrice: 0.00086,
-  rating: 84,
-  category: 'Yield Optimizer'
+  rating: 91,
+  isLatestPick: true,
+  category: 'MEME PICK',
+  insights: 'Viral community growth. Next generation meme narrative emerging.'
 }];
 export default function Titan10() {
   const navigate = useNavigate();
@@ -262,30 +270,48 @@ export default function Titan10() {
             </div>
           </div>
 
-          {/* Strategic Alert - Clean Professional Design */}
-          <Card className="bg-card border-primary/20 mb-8">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary/10 rounded">
-                    <Crown className="w-5 h-5 text-primary" />
+          {/* Latest Picks Alert - Clean Professional Design */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {/* RWA Pick */}
+            <Card className="bg-card border-blue-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded">
+                    <TrendingUp className="w-4 h-4 text-blue-500" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-lg text-foreground">Our Latest Pick: Premium Exclusive</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      5,789% projected returns • Institutional accumulation detected • Limited access
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm text-foreground">RWA Latest Pick</p>
+                    <p className="text-xs text-muted-foreground">
+                      ETHFI • Real World Assets • 2,567% potential
                     </p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1">
-                    LOCKED
+                  <Badge className="bg-blue-500/10 text-blue-500 border-0 text-xs">
+                    RWA
                   </Badge>
-                  <p className="text-xs text-muted-foreground mt-1">Premium Only</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            
+            {/* MEME Pick */}
+            <Card className="bg-card border-purple-500/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/10 rounded">
+                    <Crown className="w-4 h-4 text-purple-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm text-foreground">MEME Latest Pick</p>
+                    <p className="text-xs text-muted-foreground">
+                      AURA • Viral Growth • 9,200% potential
+                    </p>
+                  </div>
+                  <Badge className="bg-purple-500/10 text-purple-500 border-0 text-xs">
+                    MEME
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Professional Table Header */}
           <div className="bg-card rounded-t-xl border border-b-0 p-4">
@@ -309,7 +335,12 @@ export default function Titan10() {
             ) : (
               titanCoins.map((coin, index) => {
                 const isLatestPick = coin.isLatestPick;
-                return <div key={index} className={`relative transition-none p-4 ${isLatestPick ? 'bg-primary/5' : ''}`}>
+                const pickBgColor = coin.category === 'RWA PICK' ? 'bg-blue-500/5' : 
+                                  coin.category === 'MEME PICK' ? 'bg-purple-500/5' : '';
+                const pickBorderColor = coin.category === 'RWA PICK' ? 'border-l-4 border-l-blue-500' : 
+                                       coin.category === 'MEME PICK' ? 'border-l-4 border-l-purple-500' : '';
+                
+                return <div key={index} className={`relative transition-none p-4 ${pickBgColor} ${pickBorderColor}`}>
                   <div className="grid grid-cols-12 gap-4 items-center">
                     <div className="col-span-1 text-sm font-medium text-muted-foreground">
                       {index + 1}
@@ -317,7 +348,7 @@ export default function Titan10() {
                     
                     <div className="col-span-3 flex items-center gap-3">
                       {/* Only blur the name/symbol for locked coins */}
-                      {!coin.isRevealed && !isLatestPick ? <div className="relative flex items-center gap-3">
+                      {!coin.isRevealed && !isLatestPick && index > 3 ? <div className="relative flex items-center gap-3">
                           <div className="p-2 bg-muted rounded">
                             <div className="w-6 h-6 bg-muted-foreground/20 rounded-full" />
                           </div>
@@ -326,24 +357,23 @@ export default function Titan10() {
                             <p className="text-xs text-muted-foreground filter blur-[6px]">Hidden Gem</p>
                           </div>
                           <Lock className="w-4 h-4 text-muted-foreground absolute right-0" />
-                        </div> : isLatestPick ? <>
-                          <div className="p-2 bg-primary/20 rounded animate-pulse">
-                            <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">???</p>
-                            <p className="text-xs text-muted-foreground">Our Latest Pick</p>
-                            <Badge className="mt-1 bg-primary/10 text-primary border-0 text-[9px] px-1.5 py-0">
-                              EXCLUSIVE
-                            </Badge>
-                          </div>
-                        </> : <>
+                        </div> : <>
                           <div className="p-2 bg-muted rounded">
                             <coin.logo className="w-6 h-6" />
                           </div>
                           <div>
                             <p className="font-medium text-foreground">{coin.symbol}</p>
                             <p className="text-xs text-muted-foreground">{coin.name}</p>
+                            {coin.category === 'RWA PICK' && (
+                              <Badge className="mt-1 bg-blue-500/10 text-blue-500 border-0 text-[9px] px-1.5 py-0">
+                                RWA PICK
+                              </Badge>
+                            )}
+                            {coin.category === 'MEME PICK' && (
+                              <Badge className="mt-1 bg-purple-500/10 text-purple-500 border-0 text-[9px] px-1.5 py-0">
+                                MEME PICK
+                              </Badge>
+                            )}
                           </div>
                         </>}
                     </div>
@@ -381,8 +411,8 @@ export default function Titan10() {
                     </div>
                   </div>
                   
-                  {coin.insights && !isLatestPick && <div className="mt-3 pt-3 border-t border-border">
-                      <p className="text-xs text-muted-foreground">{coin.insights}</p>
+                  {coin.insights && index <= 3 && <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-xs text-muted-foreground italic">{coin.insights}</p>
                     </div>}
                 </div>;
               })
