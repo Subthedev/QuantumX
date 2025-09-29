@@ -39,6 +39,7 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$150,000',
   entryPrice: 42800,
   rating: 95,
+  isRevealed: true,
   category: 'Store of Value',
   insights: 'Institutional adoption accelerating with ETF flows exceeding $1B daily'
 }, {
@@ -49,6 +50,7 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$8,500',
   entryPrice: 1340,
   rating: 92,
+  isRevealed: true,
   category: 'Smart Contracts',
   insights: 'Layer 2 scaling solutions driving unprecedented network activity'
 }, {
@@ -59,6 +61,7 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$450',
   entryPrice: 85,
   rating: 88,
+  isRevealed: true,
   category: 'DeFi Hub',
   insights: 'Memecoin ecosystem and DeFi resurgence positioning for explosive growth'
 }, {
@@ -66,12 +69,13 @@ const titanCoinsData: TitanCoin[] = [{
   name: 'Ether.fi',
   coingeckoId: 'ether-fi',
   logo: () => <div className="relative w-6 h-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full animate-pulse" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full" />
         <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xs">EFI</span>
       </div>,
   targetPrice: '$12',
   entryPrice: 0.45,
   rating: 98,
+  isRevealed: true,
   isLatestPick: true,
   category: 'RWA PICK',
   insights: 'Real World Asset tokenization leader. Institutional partnerships confirmed.'
@@ -83,6 +87,7 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$1,200',
   entryPrice: 180,
   rating: 85,
+  isRevealed: true,
   category: 'Exchange Token',
   insights: 'Binance ecosystem growth with new chain launches'
 }, {
@@ -98,7 +103,7 @@ const titanCoinsData: TitanCoin[] = [{
 }, {
   symbol: 'JUP',
   name: 'Jupiter',
-  coingeckoId: 'jupiter',
+  coingeckoId: 'jupiter-ag-wormhole',
   logo: () => <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
       <span className="text-muted-foreground font-bold text-[10px]">JUP</span>
     </div>,
@@ -136,7 +141,7 @@ const titanCoinsData: TitanCoin[] = [{
   name: 'Aura Finance',
   coingeckoId: 'aura-finance',
   logo: () => <div className="relative w-6 h-6">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full animate-pulse" />
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full" />
       <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xs">AUR</span>
     </div>,
   targetPrice: '$8',
@@ -173,16 +178,47 @@ export default function Titan10() {
               };
             }
           }
-          // For coins not found, calculate with fallback prices
-          const fallbackPrices: Record<string, number> = {
-            'HYPE': 28,
-            'JUP': 1.20,
-            'PENDLE': 4.80,
-            'DOGE': 0.32,
-            'AURA': 0.018
+          
+          // Manual mapping for coins with different API IDs or not found
+          const manualPriceMapping: Record<string, { coingeckoId: string, fallbackPrice: number }> = {
+            'ETHFI': { coingeckoId: 'ether-fi', fallbackPrice: 1.80 },
+            'HYPE': { coingeckoId: 'hyperliquid', fallbackPrice: 28 },
+            'JUP': { coingeckoId: 'jupiter-ag-wormhole', fallbackPrice: 1.20 },
+            'PENDLE': { coingeckoId: 'pendle', fallbackPrice: 4.80 },
+            'AURA': { coingeckoId: 'aura-finance', fallbackPrice: 0.018 }
           };
           
-          const fallbackPrice = fallbackPrices[coin.symbol] || coin.entryPrice * 2;
+          // Try to find coin with manual mapping
+          const mapping = manualPriceMapping[coin.symbol];
+          if (mapping) {
+            const liveData = cryptos.find(c => c.id === mapping.coingeckoId);
+            if (liveData) {
+              const currentPrice = liveData.current_price;
+              const returnPercentage = ((currentPrice - coin.entryPrice) / coin.entryPrice) * 100;
+              
+              return {
+                ...coin,
+                currentPrice,
+                returnTillDate: `${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(1)}%`,
+                marketCap: cryptoDataService.formatNumber(liveData.market_cap),
+                volume24h: cryptoDataService.formatNumber(liveData.total_volume)
+              };
+            } else {
+              // Use fallback price if API doesn't have the coin
+              const returnPercentage = ((mapping.fallbackPrice - coin.entryPrice) / coin.entryPrice) * 100;
+              
+              return {
+                ...coin,
+                currentPrice: mapping.fallbackPrice,
+                returnTillDate: `${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(1)}%`,
+                marketCap: coin.marketCap || 'N/A',
+                volume24h: coin.volume24h || 'N/A'
+              };
+            }
+          }
+          
+          // Default fallback
+          const fallbackPrice = coin.entryPrice * 2;
           const returnPercentage = ((fallbackPrice - coin.entryPrice) / coin.entryPrice) * 100;
           
           return {
@@ -347,17 +383,35 @@ export default function Titan10() {
                     </div>
                     
                     <div className="col-span-3 flex items-center gap-3">
-                      {/* Only blur the name/symbol for locked coins */}
-                      {!coin.isRevealed && !isLatestPick && index > 3 ? <div className="relative flex items-center gap-3">
+                      {/* Show locked state for non-revealed coins */}
+                      {!coin.isRevealed ? 
+                        <div className="relative flex items-center gap-3">
                           <div className="p-2 bg-muted rounded">
-                            <div className="w-6 h-6 bg-muted-foreground/20 rounded-full" />
+                            {/* Show logo for latest picks even when locked */}
+                            {isLatestPick ? (
+                              <coin.logo className="w-6 h-6" />
+                            ) : (
+                              <div className="w-6 h-6 bg-muted-foreground/20 rounded-full" />
+                            )}
                           </div>
                           <div>
                             <p className="font-medium text-foreground filter blur-[6px]">??????</p>
                             <p className="text-xs text-muted-foreground filter blur-[6px]">Hidden Gem</p>
+                            {coin.category === 'RWA PICK' && (
+                              <Badge className="mt-1 bg-blue-500/10 text-blue-500 border-0 text-[9px] px-1.5 py-0">
+                                RWA PICK
+                              </Badge>
+                            )}
+                            {coin.category === 'MEME PICK' && (
+                              <Badge className="mt-1 bg-purple-500/10 text-purple-500 border-0 text-[9px] px-1.5 py-0">
+                                MEME PICK
+                              </Badge>
+                            )}
                           </div>
                           <Lock className="w-4 h-4 text-muted-foreground absolute right-0" />
-                        </div> : <>
+                        </div> 
+                        : 
+                        <>
                           <div className="p-2 bg-muted rounded">
                             <coin.logo className="w-6 h-6" />
                           </div>
@@ -375,7 +429,8 @@ export default function Titan10() {
                               </Badge>
                             )}
                           </div>
-                        </>}
+                        </>
+                      }
                     </div>
                     
                     <div className="col-span-2">
