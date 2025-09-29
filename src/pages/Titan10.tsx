@@ -319,9 +319,9 @@ export default function Titan10() {
               <div className="col-span-1">#</div>
               <div className="col-span-3">Name</div>
               <div className="col-span-2">Target 25/26</div>
-              <div className="col-span-1">Entry Price</div>
+              <div className="col-span-2">Entry Price</div>
               <div className="col-span-2">Return Till Date</div>
-              <div className="col-span-2">Current Price</div>
+              <div className="col-span-1">Current Price</div>
               <div className="col-span-1">Held by Team</div>
             </div>
           </div>
@@ -384,7 +384,7 @@ export default function Titan10() {
                       </p>
                     </div>
                     
-                    <div className="col-span-1">
+                    <div className="col-span-2">
                       <p className="font-medium text-foreground">
                         ${coin.entryPrice.toFixed(coin.entryPrice < 1 ? 4 : 2)}
                       </p>
@@ -397,7 +397,7 @@ export default function Titan10() {
                       </div>
                     </div>
                     
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                       <p className="font-medium text-foreground">
                         ${coin.currentPrice ? coin.currentPrice.toFixed(coin.currentPrice < 1 ? 4 : 2) : 'Loading...'}
                       </p>
