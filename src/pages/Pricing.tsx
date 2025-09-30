@@ -7,15 +7,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/ai-brain-icon";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const pricingPlans = [
+const monthlyPlans = [
   {
     name: "FREE",
     price: "$0",
     period: "/month",
     description: "Get started with basic features",
+    originalPrice: undefined,
     features: [
-      "3 AI predictions per month",
+      "3 AI analysis reports per month",
       "Basic technical analysis",
       "Market overview dashboard",
       "Community support"
@@ -27,13 +29,75 @@ const pricingPlans = [
   },
   {
     name: "PRO",
-    price: "$29",
+    price: "$49",
     period: "/month",
     badge: "MOST POPULAR",
     description: "Everything you need for serious trading",
+    originalPrice: undefined,
     features: [
       "Access to Titan 10 exclusive picks",
-      "Unlimited AI predictions",
+      "Unlimited AI analysis reports",
+      "Advanced analytics & insights",
+      "Daily market direction signals",
+      "Portfolio tracker",
+      "Real-time price alerts",
+      "Priority support"
+    ],
+    highlighted: true,
+    buttonText: "Join Waitlist",
+    buttonVariant: "default" as const,
+    disabled: false
+  },
+  {
+    name: "ENTERPRISE",
+    price: "Custom",
+    period: "",
+    badge: "API ACCESS",
+    description: "Built for institutions and developers",
+    originalPrice: undefined,
+    features: [
+      "Everything in Pro",
+      "Full API access",
+      "Custom integrations",
+      "Dedicated account manager",
+      "Custom model training",
+      "99.9% uptime SLA",
+      "White-label options"
+    ],
+    highlighted: false,
+    buttonText: "Contact Us",
+    buttonVariant: "secondary" as const,
+    disabled: false
+  }
+];
+
+const yearlyPlans = [
+  {
+    name: "FREE",
+    price: "$0",
+    period: "/year",
+    description: "Get started with basic features",
+    features: [
+      "3 AI analysis reports per month",
+      "Basic technical analysis",
+      "Market overview dashboard",
+      "Community support"
+    ],
+    highlighted: false,
+    buttonText: "Get Started",
+    buttonVariant: "outline" as const,
+    disabled: false
+  },
+  {
+    name: "PRO",
+    price: "$499",
+    period: "/year",
+    badge: "SAVE 15%",
+    description: "Everything you need for serious trading",
+    originalPrice: "$588",
+    features: [
+      "Access to Titan 10 exclusive picks",
+      "Unlimited AI analysis reports",
       "Advanced analytics & insights",
       "Daily market direction signals",
       "Portfolio tracker",
@@ -71,6 +135,7 @@ export default function Pricing() {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +162,7 @@ export default function Pricing() {
     }, 1000);
   };
 
-  const handlePlanAction = (plan: typeof pricingPlans[0]) => {
+  const handlePlanAction = (plan: typeof monthlyPlans[0]) => {
     if (plan.name === "FREE") {
       if (!user) {
         navigate("/auth");
@@ -144,11 +209,13 @@ export default function Pricing() {
               <Activity className="h-3 w-3 mr-1" />
               EARLY ACCESS
             </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-orange-500 to-primary bg-clip-text text-transparent">
-              Professional Crypto Intelligence
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-orange-500 to-primary bg-clip-text text-transparent inline-block">
+                Professional Crypto Intelligence
+              </span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Get institutional-grade AI predictions, exclusive Titan 10 picks, and real-time market insights to stay ahead of the curve.
+              Get institutional-grade AI analytics, exclusive Titan 10 picks, and real-time market insights to stay ahead of the curve.
             </p>
             
             {/* Trust Indicators */}
@@ -172,8 +239,20 @@ export default function Pricing() {
 
       {/* Pricing Cards */}
       <section className="container mx-auto px-4 pb-20">
+        {/* Billing Toggle */}
+        <div className="flex justify-center mb-12">
+          <Tabs value={billingPeriod} onValueChange={(value) => setBillingPeriod(value as "monthly" | "yearly")} className="w-auto">
+            <TabsList className="grid w-[400px] grid-cols-2">
+              <TabsTrigger value="monthly">Monthly</TabsTrigger>
+              <TabsTrigger value="yearly">
+                Yearly <Badge className="ml-2 bg-primary/10 text-primary border-primary/20">Save 15%</Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {pricingPlans.map((plan) => (
+          {(billingPeriod === "monthly" ? monthlyPlans : yearlyPlans).map((plan) => (
             <Card
               key={plan.name}
               className={`relative overflow-hidden transition-all duration-300 ${
@@ -199,6 +278,9 @@ export default function Pricing() {
                   
                   {/* Price */}
                   <div className="flex items-baseline gap-1 mb-6">
+                    {plan.originalPrice && (
+                      <span className="text-lg line-through text-muted-foreground mr-2">{plan.originalPrice}</span>
+                    )}
                     <span className="text-4xl font-bold">{plan.price}</span>
                     {plan.period && <span className="text-muted-foreground">{plan.period}</span>}
                   </div>
@@ -289,7 +371,7 @@ export default function Pricing() {
             <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
               <h3 className="font-semibold mb-2">What's included in the Pro plan?</h3>
               <p className="text-sm text-muted-foreground">
-                Pro includes unlimited AI predictions, exclusive Titan 10 picks, advanced analytics, daily market insights, portfolio tracking, and priority support.
+                Pro includes unlimited AI analysis reports, exclusive Titan 10 picks, advanced analytics, daily market insights, portfolio tracking, and priority support.
               </p>
             </div>
             <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
@@ -301,7 +383,7 @@ export default function Pricing() {
             <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
               <h3 className="font-semibold mb-2">How does the Enterprise API work?</h3>
               <p className="text-sm text-muted-foreground">
-                Enterprise customers get full API access to integrate our AI predictions and data into their own applications and trading systems.
+                Enterprise customers get full API access to integrate our AI analytics and data into their own applications and trading systems.
               </p>
             </div>
             <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
