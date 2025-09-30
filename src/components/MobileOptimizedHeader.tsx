@@ -95,7 +95,7 @@ const MobileOptimizedHeaderComponent = () => {
               <Link to="/pricing">
                 <Button variant="outline" size="sm" className="gap-2">
                   <CreditCard className="h-4 w-4" />
-                  Credits
+                  Upgrade
                 </Button>
               </Link>
               <DropdownMenu>

@@ -31,7 +31,6 @@ const Dashboard = () => {
   const [reports, setReports] = useState<Record<string, CryptoReportData>>({});
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
-  const [userCredits, setUserCredits] = useState(0);
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -41,16 +40,6 @@ const Dashboard = () => {
     if (user) {
       fetchExistingReports();
       fetchTotalReportsCount();
-      fetchUserCredits();
-    }
-  }, [user]);
-  const fetchUserCredits = useCallback(async () => {
-    if (!user) return;
-    const {
-      data
-    } = await supabase.from('profiles').select('credits').eq('user_id', user.id).single();
-    if (data) {
-      setUserCredits(data.credits || 0);
     }
   }, [user]);
   useEffect(() => {
@@ -128,25 +117,6 @@ const Dashboard = () => {
       {/* Use the new professional header */}
       <AppHeader />
 
-      {/* Professional Credit Alert - Only when critically low */}
-      {userCredits === 0 && (
-        <Alert className="border-0 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-none">
-          <AlertDescription className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-medium">No credits remaining</span>
-            </div>
-            <Button 
-              size="sm" 
-              variant="ghost"
-              onClick={() => navigate('/pricing')}
-              className="h-7 px-3"
-            >
-              Get Credits
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-6 space-y-6 max-w-[1400px]">
@@ -204,22 +174,11 @@ const Dashboard = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Credits</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-2xl font-bold">{userCredits}</p>
-                    {userCredits <= 2 && userCredits > 0 && (
-                      <Badge variant="secondary" className="text-xs">Low</Badge>
-                    )}
-                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">BTC Dominance</p>
+                  <p className="text-2xl font-bold mt-1">54.2%</p>
+                  <p className="text-xs text-muted-foreground mt-1">Market Share</p>
                 </div>
-                <Button 
-                  onClick={() => navigate('/pricing')}
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-3"
-                >
-                  <Sparkles className="h-4 w-4" />
-                </Button>
+                <DollarSign className="h-8 w-8 text-muted-foreground/30" />
               </div>
             </CardContent>
           </Card>

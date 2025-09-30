@@ -1,61 +1,118 @@
-import { Check, Zap, Shield, TrendingUp, ArrowRight, Sparkles, Star } from "lucide-react";
+import { Check, Zap, Shield, TrendingUp, ArrowRight, Sparkles, Star, ChartBar, Brain, Users, Lock, Activity, TrendingUp as TrendUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/ai-brain-icon";
-const pricingPlans = [{
-  name: "PRO",
-  price: "$9",
-  credits: 30,
-  badge: "MOST POPULAR",
-  description: "Perfect for active traders",
-  paymentLink: "https://nowpayments.io/payment/?iid=4356497370",
-  features: ["30 AI prediction credits per month", "Technical & sentiment analysis reports", "AI-driven entry/exit signals & risk scores", "Standard email support"],
-  highlighted: false,
-  gradient: "from-primary/10 to-primary/5"
-}, {
-  name: "ELITE",
-  price: "$25",
-  credits: 100,
-  badge: "BEST VALUE",
-  description: "For serious crypto investors",
-  paymentLink: "https://nowpayments.io/payment/?iid=6122943694",
-  features: ["100 AI prediction credits per month", "Advanced ML model with higher accuracy", "Pattern recognition & momentum indicators", "Priority 24/7 support access"],
-  highlighted: true,
-  gradient: "from-primary/10 to-primary/5"
-}, {
-  name: "ENTERPRISE",
-  price: "Custom",
-  credits: "Unlimited",
-  badge: "TAILORED",
-  description: "Built for institutions",
-  paymentLink: null,
-  features: ["Unlimited AI predictions & API access", "Custom model training & deployment", "Dedicated success manager", "99.9% uptime guarantee"],
-  highlighted: false,
-  gradient: "from-muted/30 to-muted/10"
-}];
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
+
+const pricingPlans = [
+  {
+    name: "FREE",
+    price: "$0",
+    period: "/month",
+    description: "Get started with basic features",
+    features: [
+      "3 AI predictions per month",
+      "Basic technical analysis",
+      "Market overview dashboard",
+      "Community support"
+    ],
+    highlighted: false,
+    buttonText: "Get Started",
+    buttonVariant: "outline" as const,
+    disabled: false
+  },
+  {
+    name: "PRO",
+    price: "$29",
+    period: "/month",
+    badge: "MOST POPULAR",
+    description: "Everything you need for serious trading",
+    features: [
+      "Access to Titan 10 exclusive picks",
+      "Unlimited AI predictions",
+      "Advanced analytics & insights",
+      "Daily market direction signals",
+      "Portfolio tracker",
+      "Real-time price alerts",
+      "Priority support"
+    ],
+    highlighted: true,
+    buttonText: "Join Waitlist",
+    buttonVariant: "default" as const,
+    disabled: false
+  },
+  {
+    name: "ENTERPRISE",
+    price: "Custom",
+    period: "",
+    badge: "API ACCESS",
+    description: "Built for institutions and developers",
+    features: [
+      "Everything in Pro",
+      "Full API access",
+      "Custom integrations",
+      "Dedicated account manager",
+      "Custom model training",
+      "99.9% uptime SLA",
+      "White-label options"
+    ],
+    highlighted: false,
+    buttonText: "Contact Us",
+    buttonVariant: "secondary" as const,
+    disabled: false
+  }
+];
 export default function Pricing() {
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuth();
-  const handlePurchase = (link: string | null) => {
-    if (!user) {
-      navigate("/auth");
+  const { user } = useAuth();
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address",
+        variant: "destructive"
+      });
       return;
     }
-    if (link) {
-      window.open(link, "_blank");
-    } else {
-      // Contact for enterprise
-      window.location.href = "mailto:contact@ignitexagency.com?subject=Enterprise Pricing Inquiry";
-    }
+
+    setIsSubmitting(true);
+    
+    // Here you would normally submit to your waitlist API
+    // For now, we'll simulate with a timeout
+    setTimeout(() => {
+      toast({
+        title: "You're on the waitlist!",
+        description: "We'll notify you when Pro access is available.",
+      });
+      setEmail("");
+      setIsSubmitting(false);
+    }, 1000);
   };
-  return <div className="min-h-screen bg-background">
+
+  const handlePlanAction = (plan: typeof pricingPlans[0]) => {
+    if (plan.name === "FREE") {
+      if (!user) {
+        navigate("/auth");
+      } else {
+        navigate("/dashboard");
+      }
+    } else if (plan.name === "ENTERPRISE") {
+      window.location.href = "mailto:contact@ignitexagency.com?subject=Enterprise API Access Inquiry";
+    }
+    // Pro plan uses the waitlist form
+  };
+  return (
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/50 backdrop-blur-xl bg-background/80">
+      <header className="sticky top-0 z-50 border-b border-border/40 backdrop-blur-xl bg-background/95">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
             <AIBrainIcon className="h-8 w-8" />
@@ -64,50 +121,49 @@ export default function Pricing() {
             </h1>
           </div>
           
-          <nav className="flex items-center gap-6">
-            {user ? <>
-                
-                <Button variant="outline" onClick={() => navigate("/dashboard")}>
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </> : <Button onClick={() => navigate("/auth")}>
+          <nav className="flex items-center gap-4">
+            {user ? (
+              <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+                Back to Dashboard
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => navigate("/auth")}>
                 Sign In
-              </Button>}
+              </Button>
+            )}
           </nav>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-12 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
         <div className="container mx-auto px-4 relative">
-          <div className="text-center max-w-3xl mx-auto">
-            <Badge className="mb-4 px-4 py-1.5 bg-accent text-accent-foreground border-accent">
-              <Sparkles className="h-3 w-3 mr-1" />
-              LIMITED TIME OFFER
+          <div className="text-center max-w-4xl mx-auto">
+            <Badge className="mb-4 px-3 py-1 bg-gradient-to-r from-primary/20 to-orange-500/20 border-primary/50">
+              <Activity className="h-3 w-3 mr-1" />
+              EARLY ACCESS
             </Badge>
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 text-orange-500">
-              Unlock AI-Powered Crypto Intelligence
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-orange-500 to-primary bg-clip-text text-transparent">
+              Professional Crypto Intelligence
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              Get instant access to advanced predictions that help you make smarter trading decisions. 
-              Pay with crypto, get instant credits.
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Get institutional-grade AI predictions, exclusive Titan 10 picks, and real-time market insights to stay ahead of the curve.
             </p>
             
             {/* Trust Indicators */}
-            <div className="flex flex-wrap items-center justify-center gap-8 mb-12">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-orange-500" />
-                <span className="text-sm font-medium">Secure Crypto Payments</span>
+                <Shield className="h-4 w-4 text-primary" />
+                <span className="text-muted-foreground">Bank-level Security</span>
               </div>
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium">Instant Activation</span>
+                <Brain className="h-4 w-4 text-primary" />
+                <span className="text-muted-foreground">AI-Powered Analysis</span>
               </div>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-orange-500" />
-                <span className="text-sm font-medium">85% Accuracy Rate</span>
+                <TrendUp className="h-4 w-4 text-primary" />
+                <span className="text-muted-foreground">85% Accuracy Rate</span>
               </div>
             </div>
           </div>
@@ -116,94 +172,111 @@ export default function Pricing() {
 
       {/* Pricing Cards */}
       <section className="container mx-auto px-4 pb-20">
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {pricingPlans.map(plan => <Card key={plan.name} className={`relative overflow-hidden border-2 transition-all duration-300 hover:scale-105 ${plan.highlighted ? 'border-accent shadow-2xl shadow-accent/20' : 'border-border hover:border-primary/50'}`}>
-              {/* Background Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${plan.gradient}`} />
-              
+        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {pricingPlans.map((plan) => (
+            <Card
+              key={plan.name}
+              className={`relative overflow-hidden transition-all duration-300 ${
+                plan.highlighted
+                  ? 'border-2 border-primary shadow-xl scale-105'
+                  : 'border border-border/50 hover:border-border'
+              }`}
+            >
               {/* Badge */}
-              {plan.badge && <div className="absolute -top-px -right-px">
-                  <Badge className={`rounded-none rounded-bl-lg px-4 py-1.5 ${plan.highlighted ? 'bg-primary text-primary-foreground' : 'bg-primary text-primary-foreground'}`}>
+              {plan.badge && (
+                <div className="absolute top-0 right-0">
+                  <Badge className="rounded-none rounded-bl-lg px-4 py-1.5 bg-primary text-primary-foreground">
                     {plan.badge}
                   </Badge>
-                </div>}
+                </div>
+              )}
 
-              <div className="relative p-8">
+              <CardContent className="p-8">
                 {/* Plan Header */}
                 <div className="mb-6">
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <p className="text-muted-foreground text-sm mb-4">{plan.description}</p>
                   
-                  {/* Price & Credits */}
-                  <div className="mb-6">
-                    <div className="text-center py-4 px-4 rounded-lg bg-muted/50 border border-border">
-                      {plan.price !== "Custom" ? <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
-                          <span>{plan.price}</span>
-                          <span>for</span>
-                          <span>{plan.credits} credits</span>
-                        </div> : <div className="flex items-center justify-center gap-2 whitespace-nowrap text-xl font-semibold text-foreground">
-                          <span>{plan.price}</span>
-                          <span>pricing</span>
-                        </div>}
-                    </div>
+                  {/* Price */}
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-4xl font-bold">{plan.price}</span>
+                    {plan.period && <span className="text-muted-foreground">{plan.period}</span>}
                   </div>
                 </div>
 
                 {/* Features */}
                 <ul className="space-y-3 mb-8">
-                  {plan.features.map(feature => <li key={feature} className="flex items-start gap-3">
-                      <Check className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                      <span className="text-sm">{feature}</span>
-                    </li>)}
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm text-muted-foreground">{feature}</span>
+                    </li>
+                  ))}
                 </ul>
 
                 {/* CTA Button */}
-                <Button className={`w-full h-12 font-semibold text-base ${plan.name === "ENTERPRISE" ? 'bg-muted hover:bg-muted/80' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} variant={plan.name === "ENTERPRISE" ? "secondary" : "default"} onClick={() => handlePurchase(plan.paymentLink)}>
-                  {plan.name === "ENTERPRISE" ? <>Contact Sales</> : <>
-                      Pay with Crypto
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>}
-                </Button>
-
-                {/* Savings Badge for ELITE */}
-                {plan.name === "ELITE" && <div className="mt-4 text-center">
-                    <Badge variant="outline" className="bg-accent/10 border-accent/30">
-                      Save $2 per credit
-                    </Badge>
-                  </div>}
-              </div>
-            </Card>)}
+                {plan.name === "PRO" ? (
+                  <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      disabled={isSubmitting}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      variant={plan.buttonVariant}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Joining..." : plan.buttonText}
+                    </Button>
+                  </form>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant={plan.buttonVariant}
+                    onClick={() => handlePlanAction(plan)}
+                  >
+                    {plan.buttonText}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Additional Benefits */}
         <div className="mt-20 text-center max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-12">Why traders choose IgniteX</h2>
+          <h2 className="text-3xl font-bold mb-12">Why choose IgniteX Pro</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="h-8 w-8 text-primary" />
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Lock className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">Data-Driven Insights</h3>
+              <h3 className="font-semibold mb-2">Exclusive Titan 10</h3>
               <p className="text-sm text-muted-foreground">
-                AI analyzes millions of data points to predict market movements
+                Access our curated selection of high-potential crypto picks
               </p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-4">
-                <Shield className="h-8 w-8 text-white" />
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-500/10 flex items-center justify-center mx-auto mb-4">
+                <ChartBar className="h-7 w-7 text-orange-500" />
               </div>
-              <h3 className="font-semibold mb-2">Risk Management</h3>
+              <h3 className="font-semibold mb-2">Advanced Analytics</h3>
               <p className="text-sm text-muted-foreground">
-                Built-in risk assessment to protect your portfolio
+                Institutional-grade AI models and technical indicators
               </p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Zap className="h-8 w-8 text-primary" />
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Activity className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="font-semibold mb-2">Real-Time Signals</h3>
+              <h3 className="font-semibold mb-2">Real-Time Insights</h3>
               <p className="text-sm text-muted-foreground">
-                Get instant alerts when opportunities arise
+                Daily market direction and portfolio tracking tools
               </p>
             </div>
           </div>
@@ -212,27 +285,34 @@ export default function Pricing() {
         {/* FAQ Section */}
         <div className="mt-20 max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
-          <div className="space-y-6">
-            <div className="p-6 rounded-lg bg-muted/30">
-              <h3 className="font-semibold mb-2">How do credits work?</h3>
+          <div className="space-y-4">
+            <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
+              <h3 className="font-semibold mb-2">What's included in the Pro plan?</h3>
               <p className="text-sm text-muted-foreground">
-                Each credit allows you to generate one AI-powered crypto prediction report. Credits never expire.
+                Pro includes unlimited AI predictions, exclusive Titan 10 picks, advanced analytics, daily market insights, portfolio tracking, and priority support.
               </p>
             </div>
-            <div className="p-6 rounded-lg bg-muted/30">
-              <h3 className="font-semibold mb-2">What cryptocurrencies do you accept?</h3>
+            <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
+              <h3 className="font-semibold mb-2">When will Pro access be available?</h3>
               <p className="text-sm text-muted-foreground">
-                We accept all major cryptocurrencies including Bitcoin, Ethereum, USDT, and 100+ more through NowPayments.
+                We're currently in early access. Join the waitlist to be notified as soon as Pro subscriptions are available.
               </p>
             </div>
-            <div className="p-6 rounded-lg bg-muted/30">
-              <h3 className="font-semibold mb-2">How fast do I receive my credits?</h3>
+            <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
+              <h3 className="font-semibold mb-2">How does the Enterprise API work?</h3>
               <p className="text-sm text-muted-foreground">
-                Credits are added to your account instantly after payment confirmation, typically within 1-2 minutes.
+                Enterprise customers get full API access to integrate our AI predictions and data into their own applications and trading systems.
+              </p>
+            </div>
+            <div className="p-6 rounded-xl bg-muted/20 border border-border/50">
+              <h3 className="font-semibold mb-2">Can I cancel anytime?</h3>
+              <p className="text-sm text-muted-foreground">
+                Yes, all subscriptions can be cancelled anytime. You'll retain access until the end of your billing period.
               </p>
             </div>
           </div>
         </div>
       </section>
-    </div>;
+    </div>
+  );
 }
