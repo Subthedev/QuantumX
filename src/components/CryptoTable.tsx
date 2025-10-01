@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, BarChart, Sparkles, Eye } from 'lucide-react';
 import { cryptoDataService, CryptoData } from '@/services/cryptoDataService';
 import { cn } from '@/lib/utils';
