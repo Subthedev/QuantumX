@@ -32,6 +32,7 @@ import { toast } from '@/hooks/use-toast';
 const navigationLinks = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/portfolio', label: 'Portfolio', icon: CreditCard },
   { href: '/privacy-policy', label: 'Privacy', icon: Shield },
   { href: '/terms-of-service', label: 'Terms', icon: FileText },
 ];

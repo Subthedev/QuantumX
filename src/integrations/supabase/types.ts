@@ -77,6 +77,51 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_holdings: {
+        Row: {
+          coin_id: string
+          coin_image: string | null
+          coin_name: string
+          coin_symbol: string
+          created_at: string
+          id: string
+          notes: string | null
+          purchase_date: string
+          purchase_price: number
+          quantity: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coin_id: string
+          coin_image?: string | null
+          coin_name: string
+          coin_symbol: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_price: number
+          quantity: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coin_id?: string
+          coin_image?: string | null
+          coin_name?: string
+          coin_symbol?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_price?: number
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
