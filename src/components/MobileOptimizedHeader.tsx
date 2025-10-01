@@ -87,6 +87,16 @@ const MobileOptimizedHeaderComponent = () => {
               </Button>
             </Link>
           ))}
+          <Link to="/portfolio">
+            <Button variant="ghost" size="sm" className="font-medium">
+              Portfolio
+            </Button>
+          </Link>
+          <Link to="/titan10">
+            <Button variant="ghost" size="sm" className="font-medium">
+              Titan 10
+            </Button>
+          </Link>
         </div>
 
         {/* Desktop Actions */}
