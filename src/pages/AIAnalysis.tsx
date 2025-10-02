@@ -12,7 +12,6 @@ import { useQuery } from '@tanstack/react-query';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-
 interface AnalysisResult {
   type: string;
   content: string;
@@ -21,67 +20,61 @@ interface AnalysisResult {
   keyPoints?: string[];
   metrics?: Record<string, any>;
 }
-
 const AIAnalysis = () => {
   const [selectedCoin, setSelectedCoin] = useState<string>('');
   const [selectedAnalysis, setSelectedAnalysis] = useState<string>('technical');
   const [isGenerating, setIsGenerating] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
 
   // Fetch top cryptos for selection
-  const { data: cryptos = [], isLoading: cryptosLoading } = useQuery({
+  const {
+    data: cryptos = [],
+    isLoading: cryptosLoading
+  } = useQuery({
     queryKey: ['top-cryptos-ai'],
     queryFn: () => cryptoDataService.getTopCryptos(50),
-    refetchInterval: 60000,
+    refetchInterval: 60000
   });
-
-  const analysisTypes = [
-    { 
-      id: 'technical', 
-      label: 'Technical Analysis', 
-      icon: TrendingUp,
-      description: 'Chart patterns, indicators, and price action analysis'
-    },
-    { 
-      id: 'fundamental', 
-      label: 'Fundamental Analysis', 
-      icon: DollarSign,
-      description: 'Market cap, tokenomics, and project evaluation'
-    },
-    { 
-      id: 'sentiment', 
-      label: 'Sentiment Analysis', 
-      icon: Brain,
-      description: 'Social media trends, news sentiment, and market mood'
-    },
-    { 
-      id: 'onchain', 
-      label: 'On-Chain Analysis', 
-      icon: LinkIcon,
-      description: 'Network activity, whale movements, and blockchain metrics'
-    },
-    { 
-      id: 'etf', 
-      label: 'ETF Inflow Data', 
-      icon: Wallet,
-      description: 'ETF flows, institutional interest, and spot market impact'
-    },
-  ];
-
+  const analysisTypes = [{
+    id: 'technical',
+    label: 'Technical Analysis',
+    icon: TrendingUp,
+    description: 'Chart patterns, indicators, and price action analysis'
+  }, {
+    id: 'fundamental',
+    label: 'Fundamental Analysis',
+    icon: DollarSign,
+    description: 'Market cap, tokenomics, and project evaluation'
+  }, {
+    id: 'sentiment',
+    label: 'Sentiment Analysis',
+    icon: Brain,
+    description: 'Social media trends, news sentiment, and market mood'
+  }, {
+    id: 'onchain',
+    label: 'On-Chain Analysis',
+    icon: LinkIcon,
+    description: 'Network activity, whale movements, and blockchain metrics'
+  }, {
+    id: 'etf',
+    label: 'ETF Inflow Data',
+    icon: Wallet,
+    description: 'ETF flows, institutional interest, and spot market impact'
+  }];
   const generateAnalysis = async () => {
     if (!selectedCoin) {
       toast({
         title: 'Please select a coin',
         description: 'You must select a cryptocurrency to analyze',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     setIsGenerating(true);
     setAnalysisResult(null);
-
     try {
       // Get detailed coin data
       const coinData = cryptos.find(c => c.id === selectedCoin);
@@ -93,57 +86,50 @@ const AIAnalysis = () => {
       const detailedData = await cryptoDataService.getCryptoDetails(selectedCoin);
 
       // Call the edge function to generate AI analysis
-      const { data, error } = await supabase.functions.invoke('ai-analysis', {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('ai-analysis', {
         body: {
           coin: coinData,
           detailedData,
-          analysisType: selectedAnalysis,
-        },
+          analysisType: selectedAnalysis
+        }
       });
-
       if (error) throw error;
-
       setAnalysisResult({
         type: selectedAnalysis,
         content: data.analysis,
         timestamp: new Date(),
         confidence: data.confidence,
         keyPoints: data.keyPoints,
-        metrics: data.metrics,
+        metrics: data.metrics
       });
-
       toast({
         title: 'Analysis Generated',
-        description: `${analysisTypes.find(t => t.id === selectedAnalysis)?.label} completed successfully`,
+        description: `${analysisTypes.find(t => t.id === selectedAnalysis)?.label} completed successfully`
       });
     } catch (error) {
       console.error('Error generating analysis:', error);
       toast({
         title: 'Generation Failed',
         description: 'Failed to generate analysis. Please try again.',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setIsGenerating(false);
     }
   };
-
   const renderAnalysisContent = () => {
     if (!analysisResult) return null;
-
-    return (
-      <Card className="mt-6">
+    return <Card className="mt-6">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle className="text-xl">
                 {analysisTypes.find(t => t.id === analysisResult.type)?.label}
               </CardTitle>
-              {analysisResult.confidence && (
-                <Badge variant={analysisResult.confidence > 70 ? 'default' : 'secondary'}>
-                  {analysisResult.confidence}% Confidence
-                </Badge>
-              )}
+              {analysisResult.confidence}
             </div>
             <span className="text-sm text-muted-foreground">
               {new Date(analysisResult.timestamp).toLocaleString()}
@@ -152,21 +138,17 @@ const AIAnalysis = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {analysisResult.keyPoints && analysisResult.keyPoints.length > 0 && (
-              <div className="space-y-2">
+            {analysisResult.keyPoints && analysisResult.keyPoints.length > 0 && <div className="space-y-2">
                 <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                   Key Insights
                 </h4>
                 <ul className="space-y-2">
-                  {analysisResult.keyPoints.map((point, index) => (
-                    <li key={index} className="flex items-start gap-2">
+                  {analysisResult.keyPoints.map((point, index) => <li key={index} className="flex items-start gap-2">
                       <span className="text-primary mt-1">•</span>
                       <span className="text-sm">{point}</span>
-                    </li>
-                  ))}
+                    </li>)}
                 </ul>
-              </div>
-            )}
+              </div>}
             
             <Separator />
             
@@ -176,34 +158,27 @@ const AIAnalysis = () => {
               </div>
             </div>
 
-            {analysisResult.metrics && Object.keys(analysisResult.metrics).length > 0 && (
-              <>
+            {analysisResult.metrics && Object.keys(analysisResult.metrics).length > 0 && <>
                 <Separator />
                 <div className="space-y-2">
                   <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                     Key Metrics
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(analysisResult.metrics).map(([key, value]) => (
-                      <div key={key} className="bg-muted/50 rounded-lg p-3">
+                    {Object.entries(analysisResult.metrics).map(([key, value]) => <div key={key} className="bg-muted/50 rounded-lg p-3">
                         <p className="text-xs text-muted-foreground capitalize">
                           {key.replace(/_/g, ' ')}
                         </p>
                         <p className="text-sm font-semibold mt-1">{String(value)}</p>
-                      </div>
-                    ))}
+                      </div>)}
                   </div>
                 </div>
-              </>
-            )}
+              </>}
           </div>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   };
-
-  return (
-    <div className="container mx-auto p-6 max-w-7xl">
+  return <div className="container mx-auto p-6 max-w-7xl">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">AI-Powered Analysis</h1>
@@ -229,23 +204,13 @@ const AIAnalysis = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <ScrollArea className="h-[300px]">
-                    {cryptosLoading ? (
-                      <div className="p-4 text-center text-muted-foreground">Loading...</div>
-                    ) : (
-                      cryptos.map((crypto) => (
-                        <SelectItem key={crypto.id} value={crypto.id}>
+                    {cryptosLoading ? <div className="p-4 text-center text-muted-foreground">Loading...</div> : cryptos.map(crypto => <SelectItem key={crypto.id} value={crypto.id}>
                           <div className="flex items-center gap-2">
-                            <img 
-                              src={crypto.image} 
-                              alt={crypto.name} 
-                              className="w-5 h-5"
-                            />
+                            <img src={crypto.image} alt={crypto.name} className="w-5 h-5" />
                             <span>{crypto.name}</span>
                             <span className="text-muted-foreground">({crypto.symbol.toUpperCase()})</span>
                           </div>
-                        </SelectItem>
-                      ))
-                    )}
+                        </SelectItem>)}
                   </ScrollArea>
                 </SelectContent>
               </Select>
@@ -256,19 +221,13 @@ const AIAnalysis = () => {
               <label className="text-sm font-medium">Analysis Type</label>
               <Tabs value={selectedAnalysis} onValueChange={setSelectedAnalysis}>
                 <TabsList className="grid grid-cols-3 lg:grid-cols-5 h-auto">
-                  {analysisTypes.map((type) => {
-                    const Icon = type.icon;
-                    return (
-                      <TabsTrigger
-                        key={type.id}
-                        value={type.id}
-                        className="flex flex-col gap-1 h-auto py-3"
-                      >
+                  {analysisTypes.map(type => {
+                  const Icon = type.icon;
+                  return <TabsTrigger key={type.id} value={type.id} className="flex flex-col gap-1 h-auto py-3">
                         <Icon className="w-4 h-4" />
                         <span className="text-xs">{type.label.split(' ')[0]}</span>
-                      </TabsTrigger>
-                    );
-                  })}
+                      </TabsTrigger>;
+                })}
                 </TabsList>
                 <TabsContent value={selectedAnalysis} className="mt-4">
                   <Alert>
@@ -282,23 +241,14 @@ const AIAnalysis = () => {
             </div>
 
             {/* Generate Button */}
-            <Button
-              onClick={generateAnalysis}
-              disabled={isGenerating || !selectedCoin}
-              className="w-full"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
+            <Button onClick={generateAnalysis} disabled={isGenerating || !selectedCoin} className="w-full" size="lg">
+              {isGenerating ? <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating Analysis...
-                </>
-              ) : (
-                <>
+                </> : <>
                   <Brain className="mr-2 h-4 w-4" />
                   Generate AI Analysis
-                </>
-              )}
+                </>}
             </Button>
           </CardContent>
         </Card>
@@ -306,8 +256,6 @@ const AIAnalysis = () => {
         {/* Analysis Result */}
         {renderAnalysisContent()}
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default AIAnalysis;
