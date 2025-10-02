@@ -36,7 +36,7 @@ class CryptoDataService {
   private CACHE_DURATION = 60000; // 1 minute cache
   private COINGECKO_API = 'https://api.coingecko.com/api/v3';
 
-  async getTopCryptos(limit: number = 50): Promise<CryptoData[]> {
+  async getTopCryptos(limit: number = 100): Promise<CryptoData[]> {
     const cacheKey = `top-${limit}`;
     const cached = this.cache.get(cacheKey);
     
@@ -45,15 +45,24 @@ class CryptoDataService {
     }
 
     try {
+      // Fetch more coins to account for filtered stablecoins
+      const fetchLimit = limit + 20;
       const response = await fetch(
-        `${this.COINGECKO_API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${limit}&page=1&sparkline=true&price_change_percentage=7d`
+        `${this.COINGECKO_API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${fetchLimit}&page=1&sparkline=true&price_change_percentage=7d`
       );
       
       if (!response.ok) {
         throw new Error('Failed to fetch crypto data');
       }
       
-      const data: CryptoData[] = await response.json();
+      let data: CryptoData[] = await response.json();
+      
+      // Filter out USD stablecoins
+      const stablecoins = ['usdt', 'usdc', 'busd', 'dai', 'tusd', 'usdp', 'gusd', 'frax', 'usdd', 'paxg', 'xaut'];
+      data = data.filter(coin => !stablecoins.includes(coin.symbol.toLowerCase()));
+      
+      // Limit to requested amount after filtering
+      data = data.slice(0, limit);
       
       // Cache the data
       this.cache.set(cacheKey, { data, timestamp: Date.now() });

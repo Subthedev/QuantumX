@@ -31,7 +31,7 @@ const CryptoTable: React.FC<CryptoTableProps> = ({ onGenerateReport }) => {
 
   const loadCryptoData = async () => {
     try {
-      const data = await cryptoDataService.getTopCryptos(50);
+      const data = await cryptoDataService.getTopCryptos(100);
       setCryptos(data);
     } catch (error) {
       toast.error('Failed to load cryptocurrency data');
