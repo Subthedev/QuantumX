@@ -199,3 +199,6 @@ backend = "postgres"
 
 [functions.generate-crypto-report]
 verify_jwt = true
+
+[functions.ai-analysis]
+verify_jwt = true

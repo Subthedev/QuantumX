@@ -21,6 +21,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Titan10 = lazy(() => import("./pages/Titan10"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
+const AIAnalysis = lazy(() => import("./pages/AIAnalysis"));
 
 // Optimize React Query with better defaults
 const queryClient = new QueryClient({
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/titan10" element={<Titan10 />} />
               <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/ai-analysis" element={<AIAnalysis />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
