@@ -24,6 +24,11 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    // Clear any existing chart
+    if (chartRef.current) {
+      chartRef.current.remove();
+    }
+
     // Create chart with TradingView styling
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -90,7 +95,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [height]);
+  }, [height, coinId]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -158,7 +163,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
           ))}
         </div>
       </div>
-      <div ref={chartContainerRef} className="w-full" />
+      <div ref={chartContainerRef} className="w-full" style={{ height: `${height}px` }} />
     </Card>
   );
 };

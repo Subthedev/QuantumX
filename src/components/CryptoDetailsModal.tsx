@@ -147,11 +147,12 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
 
               <TabsContent value="overview" className="space-y-6">
                 {/* Enhanced Trading Chart with multiple timeframes */}
-                <div className="col-span-2">
-          <TradingViewWidget 
-            coinId={coin.id}
-            symbol={coin.symbol}
-          />
+                <div className="w-full">
+                  <TradingViewWidget 
+                    coinId={coin.id}
+                    symbol={coin.symbol}
+                    height={500}
+                  />
                 </div>
 
                 {/* Key Metrics */}
