@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart, ColorType, AreaSeries } from 'lightweight-charts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -62,7 +62,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
     chartRef.current = chart;
 
     // Create area series with TradingView colors
-    const areaSeries = (chart as any).addAreaSeries({
+    const areaSeries = chart.addSeries(AreaSeries, {
       topColor: 'rgba(38, 198, 218, 0.56)',
       bottomColor: 'rgba(38, 198, 218, 0.04)',
       lineColor: 'rgba(38, 198, 218, 1)',
