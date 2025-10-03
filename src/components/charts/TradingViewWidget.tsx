@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, AreaSeries } from 'lightweight-charts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Activity } from 'lucide-react';
 
 interface TradingViewWidgetProps {
   coinId: string;
@@ -20,6 +20,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
   const seriesRef = useRef<any>(null);
   const [timeframe, setTimeframe] = useState<'1D' | '7D' | '30D' | '90D' | '1Y'>('7D');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -102,6 +103,8 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
       if (!seriesRef.current) return;
       
       setLoading(true);
+      setError(null);
+      
       try {
         const days = {
           '1D': 1,
@@ -112,12 +115,21 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
         }[timeframe];
 
         const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=${days === 1 ? 'hourly' : 'daily'}`
+          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=${days === 1 ? 'hourly' : 'daily'}`,
+          {
+            headers: {
+              'Accept': 'application/json',
+            },
+          }
         );
+        
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status}`);
+        }
         
         const data = await response.json();
         
-        if (data.prices) {
+        if (data.prices && data.prices.length > 0) {
           const chartData = data.prices.map(([timestamp, price]: [number, number]) => ({
             time: Math.floor(timestamp / 1000),
             value: price,
@@ -129,9 +141,18 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
           if (chartRef.current) {
             chartRef.current.timeScale().fitContent();
           }
+          setError(null);
+        } else {
+          throw new Error('No price data available');
         }
       } catch (error) {
         console.error('Failed to fetch chart data:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load chart data');
+        
+        // Set empty data to prevent errors
+        if (seriesRef.current) {
+          seriesRef.current.setData([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -157,13 +178,27 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
               variant={timeframe === tf ? 'default' : 'ghost'}
               onClick={() => setTimeframe(tf)}
               className="h-7 px-3 text-xs"
+              disabled={loading}
             >
               {tf}
             </Button>
           ))}
         </div>
       </div>
-      <div ref={chartContainerRef} className="w-full" style={{ height: `${height}px` }} />
+      {error ? (
+        <div 
+          className="w-full flex items-center justify-center bg-muted/50 rounded-lg border border-dashed"
+          style={{ height: `${height}px` }}
+        >
+          <div className="text-center p-6">
+            <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+            <p className="text-sm text-muted-foreground mb-1">Chart temporarily unavailable</p>
+            <p className="text-xs text-muted-foreground/70">Data source rate limit reached</p>
+          </div>
+        </div>
+      ) : (
+        <div ref={chartContainerRef} className="w-full" style={{ height: `${height}px` }} />
+      )}
     </Card>
   );
 };
