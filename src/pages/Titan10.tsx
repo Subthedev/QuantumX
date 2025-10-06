@@ -286,7 +286,7 @@ export default function Titan10() {
               10 meticulously researched coins with maximum growth potential. 
               Get access to all exclusive picks and institutional-grade analysis.
             </p>
-            <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-4 py-1.5 -mt-0.5">
+            <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-4 py-1.5 -mt-0.5 mb-3">
               🔒 Only 1 of 10 Picks Revealed Below
             </Badge>
             
