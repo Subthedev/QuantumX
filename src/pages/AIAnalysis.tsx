@@ -306,8 +306,8 @@ const AIAnalysis = () => {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a cryptocurrency" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <ScrollArea className="h-[300px]">
+                  <SelectContent className="max-h-[400px]">
+                    <ScrollArea className="h-[320px]">
                       {cryptosLoading ? (
                         <div className="p-4 text-center text-muted-foreground">Loading...</div>
                       ) : (
