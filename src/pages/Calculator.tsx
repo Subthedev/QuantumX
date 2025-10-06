@@ -98,7 +98,7 @@ export default function Calculator() {
         <div className="text-center mb-8 animate-fade-in">
           <div className="flex items-center justify-center gap-3 mb-4">
             <CalculatorIcon className="w-10 h-10 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent pb-1 leading-tight">
               Trading Calculator
             </h1>
           </div>
