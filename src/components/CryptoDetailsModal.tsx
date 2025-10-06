@@ -26,8 +26,7 @@ import { useState, useEffect } from 'react';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { enhancedCryptoDataService } from '@/services/enhancedCryptoDataService';
 import CryptoReport from './CryptoReport';
-import TradingViewWidget from './charts/TradingViewWidget';
-import { EnhancedTradingChart } from './charts/EnhancedTradingChart';
+import PriceChart from './charts/PriceChart';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { formatNumber, formatPercentage } from '@/lib/utils';
 
@@ -146,14 +145,14 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
-                {/* Enhanced Trading Chart with multiple timeframes */}
+                {/* Price Chart */}
                 <div className="w-full">
-                  <TradingViewWidget 
+                  <PriceChart 
                     coinId={coin.id}
                     symbol={coin.symbol}
-                    height={450}
                     currentPrice={coin.current_price}
                     sparklineData={coin.sparkline_in_7d?.price}
+                    height={400}
                   />
                 </div>
 
