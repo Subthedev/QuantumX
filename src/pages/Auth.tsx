@@ -133,19 +133,31 @@ const Auth = () => {
       const { error } = await signInWithGoogle();
       
       if (error) {
-        toast({
-          title: "Google Sign In Failed",
-          description: getErrorMessage(error),
-          variant: "destructive",
-        });
+        // Check if it's a configuration error
+        if (error.message?.includes('provider') || error.message?.includes('not enabled')) {
+          toast({
+            title: "Google Sign-In Not Configured",
+            description: "Google authentication needs to be set up in Supabase. Please contact the administrator.",
+            variant: "destructive",
+            duration: 6000,
+          });
+        } else {
+          toast({
+            title: "Google Sign In Failed",
+            description: getErrorMessage(error),
+            variant: "destructive",
+          });
+        }
+        setGoogleLoading(false);
       }
+      // Don't set loading to false here if no error - browser will redirect
     } catch (error) {
+      console.error('Google sign-in error:', error);
       toast({
         title: "Error",
-        description: "Failed to sign in with Google",
+        description: "Failed to initiate Google sign-in. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setGoogleLoading(false);
     }
   };
