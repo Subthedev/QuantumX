@@ -17,9 +17,9 @@ serve(async (req) => {
     
     console.log('Generating AI analysis for:', coin.symbol, 'Type:', analysisType);
 
-    const openAIKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIKey) {
-      throw new Error('OpenAI API key not configured');
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicKey) {
+      throw new Error('Anthropic API key not configured');
     }
 
     // Prepare market data context
@@ -157,31 +157,32 @@ Provide institutional sentiment and flow-based predictions.`;
         break;
     }
 
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call Claude API
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIKey}`,
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: systemPrompt,
         messages: [
-          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
-        max_tokens: 1500,
       }),
     });
 
     if (!response.ok) {
-      console.error('OpenAI API error:', response.status, await response.text());
-      throw new Error('Failed to generate analysis');
+      const errorText = await response.text();
+      console.error('Claude API error:', response.status, errorText);
+      throw new Error(`Failed to generate analysis: ${response.status}`);
     }
 
     const data = await response.json();
-    const analysis = data.choices[0].message.content;
+    const analysis = data.content[0].text;
 
     // Extract key points from the analysis
     const keyPoints = [];
