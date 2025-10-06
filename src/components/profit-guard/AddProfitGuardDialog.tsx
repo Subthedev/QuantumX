@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Zap, Target, Plus, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import { Zap, X, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cryptoDataService } from "@/services/cryptoDataService";
 
@@ -17,25 +17,17 @@ interface AddProfitGuardDialogProps {
   onSuccess: () => void;
 }
 
-interface ProfitLevel {
-  percentage: number;
-  quantity_to_sell: number;
-}
-
 export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfitGuardDialogProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [coins, setCoins] = useState<any[]>([]);
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const [entryPrice, setEntryPrice] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [profitLevels, setProfitLevels] = useState<ProfitLevel[]>([
-    { percentage: 25, quantity_to_sell: 25 },
-    { percentage: 50, quantity_to_sell: 25 },
-    { percentage: 100, quantity_to_sell: 50 },
-  ]);
+  const [timeframe, setTimeframe] = useState<"short-term" | "medium-term" | "long-term">("medium-term");
+  const [investmentPeriod, setInvestmentPeriod] = useState("30");
 
   useEffect(() => {
     if (open) {
@@ -58,22 +50,8 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
       coin.symbol.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const addProfitLevel = () => {
-    setProfitLevels([...profitLevels, { percentage: 0, quantity_to_sell: 0 }]);
-  };
-
-  const removeProfitLevel = (index: number) => {
-    setProfitLevels(profitLevels.filter((_, i) => i !== index));
-  };
-
-  const updateProfitLevel = (index: number, field: keyof ProfitLevel, value: number) => {
-    const updated = [...profitLevels];
-    updated[index][field] = value;
-    setProfitLevels(updated);
-  };
-
   const handleSubmit = async () => {
-    if (!selectedCoin || !entryPrice || !quantity) {
+    if (!selectedCoin || !entryPrice || !quantity || !investmentPeriod) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -82,17 +60,46 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
       return;
     }
 
+    const period = parseInt(investmentPeriod);
+    if (period <= 0 || isNaN(period)) {
+      toast({
+        title: "Invalid Period",
+        description: "Investment period must be a positive number",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
+    setAnalyzing(true);
 
     try {
       const entry = parseFloat(entryPrice);
-      const formattedLevels = profitLevels.map((level) => ({
-        percentage: level.percentage,
-        target_price: entry * (1 + level.percentage / 100),
-        quantity_to_sell: level.quantity_to_sell,
-        triggered: false,
-      }));
 
+      // Call AI analysis first to get profit levels
+      toast({
+        title: "Analyzing...",
+        description: "IgniteX AI is analyzing market conditions for optimal profit levels",
+      });
+
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+        "profit-guard-analysis",
+        {
+          body: {
+            coinId: selectedCoin.id,
+            coinSymbol: selectedCoin.symbol,
+            entryPrice: entry,
+            timeframe,
+            investmentPeriod: period,
+          },
+        }
+      );
+
+      if (analysisError) throw analysisError;
+
+      setAnalyzing(false);
+
+      // Create position with AI-generated profit levels
       const { error } = await supabase.from("profit_guard_positions").insert({
         user_id: user?.id,
         coin_id: selectedCoin.id,
@@ -102,27 +109,18 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
         entry_price: entry,
         current_price: selectedCoin.current_price,
         quantity: parseFloat(quantity),
-        ai_enabled: aiEnabled,
-        profit_levels: formattedLevels,
+        timeframe,
+        investment_period: period,
+        profit_levels: analysisData.profit_levels,
+        ai_analysis: analysisData.analysis,
         status: "active",
       });
 
       if (error) throw error;
 
-      // If AI enabled, trigger analysis
-      if (aiEnabled) {
-        await supabase.functions.invoke("profit-guard-analysis", {
-          body: {
-            coinId: selectedCoin.id,
-            coinSymbol: selectedCoin.symbol,
-            entryPrice: entry,
-          },
-        });
-      }
-
       toast({
         title: "Success",
-        description: "Profit guard position added successfully",
+        description: `ProfitGuard activated with ${analysisData.profit_levels.length} AI-optimized profit levels`,
       });
 
       onSuccess();
@@ -132,11 +130,12 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
       console.error("Error adding position:", error);
       toast({
         title: "Error",
-        description: "Failed to add profit guard position",
+        description: error instanceof Error ? error.message : "Failed to add profit guard position",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
+      setAnalyzing(false);
     }
   };
 
@@ -145,55 +144,34 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
     setEntryPrice("");
     setQuantity("");
     setSearchQuery("");
-    setAiEnabled(false);
-    setProfitLevels([
-      { percentage: 25, quantity_to_sell: 25 },
-      { percentage: 50, quantity_to_sell: 25 },
-      { percentage: 100, quantity_to_sell: 50 },
-    ]);
+    setTimeframe("medium-term");
+    setInvestmentPeriod("30");
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Profit Guard Position</DialogTitle>
+          <div className="flex items-center gap-2">
+            <Zap className="h-6 w-6 text-primary" />
+            <DialogTitle>Add AI-Powered ProfitGuard</DialogTitle>
+          </div>
           <DialogDescription>
-            Set up profit protection for your crypto position
+            IgniteX AI will analyze market conditions and recommend optimal profit levels based on your timeframe
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Mode Selection */}
-          <Card className={aiEnabled ? "border-primary" : ""}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {aiEnabled ? <Zap className="h-5 w-5 text-primary" /> : <Target className="h-5 w-5" />}
-                  <CardTitle className="text-lg">
-                    {aiEnabled ? "AI-Powered Mode" : "Manual Mode"}
-                  </CardTitle>
-                </div>
-                <Switch checked={aiEnabled} onCheckedChange={setAiEnabled} />
-              </div>
-              <CardDescription>
-                {aiEnabled
-                  ? "AI will analyze market conditions and recommend optimal profit levels"
-                  : "Set custom profit targets manually"}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
           {/* Coin Selection */}
           <div className="space-y-2">
             <Label>Select Cryptocurrency</Label>
             <Input
-              placeholder="Search coin..."
+              placeholder="Search top 100 coins..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
-              <div className="max-h-48 overflow-y-auto border rounded-md">
+              <Card className="max-h-48 overflow-y-auto">
                 {filteredCoins.slice(0, 10).map((coin) => (
                   <button
                     key={coin.id}
@@ -201,29 +179,31 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
                       setSelectedCoin(coin);
                       setSearchQuery("");
                     }}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors"
+                    className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors border-b last:border-b-0"
                   >
                     <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" />
-                    <div className="text-left">
+                    <div className="text-left flex-1">
                       <div className="font-semibold">{coin.name}</div>
                       <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
                     </div>
-                    <div className="ml-auto text-sm">${coin.current_price.toLocaleString()}</div>
+                    <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
                   </button>
                 ))}
-              </div>
+              </Card>
             )}
             {selectedCoin && (
-              <div className="flex items-center gap-3 p-3 border rounded-md bg-accent/50">
-                <img src={selectedCoin.image} alt={selectedCoin.name} className="h-8 w-8 rounded-full" />
+              <Card className="flex items-center gap-3 p-3 bg-primary/5 border-primary/20">
+                <img src={selectedCoin.image} alt={selectedCoin.name} className="h-10 w-10 rounded-full" />
                 <div className="flex-1">
                   <div className="font-semibold">{selectedCoin.name}</div>
-                  <div className="text-sm text-muted-foreground">{selectedCoin.symbol.toUpperCase()}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {selectedCoin.symbol.toUpperCase()} • ${selectedCoin.current_price.toLocaleString()}
+                  </div>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setSelectedCoin(null)}>
                   <X className="h-4 w-4" />
                 </Button>
-              </div>
+              </Card>
             )}
           </div>
 
@@ -234,7 +214,7 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
               <Input
                 type="number"
                 step="0.000001"
-                placeholder="0.00"
+                placeholder="Your buy price"
                 value={entryPrice}
                 onChange={(e) => setEntryPrice(e.target.value)}
               />
@@ -244,62 +224,64 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
               <Input
                 type="number"
                 step="0.000001"
-                placeholder="0.00"
+                placeholder="Amount held"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Profit Levels */}
-          {!aiEnabled && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Profit Levels</Label>
-                <Button variant="outline" size="sm" onClick={addProfitLevel}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Level
-                </Button>
-              </div>
-              {profitLevels.map((level, index) => (
-                <Card key={index}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-end gap-4">
-                      <div className="flex-1 space-y-2">
-                        <Label>Profit %</Label>
-                        <Input
-                          type="number"
-                          value={level.percentage}
-                          onChange={(e) => updateProfitLevel(index, "percentage", parseFloat(e.target.value))}
-                        />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <Label>Sell % of Position</Label>
-                        <Input
-                          type="number"
-                          value={level.quantity_to_sell}
-                          onChange={(e) => updateProfitLevel(index, "quantity_to_sell", parseFloat(e.target.value))}
-                        />
-                      </div>
-                      {profitLevels.length > 1 && (
-                        <Button variant="ghost" size="icon" onClick={() => removeProfitLevel(index)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+          {/* AI Parameters */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Investment Timeframe</Label>
+              <Select value={timeframe} onValueChange={(v: any) => setTimeframe(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="short-term">Short-term (Days to 2 weeks)</SelectItem>
+                  <SelectItem value="medium-term">Medium-term (Weeks to months)</SelectItem>
+                  <SelectItem value="long-term">Long-term (Months+)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
+
+            <div className="space-y-2">
+              <Label>Investment Period (Days)</Label>
+              <Input
+                type="number"
+                placeholder="e.g., 30"
+                value={investmentPeriod}
+                onChange={(e) => setInvestmentPeriod(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                How long you plan to hold this position
+              </p>
+            </div>
+          </div>
+
+          {/* Info Card */}
+          <Card className="bg-primary/5 border-primary/20 p-4">
+            <div className="flex gap-3">
+              <Zap className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">AI-Powered Analysis</p>
+                <p className="text-xs text-muted-foreground">
+                  IgniteX AI will analyze current market conditions, volatility, technical levels, and your timeframe to recommend 3-5 optimal profit-taking levels. This helps you secure profits strategically and avoid the common mistake of holding too long.
+                </p>
+              </div>
+            </div>
+          </Card>
 
           {/* Submit */}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
-              {loading ? "Adding..." : "Add Position"}
+            <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {analyzing ? "Analyzing..." : loading ? "Creating..." : "Activate ProfitGuard"}
             </Button>
           </div>
         </div>

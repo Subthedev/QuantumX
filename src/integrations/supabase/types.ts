@@ -157,7 +157,7 @@ export type Database = {
       }
       profit_guard_positions: {
         Row: {
-          ai_enabled: boolean
+          ai_analysis: string | null
           coin_id: string
           coin_image: string | null
           coin_name: string
@@ -166,15 +166,17 @@ export type Database = {
           current_price: number
           entry_price: number
           id: string
+          investment_period: number
           last_notification_at: string | null
           profit_levels: Json
           quantity: number
           status: string
+          timeframe: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          ai_enabled?: boolean
+          ai_analysis?: string | null
           coin_id: string
           coin_image?: string | null
           coin_name: string
@@ -183,15 +185,17 @@ export type Database = {
           current_price: number
           entry_price: number
           id?: string
+          investment_period?: number
           last_notification_at?: string | null
           profit_levels?: Json
           quantity: number
           status?: string
+          timeframe?: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          ai_enabled?: boolean
+          ai_analysis?: string | null
           coin_id?: string
           coin_image?: string | null
           coin_name?: string
@@ -200,10 +204,12 @@ export type Database = {
           current_price?: number
           entry_price?: number
           id?: string
+          investment_period?: number
           last_notification_at?: string | null
           profit_levels?: Json
           quantity?: number
           status?: string
+          timeframe?: string
           updated_at?: string
           user_id?: string
         }
