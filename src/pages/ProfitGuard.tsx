@@ -20,11 +20,14 @@ interface ProfitGuardPosition {
   entry_price: number;
   current_price: number;
   quantity: number;
-  ai_enabled: boolean;
+  timeframe: string;
+  investment_period: number;
+  ai_analysis: string | null;
   profit_levels: Array<{
     percentage: number;
     target_price: number;
     quantity_to_sell: number;
+    reasoning?: string;
     triggered: boolean;
   }>;
   status: string;
@@ -101,66 +104,84 @@ export default function ProfitGuard() {
       
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Hero Section */}
-        <div className="text-center space-y-4 py-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Shield className="h-12 w-12 text-primary" />
-            <h1 className="text-4xl font-bold">IgniteX ProfitGuard</h1>
+        <div className="text-center space-y-4 py-12">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 rounded-full bg-primary/10">
+              <Shield className="h-10 w-10 text-primary" />
+            </div>
           </div>
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            IgniteX ProfitGuard
+          </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Lock in your profits intelligently. Never lose gains to greed again.
+            AI-powered profit protection. Secure your gains before greed takes them away.
           </p>
+          <div className="flex items-center justify-center gap-6 pt-4 text-sm">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <span>AI Analysis</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              <span>Smart Targets</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <span>Profit Protection</span>
+            </div>
+          </div>
         </div>
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="border-primary/20">
-            <CardHeader className="pb-3">
-              <Target className="h-8 w-8 text-primary mb-2" />
-              <CardTitle className="text-lg">Manual Targets</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Set custom profit levels and let ProfitGuard alert you when targets are hit
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/20">
+          <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
             <CardHeader className="pb-3">
               <Zap className="h-8 w-8 text-primary mb-2" />
-              <CardTitle className="text-lg">AI-Powered</CardTitle>
+              <CardTitle className="text-lg">IgniteX AI Analysis</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Let AI analyze market conditions and recommend optimal profit-taking levels
+                Advanced AI analyzes market conditions, volatility, and your timeframe to recommend optimal profit levels
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-primary/20">
+          <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
             <CardHeader className="pb-3">
-              <Bell className="h-8 w-8 text-primary mb-2" />
-              <CardTitle className="text-lg">Smart Alerts</CardTitle>
+              <Target className="h-8 w-8 text-primary mb-2" />
+              <CardTitle className="text-lg">Strategic Targets</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Get notified when it's time to secure profits based on market movements
+                Get 3-5 optimized profit levels with clear reasoning based on technical analysis and market momentum
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
+            <CardHeader className="pb-3">
+              <Bell className="h-8 w-8 text-primary mb-2" />
+              <CardTitle className="text-lg">Profit Protection</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Track your positions and secure profits before greed turns gains into losses
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Action Button */}
-        <div className="flex justify-between items-center">
+        {/* Action Section */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Active Guards</h2>
-            <p className="text-muted-foreground">
-              {activePositions.length} position{activePositions.length !== 1 ? "s" : ""} protected
+            <h2 className="text-3xl font-bold">Active ProfitGuards</h2>
+            <p className="text-muted-foreground mt-1">
+              {activePositions.length} {activePositions.length === 1 ? "position" : "positions"} protected with AI-optimized profit levels
             </p>
           </div>
-          <Button onClick={() => setAddDialogOpen(true)} size="lg">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Position
+          <Button onClick={() => setAddDialogOpen(true)} size="lg" className="gap-2">
+            <Plus className="h-5 w-5" />
+            Add New Guard
           </Button>
         </div>
 
@@ -191,16 +212,18 @@ export default function ProfitGuard() {
             ))}
           </div>
         ) : (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Shield className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No Active Guards</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                Start protecting your profits by adding your first position
+          <Card className="border-dashed border-2">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="p-4 rounded-full bg-primary/10 mb-4">
+                <Shield className="h-12 w-12 text-primary" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-2">No Active ProfitGuards</h3>
+              <p className="text-muted-foreground text-center mb-6 max-w-md">
+                Protect your profits with AI-powered analysis. Never lose gains to greed again.
               </p>
-              <Button onClick={() => setAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Position
+              <Button onClick={() => setAddDialogOpen(true)} size="lg" className="gap-2">
+                <Plus className="h-5 w-5" />
+                Create Your First ProfitGuard
               </Button>
             </CardContent>
           </Card>

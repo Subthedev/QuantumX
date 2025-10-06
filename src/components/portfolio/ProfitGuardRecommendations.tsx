@@ -52,7 +52,7 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
           </Button>
         </div>
         <CardDescription>
-          Consider securing profits on these positions to protect your gains
+          Let IgniteX AI analyze these positions and recommend optimal profit-taking levels
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -87,20 +87,19 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
             </div>
           ))}
         </div>
-        <div className="mt-4 p-3 rounded-lg bg-muted/50 flex items-start gap-2">
+        <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-muted-foreground">
-            Protect your profits by setting up automated profit guards. ProfitGuard will alert you
-            when it's optimal to take profits based on market conditions.
+          <p className="text-xs">
+            <span className="font-semibold">AI-Powered Protection:</span> IgniteX AI analyzes market conditions, volatility, and momentum to recommend strategic profit levels. Avoid the #1 mistake: losing gains to greed.
           </p>
         </div>
         <Button
           onClick={() => navigate("/profit-guard")}
-          className="w-full mt-4"
+          className="w-full mt-4 gap-2"
           variant="default"
         >
-          <Shield className="h-4 w-4 mr-2" />
-          Set Up Profit Guards
+          <Shield className="h-4 w-4" />
+          Activate AI ProfitGuards
         </Button>
       </CardContent>
     </Card>
