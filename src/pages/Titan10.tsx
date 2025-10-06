@@ -284,8 +284,11 @@ export default function Titan10() {
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
               10 meticulously researched coins with maximum growth potential. 
-              Backed by institutional-grade analysis and real-time monitoring.
+              Get access to all exclusive picks and institutional-grade analysis.
             </p>
+            <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-4 py-1.5">
+              🔒 Only 2 of 10 Picks Revealed Below
+            </Badge>
             
             {/* Key Metrics - Static Professional Design */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mb-8">
@@ -306,191 +309,148 @@ export default function Titan10() {
             </div>
           </div>
 
-          {/* Latest Picks Alert - Clean Professional Design */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {/* RWA Pick */}
-            <Card className="bg-card border-blue-500/20">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/10 rounded">
-                    <TrendingUp className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm text-foreground">RWA Latest Pick</p>
-                    <p className="text-xs text-muted-foreground">
-                      ETHFI • Real World Assets • 2,567% potential
-                    </p>
-                  </div>
-                  <Badge className="bg-blue-500/10 text-blue-500 border-0 text-xs">
-                    RWA
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Featured Exclusive Picks */}
+          <div className="mb-12">
+            <div className="text-center mb-6">
+              <h3 className="text-2xl font-bold mb-2">🔥 Featured Picks for 2025</h3>
+              <p className="text-muted-foreground">2 out of 10 exclusive opportunities revealed</p>
+            </div>
             
-            {/* MEME Pick */}
-            <Card className="bg-card border-purple-500/20">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/10 rounded">
-                    <Crown className="w-4 h-4 text-purple-500" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* RWA Pick */}
+              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/30 hover:border-blue-500/50 transition-all">
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    <div className="inline-flex p-3 bg-blue-500/20 rounded-xl">
+                      <TrendingUp className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <div>
+                      <Badge className="bg-blue-500/20 text-blue-500 border-0 text-xs mb-3">
+                        Latest RWA Pick
+                      </Badge>
+                      <h4 className="text-2xl font-bold text-foreground mb-1">ETHFI</h4>
+                      <p className="text-sm text-muted-foreground mb-4">Real World Assets Sector</p>
+                      <div className="space-y-2 text-left bg-card/50 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Potential Return:</span>
+                          <span className="text-lg font-bold text-blue-500">2,567%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Entry Price:</span>
+                          <span className="text-sm font-semibold">$2.10</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Target Price:</span>
+                          <span className="text-sm font-semibold">$56.00</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm text-foreground">MEME Latest Pick</p>
-                    <p className="text-xs text-muted-foreground">
-                      AURA • Viral Growth • 9,200% potential
-                    </p>
+                </CardContent>
+              </Card>
+              
+              {/* MEME Pick */}
+              <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/30 hover:border-purple-500/50 transition-all">
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    <div className="inline-flex p-3 bg-purple-500/20 rounded-xl">
+                      <Crown className="w-8 h-8 text-purple-500" />
+                    </div>
+                    <div>
+                      <Badge className="bg-purple-500/20 text-purple-500 border-0 text-xs mb-3">
+                        Latest MEME Pick
+                      </Badge>
+                      <h4 className="text-2xl font-bold text-foreground mb-1">AURA</h4>
+                      <p className="text-sm text-muted-foreground mb-4">Viral Growth Potential</p>
+                      <div className="space-y-2 text-left bg-card/50 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Potential Return:</span>
+                          <span className="text-lg font-bold text-purple-500">9,200%</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Entry Price:</span>
+                          <span className="text-sm font-semibold">$0.0012</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Target Price:</span>
+                          <span className="text-sm font-semibold">$0.1104</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <Badge className="bg-purple-500/10 text-purple-500 border-0 text-xs">
-                    MEME
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Professional Table Header */}
-          <div className="bg-card rounded-t-xl border border-b-0 p-4">
-            <div className="grid grid-cols-12 gap-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <div className="col-span-1">#</div>
-              <div className="col-span-3">Name</div>
-              <div className="col-span-2">Target 25/26</div>
-              <div className="col-span-2">Entry Price</div>
-              <div className="col-span-2">Return Till Date</div>
-              <div className="col-span-1">Current Price</div>
-              <div className="col-span-1">Held by Team</div>
+                </CardContent>
+              </Card>
             </div>
           </div>
 
-          {/* Coins List - Clean Professional Table */}
-          <div className="bg-card rounded-b-xl border divide-y mb-8">
-            {loading ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Loading live prices...
-              </div>
-            ) : (
-              titanCoins.map((coin, index) => {
-                const isLatestPick = coin.isLatestPick;
-                const pickBgColor = coin.category === 'RWA PICK' ? 'bg-blue-500/5' : 
-                                  coin.category === 'MEME PICK' ? 'bg-purple-500/5' : '';
-                const pickBorderColor = coin.category === 'RWA PICK' ? 'border-l-4 border-l-blue-500' : 
-                                       coin.category === 'MEME PICK' ? 'border-l-4 border-l-purple-500' : '';
-                
-                return <div key={index} className={`relative transition-none p-4 ${pickBgColor} ${pickBorderColor}`}>
-                  <div className="grid grid-cols-12 gap-4 items-center">
-                    <div className="col-span-1 text-sm font-medium text-muted-foreground">
-                      {index + 1}
-                    </div>
-                    
-                    <div className="col-span-3 flex items-center gap-3">
-                      {/* Show locked state for non-revealed coins */}
-                      {!coin.isRevealed ? 
-                        <div className="relative flex items-center gap-3">
-                          <div className="p-2 bg-muted rounded">
-                            {/* Show logo for latest picks even when locked */}
-                            {isLatestPick ? (
-                              <coin.logo className="w-6 h-6" />
-                            ) : (
-                              <div className="w-6 h-6 bg-muted-foreground/20 rounded-full" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground filter blur-[6px]">??????</p>
-                            <p className="text-xs text-muted-foreground filter blur-[6px]">Hidden Gem</p>
-                            {coin.category === 'RWA PICK' && (
-                              <Badge className="mt-1 bg-blue-500/10 text-blue-500 border-0 text-[9px] px-1.5 py-0">
-                                RWA PICK
-                              </Badge>
-                            )}
-                            {coin.category === 'MEME PICK' && (
-                              <Badge className="mt-1 bg-purple-500/10 text-purple-500 border-0 text-[9px] px-1.5 py-0">
-                                MEME PICK
-                              </Badge>
-                            )}
-                          </div>
-                          <Lock className="w-4 h-4 text-muted-foreground absolute right-0" />
-                        </div> 
-                        : 
-                        <>
-                          <div className="p-2 bg-muted rounded">
-                            <coin.logo className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{coin.symbol}</p>
-                            <p className="text-xs text-muted-foreground">{coin.name}</p>
-                            {coin.category === 'RWA PICK' && (
-                              <Badge className="mt-1 bg-blue-500/10 text-blue-500 border-0 text-[9px] px-1.5 py-0">
-                                Latest RWA Pick
-                              </Badge>
-                            )}
-                            {coin.category === 'MEME PICK' && (
-                              <Badge className="mt-1 bg-purple-500/10 text-purple-500 border-0 text-[9px] px-1.5 py-0">
-                                MEME PICK
-                              </Badge>
-                            )}
-                          </div>
-                        </>
-                      }
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <p className="font-semibold text-foreground">
-                        {coin.targetPrice}
-                      </p>
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <p className="font-medium text-foreground">
-                        ${coin.entryPrice.toFixed(coin.entryPrice < 1 ? 4 : 2)}
-                      </p>
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3 text-primary" />
-                        <span className="font-semibold text-primary">{coin.returnTillDate || 'Loading...'}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="col-span-1">
-                      <p className="font-medium text-foreground">
-                        ${coin.currentPrice ? coin.currentPrice.toFixed(coin.currentPrice < 1 ? 4 : 2) : 'Loading...'}
-                      </p>
-                      {coin.volume24h && <p className="text-xs text-muted-foreground">Vol: {coin.volume24h}</p>}
-                    </div>
-                    
-                    <div className="col-span-1 text-right">
-                      <Badge variant="outline" className="text-[10px] border-muted-foreground">
-                        YES
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  {coin.insights && index <= 3 && <div className="mt-3 pt-3 border-t border-border">
-                      <p className="text-xs text-muted-foreground italic">{coin.insights}</p>
-                    </div>}
-                </div>;
-              })
-            )}
-          </div>
-
-          {/* CTA Section - Simplified and Professional */}
-          <Card className="bg-card border-primary/20">
-            <CardContent className="p-8">
-              <div className="text-center space-y-6">
-                <h3 className="text-2xl font-bold">Ready to Access All 10 Titan Picks?</h3>
-                <p className="text-muted-foreground max-w-2xl mx-auto">
-                  Join thousands of smart investors already profiting from our institutional-grade research. 
-                  Get instant access to all analyses, entry points, and real-time alerts.
+          {/* Locked Coins Teaser */}
+          <div className="mb-12">
+            <Card className="bg-gradient-to-r from-muted/50 to-muted/30 border-dashed border-2 border-primary/30">
+              <CardContent className="p-12 text-center">
+                <Lock className="w-16 h-16 text-primary mx-auto mb-6" />
+                <h3 className="text-3xl font-bold mb-4">8 More Exclusive Picks Locked</h3>
+                <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
+                  Our institutional-grade research has identified 8 additional high-potential coins across 
+                  DeFi, AI, Gaming, and Infrastructure sectors. Each with detailed entry points, targets, and risk analysis.
                 </p>
-                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 max-w-3xl mx-auto">
+                  <div className="bg-card/50 rounded-lg p-4">
+                    <div className="text-2xl font-bold filter blur-sm">????</div>
+                    <p className="text-xs text-muted-foreground mt-2">DeFi Gem</p>
+                  </div>
+                  <div className="bg-card/50 rounded-lg p-4">
+                    <div className="text-2xl font-bold filter blur-sm">????</div>
+                    <p className="text-xs text-muted-foreground mt-2">AI Sector</p>
+                  </div>
+                  <div className="bg-card/50 rounded-lg p-4">
+                    <div className="text-2xl font-bold filter blur-sm">????</div>
+                    <p className="text-xs text-muted-foreground mt-2">Gaming</p>
+                  </div>
+                  <div className="bg-card/50 rounded-lg p-4">
+                    <div className="text-2xl font-bold filter blur-sm">????</div>
+                    <p className="text-xs text-muted-foreground mt-2">Layer 1</p>
+                  </div>
+                </div>
                 <Button size="lg" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground text-lg px-8 py-6">
-                  Get Instant Access
+                  Unlock All 10 Titan Picks
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Final CTA Section */}
+          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30">
+            <CardContent className="p-10">
+              <div className="text-center space-y-6">
+                <h3 className="text-3xl font-bold">Don't Miss Out on the Full Portfolio</h3>
+                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                  Join thousands of smart investors who are already profiting from our institutional-grade research. 
+                  Get instant access to all 10 picks, detailed analysis, entry points, and real-time alerts.
+                </p>
                 
-                <p className="text-xs text-muted-foreground">
-                  ✓ Cancel anytime • ✓ 7-day money-back guarantee • ✓ Instant access
+                <div className="flex flex-wrap justify-center gap-8 my-8">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <span className="text-sm">Full Portfolio Access</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <span className="text-sm">Real-Time Price Alerts</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <span className="text-sm">Expert Analysis</span>
+                  </div>
+                </div>
+                
+                <Button size="lg" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground text-xl px-10 py-7 shadow-lg">
+                  Get Instant Access Now
+                  <ArrowRight className="w-6 h-6 ml-2" />
+                </Button>
+                
+                <p className="text-sm text-muted-foreground">
+                  ✓ Cancel anytime • ✓ 7-day money-back guarantee • ✓ Instant access to all 10 picks
                 </p>
               </div>
             </CardContent>
@@ -499,14 +459,15 @@ export default function Titan10() {
       </div>
 
       {/* Sticky Footer */}
-      <footer className="sticky bottom-0 bg-background border-t border-border py-4">
+      <footer className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border py-4 shadow-lg">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Limited time offer - 9 coins locked for premium members only
+              🔥 Limited Access: Only 2 of 10 picks revealed • 8 exclusive coins waiting
             </p>
-            <Button size="sm" variant="outline" onClick={handleUpgradeClick} className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-              Unlock Now
+            <Button size="sm" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground">
+              Unlock All 10 Now
+              <Lock className="w-3 h-3 ml-2" />
             </Button>
           </div>
         </div>
