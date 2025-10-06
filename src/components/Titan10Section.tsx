@@ -1,11 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Crown, ArrowRight, TrendingUp, DollarSign, Target, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cryptoDataService } from '@/services/cryptoDataService';
+
 export default function Titan10Section() {
   const navigate = useNavigate();
+  const [hbarReturn, setHbarReturn] = useState('+962%');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHBARPrice = async () => {
+      try {
+        const cryptos = await cryptoDataService.getTopCryptos(100);
+        const hbarData = cryptos.find(c => c.id === 'hedera-hashgraph');
+        
+        if (hbarData) {
+          const entryPrice = 0.05;
+          const currentPrice = hbarData.current_price;
+          const returnPercentage = ((currentPrice - entryPrice) / entryPrice) * 100;
+          setHbarReturn(`${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(0)}%`);
+        }
+      } catch (error) {
+        console.error('Error fetching HBAR price:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHBARPrice();
+  }, []);
+
   const handleViewPortfolio = () => {
     navigate('/titan10');
   };
@@ -94,7 +121,7 @@ export default function Titan10Section() {
                     <div className="pt-2 border-t border-border">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Return Till Date:</span>
-                        <span className="text-lg font-bold text-blue-500">+962%</span>
+                        <span className="text-lg font-bold text-blue-500">{hbarReturn}</span>
                       </div>
                     </div>
                   </div>

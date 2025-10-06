@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import CryptoTable from '@/components/CryptoTable';
 import { supabase } from '@/integrations/supabase/client';
+import { cryptoDataService } from '@/services/cryptoDataService';
 import { TrendingUp, BarChart3, Brain, Clock, Crown, ArrowRight, DollarSign, Target } from 'lucide-react';
 
 interface CryptoReportData {
@@ -22,6 +23,7 @@ const Landing = () => {
   const [reports, setReports] = useState<CryptoReportData[]>([]);
   const [totalReports, setTotalReports] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [hbarReturn, setHbarReturn] = useState('+962%');
 
   const fetchExistingReports = useCallback(async () => {
     try {
@@ -62,6 +64,26 @@ const Landing = () => {
 
     loadData();
   }, [fetchExistingReports, fetchTotalReportsCount]);
+
+  useEffect(() => {
+    const fetchHBARPrice = async () => {
+      try {
+        const cryptos = await cryptoDataService.getTopCryptos(100);
+        const hbarData = cryptos.find(c => c.id === 'hedera-hashgraph');
+        
+        if (hbarData) {
+          const entryPrice = 0.05;
+          const currentPrice = hbarData.current_price;
+          const returnPercentage = ((currentPrice - entryPrice) / entryPrice) * 100;
+          setHbarReturn(`${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(0)}%`);
+        }
+      } catch (error) {
+        console.error('Error fetching HBAR price:', error);
+      }
+    };
+
+    fetchHBARPrice();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -210,7 +232,7 @@ const Landing = () => {
                           <div className="pt-2 border-t border-border">
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-muted-foreground">Return Till Date:</span>
-                              <span className="text-lg font-bold text-blue-500">+962%</span>
+                              <span className="text-lg font-bold text-blue-500">{hbarReturn}</span>
                             </div>
                           </div>
                         </div>
