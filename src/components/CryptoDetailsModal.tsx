@@ -25,7 +25,6 @@ import {
 import { useState, useEffect } from 'react';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { enhancedCryptoDataService } from '@/services/enhancedCryptoDataService';
-import CryptoReport from './CryptoReport';
 import PriceChart from './charts/PriceChart';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { formatNumber, formatPercentage } from '@/lib/utils';
@@ -142,9 +141,8 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
             </div>
 
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
                 <TabsTrigger value="market">Market Data</TabsTrigger>
                 <TabsTrigger value="about">About</TabsTrigger>
               </TabsList>
@@ -262,14 +260,6 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
                     </CardContent>
                   </Card>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="analysis">
-                <CryptoReport 
-                  coin={coin.id} 
-                  icon={<img src={coin.image} alt={coin.name} className="w-8 h-8" />}
-                  name={coin.name}
-                />
               </TabsContent>
 
               <TabsContent value="market" className="space-y-6">
