@@ -8,7 +8,6 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -96,33 +95,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return { error };
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-      
-      // If there's an error, return it
-      if (error) {
-        console.error('Google OAuth error:', error);
-        return { error };
-      }
-      
-      // OAuth flow initiated successfully - browser will redirect
-      return { error: null };
-    } catch (err) {
-      console.error('Google OAuth exception:', err);
-      return { error: err };
-    }
-  };
-
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -134,7 +106,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       loading,
       signUp,
       signIn,
-      signInWithGoogle,
       signOut,
     }}>
       {children}

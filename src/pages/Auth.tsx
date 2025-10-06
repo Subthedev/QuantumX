@@ -6,10 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { Chrome, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 // Validation schemas
 const emailSchema = z.string().email({ message: "Please enter a valid email address" });
@@ -21,8 +20,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const { signIn, signUp, signInWithGoogle, user } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -127,41 +125,6 @@ const Auth = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    try {
-      const { error } = await signInWithGoogle();
-      
-      if (error) {
-        // Check if it's a configuration error
-        if (error.message?.includes('provider') || error.message?.includes('not enabled')) {
-          toast({
-            title: "Google Sign-In Not Configured",
-            description: "Google authentication needs to be set up in Supabase. Please contact the administrator.",
-            variant: "destructive",
-            duration: 6000,
-          });
-        } else {
-          toast({
-            title: "Google Sign In Failed",
-            description: getErrorMessage(error),
-            variant: "destructive",
-          });
-        }
-        setGoogleLoading(false);
-      }
-      // Don't set loading to false here if no error - browser will redirect
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initiate Google sign-in. Please try again.",
-        variant: "destructive",
-      });
-      setGoogleLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-light to-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -179,34 +142,6 @@ const Auth = () => {
             </TabsList>
             
             <TabsContent value="signin" className="space-y-4 mt-4">
-              <div className="space-y-4">
-                <Button 
-                  onClick={handleGoogleSignIn}
-                  variant="outline"
-                  className="w-full gap-2"
-                  disabled={googleLoading || loading}
-                  type="button"
-                >
-                  {googleLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Chrome className="h-4 w-4" />
-                  )}
-                  Continue with Google
-                </Button>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Or continue with email
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -234,7 +169,7 @@ const Auth = () => {
               <Button 
                 onClick={() => handleAuth(false)} 
                 className="w-full gap-2"
-                disabled={loading || googleLoading}
+                disabled={loading}
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Signing in..." : "Sign In"}
@@ -242,34 +177,6 @@ const Auth = () => {
             </TabsContent>
             
             <TabsContent value="signup" className="space-y-4 mt-4">
-              <div className="space-y-4">
-                <Button 
-                  onClick={handleGoogleSignIn}
-                  variant="outline"
-                  className="w-full gap-2"
-                  disabled={googleLoading || loading}
-                  type="button"
-                >
-                  {googleLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Chrome className="h-4 w-4" />
-                  )}
-                  Continue with Google
-                </Button>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Or continue with email
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="signup-email">Email</Label>
                 <Input
@@ -300,7 +207,7 @@ const Auth = () => {
               <Button 
                 onClick={() => handleAuth(true)} 
                 className="w-full gap-2"
-                disabled={loading || googleLoading}
+                disabled={loading}
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Creating account..." : "Create Account"}
