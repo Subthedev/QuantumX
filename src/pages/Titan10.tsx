@@ -293,7 +293,7 @@ export default function Titan10() {
             {/* Key Metrics - Static Professional Design */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mb-8">
               <div className="bg-card border border-border rounded p-4">
-                <p className="text-3xl font-bold text-foreground">8,763%</p>
+                <p className="text-3xl font-bold text-foreground">23,879.45%</p>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Avg. Returns</p>
               </div>
               
