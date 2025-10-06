@@ -8,6 +8,7 @@ import { ETHLogo } from '@/components/ui/eth-logo';
 import { SOLLogo } from '@/components/ui/sol-logo';
 import { BNBLogo } from '@/components/ui/bnb-logo';
 import { HYPELogo } from '@/components/ui/hype-logo';
+import { AppHeader } from '@/components/AppHeader';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { cryptoDataService } from '@/services/cryptoDataService';
@@ -256,30 +257,7 @@ export default function Titan10() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-5 max-w-7xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Crown className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold leading-none">IgniteX Titan 10</h1>
-                <p className="text-xs text-muted-foreground mt-0.5">Expert-Curated Portfolio</p>
-              </div>
-            </div>
-            <Button 
-              size="sm" 
-              onClick={handleUpgradeClick} 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all hover-scale"
-            >
-              Unlock All
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       {/* Main Content */}
       <div className="flex-1">
