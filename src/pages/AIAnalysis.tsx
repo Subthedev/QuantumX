@@ -286,7 +286,7 @@ const AIAnalysis = () => {
             </div>
             <h1 className="text-4xl font-bold">AI Crypto Analysis</h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Professional multi-analysis powered by Claude AI
+              Professional multi-analysis powered by IgniteX AI
             </p>
           </div>
 
