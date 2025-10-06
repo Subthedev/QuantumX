@@ -193,8 +193,8 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
-              <Card className="max-h-48 overflow-y-auto">
-                {filteredCoins.slice(0, 10).map((coin) => (
+              <Card className="max-h-64 overflow-y-auto">
+                {filteredCoins.slice(0, 100).map((coin) => (
                   <button
                     key={coin.id}
                     onClick={() => {

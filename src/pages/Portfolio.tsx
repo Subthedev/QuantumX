@@ -16,8 +16,6 @@ import { AddProfitGuardDialog } from '@/components/profit-guard/AddProfitGuardDi
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import CryptoTable from '@/components/CryptoTable';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Holding {
   id: string;
@@ -539,26 +537,6 @@ function Portfolio() {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Market Overview Section - 100 Coins */}
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ChartBar className="h-5 w-5" />
-                Market Overview - Top 100 Cryptocurrencies
-              </CardTitle>
-              <CardDescription>
-                Browse and analyze the top 100 cryptocurrencies by market cap
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[600px]">
-                <CryptoTable />
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
 
         <AddHoldingDialog
           open={isAddDialogOpen}
