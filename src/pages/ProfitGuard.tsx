@@ -110,7 +110,7 @@ export default function ProfitGuard() {
               <Shield className="h-10 w-10 text-primary" />
             </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-bold text-primary leading-tight pb-2">
             IgniteX ProfitGuard
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
