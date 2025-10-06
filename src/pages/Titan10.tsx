@@ -255,6 +255,10 @@ export default function Titan10() {
     });
   };
 
+  // Get HBAR data for featured section
+  const hbarData = titanCoins.find(coin => coin.symbol === 'HBAR');
+  const hbarReturnTillDate = hbarData?.returnTillDate || '+962%';
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <AppHeader />
@@ -323,8 +327,8 @@ export default function Titan10() {
                     <Card className="bg-card/80 border-blue-500/20">
                       <CardContent className="p-4 space-y-3">
                         <div className="flex justify-between items-center pb-2 border-b border-border">
-                          <span className="text-xs text-muted-foreground">Potential Return:</span>
-                          <span className="text-xl font-bold text-blue-500">4,900%</span>
+                          <span className="text-xs text-muted-foreground">Return Till Date:</span>
+                          <span className="text-xl font-bold text-blue-500">{hbarReturnTillDate}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="text-left">
@@ -332,8 +336,8 @@ export default function Titan10() {
                             <p className="text-base font-semibold">$0.05</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-muted-foreground mb-0.5">Target Price</p>
-                            <p className="text-base font-semibold">$2.50</p>
+                            <p className="text-xs text-muted-foreground mb-0.5">Current Price</p>
+                            <p className="text-base font-semibold">${hbarData?.currentPrice?.toFixed(2) || 'N/A'}</p>
                           </div>
                         </div>
                       </CardContent>
