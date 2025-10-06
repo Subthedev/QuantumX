@@ -65,20 +65,20 @@ const titanCoinsData: TitanCoin[] = [{
   category: 'DeFi Hub',
   insights: 'Memecoin ecosystem and DeFi resurgence positioning for explosive growth'
 }, {
-  symbol: 'ETHFI',
-  name: 'Ether.fi',
-  coingeckoId: 'ether-fi',
+  symbol: 'HBAR',
+  name: 'Hedera',
+  coingeckoId: 'hedera-hashgraph',
   logo: () => <div className="relative w-6 h-6">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full" />
-        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xs">EFI</span>
+        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-xs">H</span>
       </div>,
-  targetPrice: '$12',
-  entryPrice: 0.45,
+  targetPrice: '$2.50',
+  entryPrice: 0.05,
   rating: 98,
   isRevealed: true,
   isLatestPick: true,
   category: 'RWA PICK',
-  insights: 'Real World Asset tokenization leader. Institutional partnerships confirmed.'
+  insights: 'Enterprise-grade DLT with major institutional adoption and RWA tokenization partnerships.'
 }, {
   symbol: 'BNB',
   name: 'BNB Chain',
@@ -147,9 +147,9 @@ const titanCoinsData: TitanCoin[] = [{
   targetPrice: '$8',
   entryPrice: 0.00086,
   rating: 91,
-  isLatestPick: true,
+  isRevealed: false,
   category: 'MEME PICK',
-  insights: 'Viral community growth. Next generation meme narrative emerging.'
+  insights: 'Meme coin with massive viral potential and community growth'
 }];
 export default function Titan10() {
   const navigate = useNavigate();
@@ -287,7 +287,7 @@ export default function Titan10() {
               Get access to all exclusive picks and institutional-grade analysis.
             </p>
             <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-4 py-1.5">
-              🔒 Only 2 of 10 Picks Revealed Below
+              🔒 Only 1 of 10 Picks Revealed Below
             </Badge>
             
             {/* Key Metrics - Static Professional Design */}
@@ -312,12 +312,12 @@ export default function Titan10() {
           {/* Featured Exclusive Picks */}
           <div className="mb-12">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold mb-2">🔥 Featured Picks for 2025</h3>
-              <p className="text-muted-foreground">2 out of 10 exclusive opportunities revealed</p>
+              <h3 className="text-2xl font-bold mb-2">🔥 Featured Pick for 2025</h3>
+              <p className="text-muted-foreground">1 out of 10 exclusive opportunities revealed</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {/* RWA Pick */}
+            <div className="max-w-md mx-auto">
+              {/* RWA Pick - HBAR */}
               <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/30 hover:border-blue-500/50 transition-all">
                 <CardContent className="p-6">
                   <div className="text-center space-y-4">
@@ -328,54 +328,25 @@ export default function Titan10() {
                       <Badge className="bg-blue-500/20 text-blue-500 border-0 text-xs mb-3">
                         Latest RWA Pick
                       </Badge>
-                      <h4 className="text-2xl font-bold text-foreground mb-1">ETHFI</h4>
-                      <p className="text-sm text-muted-foreground mb-4">Real World Assets Sector</p>
+                      <h4 className="text-2xl font-bold text-foreground mb-1">HBAR</h4>
+                      <p className="text-sm text-muted-foreground mb-4">Enterprise DLT & RWA Leader</p>
                       <div className="space-y-2 text-left bg-card/50 rounded-lg p-4">
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">Potential Return:</span>
-                          <span className="text-lg font-bold text-blue-500">2,567%</span>
+                          <span className="text-lg font-bold text-blue-500">4,900%</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">Entry Price:</span>
-                          <span className="text-sm font-semibold">$2.10</span>
+                          <span className="text-sm font-semibold">$0.05</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">Target Price:</span>
-                          <span className="text-sm font-semibold">$56.00</span>
+                          <span className="text-sm font-semibold">$2.50</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* MEME Pick */}
-              <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/30 hover:border-purple-500/50 transition-all">
-                <CardContent className="p-6">
-                  <div className="text-center space-y-4">
-                    <div className="inline-flex p-3 bg-purple-500/20 rounded-xl">
-                      <Crown className="w-8 h-8 text-purple-500" />
-                    </div>
-                    <div>
-                      <Badge className="bg-purple-500/20 text-purple-500 border-0 text-xs mb-3">
-                        Latest MEME Pick
-                      </Badge>
-                      <h4 className="text-2xl font-bold text-foreground mb-1">AURA</h4>
-                      <p className="text-sm text-muted-foreground mb-4">Viral Growth Potential</p>
-                      <div className="space-y-2 text-left bg-card/50 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Potential Return:</span>
-                          <span className="text-lg font-bold text-purple-500">9,200%</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Entry Price:</span>
-                          <span className="text-sm font-semibold">$0.0012</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Target Price:</span>
-                          <span className="text-sm font-semibold">$0.1104</span>
-                        </div>
-                      </div>
+                      <p className="text-xs text-muted-foreground mt-4 italic">
+                        Major institutional partnerships with Google, IBM, and Boeing. Leading enterprise blockchain for tokenization.
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -388,10 +359,10 @@ export default function Titan10() {
             <Card className="bg-gradient-to-r from-muted/50 to-muted/30 border-dashed border-2 border-primary/30">
               <CardContent className="p-12 text-center">
                 <Lock className="w-16 h-16 text-primary mx-auto mb-6" />
-                <h3 className="text-3xl font-bold mb-4">8 More Exclusive Picks Locked</h3>
+                <h3 className="text-3xl font-bold mb-4">9 More Exclusive Picks Locked</h3>
                 <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
-                  Our institutional-grade research has identified 8 additional high-potential coins across 
-                  DeFi, AI, Gaming, and Infrastructure sectors. Each with detailed entry points, targets, and risk analysis.
+                  Our institutional-grade research has identified 9 additional high-potential coins across 
+                  DeFi, AI, Gaming, MEME, and Infrastructure sectors. Each with detailed entry points, targets, and risk analysis.
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 max-w-3xl mx-auto">
                   <div className="bg-card/50 rounded-lg p-4">
@@ -463,7 +434,7 @@ export default function Titan10() {
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              🔥 Limited Access: Only 2 of 10 picks revealed • 8 exclusive coins waiting
+              🔥 Limited Access: Only 1 of 10 picks revealed • 9 exclusive coins waiting
             </p>
             <Button size="sm" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground">
               Unlock All 10 Now
