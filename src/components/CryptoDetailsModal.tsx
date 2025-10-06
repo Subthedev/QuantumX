@@ -153,6 +153,7 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
                     symbol={coin.symbol}
                     height={450}
                     currentPrice={coin.current_price}
+                    sparklineData={coin.sparkline_in_7d?.price}
                   />
                 </div>
 
