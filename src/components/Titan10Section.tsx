@@ -4,16 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Crown, ArrowRight, TrendingUp, DollarSign, Target, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
 export default function Titan10Section() {
   const navigate = useNavigate();
-
   const handleViewPortfolio = () => {
     navigate('/titan10');
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Professional Hero Section */}
       <div className="rounded-xl bg-card border border-border p-6">
         <div className="space-y-6">
@@ -76,9 +72,7 @@ export default function Titan10Section() {
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-blue-500">💎 RWA Pick</p>
-                  <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-500">
-                    ETHFI
-                  </Badge>
+                  
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Real World Asset tokenization leader • Entry $0.45 • <span className="font-medium text-foreground">+2,567% potential</span>
@@ -91,9 +85,7 @@ export default function Titan10Section() {
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-purple-500">🚀 MEME Pick</p>
-                  <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-500">
-                    AURA
-                  </Badge>
+                  
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Viral community growth • Entry $0.00086 • <span className="font-medium text-foreground">+9,200% potential</span>
@@ -103,11 +95,7 @@ export default function Titan10Section() {
           </div>
           
           {/* CTA */}
-          <Button 
-            onClick={handleViewPortfolio}
-            size="lg"
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
+          <Button onClick={handleViewPortfolio} size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
             View Complete Titan 10 Portfolio
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
@@ -117,6 +105,5 @@ export default function Titan10Section() {
           </p>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
