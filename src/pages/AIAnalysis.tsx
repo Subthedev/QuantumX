@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Brain, AlertCircle, Clock, History, Trash2 } from 'lucide-react';
 import { cryptoDataService } from '@/services/cryptoDataService';
@@ -306,21 +307,30 @@ const AIAnalysis = () => {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a cryptocurrency" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[400px]">
+                  <SelectContent className="max-h-[400px] overflow-hidden">
+                    <div className="p-2 border-b">
+                      <Input
+                        placeholder="Search..."
+                        className="h-8"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                     <ScrollArea className="h-[320px]">
-                      {cryptosLoading ? (
-                        <div className="p-4 text-center text-muted-foreground">Loading...</div>
-                      ) : (
-                        cryptos.map(crypto => (
-                          <SelectItem key={crypto.id} value={crypto.id}>
-                            <div className="flex items-center gap-2">
-                              <img src={crypto.image} alt={crypto.name} className="w-5 h-5" />
-                              <span>{crypto.name}</span>
-                              <span className="text-muted-foreground">({crypto.symbol.toUpperCase()})</span>
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
+                      <div className="p-1">
+                        {cryptosLoading ? (
+                          <div className="p-4 text-center text-muted-foreground text-sm">Loading...</div>
+                        ) : (
+                          cryptos.map(crypto => (
+                            <SelectItem key={crypto.id} value={crypto.id} className="cursor-pointer">
+                              <div className="flex items-center gap-2">
+                                <img src={crypto.image} alt={crypto.name} className="w-5 h-5 rounded-full" />
+                                <span className="font-medium">{crypto.name}</span>
+                                <span className="text-muted-foreground text-xs">({crypto.symbol.toUpperCase()})</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </div>
                     </ScrollArea>
                   </SelectContent>
                 </Select>
