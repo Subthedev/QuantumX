@@ -94,7 +94,7 @@ export default function Titan10Section() {
                     <div className="pt-2 border-t border-border">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Return Till Date:</span>
-                        <span className="text-lg font-bold text-blue-500">+4,900%</span>
+                        <span className="text-lg font-bold text-blue-500">+962%</span>
                       </div>
                     </div>
                   </div>
@@ -123,7 +123,7 @@ export default function Titan10Section() {
                     <div className="pt-2 border-t border-border">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Return Till Date:</span>
-                        <span className="text-lg font-bold text-purple-500">+962%</span>
+                        <span className="text-lg font-bold text-purple-500">+4,900%</span>
                       </div>
                     </div>
                   </div>
