@@ -23,6 +23,7 @@ const Titan10 = lazy(() => import("./pages/Titan10"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const AIAnalysis = lazy(() => import("./pages/AIAnalysis"));
 const ProfitGuard = lazy(() => import("./pages/ProfitGuard"));
+const Calculator = lazy(() => import("./pages/Calculator"));
 
 // Optimize React Query with better defaults
 const queryClient = new QueryClient({
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/ai-analysis" element={<AIAnalysis />} />
               <Route path="/profit-guard" element={<ProfitGuard />} />
+              <Route path="/calculator" element={<Calculator />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

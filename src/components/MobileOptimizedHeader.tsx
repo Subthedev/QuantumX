@@ -24,7 +24,8 @@ import {
   Shield,
   FileText,
   Home,
-  X
+  X,
+  Calculator
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -34,6 +35,7 @@ const navigationLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portfolio', icon: CreditCard },
   { href: '/profit-guard', label: 'ProfitGuard', icon: Shield },
+  { href: '/calculator', label: 'Calculator', icon: Calculator },
   { href: '/privacy-policy', label: 'Privacy', icon: Shield },
   { href: '/terms-of-service', label: 'Terms', icon: FileText },
 ];
