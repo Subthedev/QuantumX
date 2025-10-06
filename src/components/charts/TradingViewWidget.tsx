@@ -8,14 +8,16 @@ interface TradingViewWidgetProps {
   coinId: string;
   symbol: string;
   height?: number;
-  currentPrice?: number; // Current price for initial display
+  currentPrice?: number;
+  sparklineData?: number[]; // Fallback 7D data
 }
 
 const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ 
   coinId, 
   symbol,
   height = 400,
-  currentPrice: initialPrice
+  currentPrice: initialPrice,
+  sparklineData
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
@@ -166,19 +168,63 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
       setLoading(true);
       setError(null);
       
+      // Use sparkline data as fallback for 7D
+      if (timeframe === '7D' && sparklineData && sparklineData.length > 0) {
+        try {
+          const now = Date.now();
+          const interval = (7 * 24 * 60 * 60 * 1000) / sparklineData.length;
+          
+          const chartData = sparklineData.map((price, index) => ({
+            time: Math.floor((now - (sparklineData.length - index) * interval) / 1000) as any,
+            value: price,
+          }));
+
+          seriesRef.current.setData(chartData);
+          
+          if (chartData.length > 0) {
+            const firstPrice = chartData[0].value;
+            const lastPrice = chartData[chartData.length - 1].value;
+            const change = lastPrice - firstPrice;
+            const changePercent = (change / firstPrice) * 100;
+            
+            setCurrentPrice(lastPrice);
+            setPriceChange(change);
+            setPriceChangePercent(changePercent);
+            
+            const isPositive = changePercent >= 0;
+            seriesRef.current.applyOptions({
+              topColor: isPositive ? 'rgba(22, 219, 101, 0.4)' : 'rgba(255, 95, 109, 0.4)',
+              lineColor: isPositive ? 'rgba(22, 219, 101, 1)' : 'rgba(255, 95, 109, 1)',
+              crosshairMarkerBorderColor: isPositive ? 'rgba(22, 219, 101, 1)' : 'rgba(255, 95, 109, 1)',
+              crosshairMarkerBackgroundColor: isPositive ? 'rgba(22, 219, 101, 1)' : 'rgba(255, 95, 109, 1)',
+            });
+          }
+          
+          chartRef.current.timeScale().fitContent();
+          setLoading(false);
+          setError(null);
+          return;
+        } catch (err) {
+          console.error('Sparkline data error:', err);
+        }
+      }
+      
       try {
-        // Map timeframes to API parameters
-        const timeframeMap = {
-          '1H': { days: 1, interval: 'minutely' },
-          '4H': { days: 1, interval: 'hourly' },
-          '1D': { days: 1, interval: 'hourly' },
-          '7D': { days: 7, interval: 'hourly' },
+        // Map timeframes to API parameters - use only supported intervals
+        const timeframeConfig = {
+          '1H': { days: 1, interval: 'hourly', filterHours: 1 },
+          '4H': { days: 1, interval: 'hourly', filterHours: 4 },
+          '1D': { days: 1, interval: 'hourly', filterHours: 24 },
+          '7D': { days: 7, interval: 'hourly', filterHours: null },
         };
 
-        const { days, interval } = timeframeMap[timeframe];
+        const config = timeframeConfig[timeframe];
+        
+        // Add a small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`,
+          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`,
           {
             headers: {
               'Accept': 'application/json',
@@ -187,23 +233,21 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
         );
         
         if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error('Rate limit reached. Please wait a moment.');
+          }
           throw new Error(`API Error: ${response.status}`);
         }
         
         const data = await response.json();
         
         if (data.prices && data.prices.length > 0) {
-          // Filter data based on timeframe
           let filteredPrices = data.prices;
           
-          if (timeframe === '1H') {
-            // Last hour only
-            const oneHourAgo = Date.now() - (60 * 60 * 1000);
-            filteredPrices = data.prices.filter(([timestamp]: [number, number]) => timestamp >= oneHourAgo);
-          } else if (timeframe === '4H') {
-            // Last 4 hours only
-            const fourHoursAgo = Date.now() - (4 * 60 * 60 * 1000);
-            filteredPrices = data.prices.filter(([timestamp]: [number, number]) => timestamp >= fourHoursAgo);
+          // Filter by time window if needed
+          if (config.filterHours) {
+            const cutoffTime = Date.now() - (config.filterHours * 60 * 60 * 1000);
+            filteredPrices = data.prices.filter(([timestamp]: [number, number]) => timestamp >= cutoffTime);
           }
 
           if (filteredPrices.length === 0) {
@@ -215,7 +259,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
             value: price,
           }));
 
-          // Sort by time to ensure proper order
+          // Sort by time
           chartData.sort((a, b) => a.time - b.time);
 
           seriesRef.current.setData(chartData);
@@ -241,9 +285,8 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
             });
           }
           
-          // Fit content and ensure proper scaling
+          // Fit content
           chartRef.current.timeScale().fitContent();
-          chartRef.current.timeScale().scrollToRealTime();
           
           setError(null);
         } else {
@@ -251,11 +294,26 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
         }
       } catch (error) {
         console.error('Failed to fetch chart data:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load chart data');
+        const errorMsg = error instanceof Error ? error.message : 'Failed to load chart data';
+        setError(errorMsg);
         
-        // Set empty data to prevent errors
-        if (seriesRef.current) {
-          seriesRef.current.setData([]);
+        // Try to show fallback data for 7D if available
+        if (sparklineData && sparklineData.length > 0 && timeframe === '7D') {
+          try {
+            const now = Date.now();
+            const interval = (7 * 24 * 60 * 60 * 1000) / sparklineData.length;
+            
+            const chartData = sparklineData.map((price, index) => ({
+              time: Math.floor((now - (sparklineData.length - index) * interval) / 1000) as any,
+              value: price,
+            }));
+
+            seriesRef.current.setData(chartData);
+            chartRef.current.timeScale().fitContent();
+            setError(null);
+          } catch (fallbackErr) {
+            console.error('Fallback data failed:', fallbackErr);
+          }
         }
       } finally {
         setLoading(false);
@@ -263,7 +321,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
     };
 
     fetchData();
-  }, [coinId, timeframe]);
+  }, [coinId, timeframe, sparklineData]);
 
   const timeframes: Array<'1H' | '4H' | '1D' | '7D'> = ['1H', '4H', '1D', '7D'];
 
