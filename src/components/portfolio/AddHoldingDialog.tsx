@@ -156,7 +156,7 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                     <CommandEmpty>No cryptocurrency found.</CommandEmpty>
                     <CommandGroup>
                       <ScrollArea className="h-[300px]">
-                        {filteredCoins.slice(0, 50).map((coin) => (
+                        {filteredCoins.slice(0, 100).map((coin) => (
                           <CommandItem
                             key={coin.id}
                             value={coin.id}
