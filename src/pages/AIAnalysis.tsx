@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Brain, AlertCircle, Clock, History, Trash2 } from 'lucide-react';
+import { Loader2, Brain, AlertCircle, Clock, History, Trash2, ChartBar } from 'lucide-react';
+import CryptoTable from '@/components/CryptoTable';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -439,6 +440,26 @@ const AIAnalysis = () => {
               )}
             </div>
           )}
+
+          {/* Market Overview Section - 100 Coins */}
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ChartBar className="h-5 w-5" />
+                  Market Overview - Top 100 Cryptocurrencies
+                </CardTitle>
+                <CardDescription>
+                  Browse and analyze the top 100 cryptocurrencies by market cap
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[600px]">
+                  <CryptoTable />
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </>
