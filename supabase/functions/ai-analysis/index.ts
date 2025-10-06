@@ -6,6 +6,422 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function getToolName(analysisType: string): string {
+  const toolNames: Record<string, string> = {
+    technical: 'provide_technical_analysis',
+    fundamental: 'provide_fundamental_analysis',
+    sentiment: 'provide_sentiment_analysis',
+    onchain: 'provide_onchain_analysis',
+    etf: 'provide_etf_analysis'
+  };
+  return toolNames[analysisType] || 'provide_technical_analysis';
+}
+
+function getAnalysisSchema(analysisType: string) {
+  switch (analysisType) {
+    case 'technical':
+      return {
+        name: "provide_technical_analysis",
+        description: "Provide technical analysis with price action, indicators, and trading levels",
+        input_schema: {
+          type: "object",
+          properties: {
+            trend_analysis: {
+              type: "object",
+              properties: {
+                current_trend: { type: "string", enum: ["Strong Uptrend", "Uptrend", "Sideways", "Downtrend", "Strong Downtrend"] },
+                momentum: { type: "string", enum: ["Accelerating", "Stable", "Decelerating"] },
+                strength_score: { type: "number", description: "0-100 trend strength" }
+              },
+              required: ["current_trend", "momentum", "strength_score"]
+            },
+            price_levels: {
+              type: "object",
+              properties: {
+                immediate_support: { type: "string" },
+                strong_support: { type: "string" },
+                immediate_resistance: { type: "string" },
+                strong_resistance: { type: "string" }
+              },
+              required: ["immediate_support", "strong_support", "immediate_resistance", "strong_resistance"]
+            },
+            volume_analysis: {
+              type: "object",
+              properties: {
+                volume_trend: { type: "string", enum: ["Rising", "Falling", "Stable"] },
+                volume_quality: { type: "string", enum: ["Strong", "Average", "Weak"] },
+                accumulation_distribution: { type: "string", enum: ["Accumulation", "Distribution", "Neutral"] }
+              },
+              required: ["volume_trend", "volume_quality", "accumulation_distribution"]
+            },
+            chart_patterns: {
+              type: "array",
+              items: { type: "string" },
+              description: "Identified chart patterns"
+            },
+            indicators: {
+              type: "object",
+              properties: {
+                rsi_level: { type: "string" },
+                macd_signal: { type: "string" },
+                moving_averages: { type: "string" }
+              }
+            },
+            trading_zones: {
+              type: "object",
+              properties: {
+                optimal_entry: { type: "array", items: { type: "string" } },
+                take_profit_levels: { type: "array", items: { type: "string" } },
+                stop_loss: { type: "string" }
+              },
+              required: ["optimal_entry", "take_profit_levels", "stop_loss"]
+            },
+            timeframe_outlook: {
+              type: "object",
+              properties: {
+                short_term: { type: "string", description: "1-7 days" },
+                medium_term: { type: "string", description: "1-4 weeks" }
+              },
+              required: ["short_term", "medium_term"]
+            },
+            key_insights: {
+              type: "array",
+              items: { type: "string" },
+              description: "5-7 technical insights"
+            },
+            risk_reward: {
+              type: "object",
+              properties: {
+                ratio: { type: "string" },
+                risk_level: { type: "string", enum: ["Low", "Medium", "High"] }
+              },
+              required: ["ratio", "risk_level"]
+            }
+          },
+          required: ["trend_analysis", "price_levels", "volume_analysis", "trading_zones", "timeframe_outlook", "key_insights", "risk_reward"]
+        }
+      };
+
+    case 'fundamental':
+      return {
+        name: "provide_fundamental_analysis",
+        description: "Provide fundamental analysis covering tokenomics, valuation, and ecosystem",
+        input_schema: {
+          type: "object",
+          properties: {
+            tokenomics: {
+              type: "object",
+              properties: {
+                supply_model: { type: "string", enum: ["Deflationary", "Inflationary", "Fixed Supply", "Elastic"] },
+                inflation_rate: { type: "string" },
+                token_utility: { type: "array", items: { type: "string" } },
+                supply_health: { type: "string", enum: ["Excellent", "Good", "Fair", "Poor"] }
+              },
+              required: ["supply_model", "token_utility", "supply_health"]
+            },
+            valuation_metrics: {
+              type: "object",
+              properties: {
+                mcap_fdv_ratio: { type: "string" },
+                volume_liquidity_score: { type: "string", enum: ["Excellent", "Good", "Fair", "Poor"] },
+                relative_valuation: { type: "string", enum: ["Undervalued", "Fair Value", "Overvalued"] },
+                price_to_sales: { type: "string" }
+              },
+              required: ["mcap_fdv_ratio", "volume_liquidity_score", "relative_valuation"]
+            },
+            market_position: {
+              type: "object",
+              properties: {
+                category_rank: { type: "string" },
+                competitive_advantages: { type: "array", items: { type: "string" } },
+                market_share: { type: "string" }
+              },
+              required: ["category_rank", "competitive_advantages"]
+            },
+            ecosystem_health: {
+              type: "object",
+              properties: {
+                developer_activity: { type: "string", enum: ["High", "Medium", "Low"] },
+                partnerships: { type: "array", items: { type: "string" } },
+                adoption_metrics: { type: "string" }
+              },
+              required: ["developer_activity", "adoption_metrics"]
+            },
+            investment_thesis: {
+              type: "object",
+              properties: {
+                bull_case: { type: "array", items: { type: "string" } },
+                bear_case: { type: "array", items: { type: "string" } },
+                catalyst_events: { type: "array", items: { type: "string" } }
+              },
+              required: ["bull_case", "bear_case"]
+            },
+            price_targets: {
+              type: "object",
+              properties: {
+                conservative: { type: "string" },
+                base_case: { type: "string" },
+                optimistic: { type: "string" },
+                timeframe: { type: "string" }
+              },
+              required: ["conservative", "base_case", "optimistic", "timeframe"]
+            },
+            overall_rating: {
+              type: "object",
+              properties: {
+                score: { type: "number", description: "0-100" },
+                recommendation: { type: "string", enum: ["Strong Accumulate", "Accumulate", "Hold", "Reduce", "Avoid"] }
+              },
+              required: ["score", "recommendation"]
+            }
+          },
+          required: ["tokenomics", "valuation_metrics", "market_position", "ecosystem_health", "investment_thesis", "price_targets", "overall_rating"]
+        }
+      };
+
+    case 'sentiment':
+      return {
+        name: "provide_sentiment_analysis",
+        description: "Provide market sentiment analysis with crowd psychology and contrarian signals",
+        input_schema: {
+          type: "object",
+          properties: {
+            sentiment_score: {
+              type: "object",
+              properties: {
+                overall_score: { type: "number", description: "0-100, where 0=Extreme Fear, 100=Extreme Greed" },
+                sentiment_label: { type: "string", enum: ["Extreme Fear", "Fear", "Neutral", "Greed", "Extreme Greed"] },
+                trend: { type: "string", enum: ["Improving", "Stable", "Deteriorating"] }
+              },
+              required: ["overall_score", "sentiment_label", "trend"]
+            },
+            market_psychology: {
+              type: "object",
+              properties: {
+                fear_greed_analysis: { type: "string" },
+                crowd_emotion: { type: "string" },
+                contrarian_opportunity: { type: "boolean" }
+              },
+              required: ["fear_greed_analysis", "crowd_emotion", "contrarian_opportunity"]
+            },
+            momentum_indicators: {
+              type: "object",
+              properties: {
+                price_momentum: { type: "string", enum: ["Strong Positive", "Positive", "Neutral", "Negative", "Strong Negative"] },
+                volume_momentum: { type: "string", enum: ["Increasing", "Stable", "Decreasing"] },
+                momentum_divergence: { type: "string" }
+              },
+              required: ["price_momentum", "volume_momentum"]
+            },
+            positioning: {
+              type: "object",
+              properties: {
+                retail_positioning: { type: "string", enum: ["Heavy Long", "Long", "Neutral", "Short", "Heavy Short"] },
+                smart_money_signals: { type: "string" },
+                crowd_consensus: { type: "string" }
+              },
+              required: ["retail_positioning", "smart_money_signals"]
+            },
+            sentiment_drivers: {
+              type: "array",
+              items: { type: "string" },
+              description: "Key events or news driving sentiment"
+            },
+            contrarian_signals: {
+              type: "array",
+              items: { type: "string" },
+              description: "Contrarian trading opportunities"
+            },
+            sentiment_outlook: {
+              type: "object",
+              properties: {
+                next_7_days: { type: "string" },
+                key_levels_to_watch: { type: "array", items: { type: "string" } },
+                sentiment_change_triggers: { type: "array", items: { type: "string" } }
+              },
+              required: ["next_7_days", "key_levels_to_watch"]
+            },
+            recommended_stance: {
+              type: "string",
+              enum: ["Aggressive Accumulation", "Moderate Accumulation", "Hold & Monitor", "Reduce Exposure", "Defensive"]
+            }
+          },
+          required: ["sentiment_score", "market_psychology", "momentum_indicators", "positioning", "sentiment_drivers", "sentiment_outlook", "recommended_stance"]
+        }
+      };
+
+    case 'onchain':
+      return {
+        name: "provide_onchain_analysis",
+        description: "Provide on-chain analysis with network metrics and smart money signals",
+        input_schema: {
+          type: "object",
+          properties: {
+            network_health: {
+              type: "object",
+              properties: {
+                activity_trend: { type: "string", enum: ["Growing", "Stable", "Declining"] },
+                network_usage: { type: "string" },
+                congestion_level: { type: "string", enum: ["High", "Medium", "Low"] }
+              },
+              required: ["activity_trend", "network_usage"]
+            },
+            supply_dynamics: {
+              type: "object",
+              properties: {
+                circulating_percentage: { type: "string" },
+                supply_concentration: { type: "string", enum: ["Highly Concentrated", "Moderately Concentrated", "Well Distributed"] },
+                inflation_pressure: { type: "string" }
+              },
+              required: ["circulating_percentage", "supply_concentration"]
+            },
+            whale_activity: {
+              type: "object",
+              properties: {
+                large_holder_trend: { type: "string", enum: ["Accumulating", "Distributing", "Holding"] },
+                whale_transaction_analysis: { type: "string" },
+                top_holder_concentration: { type: "string" }
+              },
+              required: ["large_holder_trend", "whale_transaction_analysis"]
+            },
+            exchange_flows: {
+              type: "object",
+              properties: {
+                net_flow: { type: "string", enum: ["Strong Inflows", "Inflows", "Neutral", "Outflows", "Strong Outflows"] },
+                flow_interpretation: { type: "string" },
+                exchange_balance_trend: { type: "string" }
+              },
+              required: ["net_flow", "flow_interpretation"]
+            },
+            holder_behavior: {
+              type: "object",
+              properties: {
+                holding_time_analysis: { type: "string" },
+                long_term_holder_trend: { type: "string", enum: ["Increasing", "Stable", "Decreasing"] },
+                short_term_speculation: { type: "string" }
+              },
+              required: ["holding_time_analysis", "long_term_holder_trend"]
+            },
+            smart_money_signals: {
+              type: "array",
+              items: { type: "string" },
+              description: "Signals indicating institutional or smart money activity"
+            },
+            accumulation_phase: {
+              type: "object",
+              properties: {
+                current_phase: { type: "string", enum: ["Accumulation", "Markup", "Distribution", "Markdown"] },
+                phase_confidence: { type: "string", enum: ["High", "Medium", "Low"] },
+                phase_analysis: { type: "string" }
+              },
+              required: ["current_phase", "phase_confidence", "phase_analysis"]
+            },
+            onchain_outlook: {
+              type: "object",
+              properties: {
+                bullish_signals: { type: "array", items: { type: "string" } },
+                bearish_signals: { type: "array", items: { type: "string" } },
+                key_metrics_to_monitor: { type: "array", items: { type: "string" } }
+              },
+              required: ["bullish_signals", "bearish_signals"]
+            }
+          },
+          required: ["network_health", "supply_dynamics", "whale_activity", "exchange_flows", "holder_behavior", "smart_money_signals", "accumulation_phase", "onchain_outlook"]
+        }
+      };
+
+    case 'etf':
+      return {
+        name: "provide_etf_analysis",
+        description: "Provide ETF and institutional flow analysis",
+        input_schema: {
+          type: "object",
+          properties: {
+            etf_landscape: {
+              type: "object",
+              properties: {
+                spot_etf_status: { type: "string" },
+                futures_etf_products: { type: "array", items: { type: "string" } },
+                total_aum_estimate: { type: "string" },
+                approval_probability: { type: "string", enum: ["Very High", "High", "Medium", "Low", "Very Low"] }
+              },
+              required: ["spot_etf_status", "approval_probability"]
+            },
+            institutional_flows: {
+              type: "object",
+              properties: {
+                flow_direction: { type: "string", enum: ["Strong Inflows", "Moderate Inflows", "Neutral", "Moderate Outflows", "Strong Outflows"] },
+                weekly_flow_estimate: { type: "string" },
+                cumulative_flows: { type: "string" },
+                flow_sustainability: { type: "string", enum: ["Sustainable", "Moderate", "Unsustainable"] }
+              },
+              required: ["flow_direction", "flow_sustainability"]
+            },
+            spot_vs_derivatives: {
+              type: "object",
+              properties: {
+                futures_oi: { type: "string" },
+                spot_volume: { type: "string" },
+                basis_analysis: { type: "string" },
+                institutional_preference: { type: "string" }
+              },
+              required: ["futures_oi", "spot_volume", "basis_analysis"]
+            },
+            premium_discount: {
+              type: "object",
+              properties: {
+                current_premium: { type: "string" },
+                premium_trend: { type: "string", enum: ["Expanding", "Stable", "Contracting"] },
+                arbitrage_opportunities: { type: "string" }
+              },
+              required: ["current_premium", "premium_trend"]
+            },
+            institutional_sentiment: {
+              type: "object",
+              properties: {
+                sentiment: { type: "string", enum: ["Very Bullish", "Bullish", "Neutral", "Bearish", "Very Bearish"] },
+                positioning: { type: "string" },
+                risk_appetite: { type: "string", enum: ["Aggressive", "Moderate", "Conservative"] }
+              },
+              required: ["sentiment", "positioning", "risk_appetite"]
+            },
+            tradfi_integration: {
+              type: "object",
+              properties: {
+                custody_solutions: { type: "array", items: { type: "string" } },
+                banking_partnerships: { type: "array", items: { type: "string" } },
+                payment_integrations: { type: "array", items: { type: "string" } }
+              }
+            },
+            regulatory_landscape: {
+              type: "object",
+              properties: {
+                regulatory_clarity: { type: "string", enum: ["High", "Medium", "Low"] },
+                recent_developments: { type: "array", items: { type: "string" } },
+                impact_assessment: { type: "string" }
+              },
+              required: ["regulatory_clarity", "impact_assessment"]
+            },
+            institutional_outlook: {
+              type: "object",
+              properties: {
+                next_30_days: { type: "string" },
+                next_90_days: { type: "string" },
+                catalysts: { type: "array", items: { type: "string" } },
+                risks: { type: "array", items: { type: "string" } }
+              },
+              required: ["next_30_days", "next_90_days"]
+            }
+          },
+          required: ["etf_landscape", "institutional_flows", "spot_vs_derivatives", "institutional_sentiment", "regulatory_landscape", "institutional_outlook"]
+        }
+      };
+
+    default:
+      return getAnalysisSchema('technical');
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -220,60 +636,8 @@ ACTIONABLE OUTLOOK:
         messages: [
           { role: 'user', content: userPrompt }
         ],
-        tools: [{
-          name: "provide_crypto_analysis",
-          description: "Provide structured cryptocurrency analysis with actionable insights",
-          input_schema: {
-            type: "object",
-            properties: {
-              executive_summary: {
-                type: "string",
-                description: "2-3 sentence summary of the key finding and recommendation"
-              },
-              market_outlook: {
-                type: "string",
-                description: "Overall bullish/bearish/neutral outlook with reasoning"
-              },
-              key_insights: {
-                type: "array",
-                items: { type: "string" },
-                description: "5-7 bullet points of actionable insights"
-              },
-              price_targets: {
-                type: "object",
-                properties: {
-                  short_term: { type: "string" },
-                  medium_term: { type: "string" },
-                  support_level: { type: "string" },
-                  resistance_level: { type: "string" }
-                }
-              },
-              risk_assessment: {
-                type: "object",
-                properties: {
-                  level: { type: "string", enum: ["Low", "Medium", "High"] },
-                  factors: { type: "array", items: { type: "string" } }
-                }
-              },
-              actionable_recommendations: {
-                type: "array",
-                items: { type: "string" },
-                description: "3-5 specific actions traders should consider"
-              },
-              data_sources: {
-                type: "array",
-                items: { type: "string" },
-                description: "List of data points and sources used in analysis"
-              },
-              detailed_analysis: {
-                type: "string",
-                description: "Comprehensive analysis with technical details"
-              }
-            },
-            required: ["executive_summary", "market_outlook", "key_insights", "actionable_recommendations", "detailed_analysis"]
-          }
-        }],
-        tool_choice: { type: "tool", name: "provide_crypto_analysis" }
+        tools: [getAnalysisSchema(analysisType)],
+        tool_choice: { type: "tool", name: getToolName(analysisType) }
       }),
     });
 
@@ -286,8 +650,7 @@ ACTIONABLE OUTLOOK:
     const data = await response.json();
     const toolUse = data.content.find((c: any) => c.type === 'tool_use');
     
-    console.log('Claude API full response:', JSON.stringify(data, null, 2));
-    console.log('Tool use content:', JSON.stringify(toolUse, null, 2));
+    console.log('Claude API response for', analysisType, ':', JSON.stringify(data, null, 2));
     
     if (!toolUse || !toolUse.input) {
       console.error('No tool use found in response. Content:', data.content);
@@ -295,18 +658,6 @@ ACTIONABLE OUTLOOK:
     }
 
     const structuredAnalysis = toolUse.input;
-    
-    console.log('Extracted structured analysis:', JSON.stringify(structuredAnalysis, null, 2));
-    
-    // Validate that required fields are arrays
-    if (!Array.isArray(structuredAnalysis.key_insights)) {
-      console.warn('key_insights is not an array:', structuredAnalysis.key_insights);
-      structuredAnalysis.key_insights = [];
-    }
-    if (!Array.isArray(structuredAnalysis.actionable_recommendations)) {
-      console.warn('actionable_recommendations is not an array:', structuredAnalysis.actionable_recommendations);
-      structuredAnalysis.actionable_recommendations = [];
-    }
 
     // Calculate confidence based on data quality and market conditions
     let confidence = 75;
@@ -351,6 +702,7 @@ ACTIONABLE OUTLOOK:
     // Return structured analysis with timestamp
     return new Response(
       JSON.stringify({
+        analysisType,
         structuredAnalysis,
         confidence,
         metrics,
