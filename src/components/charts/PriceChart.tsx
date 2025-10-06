@@ -380,21 +380,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
           </div>
 
           {/* Controls */}
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-1">
-              {timeframes.map(tf => <Button key={tf} size="sm" variant={timeframe === tf ? 'default' : 'ghost'} onClick={() => setTimeframe(tf)} className="h-7 px-2.5 text-xs font-medium" disabled={loading}>
-                  {tf}
-                </Button>)}
-            </div>
-            <div className="flex gap-1 justify-end">
-              <Button size="sm" variant={showMA ? 'default' : 'ghost'} onClick={() => setShowMA(!showMA)} className="h-6 px-2 text-xs">
-                MA
-              </Button>
-              <Button size="sm" variant={showVolume ? 'default' : 'ghost'} onClick={() => setShowVolume(!showVolume)} className="h-6 px-2 text-xs">
-                Vol
-              </Button>
-            </div>
-          </div>
+          
         </div>
       </div>
 
