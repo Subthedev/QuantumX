@@ -6,13 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { CalendarIcon, Check, ChevronsUpDown, Search } from 'lucide-react';
+import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -146,45 +145,55 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[450px] p-0" align="start">
-                <Command shouldFilter={false}>
-                  <CommandInput 
-                    placeholder="Search cryptocurrency..." 
-                    value={searchTerm}
-                    onValueChange={setSearchTerm}
-                  />
-                  <ScrollArea className="h-[300px]">
-                    <CommandList>
-                      <CommandEmpty>No cryptocurrency found.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredCoins.slice(0, 100).map((coin) => (
-                          <CommandItem
+                <div className="flex flex-col">
+                  <div className="border-b p-2">
+                    <Input
+                      placeholder="Search cryptocurrency..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <ScrollArea className="h-[320px]">
+                    <div className="p-2 space-y-1">
+                      {filteredCoins.slice(0, 100).length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          No cryptocurrency found.
+                        </div>
+                      ) : (
+                        filteredCoins.slice(0, 100).map((coin) => (
+                          <button
                             key={coin.id}
-                            value={coin.id}
-                            onSelect={() => {
+                            onClick={() => {
                               setSelectedCoin(coin);
                               setShowSearch(false);
                               setPurchasePrice(coin.current_price.toString());
+                              setSearchTerm('');
                             }}
+                            className={cn(
+                              "w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors text-left",
+                              selectedCoin?.id === coin.id && "bg-accent"
+                            )}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedCoin?.id === coin.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
                             <img 
                               src={coin.image} 
                               alt={coin.name}
-                              className="h-5 w-5 rounded-full mr-2"
+                              className="h-6 w-6 rounded-full"
                             />
-                            <span>{coin.name}</span>
-                            <span className="text-muted-foreground ml-2 uppercase">({coin.symbol})</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{coin.name}</div>
+                              <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
+                            </div>
+                            <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
+                            {selectedCoin?.id === coin.id && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
                   </ScrollArea>
-                </Command>
+                </div>
               </PopoverContent>
             </Popover>
           </div>
