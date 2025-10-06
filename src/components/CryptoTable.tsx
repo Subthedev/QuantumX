@@ -151,7 +151,12 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
       </div>
 
       {/* Details Modal */}
-      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+      <Dialog open={showDetails} onOpenChange={(open) => {
+        setShowDetails(open);
+        if (!open) {
+          setSelectedCrypto(null);
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <VisuallyHidden>
             <DialogTitle>Cryptocurrency Details</DialogTitle>
@@ -159,7 +164,10 @@ const CryptoTable: React.FC<CryptoTableProps> = ({
           <DialogDescription className="sr-only">
             Detailed information about {selectedCrypto?.name}
           </DialogDescription>
-          {selectedCrypto && <CryptoDetailsModal coin={selectedCrypto} open={!!selectedCrypto} onClose={() => setSelectedCrypto(null)} />}
+          {selectedCrypto && <CryptoDetailsModal coin={selectedCrypto} open={showDetails} onClose={() => {
+            setShowDetails(false);
+            setSelectedCrypto(null);
+          }} />}
         </DialogContent>
       </Dialog>
 
