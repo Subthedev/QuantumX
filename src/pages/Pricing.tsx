@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { AIBrainIcon } from "@/components/ui/ai-brain-icon";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -132,7 +131,6 @@ const yearlyPlans = [
 ];
 export default function Pricing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -164,11 +162,7 @@ export default function Pricing() {
 
   const handlePlanAction = (plan: typeof monthlyPlans[0]) => {
     if (plan.name === "FREE") {
-      if (!user) {
-        navigate("/auth");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate("/dashboard");
     } else if (plan.name === "ENTERPRISE") {
       window.location.href = "mailto:contact@ignitexagency.com?subject=Enterprise API Access Inquiry";
     }
@@ -187,15 +181,9 @@ export default function Pricing() {
           </div>
           
           <nav className="flex items-center gap-4">
-            {user ? (
-              <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
-                Back to Dashboard
-              </Button>
-            ) : (
-              <Button size="sm" onClick={() => navigate("/auth")}>
-                Sign In
-              </Button>
-            )}
+            <Button size="sm" onClick={() => navigate("/dashboard")}>
+              Dashboard
+            </Button>
           </nav>
         </div>
       </header>

@@ -8,7 +8,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, Clock, RefreshCw, CheckCircle, AlertTriangle, Timer, Shield, Target, Copy, Download, History, ChevronDown, ChevronUp, Keyboard, FileText, Printer, ArrowUp, ArrowDown, Eye, EyeOff, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -84,9 +83,6 @@ interface AnalysisResult {
   fullReport?: any;
 }
 const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps> = ({ onCreditUsed }) => {
-  const {
-    user
-  } = useAuth();
   const {
     toast
   } = useToast();
@@ -183,17 +179,15 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
 
   // Load signal history
   useEffect(() => {
-    if (user) {
-      loadSignalHistory();
-    }
-  }, [user]);
+    loadSignalHistory();
+  }, []);
+  
   const loadSignalHistory = async () => {
-    if (!user) return;
     try {
       const {
         data,
         error
-      } = await supabase.from('crypto_reports').select('*').eq('user_id', user.id).order('created_at', {
+      } = await supabase.from('crypto_reports').select('*').order('created_at', {
         ascending: false
       }).limit(10);
       if (data && !error) {
@@ -217,47 +211,14 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
   };
   
   const handleAnalyzeCrypto = useCallback(async (symbol: 'BTC' | 'ETH' | 'XRP' | 'BNB' | 'SOL' | 'DOGE' | 'TRX' | 'ADA' | 'HYPE' | 'LINK') => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to generate analysis",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check if user has credits before proceeding
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!profile || profile.credits < 1) {
-      toast({
-        title: "No credits available",
-        description: "You need credits to generate reports. Visit the pricing page to get more.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     setLoading(symbol);
     try {
-      // Consume a credit first
-      const { data: consumed, error: consumeError } = await supabase
-        .rpc('consume_credit', { _user_id: user.id });
-
-      if (!consumed || consumeError) {
-        throw new Error('Failed to consume credit');
-      }
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Analysis timed out')), 30000);
       });
       const analysisPromise = supabase.functions.invoke('generate-crypto-report', {
         body: {
           coin: symbol,
-          userId: user.id,
           timeframe: '4H'
         }
       });
@@ -317,7 +278,7 @@ const ProfessionalAnalysisDashboard: React.FC<ProfessionalAnalysisDashboardProps
     } finally {
       setLoading(null);
     }
-  }, [user, onCreditUsed]);
+  }, [onCreditUsed]);
   const copySignalToClipboard = () => {
     if (!analysisResult) return;
     const signal = `

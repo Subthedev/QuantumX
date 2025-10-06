@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 import { AppHeader } from '@/components/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,6 @@ interface CryptoReportData {
 }
 
 const Landing = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<CryptoReportData[]>([]);
   const [totalReports, setTotalReports] = useState(0);

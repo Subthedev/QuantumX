@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Plus, TrendingUp, Target, Bell, Zap } from "lucide-react";
@@ -36,25 +35,19 @@ interface ProfitGuardPosition {
 
 export default function ProfitGuard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [positions, setPositions] = useState<ProfitGuardPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
     fetchPositions();
-  }, [user, navigate]);
+  }, []);
 
   const fetchPositions = async () => {
     try {
       const { data, error } = await supabase
         .from("profit_guard_positions")
         .select("*")
-        .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
