@@ -8,12 +8,14 @@ interface TradingViewWidgetProps {
   coinId: string;
   symbol: string;
   height?: number;
+  sparklineData?: number[]; // Optional pre-loaded sparkline data
 }
 
 const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ 
   coinId, 
   symbol,
-  height = 400 
+  height = 400,
+  sparklineData
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
@@ -105,6 +107,32 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
       setLoading(true);
       setError(null);
       
+      // If sparkline data is provided and we're on 7D timeframe, use it directly
+      if (sparklineData && sparklineData.length > 0 && timeframe === '7D') {
+        try {
+          const now = Math.floor(Date.now() / 1000);
+          const interval = Math.floor((7 * 24 * 60 * 60) / sparklineData.length);
+          
+          const chartData = sparklineData.map((price, index) => ({
+            time: now - (sparklineData.length - index) * interval,
+            value: price,
+          }));
+
+          seriesRef.current.setData(chartData);
+          
+          if (chartRef.current) {
+            chartRef.current.timeScale().fitContent();
+          }
+          setError(null);
+          setLoading(false);
+          return;
+        } catch (error) {
+          console.error('Failed to process sparkline data:', error);
+          // Fall through to API fetch
+        }
+      }
+      
+      // Fetch from API for other timeframes or if sparkline data not available
       try {
         const days = {
           '1D': 1,
@@ -159,7 +187,7 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
     };
 
     fetchData();
-  }, [coinId, timeframe]);
+  }, [coinId, timeframe, sparklineData]);
 
   const timeframes: Array<'1D' | '7D' | '30D' | '90D' | '1Y'> = ['1D', '7D', '30D', '90D', '1Y'];
 
