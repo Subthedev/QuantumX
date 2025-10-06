@@ -155,7 +155,7 @@ const Landing = () => {
                       <CardDescription className="text-xs">Avg. Returns</CardDescription>
                       <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
                         <TrendingUp className="h-4 w-4" />
-                        8,763%
+                        23,879%
                       </CardTitle>
                     </CardHeader>
                   </Card>

@@ -38,7 +38,7 @@ export default function Titan10Section() {
               <CardContent className="p-4 text-center">
                 <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
                   <TrendingUp className="w-4 h-4" />
-                  <p className="text-2xl font-bold">8,763%</p>
+                  <p className="text-2xl font-bold">23,879%</p>
                 </div>
                 <p className="text-xs text-muted-foreground">Avg. Returns</p>
               </CardContent>
