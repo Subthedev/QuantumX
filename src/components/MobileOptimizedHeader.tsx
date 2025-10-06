@@ -15,15 +15,11 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { IgniteXLogo } from '@/components/ui/ignitex-logo';
 import { 
   Menu, 
-  User, 
   LogOut, 
   Settings, 
   CreditCard, 
   LayoutDashboard,
   ArrowRight,
-  Shield,
-  FileText,
-  Home,
   X,
   Calculator
 } from 'lucide-react';
@@ -31,13 +27,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 const navigationLinks = [
-  { href: '/', label: 'Home', icon: Home },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portfolio', icon: CreditCard },
-  { href: '/profit-guard', label: 'ProfitGuard', icon: Shield },
   { href: '/calculator', label: 'Calculator', icon: Calculator },
-  { href: '/privacy-policy', label: 'Privacy', icon: Shield },
-  { href: '/terms-of-service', label: 'Terms', icon: FileText },
 ];
 
 const MobileOptimizedHeaderComponent = () => {
@@ -83,34 +75,13 @@ const MobileOptimizedHeaderComponent = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-1">
-          {navigationLinks.slice(0, 2).map((link) => (
+          {navigationLinks.map((link) => (
             <Link key={link.href} to={link.href}>
               <Button variant="ghost" size="sm" className="font-medium">
                 {link.label}
               </Button>
             </Link>
           ))}
-          <Link to="/portfolio">
-            <Button variant="ghost" size="sm" className="font-medium">
-              Portfolio
-            </Button>
-          </Link>
-          <Link to="/titan10">
-            <Button variant="ghost" size="sm" className="font-medium">
-              Titan 10
-            </Button>
-          </Link>
-          <Link to="/ai-analysis">
-            <Button variant="ghost" size="sm" className="font-medium">
-              AI Analysis
-            </Button>
-          </Link>
-          <Link to="/profit-guard">
-            <Button variant="ghost" size="sm" className="font-medium gap-2">
-              <Shield className="h-4 w-4" />
-              ProfitGuard
-            </Button>
-          </Link>
         </div>
 
         {/* Desktop Actions */}
