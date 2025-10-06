@@ -151,6 +151,7 @@ const titanCoinsData: TitanCoin[] = [{
   category: 'MEME PICK',
   insights: 'Meme coin with massive viral potential and community growth'
 }];
+
 export default function Titan10() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -179,7 +180,6 @@ export default function Titan10() {
             }
           }
           
-          // Manual mapping for coins with different API IDs or not found
           const manualPriceMapping: Record<string, { coingeckoId: string, fallbackPrice: number }> = {
             'ETHFI': { coingeckoId: 'ether-fi', fallbackPrice: 1.80 },
             'HYPE': { coingeckoId: 'hyperliquid', fallbackPrice: 28 },
@@ -188,7 +188,6 @@ export default function Titan10() {
             'AURA': { coingeckoId: 'aura-finance', fallbackPrice: 0.018 }
           };
           
-          // Try to find coin with manual mapping
           const mapping = manualPriceMapping[coin.symbol];
           if (mapping) {
             const liveData = cryptos.find(c => c.id === mapping.coingeckoId);
@@ -204,7 +203,6 @@ export default function Titan10() {
                 volume24h: cryptoDataService.formatNumber(liveData.total_volume)
               };
             } else {
-              // Use fallback price if API doesn't have the coin
               const returnPercentage = ((mapping.fallbackPrice - coin.entryPrice) / coin.entryPrice) * 100;
               
               return {
@@ -217,7 +215,6 @@ export default function Titan10() {
             }
           }
           
-          // Default fallback
           const fallbackPrice = coin.entryPrice * 2;
           const returnPercentage = ((fallbackPrice - coin.entryPrice) / coin.entryPrice) * 100;
           
@@ -233,7 +230,6 @@ export default function Titan10() {
         setTitanCoins(updatedCoins);
       } catch (error) {
         console.error('Error fetching live prices:', error);
-        // Use fallback data if API fails
         const fallbackCoins = titanCoinsData.map(coin => ({
           ...coin,
           currentPrice: coin.entryPrice * 2,
@@ -246,7 +242,6 @@ export default function Titan10() {
     };
 
     fetchLivePrices();
-    // Refresh prices every 30 seconds
     const interval = setInterval(fetchLivePrices, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -258,83 +253,117 @@ export default function Titan10() {
       description: "Get instant access to our expert-curated portfolio"
     });
   };
-  return <div className="min-h-screen bg-background flex flex-col">
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4 max-w-7xl">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="container mx-auto px-4 py-5 max-w-7xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Crown className="w-6 h-6 text-primary" />
-              <h1 className="text-xl font-bold">IgniteX Titan 10</h1>
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Crown className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold leading-none">IgniteX Titan 10</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">Expert-Curated Portfolio</p>
+              </div>
             </div>
-            <Button size="sm" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground">
-              Unlock All Coins
+            <Button 
+              size="sm" 
+              onClick={handleUpgradeClick} 
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all hover-scale"
+            >
+              Unlock All
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </div>
       </header>
 
+      {/* Main Content */}
       <div className="flex-1">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-          {/* Hero Section - Simplified */}
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Expert-Curated Portfolio for 2025 Bull Run
-            </h2>
-            <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              10 meticulously researched coins with maximum growth potential. 
-              Get access to all exclusive picks and institutional-grade analysis.
-            </p>
-            <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-4 py-1.5 -mt-0.5 mb-3">
-              🔒 Only 1 of 10 Picks Revealed Below
-            </Badge>
-            
-            {/* Key Metric - Average Returns */}
-            <div className="flex justify-center mb-8 mt-8">
-              <div className="bg-card border border-primary/20 rounded-lg p-6 text-center">
-                <p className="text-4xl font-bold text-primary">23,879.45%</p>
-                <p className="text-sm text-muted-foreground uppercase tracking-wider mt-2">Average Returns</p>
-              </div>
+        <div className="container mx-auto px-4 py-16 max-w-7xl space-y-20">
+          
+          {/* Hero Section */}
+          <section className="text-center space-y-6 animate-fade-in">
+            <div className="space-y-4">
+              <h2 className="text-4xl md:text-5xl font-bold leading-tight">
+                Expert-Curated Portfolio for 2025 Bull Run
+              </h2>
+              <p className="text-muted-foreground text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
+                10 meticulously researched coins with maximum growth potential. Get access to all exclusive picks and institutional-grade analysis.
+              </p>
             </div>
-          </div>
+            
+            <div className="flex justify-center pt-2">
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-sm px-5 py-2">
+                <Lock className="w-3 h-3 mr-2" />
+                Only 1 of 10 Picks Revealed Below
+              </Badge>
+            </div>
+            
+            {/* Average Returns Metric */}
+            <div className="flex justify-center pt-8 animate-scale-in">
+              <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 shadow-lg hover-scale transition-all">
+                <CardContent className="p-8 text-center">
+                  <p className="text-5xl md:text-6xl font-bold text-primary mb-2">23,879.45%</p>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Average Returns</p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
-          {/* Featured Exclusive Picks */}
-          <div className="mb-12">
-            <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold mb-2">🔥 Featured Pick for 2025</h3>
-              <p className="text-muted-foreground">1 out of 10 exclusive opportunities revealed</p>
+          {/* Featured Pick Section */}
+          <section className="space-y-8 animate-fade-in">
+            <div className="text-center space-y-2">
+              <h3 className="text-3xl md:text-4xl font-bold">🔥 Featured Pick for 2025</h3>
+              <p className="text-muted-foreground text-lg">1 out of 10 exclusive opportunities revealed</p>
             </div>
             
-            <div className="max-w-md mx-auto">
-              {/* RWA Pick - HBAR */}
-              <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/30 hover:border-blue-500/50 transition-all">
-                <CardContent className="p-6">
-                  <div className="text-center space-y-4">
-                    <div className="inline-flex p-3 bg-blue-500/20 rounded-xl">
-                      <TrendingUp className="w-8 h-8 text-blue-500" />
+            <div className="max-w-2xl mx-auto">
+              <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-background border-blue-500/30 hover:border-blue-500/50 transition-all shadow-xl hover-scale">
+                <CardContent className="p-8 md:p-10">
+                  <div className="text-center space-y-6">
+                    {/* Icon */}
+                    <div className="inline-flex p-4 bg-blue-500/20 rounded-2xl">
+                      <TrendingUp className="w-12 h-12 text-blue-500" />
                     </div>
-                    <div>
-                      <Badge className="bg-blue-500/20 text-blue-500 border-0 text-xs mb-3">
+                    
+                    {/* Badge and Title */}
+                    <div className="space-y-3">
+                      <Badge className="bg-blue-500/20 text-blue-500 border-0 text-xs px-3 py-1">
                         Latest RWA Pick
                       </Badge>
-                      <h4 className="text-2xl font-bold text-foreground mb-1">HBAR</h4>
-                      <p className="text-sm text-muted-foreground mb-4">Enterprise DLT & RWA Leader</p>
-                      <div className="space-y-2 text-left bg-card/50 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Potential Return:</span>
-                          <span className="text-lg font-bold text-blue-500">4,900%</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Entry Price:</span>
-                          <span className="text-sm font-semibold">$0.05</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Target Price:</span>
-                          <span className="text-sm font-semibold">$2.50</span>
-                        </div>
+                      <div>
+                        <h4 className="text-3xl font-bold text-foreground mb-2">HBAR</h4>
+                        <p className="text-muted-foreground">Enterprise DLT & RWA Leader</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-4 italic">
+                    </div>
+                    
+                    {/* Stats */}
+                    <Card className="bg-card/80 border-blue-500/20">
+                      <CardContent className="p-6 space-y-4">
+                        <div className="flex justify-between items-center pb-3 border-b border-border">
+                          <span className="text-sm text-muted-foreground">Potential Return:</span>
+                          <span className="text-2xl font-bold text-blue-500">4,900%</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-left">
+                            <p className="text-xs text-muted-foreground mb-1">Entry Price</p>
+                            <p className="text-lg font-semibold">$0.05</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground mb-1">Target Price</p>
+                            <p className="text-lg font-semibold">$2.50</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Insights */}
+                    <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                      <p className="text-sm text-muted-foreground leading-relaxed italic">
                         Major institutional partnerships with Google, IBM, and Boeing. Leading enterprise blockchain for tokenization.
                       </p>
                     </div>
@@ -342,96 +371,118 @@ export default function Titan10() {
                 </CardContent>
               </Card>
             </div>
-          </div>
+          </section>
 
           {/* Locked Coins Teaser */}
-          <div className="mb-12">
-            <Card className="bg-gradient-to-r from-muted/50 to-muted/30 border-dashed border-2 border-primary/30">
-              <CardContent className="p-12 text-center">
-                <Lock className="w-16 h-16 text-primary mx-auto mb-6" />
-                <h3 className="text-3xl font-bold mb-4">9 More Exclusive Picks Locked</h3>
-                <p className="text-muted-foreground text-lg mb-6 max-w-2xl mx-auto">
-                  Our institutional-grade research has identified 9 additional high-potential coins across 
-                  DeFi, AI, Gaming, MEME, and Infrastructure sectors. Each with detailed entry points, targets, and risk analysis.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 max-w-3xl mx-auto">
-                  <div className="bg-card/50 rounded-lg p-4">
-                    <div className="text-2xl font-bold filter blur-sm">????</div>
-                    <p className="text-xs text-muted-foreground mt-2">DeFi Gem</p>
-                  </div>
-                  <div className="bg-card/50 rounded-lg p-4">
-                    <div className="text-2xl font-bold filter blur-sm">????</div>
-                    <p className="text-xs text-muted-foreground mt-2">AI Sector</p>
-                  </div>
-                  <div className="bg-card/50 rounded-lg p-4">
-                    <div className="text-2xl font-bold filter blur-sm">????</div>
-                    <p className="text-xs text-muted-foreground mt-2">Gaming</p>
-                  </div>
-                  <div className="bg-card/50 rounded-lg p-4">
-                    <div className="text-2xl font-bold filter blur-sm">????</div>
-                    <p className="text-xs text-muted-foreground mt-2">Layer 1</p>
-                  </div>
+          <section className="space-y-8 animate-fade-in">
+            <Card className="bg-gradient-to-br from-muted/50 to-background border-dashed border-2 border-primary/30 shadow-lg">
+              <CardContent className="p-12 md:p-16 text-center space-y-8">
+                <div className="inline-flex p-6 bg-primary/10 rounded-2xl">
+                  <Lock className="w-16 h-16 text-primary" />
                 </div>
-                <Button size="lg" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground text-lg px-8 py-6">
+                
+                <div className="space-y-4">
+                  <h3 className="text-3xl md:text-4xl font-bold">9 More Exclusive Picks Locked</h3>
+                  <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
+                    Our institutional-grade research has identified 9 additional high-potential coins across 
+                    DeFi, AI, Gaming, MEME, and Infrastructure sectors. Each with detailed entry points, targets, and risk analysis.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto py-4">
+                  {[
+                    { label: 'DeFi Gem', icon: '💎' },
+                    { label: 'AI Sector', icon: '🤖' },
+                    { label: 'Gaming', icon: '🎮' },
+                    { label: 'Layer 1', icon: '⚡' }
+                  ].map((item, idx) => (
+                    <Card key={idx} className="bg-card/50 border-border hover:border-primary/30 transition-all">
+                      <CardContent className="p-6 text-center">
+                        <div className="text-3xl mb-3 filter blur-sm">{item.icon}</div>
+                        <p className="text-xs text-muted-foreground font-medium">{item.label}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                
+                <Button 
+                  size="lg" 
+                  onClick={handleUpgradeClick} 
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-10 py-7 shadow-lg hover-scale transition-all"
+                >
                   Unlock All 10 Titan Picks
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </CardContent>
             </Card>
-          </div>
+          </section>
 
           {/* Final CTA Section */}
-          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30">
-            <CardContent className="p-10">
-              <div className="text-center space-y-6">
-                <h3 className="text-3xl font-bold">Don't Miss Out on the Full Portfolio</h3>
-                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                  Join thousands of smart investors who are already profiting from our institutional-grade research. 
-                  Get instant access to all 10 picks, detailed analysis, entry points, and real-time alerts.
-                </p>
-                
-                <div className="flex flex-wrap justify-center gap-8 my-8">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span className="text-sm">Full Portfolio Access</span>
+          <section className="animate-fade-in">
+            <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/30 shadow-xl">
+              <CardContent className="p-12 md:p-16">
+                <div className="text-center space-y-8">
+                  <div className="space-y-4">
+                    <h3 className="text-3xl md:text-4xl font-bold">Don't Miss Out on the Full Portfolio</h3>
+                    <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
+                      Join thousands of smart investors who are already profiting from our institutional-grade research. 
+                      Get instant access to all 10 picks, detailed analysis, entry points, and real-time alerts.
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span className="text-sm">Real-Time Price Alerts</span>
+                  
+                  <div className="flex flex-wrap justify-center gap-6 py-6">
+                    {[
+                      'Full Portfolio Access',
+                      'Real-Time Price Alerts',
+                      'Expert Analysis'
+                    ].map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <span className="font-medium">{feature}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span className="text-sm">Expert Analysis</span>
+                  
+                  <Button 
+                    size="lg" 
+                    onClick={handleUpgradeClick} 
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground text-xl px-12 py-8 shadow-xl hover-scale transition-all"
+                  >
+                    Get Instant Access Now
+                    <ArrowRight className="w-6 h-6 ml-3" />
+                  </Button>
+                  
+                  <div className="pt-4 space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      ✓ Cancel anytime • ✓ 7-day money-back guarantee • ✓ Instant access to all 10 picks
+                    </p>
                   </div>
                 </div>
-                
-                <Button size="lg" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground text-xl px-10 py-7 shadow-lg">
-                  Get Instant Access Now
-                  <ArrowRight className="w-6 h-6 ml-2" />
-                </Button>
-                
-                <p className="text-sm text-muted-foreground">
-                  ✓ Cancel anytime • ✓ 7-day money-back guarantee • ✓ Instant access to all 10 picks
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </section>
+
         </div>
       </div>
 
       {/* Sticky Footer */}
-      <footer className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border py-4 shadow-lg">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+      <footer className="sticky bottom-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg">
+        <div className="container mx-auto px-4 py-5 max-w-7xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground text-center md:text-left">
               🔥 Limited Access: Only 1 of 10 picks revealed • 9 exclusive coins waiting
             </p>
-            <Button size="sm" onClick={handleUpgradeClick} className="bg-primary hover:bg-primary-hover text-primary-foreground">
+            <Button 
+              size="sm" 
+              onClick={handleUpgradeClick} 
+              className="bg-primary hover:bg-primary/90 text-primary-foreground transition-all hover-scale shrink-0"
+            >
               Unlock All 10 Now
               <Lock className="w-3 h-3 ml-2" />
             </Button>
           </div>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 }
