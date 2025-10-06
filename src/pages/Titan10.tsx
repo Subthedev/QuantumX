@@ -291,20 +291,20 @@ export default function Titan10() {
             </Badge>
             
             {/* Key Metrics - Static Professional Design */}
-            <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mb-8">
-              <div className="bg-card border border-border rounded p-4">
+            <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto mb-8 mt-8">
+              <div className="bg-card border border-border rounded-lg p-5 text-center">
                 <p className="text-3xl font-bold text-foreground">23,879.45%</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Avg. Returns</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Avg. Returns</p>
               </div>
               
-              <div className="bg-card border border-border rounded p-4">
+              <div className="bg-card border border-border rounded-lg p-5 text-center">
                 <p className="text-3xl font-bold text-foreground">87%</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Success Rate</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Success Rate</p>
               </div>
               
-              <div className="bg-card border border-border rounded p-4">
+              <div className="bg-card border border-border rounded-lg p-5 text-center">
                 <p className="text-3xl font-bold text-foreground">A-</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Risk Score</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Risk Score</p>
               </div>
             </div>
           </div>
