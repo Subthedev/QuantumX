@@ -8,22 +8,22 @@ interface TradingViewWidgetProps {
   coinId: string;
   symbol: string;
   height?: number;
-  sparklineData?: number[]; // Optional pre-loaded sparkline data
+  currentPrice?: number; // Current price for initial display
 }
 
 const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ 
   coinId, 
   symbol,
   height = 400,
-  sparklineData
+  currentPrice: initialPrice
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const seriesRef = useRef<any>(null);
-  const [timeframe, setTimeframe] = useState<'1D' | '7D' | '30D' | '90D' | '1Y'>('7D');
+  const [timeframe, setTimeframe] = useState<'1H' | '4H' | '1D' | '7D'>('1D');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [currentPrice, setCurrentPrice] = useState<number | null>(initialPrice || null);
   const [priceChange, setPriceChange] = useState<number | null>(null);
   const [priceChangePercent, setPriceChangePercent] = useState<number | null>(null);
 
@@ -40,15 +40,18 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: 'rgba(255, 255, 255, 0.7)',
+        fontSize: 12,
       },
       grid: {
         vertLines: { 
           color: 'rgba(255, 255, 255, 0.05)',
           style: LineStyle.Solid,
+          visible: true,
         },
         horzLines: { 
           color: 'rgba(255, 255, 255, 0.05)',
           style: LineStyle.Solid,
+          visible: true,
         },
       },
       width: chartContainerRef.current.clientWidth,
@@ -57,15 +60,25 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
         borderColor: 'rgba(255, 255, 255, 0.1)',
         timeVisible: true,
         secondsVisible: false,
-        borderVisible: false,
+        borderVisible: true,
+        rightOffset: 5,
+        barSpacing: 10,
+        minBarSpacing: 5,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+        lockVisibleTimeRangeOnResize: true,
+        visible: true,
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderVisible: false,
+        borderVisible: true,
         scaleMargins: {
           top: 0.1,
           bottom: 0.1,
         },
+        visible: true,
+        entireTextOnly: false,
+        alignLabels: true,
       },
       leftPriceScale: {
         visible: false,
@@ -76,13 +89,15 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
           width: 1,
           color: 'rgba(255, 255, 255, 0.3)',
           style: LineStyle.Dashed,
-          labelVisible: false,
+          labelVisible: true,
+          labelBackgroundColor: 'rgba(255, 95, 109, 0.9)',
         },
         horzLine: {
           width: 1,
           color: 'rgba(255, 255, 255, 0.3)',
           style: LineStyle.Dashed,
           labelVisible: true,
+          labelBackgroundColor: 'rgba(255, 95, 109, 0.9)',
         },
       },
       handleScroll: {
@@ -146,69 +161,24 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!seriesRef.current) return;
+      if (!seriesRef.current || !chartRef.current) return;
       
       setLoading(true);
       setError(null);
       
-      // If sparkline data is provided and we're on 7D timeframe, use it directly
-      if (sparklineData && sparklineData.length > 0 && timeframe === '7D') {
-        try {
-          const now = Math.floor(Date.now() / 1000);
-          const interval = Math.floor((7 * 24 * 60 * 60) / sparklineData.length);
-          
-          const chartData = sparklineData.map((price, index) => ({
-            time: now - (sparklineData.length - index) * interval,
-            value: price,
-          }));
-
-          seriesRef.current.setData(chartData);
-          
-          // Calculate price change
-          if (chartData.length > 0) {
-            const firstPrice = chartData[0].value;
-            const lastPrice = chartData[chartData.length - 1].value;
-            const change = lastPrice - firstPrice;
-            const changePercent = (change / firstPrice) * 100;
-            
-            setCurrentPrice(lastPrice);
-            setPriceChange(change);
-            setPriceChangePercent(changePercent);
-            
-            // Update line color based on trend
-            const isPositive = changePercent >= 0;
-            seriesRef.current.applyOptions({
-              topColor: isPositive ? 'rgba(22, 219, 101, 0.4)' : 'rgba(255, 95, 109, 0.4)',
-              lineColor: isPositive ? 'rgba(22, 219, 101, 1)' : 'rgba(255, 95, 109, 1)',
-              crosshairMarkerBorderColor: isPositive ? 'rgba(22, 219, 101, 1)' : 'rgba(255, 95, 109, 1)',
-              crosshairMarkerBackgroundColor: isPositive ? 'rgba(22, 219, 101, 1)' : 'rgba(255, 95, 109, 1)',
-            });
-          }
-          
-          if (chartRef.current) {
-            chartRef.current.timeScale().fitContent();
-          }
-          setError(null);
-          setLoading(false);
-          return;
-        } catch (error) {
-          console.error('Failed to process sparkline data:', error);
-          // Fall through to API fetch
-        }
-      }
-      
-      // Fetch from API for other timeframes or if sparkline data not available
       try {
-        const days = {
-          '1D': 1,
-          '7D': 7,
-          '30D': 30,
-          '90D': 90,
-          '1Y': 365
-        }[timeframe];
+        // Map timeframes to API parameters
+        const timeframeMap = {
+          '1H': { days: 1, interval: 'minutely' },
+          '4H': { days: 1, interval: 'hourly' },
+          '1D': { days: 1, interval: 'hourly' },
+          '7D': { days: 7, interval: 'hourly' },
+        };
+
+        const { days, interval } = timeframeMap[timeframe];
 
         const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=${days === 1 ? 'hourly' : 'daily'}`,
+          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`,
           {
             headers: {
               'Accept': 'application/json',
@@ -223,10 +193,30 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
         const data = await response.json();
         
         if (data.prices && data.prices.length > 0) {
-          const chartData = data.prices.map(([timestamp, price]: [number, number]) => ({
-            time: Math.floor(timestamp / 1000),
+          // Filter data based on timeframe
+          let filteredPrices = data.prices;
+          
+          if (timeframe === '1H') {
+            // Last hour only
+            const oneHourAgo = Date.now() - (60 * 60 * 1000);
+            filteredPrices = data.prices.filter(([timestamp]: [number, number]) => timestamp >= oneHourAgo);
+          } else if (timeframe === '4H') {
+            // Last 4 hours only
+            const fourHoursAgo = Date.now() - (4 * 60 * 60 * 1000);
+            filteredPrices = data.prices.filter(([timestamp]: [number, number]) => timestamp >= fourHoursAgo);
+          }
+
+          if (filteredPrices.length === 0) {
+            throw new Error('No data available for this timeframe');
+          }
+
+          const chartData = filteredPrices.map(([timestamp, price]: [number, number]) => ({
+            time: Math.floor(timestamp / 1000) as any,
             value: price,
           }));
+
+          // Sort by time to ensure proper order
+          chartData.sort((a, b) => a.time - b.time);
 
           seriesRef.current.setData(chartData);
           
@@ -251,10 +241,10 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
             });
           }
           
-          // Fit content with some padding
-          if (chartRef.current) {
-            chartRef.current.timeScale().fitContent();
-          }
+          // Fit content and ensure proper scaling
+          chartRef.current.timeScale().fitContent();
+          chartRef.current.timeScale().scrollToRealTime();
+          
           setError(null);
         } else {
           throw new Error('No price data available');
@@ -273,9 +263,9 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
     };
 
     fetchData();
-  }, [coinId, timeframe, sparklineData]);
+  }, [coinId, timeframe]);
 
-  const timeframes: Array<'1D' | '7D' | '30D' | '90D' | '1Y'> = ['1D', '7D', '30D', '90D', '1Y'];
+  const timeframes: Array<'1H' | '4H' | '1D' | '7D'> = ['1H', '4H', '1D', '7D'];
 
   const formatPrice = (price: number | null) => {
     if (!price) return '$0.00';
@@ -351,18 +341,8 @@ const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({
             <p className="text-xs text-muted-foreground">
               {error.includes('429') || error.includes('rate limit') 
                 ? 'API rate limit reached. Try again in a moment.' 
-                : 'Unable to load chart data. Using 7D for available data.'}
+                : 'Unable to load chart data. Try a different timeframe.'}
             </p>
-            {timeframe !== '7D' && sparklineData && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setTimeframe('7D')}
-                className="mt-3 text-xs"
-              >
-                Switch to 7D
-              </Button>
-            )}
           </div>
         </div>
       ) : (
