@@ -390,19 +390,41 @@ export default function Titan10() {
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto py-4">
-                  {[
-                    { label: 'DeFi Gem', icon: '💎' },
-                    { label: 'AI Sector', icon: '🤖' },
-                    { label: 'Gaming', icon: '🎮' },
-                    { label: 'Layer 1', icon: '⚡' }
-                  ].map((item, idx) => (
-                    <Card key={idx} className="bg-card/50 border-border hover:border-primary/30 transition-all">
-                      <CardContent className="p-6 text-center">
-                        <div className="text-3xl mb-3 filter blur-sm">{item.icon}</div>
-                        <p className="text-xs text-muted-foreground font-medium">{item.label}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  <Card className="bg-card/50 border-border hover:border-primary/30 transition-all">
+                    <CardContent className="p-6 text-center">
+                      <div className="flex justify-center mb-3 filter blur-md">
+                        <ETHLogo className="w-10 h-10" />
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">DeFi Gem</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-card/50 border-border hover:border-primary/30 transition-all">
+                    <CardContent className="p-6 text-center">
+                      <div className="flex justify-center mb-3 filter blur-md">
+                        <SOLLogo className="w-10 h-10" />
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">AI Sector</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-card/50 border-border hover:border-primary/30 transition-all">
+                    <CardContent className="p-6 text-center">
+                      <div className="flex justify-center mb-3 filter blur-md">
+                        <BNBLogo className="w-10 h-10" />
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">Gaming</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-card/50 border-border hover:border-primary/30 transition-all">
+                    <CardContent className="p-6 text-center">
+                      <div className="flex justify-center mb-3 filter blur-md">
+                        <BTCLogo className="w-10 h-10" />
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">Layer 1</p>
+                    </CardContent>
+                  </Card>
                 </div>
                 
                 <Button 
