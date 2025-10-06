@@ -290,21 +290,11 @@ export default function Titan10() {
               🔒 Only 1 of 10 Picks Revealed Below
             </Badge>
             
-            {/* Key Metrics - Static Professional Design */}
-            <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto mb-8 mt-8">
-              <div className="bg-card border border-border rounded-lg p-5 text-center">
-                <p className="text-3xl font-bold text-foreground">23,879.45%</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Avg. Returns</p>
-              </div>
-              
-              <div className="bg-card border border-border rounded-lg p-5 text-center">
-                <p className="text-3xl font-bold text-foreground">87%</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Success Rate</p>
-              </div>
-              
-              <div className="bg-card border border-border rounded-lg p-5 text-center">
-                <p className="text-3xl font-bold text-foreground">A-</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Risk Score</p>
+            {/* Key Metric - Average Returns */}
+            <div className="flex justify-center mb-8 mt-8">
+              <div className="bg-card border border-primary/20 rounded-lg p-6 text-center">
+                <p className="text-4xl font-bold text-primary">23,879.45%</p>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider mt-2">Average Returns</p>
               </div>
             </div>
           </div>
