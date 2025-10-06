@@ -15,9 +15,18 @@ interface AddProfitGuardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  prefilledHolding?: {
+    coin_id: string;
+    coin_symbol: string;
+    coin_name: string;
+    coin_image: string;
+    purchase_price: number;
+    quantity: number;
+    current_price?: number;
+  };
 }
 
-export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfitGuardDialogProps) {
+export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledHolding }: AddProfitGuardDialogProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -32,8 +41,21 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess }: AddProfi
   useEffect(() => {
     if (open) {
       fetchTopCoins();
+      
+      // Pre-fill form if holding data is provided
+      if (prefilledHolding) {
+        setSelectedCoin({
+          id: prefilledHolding.coin_id,
+          symbol: prefilledHolding.coin_symbol,
+          name: prefilledHolding.coin_name,
+          image: prefilledHolding.coin_image,
+          current_price: prefilledHolding.current_price || prefilledHolding.purchase_price,
+        });
+        setEntryPrice(prefilledHolding.purchase_price.toString());
+        setQuantity(prefilledHolding.quantity.toString());
+      }
     }
-  }, [open]);
+  }, [open, prefilledHolding]);
 
   const fetchTopCoins = async () => {
     try {

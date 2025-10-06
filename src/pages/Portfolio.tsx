@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, TrendingDown, DollarSign, PieChart, Edit2, Trash2, Wallet, ChartBar } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, PieChart, Edit2, Trash2, Wallet, ChartBar, Shield } from 'lucide-react';
 import { MobileOptimizedHeader } from '@/components/MobileOptimizedHeader';
 import { AddHoldingDialog } from '@/components/portfolio/AddHoldingDialog';
 import { EditHoldingDialog } from '@/components/portfolio/EditHoldingDialog';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { ProfitGuardRecommendations } from '@/components/portfolio/ProfitGuardRecommendations';
+import { AddProfitGuardDialog } from '@/components/profit-guard/AddProfitGuardDialog';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -39,6 +40,8 @@ function Portfolio() {
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<Holding | null>(null);
+  const [isProfitGuardDialogOpen, setIsProfitGuardDialogOpen] = useState(false);
+  const [selectedHoldingForGuard, setSelectedHoldingForGuard] = useState<Holding | null>(null);
   const [marketData, setMarketData] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
@@ -151,6 +154,19 @@ function Portfolio() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleActivateProfitGuard = (holding: Holding) => {
+    setSelectedHoldingForGuard(holding);
+    setIsProfitGuardDialogOpen(true);
+  };
+
+  const handleProfitGuardSuccess = () => {
+    toast({
+      title: 'Success',
+      description: 'AI ProfitGuard activated successfully',
+    });
+    setSelectedHoldingForGuard(null);
   };
 
   const metrics = calculatePortfolioMetrics();
@@ -366,6 +382,19 @@ function Portfolio() {
                             </p>
                           </div>
                         </div>
+                        
+                        {/* Activate Guard Button - Only show for profitable positions */}
+                        {holding.profit_loss_percentage && holding.profit_loss_percentage > 5 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-3 gap-2 border-primary/20 text-primary hover:bg-primary/10"
+                            onClick={() => handleActivateProfitGuard(holding)}
+                          >
+                            <Shield className="h-4 w-4" />
+                            Activate AI ProfitGuard
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -448,6 +477,16 @@ function Portfolio() {
                               </td>
                               <td className="text-right p-4">
                                 <div className="flex gap-2 justify-end">
+                                  {holding.profit_loss_percentage && holding.profit_loss_percentage > 5 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-primary/20 text-primary hover:bg-primary/10"
+                                      onClick={() => handleActivateProfitGuard(holding)}
+                                    >
+                                      <Shield className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -516,6 +555,21 @@ function Portfolio() {
             }}
           />
         )}
+
+        <AddProfitGuardDialog
+          open={isProfitGuardDialogOpen}
+          onOpenChange={setIsProfitGuardDialogOpen}
+          onSuccess={handleProfitGuardSuccess}
+          prefilledHolding={selectedHoldingForGuard ? {
+            coin_id: selectedHoldingForGuard.coin_id,
+            coin_symbol: selectedHoldingForGuard.coin_symbol,
+            coin_name: selectedHoldingForGuard.coin_name,
+            coin_image: selectedHoldingForGuard.coin_image,
+            purchase_price: selectedHoldingForGuard.purchase_price,
+            quantity: selectedHoldingForGuard.quantity,
+            current_price: selectedHoldingForGuard.current_price,
+          } : undefined}
+        />
       </main>
     </div>
   );
