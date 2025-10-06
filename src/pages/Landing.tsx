@@ -182,42 +182,70 @@ const Landing = () => {
                 </div>
                 
                 {/* Latest Picks by IgniteX Team */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* RWA Pick */}
-                  <Card className="border-blue-500/20 bg-blue-500/5">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-semibold text-blue-500 border-blue-500/50">
-                            💎 RWA PICK
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">Latest Pick</Badge>
-                        </div>
-                      </div>
-                      <p className="text-sm font-medium text-foreground mb-1">Hedera (HBAR)</p>
-                      <p className="text-xs text-muted-foreground">
-                        Real World Asset tokenization leader • Entry $0.05 • <span className="font-medium text-foreground">+4,900% potential</span>
-                      </p>
-                    </CardContent>
-                  </Card>
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">🔓 Get Access to Our Latest Picks for 2025</p>
+                  </div>
                   
-                  {/* MEME Pick */}
-                  <Card className="border-purple-500/20 bg-purple-500/5">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-semibold text-purple-500 border-purple-500/50">
-                            🚀 MEME PICK
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">Latest Pick</Badge>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* RWA Pick */}
+                    <Card className="border-blue-500/20 bg-blue-500/5">
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline" className="text-xs font-semibold text-blue-500 border-blue-500/50">
+                              💎 RWA PICK
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">Locked</Badge>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 blur-sm"></div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground blur-sm">HBAR</p>
+                              <p className="text-xs text-muted-foreground">Enterprise DLT</p>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-2 border-t border-border">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Return Till Date:</span>
+                              <span className="text-lg font-bold text-blue-500">+4,900%</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-sm font-medium text-foreground mb-1">Hyperliquid (HYPE)</p>
-                      <p className="text-xs text-muted-foreground">
-                        Next-gen DeFi platform • Entry $8 • <span className="font-medium text-foreground">+962% potential</span>
-                      </p>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* MEME Pick */}
+                    <Card className="border-purple-500/20 bg-purple-500/5">
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline" className="text-xs font-semibold text-purple-500 border-purple-500/50">
+                              🚀 MEME PICK
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">Locked</Badge>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 blur-sm"></div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground blur-sm">HYPE</p>
+                              <p className="text-xs text-muted-foreground">Perp DEX</p>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-2 border-t border-border">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Return Till Date:</span>
+                              <span className="text-lg font-bold text-purple-500">+962%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
                 
                 {/* CTA */}
@@ -231,7 +259,7 @@ const Landing = () => {
                 </Button>
                 
                 <p className="text-xs text-center text-muted-foreground">
-                  Limited access • 8 more coins available • Instant unlock for members
+                  Get instant access to 2 exclusive picks • 8 more coins available for members
                 </p>
               </div>
             </div>
