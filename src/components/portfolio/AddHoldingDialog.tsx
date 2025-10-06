@@ -146,42 +146,44 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[450px] p-0" align="start">
-                <Command>
+                <Command shouldFilter={false}>
                   <CommandInput 
                     placeholder="Search cryptocurrency..." 
                     value={searchTerm}
                     onValueChange={setSearchTerm}
                   />
-                  <CommandList className="max-h-[300px]">
-                    <CommandEmpty>No cryptocurrency found.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredCoins.slice(0, 100).map((coin) => (
-                        <CommandItem
-                          key={coin.id}
-                          value={coin.id}
-                          onSelect={() => {
-                            setSelectedCoin(coin);
-                            setShowSearch(false);
-                            setPurchasePrice(coin.current_price.toString());
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedCoin?.id === coin.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          <img 
-                            src={coin.image} 
-                            alt={coin.name}
-                            className="h-5 w-5 rounded-full mr-2"
-                          />
-                          <span>{coin.name}</span>
-                          <span className="text-muted-foreground ml-2 uppercase">({coin.symbol})</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
+                  <ScrollArea className="h-[300px]">
+                    <CommandList>
+                      <CommandEmpty>No cryptocurrency found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredCoins.slice(0, 100).map((coin) => (
+                          <CommandItem
+                            key={coin.id}
+                            value={coin.id}
+                            onSelect={() => {
+                              setSelectedCoin(coin);
+                              setShowSearch(false);
+                              setPurchasePrice(coin.current_price.toString());
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedCoin?.id === coin.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <img 
+                              src={coin.image} 
+                              alt={coin.name}
+                              className="h-5 w-5 rounded-full mr-2"
+                            />
+                            <span>{coin.name}</span>
+                            <span className="text-muted-foreground ml-2 uppercase">({coin.symbol})</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </ScrollArea>
                 </Command>
               </PopoverContent>
             </Popover>

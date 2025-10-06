@@ -196,27 +196,33 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
               onFocus={() => setShowDropdown(true)}
             />
             {(showDropdown || searchQuery) && !selectedCoin && (
-              <Card className="absolute z-50 w-[calc(100%-3rem)] bg-background border shadow-lg">
-                <ScrollArea className="h-[300px]">
-                  <div className="p-1">
-                    {filteredCoins.slice(0, 100).map((coin) => (
-                      <button
-                        key={coin.id}
-                        onClick={() => {
-                          setSelectedCoin(coin);
-                          setSearchQuery("");
-                          setShowDropdown(false);
-                        }}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors rounded-md"
-                      >
-                        <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" />
-                        <div className="text-left flex-1">
-                          <div className="font-semibold">{coin.name}</div>
-                          <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
-                        </div>
-                        <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
-                      </button>
-                    ))}
+              <Card className="absolute z-50 w-[calc(100%-3rem)] bg-background border shadow-lg mt-1">
+                <ScrollArea className="h-[320px]">
+                  <div className="p-2">
+                    {filteredCoins.slice(0, 100).length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground text-sm">
+                        No cryptocurrency found
+                      </div>
+                    ) : (
+                      filteredCoins.slice(0, 100).map((coin) => (
+                        <button
+                          key={coin.id}
+                          onClick={() => {
+                            setSelectedCoin(coin);
+                            setSearchQuery("");
+                            setShowDropdown(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors rounded-md"
+                        >
+                          <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" />
+                          <div className="text-left flex-1">
+                            <div className="font-semibold">{coin.name}</div>
+                            <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
+                          </div>
+                          <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </ScrollArea>
               </Card>
