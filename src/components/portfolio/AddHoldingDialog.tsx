@@ -154,8 +154,8 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                       className="h-9"
                     />
                   </div>
-                  <ScrollArea className="h-[320px]">
-                    <div className="p-2 space-y-1">
+                  <ScrollArea className="h-[320px] overflow-y-auto">
+                    <div className="p-2 space-y-1 min-h-[320px]">
                       {filteredCoins.slice(0, 100).length === 0 ? (
                         <div className="py-6 text-center text-sm text-muted-foreground">
                           No cryptocurrency found.
@@ -178,15 +178,15 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                             <img 
                               src={coin.image} 
                               alt={coin.name}
-                              className="h-6 w-6 rounded-full"
+                              className="h-6 w-6 rounded-full flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
                               <div className="font-medium truncate">{coin.name}</div>
                               <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
                             </div>
-                            <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
+                            <div className="text-sm font-medium flex-shrink-0">${coin.current_price.toLocaleString()}</div>
                             {selectedCoin?.id === coin.id && (
-                              <Check className="h-4 w-4 text-primary" />
+                              <Check className="h-4 w-4 text-primary flex-shrink-0" />
                             )}
                           </button>
                         ))
