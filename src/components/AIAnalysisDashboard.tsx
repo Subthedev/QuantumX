@@ -5,7 +5,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, TrendingUp, AlertCircle, ChartBar, DollarSign, Brain, ArrowUp, ArrowDown, Target, Shield, RefreshCw, Clock, Activity, BarChart3, CheckCircle, XCircle, AlertTriangle, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from "@/hooks/use-toast";
 import { BTCLogo } from '@/components/ui/btc-logo';
 import { ETHLogo } from '@/components/ui/eth-logo';
@@ -68,7 +67,6 @@ interface AnalysisResult {
 }
 
 const AIAnalysisDashboard: React.FC = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult | null>(null);
@@ -136,15 +134,6 @@ const AIAnalysisDashboard: React.FC = () => {
   };
 
   const handleAnalyzeCrypto = async (symbol: string) => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to generate analysis",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(symbol);
     setError(null);
     
@@ -156,7 +145,7 @@ const AIAnalysisDashboard: React.FC = () => {
 
       // Call the edge function with timeout
       const analysisPromise = supabase.functions.invoke('generate-crypto-report', {
-        body: { coin: symbol, userId: user.id, timeframe: '4H' }
+        body: { coin: symbol, timeframe: '4H' }
       });
 
       const { data, error: functionError } = await Promise.race([

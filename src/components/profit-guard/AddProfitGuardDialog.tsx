@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +27,6 @@ interface AddProfitGuardDialogProps {
 }
 
 export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledHolding }: AddProfitGuardDialogProps) {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,7 +123,6 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
 
       // Create position with AI-generated profit levels
       const { error } = await supabase.from("profit_guard_positions").insert({
-        user_id: user?.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol.toUpperCase(),
         coin_name: selectedCoin.name,

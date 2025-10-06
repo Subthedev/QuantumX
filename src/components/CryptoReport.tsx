@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
@@ -185,59 +184,13 @@ interface CryptoReportProps {
 }
 
 const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) => {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<CryptoReportData | undefined>(existingReport);
 
   const generateReport = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to generate reports.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check if user has tester role (unlimited reports)
-    const { data: userRoles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-    
-    const isTester = userRoles?.some(r => r.role === 'tester' || r.role === 'admin');
-    
-    // If not a tester, check if user has credits
-    if (!isTester) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile || profile.credits < 1) {
-        toast({
-          title: "No credits available",
-          description: "Complete the feedback form to earn 5 credits!",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
-    
     setLoading(true);
     try {
-      // Consume a credit only if not a tester
-      if (!isTester) {
-        const { data: consumed, error: consumeError } = await supabase
-          .rpc('consume_credit', { _user_id: user.id });
-
-        if (!consumed || consumeError) {
-          throw new Error('Failed to consume credit');
-        }
-      }
-
       // Map CoinGecko IDs to symbols
       const idToSymbol: Record<string, string> = {
         'bitcoin': 'BTC',
@@ -278,8 +231,7 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
       
       const { data, error } = await supabase.functions.invoke('generate-crypto-report', {
         body: {
-          coin: coinSymbol, // Pass the correct symbol
-          userId: user.id,
+          coin: coinSymbol,
           timeframe: '4H'
         }
       });

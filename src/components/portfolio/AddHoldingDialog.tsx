@@ -13,7 +13,6 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
 
 interface AddHoldingDialogProps {
   open: boolean;
@@ -22,7 +21,6 @@ interface AddHoldingDialogProps {
 }
 
 export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDialogProps) {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const [quantity, setQuantity] = useState('');
@@ -67,7 +65,6 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
     setLoading(true);
     try {
       const { error } = await supabase.from('portfolio_holdings').insert({
-        user_id: user?.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol,
         coin_name: selectedCoin.name,

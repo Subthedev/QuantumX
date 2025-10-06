@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,26 +21,15 @@ interface CryptoReportData {
 }
 
 const Dashboard = () => {
-  const {
-    user,
-    signOut,
-    loading
-  } = useAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<Record<string, CryptoReportData>>({});
   const [totalReportsCount, setTotalReportsCount] = useState(0);
   const [loadingReports, setLoadingReports] = useState(true);
+  
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
-  }, [user, loading, navigate]);
-  useEffect(() => {
-    if (user) {
-      fetchExistingReports();
-      fetchTotalReportsCount();
-    }
-  }, [user]);
+    fetchExistingReports();
+    fetchTotalReportsCount();
+  }, []);
   useEffect(() => {
     document.title = '4H Crypto Signals Dashboard | Ignitex';
     const metaDesc = 'AI 4H crypto signals for BTC & ETH with confidence, entries, stops, and targets.';
@@ -61,12 +49,11 @@ const Dashboard = () => {
     canonical.href = window.location.origin + '/dashboard';
   }, []);
   const fetchExistingReports = useCallback(async () => {
-    if (!user) return;
     try {
       const {
         data,
         error
-      } = await supabase.from('crypto_reports').select('*').eq('user_id', user.id).gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()).order('created_at', {
+      } = await supabase.from('crypto_reports').select('*').gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()).order('created_at', {
         ascending: false
       });
       if (error) throw error;
@@ -80,7 +67,7 @@ const Dashboard = () => {
     } finally {
       setLoadingReports(false);
     }
-  }, [user]);
+  }, []);
   
   const fetchTotalReportsCount = useCallback(async () => {
     try {
@@ -98,11 +85,8 @@ const Dashboard = () => {
     }
   }, []);
   
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-    navigate('/');
-  }, [signOut, navigate]);
-  if (loading || loadingReports) {
+  
+  if (loadingReports) {
     return <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -110,9 +94,7 @@ const Dashboard = () => {
         </div>
       </div>;
   }
-  if (!user) {
-    return null;
-  }
+  
   return <div className="min-h-screen bg-background flex flex-col">
       {/* Use the new professional header */}
       <AppHeader />

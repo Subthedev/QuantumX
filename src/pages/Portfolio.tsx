@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +33,6 @@ interface Holding {
 }
 
 function Portfolio() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,13 +43,9 @@ function Portfolio() {
   const [marketData, setMarketData] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
     fetchHoldings();
     fetchMarketData();
-  }, [user, navigate]);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {

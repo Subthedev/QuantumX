@@ -17,12 +17,9 @@ import {
   Lock
 } from 'lucide-react';
 import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
-import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
 const About = () => {
-  const { user } = useAuth();
-
   useEffect(() => {
     document.title = 'About Us - IgniteX | Trusted AI Crypto Analytics';
     const metaDesc = 'Learn about IgniteX - your trusted partner in AI-powered cryptocurrency analytics. Transparent, reliable, and built for traders who demand excellence.';
@@ -61,21 +58,12 @@ const About = () => {
             </div>
             
             <div className="flex items-center gap-4">
-              {user ? (
-                <Link to="/dashboard">
-                  <Button size="default" className="shadow-lg bg-primary hover:bg-primary-hover">
-                    Dashboard
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              ) : (
-                <Link to="/auth">
-                  <Button size="default" className="shadow-lg bg-primary hover:bg-primary-hover">
-                    Get Started
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              )}
+              <Link to="/dashboard">
+                <Button size="default" className="shadow-lg bg-primary hover:bg-primary-hover">
+                  Dashboard
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -320,9 +308,9 @@ const About = () => {
             reliable AI-powered analysis.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link to="/auth">
+            <Link to="/dashboard">
               <Button size="lg" variant="secondary" className="text-lg px-8 py-6 shadow-xl">
-                Start Your Free Trial
+                Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
