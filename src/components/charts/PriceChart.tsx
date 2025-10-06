@@ -61,24 +61,53 @@ const PriceChart: React.FC<PriceChartProps> = ({
     setLoading(true);
     setError(null);
 
-    // Use sparkline data for 7D as instant fallback
-    if (timeframe === '7D' && sparklineData && sparklineData.length > 0) {
+    // ALWAYS use sparkline data first if available - it's instant and reliable
+    if (sparklineData && sparklineData.length > 0) {
       try {
         const now = Date.now();
-        const interval = (7 * 24 * 60 * 60 * 1000) / sparklineData.length;
+        const totalDuration = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+        const interval = totalDuration / sparklineData.length;
         
-        const data = sparklineData.map((price, index) => {
-          const timestamp = now - (sparklineData.length - index) * interval;
+        // Filter data based on timeframe
+        let filteredData = sparklineData;
+        let startIndex = 0;
+        
+        switch (timeframe) {
+          case '1H':
+            // Last hour from 7 days of data
+            startIndex = Math.floor(sparklineData.length - (sparklineData.length / (7 * 24)));
+            filteredData = sparklineData.slice(Math.max(0, startIndex));
+            break;
+          case '4H':
+            // Last 4 hours
+            startIndex = Math.floor(sparklineData.length - (sparklineData.length / (7 * 24)) * 4);
+            filteredData = sparklineData.slice(Math.max(0, startIndex));
+            break;
+          case '1D':
+            // Last 24 hours
+            startIndex = Math.floor(sparklineData.length - (sparklineData.length / 7));
+            filteredData = sparklineData.slice(Math.max(0, startIndex));
+            break;
+          case '7D':
+            // All data
+            filteredData = sparklineData;
+            break;
+        }
+        
+        const data = filteredData.map((price, index) => {
+          const timestamp = now - (filteredData.length - index) * interval;
           return {
             time: new Date(timestamp).toLocaleString('en-US', { 
               month: 'short', 
               day: 'numeric',
-              hour: index % 24 === 0 ? '2-digit' : undefined,
+              hour: (timeframe === '1H' || timeframe === '4H') && index % 4 === 0 ? '2-digit' : undefined,
             }),
             price: price,
             timestamp,
           };
         });
+
+        if (!isMountedRef.current) return;
 
         setChartData(data);
         
@@ -97,10 +126,12 @@ const PriceChart: React.FC<PriceChartProps> = ({
         
         if (isMountedRef.current) {
           setLoading(false);
+          setError(null);
         }
         return;
       } catch (err) {
         console.error('Sparkline data error:', err);
+        // Continue to API fetch if sparkline fails
       }
     }
 
@@ -138,6 +169,10 @@ const PriceChart: React.FC<PriceChartProps> = ({
         if (config.filterHours) {
           const cutoffTime = Date.now() - (config.filterHours * 60 * 60 * 1000);
           prices = prices.filter(([timestamp]: [number, number]) => timestamp >= cutoffTime);
+        }
+
+        if (prices.length === 0) {
+          throw new Error('No data available for selected timeframe');
         }
 
         const formattedData = prices.map(([timestamp, price]: [number, number]) => ({
@@ -183,23 +218,27 @@ const PriceChart: React.FC<PriceChartProps> = ({
       if (!isMountedRef.current) return;
       
       console.error('Chart data error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load data');
       
-      // Fallback to sparkline for 7D
-      if (timeframe === '7D' && sparklineData && isMountedRef.current) {
-        const now = Date.now();
-        const interval = (7 * 24 * 60 * 60 * 1000) / sparklineData.length;
-        
-        const data = sparklineData.map((price, index) => ({
-          time: new Date(now - (sparklineData.length - index) * interval).toLocaleDateString(),
-          price: price,
-        }));
-        
-        if (isMountedRef.current) {
+      // Try sparkline as fallback for any timeframe
+      if (sparklineData && sparklineData.length > 0 && isMountedRef.current) {
+        try {
+          const now = Date.now();
+          const interval = (7 * 24 * 60 * 60 * 1000) / sparklineData.length;
+          
+          const data = sparklineData.map((price, index) => ({
+            time: new Date(now - (sparklineData.length - index) * interval).toLocaleDateString(),
+            price: price,
+          }));
+          
           setChartData(data);
           setError(null);
+          return;
+        } catch (fallbackErr) {
+          console.error('Fallback error:', fallbackErr);
         }
       }
+      
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       if (isMountedRef.current) {
         setLoading(false);
