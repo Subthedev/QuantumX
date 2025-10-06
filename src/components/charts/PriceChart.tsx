@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, TrendingUp, TrendingDown, Activity } from 'lucide-react';
@@ -30,12 +30,34 @@ const PriceChart: React.FC<PriceChartProps> = ({
     change: 0,
     changePercent: 0,
   });
+  
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadChartData();
+    
+    return () => {
+      isMountedRef.current = false;
+      // Abort any ongoing fetch requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [coinId, timeframe]);
 
   const loadChartData = async () => {
+    // Abort previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    
+    if (!isMountedRef.current) return;
+    
     setLoading(true);
     setError(null);
 
@@ -60,7 +82,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
         setChartData(data);
         
-        if (data.length > 0) {
+        if (data.length > 0 && isMountedRef.current) {
           const firstPrice = data[0].price;
           const lastPrice = data[data.length - 1].price;
           const change = lastPrice - firstPrice;
@@ -73,7 +95,9 @@ const PriceChart: React.FC<PriceChartProps> = ({
           });
         }
         
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
         return;
       } catch (err) {
         console.error('Sparkline data error:', err);
@@ -94,7 +118,8 @@ const PriceChart: React.FC<PriceChartProps> = ({
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`
+        `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${config.days}&interval=${config.interval}`,
+        { signal: abortControllerRef.current.signal }
       );
 
       if (!response.ok) {
@@ -102,6 +127,9 @@ const PriceChart: React.FC<PriceChartProps> = ({
       }
 
       const apiData = await response.json();
+      
+      // Check if still mounted before processing
+      if (!isMountedRef.current) return;
 
       if (apiData.prices && apiData.prices.length > 0) {
         let prices = apiData.prices;
@@ -123,9 +151,11 @@ const PriceChart: React.FC<PriceChartProps> = ({
           timestamp,
         }));
 
+        if (!isMountedRef.current) return;
+
         setChartData(formattedData);
 
-        if (formattedData.length > 0) {
+        if (formattedData.length > 0 && isMountedRef.current) {
           const firstPrice = formattedData[0].price;
           const lastPrice = formattedData[formattedData.length - 1].price;
           const change = lastPrice - firstPrice;
@@ -138,16 +168,25 @@ const PriceChart: React.FC<PriceChartProps> = ({
           });
         }
 
-        setError(null);
+        if (isMountedRef.current) {
+          setError(null);
+        }
       } else {
         throw new Error('No data available');
       }
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
+      if (!isMountedRef.current) return;
+      
       console.error('Chart data error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
       
       // Fallback to sparkline for 7D
-      if (timeframe === '7D' && sparklineData) {
+      if (timeframe === '7D' && sparklineData && isMountedRef.current) {
         const now = Date.now();
         const interval = (7 * 24 * 60 * 60 * 1000) / sparklineData.length;
         
@@ -156,11 +195,15 @@ const PriceChart: React.FC<PriceChartProps> = ({
           price: price,
         }));
         
-        setChartData(data);
-        setError(null);
+        if (isMountedRef.current) {
+          setChartData(data);
+          setError(null);
+        }
       }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

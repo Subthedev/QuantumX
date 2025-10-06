@@ -44,6 +44,11 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
   useEffect(() => {
     if (coin && open) {
       loadDetailedData();
+    } else if (!open) {
+      // Reset state when modal closes
+      setIsLoading(true);
+      setDetailedData(null);
+      setEnhancedData(null);
     }
   }, [coin, open]);
 
