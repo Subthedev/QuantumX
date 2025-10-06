@@ -11,6 +11,7 @@ import { MobileOptimizedHeader } from '@/components/MobileOptimizedHeader';
 import { AddHoldingDialog } from '@/components/portfolio/AddHoldingDialog';
 import { EditHoldingDialog } from '@/components/portfolio/EditHoldingDialog';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
+import { ProfitGuardRecommendations } from '@/components/portfolio/ProfitGuardRecommendations';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -263,6 +264,13 @@ function Portfolio() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ProfitGuard Recommendations */}
+        {holdings.length > 0 && metrics.holdings.length > 0 && (
+          <div className="mb-6">
+            <ProfitGuardRecommendations holdings={metrics.holdings} />
+          </div>
+        )}
 
         <Tabs defaultValue="holdings" className="space-y-4">
           <TabsList className="grid w-full max-w-[400px] grid-cols-2">

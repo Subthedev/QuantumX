@@ -33,6 +33,7 @@ const navigationLinks = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portfolio', icon: CreditCard },
+  { href: '/profit-guard', label: 'ProfitGuard', icon: Shield },
   { href: '/privacy-policy', label: 'Privacy', icon: Shield },
   { href: '/terms-of-service', label: 'Terms', icon: FileText },
 ];
@@ -100,6 +101,12 @@ const MobileOptimizedHeaderComponent = () => {
           <Link to="/ai-analysis">
             <Button variant="ghost" size="sm" className="font-medium">
               AI Analysis
+            </Button>
+          </Link>
+          <Link to="/profit-guard">
+            <Button variant="ghost" size="sm" className="font-medium gap-2">
+              <Shield className="h-4 w-4" />
+              ProfitGuard
             </Button>
           </Link>
         </div>

@@ -155,6 +155,60 @@ export type Database = {
         }
         Relationships: []
       }
+      profit_guard_positions: {
+        Row: {
+          ai_enabled: boolean
+          coin_id: string
+          coin_image: string | null
+          coin_name: string
+          coin_symbol: string
+          created_at: string
+          current_price: number
+          entry_price: number
+          id: string
+          last_notification_at: string | null
+          profit_levels: Json
+          quantity: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_enabled?: boolean
+          coin_id: string
+          coin_image?: string | null
+          coin_name: string
+          coin_symbol: string
+          created_at?: string
+          current_price: number
+          entry_price: number
+          id?: string
+          last_notification_at?: string | null
+          profit_levels?: Json
+          quantity: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_enabled?: boolean
+          coin_id?: string
+          coin_image?: string | null
+          coin_name?: string
+          coin_symbol?: string
+          created_at?: string
+          current_price?: number
+          entry_price?: number
+          id?: string
+          last_notification_at?: string | null
+          profit_levels?: Json
+          quantity?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
