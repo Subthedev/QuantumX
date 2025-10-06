@@ -1,8 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, TrendingUp, ArrowRight, AlertCircle } from "lucide-react";
+import { Shield, TrendingUp, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 
 interface Holding {
   id: string;
@@ -22,6 +26,8 @@ interface ProfitGuardRecommendationsProps {
 
 export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendationsProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isActivating, setIsActivating] = useState(false);
 
   // Find holdings with significant profits (>15%)
   const profitableHoldings = holdings
@@ -32,6 +38,100 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
   if (profitableHoldings.length === 0) {
     return null;
   }
+
+  const handleActivateAll = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to activate ProfitGuards",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsActivating(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      toast({
+        title: "Activating ProfitGuards",
+        description: `Creating ${profitableHoldings.length} AI-powered profit guards...`,
+      });
+
+      // Create profit guards for each holding
+      for (const holding of profitableHoldings) {
+        try {
+          // Call AI analysis
+          const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+            "profit-guard-analysis",
+            {
+              body: {
+                coinId: holding.coin_id,
+                coinSymbol: holding.coin_symbol,
+                entryPrice: holding.purchase_price,
+                timeframe: "medium-term",
+                investmentPeriod: 30,
+              },
+            }
+          );
+
+          if (analysisError) throw analysisError;
+
+          // Create position
+          const { error: insertError } = await supabase.from("profit_guard_positions").insert({
+            user_id: user.id,
+            coin_id: holding.coin_id,
+            coin_symbol: holding.coin_symbol.toUpperCase(),
+            coin_name: holding.coin_name,
+            coin_image: holding.coin_image,
+            entry_price: holding.purchase_price,
+            current_price: holding.current_price || holding.purchase_price,
+            quantity: holding.quantity,
+            timeframe: "medium-term",
+            investment_period: 30,
+            profit_levels: analysisData.profit_levels,
+            ai_analysis: analysisData.analysis,
+            status: "active",
+          });
+
+          if (insertError) throw insertError;
+          successCount++;
+        } catch (error) {
+          console.error(`Error creating guard for ${holding.coin_symbol}:`, error);
+          failCount++;
+        }
+      }
+
+      // Show final result
+      if (successCount > 0) {
+        toast({
+          title: "ProfitGuards Activated! 🛡️",
+          description: `Successfully created ${successCount} AI-powered profit guard${successCount > 1 ? 's' : ''}${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+        });
+        
+        // Navigate to profit guard page after short delay
+        setTimeout(() => {
+          navigate("/profit-guard");
+        }, 1500);
+      } else {
+        toast({
+          title: "Activation Failed",
+          description: "Could not create any profit guards. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error activating guards:", error);
+      toast({
+        title: "Error",
+        description: "Failed to activate profit guards. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-background">
@@ -94,12 +194,22 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
           </p>
         </div>
         <Button
-          onClick={() => navigate("/profit-guard")}
+          onClick={handleActivateAll}
           className="w-full mt-4 gap-2"
           variant="default"
+          disabled={isActivating}
         >
-          <Shield className="h-4 w-4" />
-          Activate AI ProfitGuards
+          {isActivating ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Activating {profitableHoldings.length} Guard{profitableHoldings.length > 1 ? 's' : ''}...
+            </>
+          ) : (
+            <>
+              <Shield className="h-4 w-4" />
+              Activate AI ProfitGuards ({profitableHoldings.length})
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>
