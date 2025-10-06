@@ -4,10 +4,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { AppHeader } from '@/components/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import Titan10Section from '@/components/Titan10Section';
+import { Button } from '@/components/ui/button';
 import CryptoTable from '@/components/CryptoTable';
 import { supabase } from '@/integrations/supabase/client';
-import { TrendingUp, BarChart3, Brain, Clock } from 'lucide-react';
+import { TrendingUp, BarChart3, Brain, Clock, Crown, ArrowRight, DollarSign, Target } from 'lucide-react';
 
 interface CryptoReportData {
   coin_symbol: string;
@@ -123,9 +123,119 @@ const Landing = () => {
           </Card>
         </div>
 
-        {/* Titan 10 Section */}
+        {/* Titan 10 Section with Updated Picks */}
         <div className="mb-8">
-          <Titan10Section />
+          <div className="space-y-6">
+            {/* Professional Hero Section */}
+            <div className="rounded-xl bg-card border border-border p-6">
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-primary/10 rounded-lg">
+                      <Crown className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-foreground">
+                        IgniteX Titan 10
+                      </h2>
+                      <p className="text-sm text-muted-foreground">Expert-Curated Portfolio for 2025 Bull Run</p>
+                    </div>
+                  </div>
+                  
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    EXCLUSIVE
+                  </Badge>
+                </div>
+                
+                {/* Key Metrics - Clean Professional Grid */}
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="border-border bg-background">
+                    <CardHeader className="pb-3">
+                      <CardDescription className="text-xs">Avg. Returns</CardDescription>
+                      <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
+                        <TrendingUp className="h-4 w-4" />
+                        8,763%
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                  
+                  <Card className="border-border bg-background">
+                    <CardHeader className="pb-3">
+                      <CardDescription className="text-xs">Total Volume</CardDescription>
+                      <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
+                        <DollarSign className="h-4 w-4" />
+                        $2.8M
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                  
+                  <Card className="border-border bg-background">
+                    <CardHeader className="pb-3">
+                      <CardDescription className="text-xs">Hit Rate</CardDescription>
+                      <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
+                        <Target className="h-4 w-4" />
+                        87%
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
+                
+                {/* Latest Picks by IgniteX Team */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* RWA Pick */}
+                  <Card className="border-blue-500/20 bg-blue-500/5">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs font-semibold text-blue-500 border-blue-500/50">
+                            💎 RWA PICK
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">Latest Pick</Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">Hedera (HBAR)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Real World Asset tokenization leader • Entry $0.05 • <span className="font-medium text-foreground">+4,900% potential</span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* MEME Pick */}
+                  <Card className="border-purple-500/20 bg-purple-500/5">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs font-semibold text-purple-500 border-purple-500/50">
+                            🚀 MEME PICK
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">Latest Pick</Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">Hyperliquid (HYPE)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Next-gen DeFi platform • Entry $8 • <span className="font-medium text-foreground">+962% potential</span>
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* CTA */}
+                <Button 
+                  onClick={() => navigate('/titan10')} 
+                  size="lg" 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  View Complete Titan 10 Portfolio
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+                
+                <p className="text-xs text-center text-muted-foreground">
+                  Limited access • 8 more coins available • Instant unlock for members
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Main Crypto Table */}
