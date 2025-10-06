@@ -123,9 +123,28 @@ const AIAnalysis = () => {
 
       if (error) throw error;
 
+      console.log('Raw API response:', data);
+      console.log('Structured analysis:', data.structuredAnalysis);
+
+      // Ensure key_insights is always an array
+      const structuredAnalysis = {
+        ...data.structuredAnalysis,
+        key_insights: Array.isArray(data.structuredAnalysis?.key_insights) 
+          ? data.structuredAnalysis.key_insights 
+          : [],
+        actionable_recommendations: Array.isArray(data.structuredAnalysis?.actionable_recommendations)
+          ? data.structuredAnalysis.actionable_recommendations
+          : [],
+        risk_assessment: data.structuredAnalysis?.risk_assessment || null,
+        price_targets: data.structuredAnalysis?.price_targets || null,
+        data_sources: Array.isArray(data.structuredAnalysis?.data_sources)
+          ? data.structuredAnalysis.data_sources
+          : []
+      };
+
       setAnalysisResult({
         type: selectedAnalysis,
-        structuredAnalysis: data.structuredAnalysis,
+        structuredAnalysis,
         timestamp: data.timestamp,
         confidence: data.confidence,
         metrics: data.metrics,
@@ -320,63 +339,69 @@ const AIAnalysis = () => {
         )}
 
         {/* Key Insights */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              Key Insights
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {structuredAnalysis.key_insights.map((insight, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold flex-shrink-0">
-                    {idx + 1}
+        {structuredAnalysis.key_insights && structuredAnalysis.key_insights.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                Key Insights
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {structuredAnalysis.key_insights.map((insight, idx) => (
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold flex-shrink-0">
+                      {idx + 1}
+                    </div>
+                    <p className="leading-relaxed">{insight}</p>
                   </div>
-                  <p className="leading-relaxed">{insight}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actionable Recommendations */}
-        <Card className="border-2 border-primary/30 shadow-glow">
-          <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Actionable Recommendations
-            </CardTitle>
-            <CardDescription>
-              Specific actions to consider based on this analysis
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {structuredAnalysis.actionable_recommendations.map((rec, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-4 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent hover:border-primary/40 transition-all">
-                  <ArrowUpRight className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <p className="font-medium">{rec}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {structuredAnalysis.actionable_recommendations && structuredAnalysis.actionable_recommendations.length > 0 && (
+          <Card className="border-2 border-primary/30 shadow-glow">
+            <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5">
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                Actionable Recommendations
+              </CardTitle>
+              <CardDescription>
+                Specific actions to consider based on this analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {structuredAnalysis.actionable_recommendations.map((rec, idx) => (
+                  <div key={idx} className="flex items-start gap-3 p-4 rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-transparent hover:border-primary/40 transition-all">
+                    <ArrowUpRight className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="font-medium">{rec}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Detailed Analysis */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Detailed Analysis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              <div className="whitespace-pre-wrap leading-relaxed text-sm">
-                {structuredAnalysis.detailed_analysis}
+        {structuredAnalysis.detailed_analysis && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Detailed Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                  {structuredAnalysis.detailed_analysis}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics */}
         {metrics && Object.keys(metrics).length > 0 && (
@@ -400,7 +425,7 @@ const AIAnalysis = () => {
         )}
 
         {/* Data Sources */}
-        {structuredAnalysis.data_sources && structuredAnalysis.data_sources.length > 0 && (
+        {structuredAnalysis.data_sources && Array.isArray(structuredAnalysis.data_sources) && structuredAnalysis.data_sources.length > 0 && (
           <Card className="bg-muted/30">
             <CardHeader>
               <CardTitle className="text-sm">Data Sources</CardTitle>

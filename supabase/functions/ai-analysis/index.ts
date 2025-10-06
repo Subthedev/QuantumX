@@ -286,11 +286,27 @@ ACTIONABLE OUTLOOK:
     const data = await response.json();
     const toolUse = data.content.find((c: any) => c.type === 'tool_use');
     
+    console.log('Claude API full response:', JSON.stringify(data, null, 2));
+    console.log('Tool use content:', JSON.stringify(toolUse, null, 2));
+    
     if (!toolUse || !toolUse.input) {
+      console.error('No tool use found in response. Content:', data.content);
       throw new Error('No structured output received from AI');
     }
 
     const structuredAnalysis = toolUse.input;
+    
+    console.log('Extracted structured analysis:', JSON.stringify(structuredAnalysis, null, 2));
+    
+    // Validate that required fields are arrays
+    if (!Array.isArray(structuredAnalysis.key_insights)) {
+      console.warn('key_insights is not an array:', structuredAnalysis.key_insights);
+      structuredAnalysis.key_insights = [];
+    }
+    if (!Array.isArray(structuredAnalysis.actionable_recommendations)) {
+      console.warn('actionable_recommendations is not an array:', structuredAnalysis.actionable_recommendations);
+      structuredAnalysis.actionable_recommendations = [];
+    }
 
     // Calculate confidence based on data quality and market conditions
     let confidence = 75;
