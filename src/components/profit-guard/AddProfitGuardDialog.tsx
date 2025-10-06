@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Zap, X, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cryptoDataService } from "@/services/cryptoDataService";
@@ -37,6 +38,7 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
   const [quantity, setQuantity] = useState("");
   const [timeframe, setTimeframe] = useState<"short-term" | "medium-term" | "long-term">("medium-term");
   const [investmentPeriod, setInvestmentPeriod] = useState("30");
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -191,26 +193,32 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
               placeholder="Search top 100 coins..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setShowDropdown(true)}
             />
-            {searchQuery && (
-              <Card className="max-h-64 overflow-y-auto">
-                {filteredCoins.slice(0, 100).map((coin) => (
-                  <button
-                    key={coin.id}
-                    onClick={() => {
-                      setSelectedCoin(coin);
-                      setSearchQuery("");
-                    }}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors border-b last:border-b-0"
-                  >
-                    <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" />
-                    <div className="text-left flex-1">
-                      <div className="font-semibold">{coin.name}</div>
-                      <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
-                    </div>
-                    <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
-                  </button>
-                ))}
+            {(showDropdown || searchQuery) && !selectedCoin && (
+              <Card className="absolute z-50 w-[calc(100%-3rem)] bg-background border shadow-lg">
+                <ScrollArea className="h-[300px]">
+                  <div className="p-1">
+                    {filteredCoins.slice(0, 100).map((coin) => (
+                      <button
+                        key={coin.id}
+                        onClick={() => {
+                          setSelectedCoin(coin);
+                          setSearchQuery("");
+                          setShowDropdown(false);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-accent transition-colors rounded-md"
+                      >
+                        <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" />
+                        <div className="text-left flex-1">
+                          <div className="font-semibold">{coin.name}</div>
+                          <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
+                        </div>
+                        <div className="text-sm font-medium">${coin.current_price.toLocaleString()}</div>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
               </Card>
             )}
             {selectedCoin && (
