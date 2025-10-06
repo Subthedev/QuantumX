@@ -420,7 +420,7 @@ export default function Titan10() {
                             <p className="text-xs text-muted-foreground">{coin.name}</p>
                             {coin.category === 'RWA PICK' && (
                               <Badge className="mt-1 bg-blue-500/10 text-blue-500 border-0 text-[9px] px-1.5 py-0">
-                                RWA PICK
+                                Latest RWA Pick
                               </Badge>
                             )}
                             {coin.category === 'MEME PICK' && (
