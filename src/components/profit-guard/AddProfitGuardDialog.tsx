@@ -121,8 +121,12 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
 
       setAnalyzing(false);
 
+      // Temporary placeholder user_id until authentication is re-implemented
+      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+
       // Create position with AI-generated profit levels
       const { error } = await supabase.from("profit_guard_positions").insert({
+        user_id: placeholderUserId,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol.toUpperCase(),
         coin_name: selectedCoin.name,

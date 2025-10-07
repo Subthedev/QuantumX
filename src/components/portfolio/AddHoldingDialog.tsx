@@ -64,7 +64,11 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
 
     setLoading(true);
     try {
+      // Temporary placeholder user_id until authentication is re-implemented
+      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+      
       const { error } = await supabase.from('portfolio_holdings').insert({
+        user_id: placeholderUserId,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol,
         coin_name: selectedCoin.name,

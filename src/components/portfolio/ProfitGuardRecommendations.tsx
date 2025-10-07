@@ -67,8 +67,12 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
 
           if (analysisError) throw analysisError;
 
+          // Temporary placeholder user_id until authentication is re-implemented
+          const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+
           // Create position
           const { error: insertError } = await supabase.from("profit_guard_positions").insert({
+            user_id: placeholderUserId,
             coin_id: holding.coin_id,
             coin_symbol: holding.coin_symbol.toUpperCase(),
             coin_name: holding.coin_name,
