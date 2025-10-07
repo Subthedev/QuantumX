@@ -52,15 +52,10 @@ const Landing = () => {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(false);
-      await Promise.all([
-        fetchExistingReports(),
-        fetchTotalReportsCount()
-      ]);
-    };
-
-    loadData();
+    Promise.all([
+      fetchExistingReports(),
+      fetchTotalReportsCount()
+    ]);
   }, [fetchExistingReports, fetchTotalReportsCount]);
 
   useEffect(() => {
@@ -87,54 +82,53 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       <AppHeader />
       
-      <main className="container mx-auto px-4 py-8">
-        {/* Market Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-7xl">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Card>
-            <CardHeader className="pb-3">
-              <CardDescription className="text-xs">Global Market Cap</CardDescription>
-              <CardTitle className="text-2xl">$2.8T</CardTitle>
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardDescription className="text-xs">Market Cap</CardDescription>
+              <CardTitle className="text-lg sm:text-2xl">$2.8T</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-3">
               <div className="flex items-center text-xs text-green-600">
                 <TrendingUp className="h-3 w-3 mr-1" />
-                +2.4% (24h)
+                +2.4%
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardDescription className="text-xs">24h Volume</CardDescription>
-              <CardTitle className="text-2xl">$156B</CardTitle>
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardDescription className="text-xs">Volume</CardDescription>
+              <CardTitle className="text-lg sm:text-2xl">$156B</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-3">
               <div className="flex items-center text-xs text-muted-foreground">
                 <BarChart3 className="h-3 w-3 mr-1" />
-                Moderate
+                24h
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardDescription className="text-xs">AI Reports</CardDescription>
-              <CardTitle className="text-2xl">{totalReports}</CardTitle>
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardDescription className="text-xs">Reports</CardDescription>
+              <CardTitle className="text-lg sm:text-2xl">{totalReports}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-3">
               <div className="flex items-center text-xs text-muted-foreground">
                 <Brain className="h-3 w-3 mr-1" />
-                Generated
+                AI
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardDescription className="text-xs">BTC Dominance</CardDescription>
-              <CardTitle className="text-2xl">54.3%</CardTitle>
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardDescription className="text-xs">BTC Dom</CardDescription>
+              <CardTitle className="text-lg sm:text-2xl">54.3%</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-3">
               <div className="flex items-center text-xs text-muted-foreground">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 Stable
@@ -143,71 +137,66 @@ const Landing = () => {
           </Card>
         </div>
 
-        {/* Titan 10 Section with Updated Picks */}
-        <div className="mb-8">
-          <div className="space-y-6">
-            {/* Professional Hero Section */}
-            <div className="rounded-xl bg-card border border-border p-6">
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-primary/10 rounded-lg">
-                      <Crown className="w-5 h-5 text-primary" />
+        <div className="mb-6 sm:mb-8">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="rounded-xl bg-card border border-border p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-2.5 bg-primary/10 rounded-lg flex-shrink-0">
+                      <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-foreground">
+                      <h2 className="text-lg sm:text-xl font-bold text-foreground">
                         IgniteX Titan 10
                       </h2>
-                      <p className="text-sm text-muted-foreground">Expert-Curated Portfolio for 2025 Bull Run</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Expert Portfolio 2025</p>
                     </div>
                   </div>
-                  
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 w-fit">
                     EXCLUSIVE
                   </Badge>
                 </div>
                 
-                {/* Key Metrics - Clean Professional Grid */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
                   <Card className="border-border bg-background">
-                    <CardHeader className="pb-3">
-                      <CardDescription className="text-xs">Avg. Returns</CardDescription>
-                      <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
-                        <TrendingUp className="h-4 w-4" />
-                        23,879%
+                    <CardHeader className="pb-2 sm:pb-3 space-y-0">
+                      <CardDescription className="text-[10px] sm:text-xs">Returns</CardDescription>
+                      <CardTitle className="text-sm sm:text-xl lg:text-2xl flex items-center gap-1 text-primary">
+                        <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">23,879%</span>
+                        <span className="sm:hidden">24K%</span>
                       </CardTitle>
                     </CardHeader>
                   </Card>
                   
                   <Card className="border-border bg-background">
-                    <CardHeader className="pb-3">
-                      <CardDescription className="text-xs">Total Volume</CardDescription>
-                      <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
-                        <DollarSign className="h-4 w-4" />
+                    <CardHeader className="pb-2 sm:pb-3 space-y-0">
+                      <CardDescription className="text-[10px] sm:text-xs">Volume</CardDescription>
+                      <CardTitle className="text-sm sm:text-xl lg:text-2xl flex items-center gap-1 text-primary">
+                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4" />
                         $2.8M
                       </CardTitle>
                     </CardHeader>
                   </Card>
                   
                   <Card className="border-border bg-background">
-                    <CardHeader className="pb-3">
-                      <CardDescription className="text-xs">Hit Rate</CardDescription>
-                      <CardTitle className="text-2xl flex items-center gap-1.5 text-primary">
-                        <Target className="h-4 w-4" />
+                    <CardHeader className="pb-2 sm:pb-3 space-y-0">
+                      <CardDescription className="text-[10px] sm:text-xs">Hit Rate</CardDescription>
+                      <CardTitle className="text-sm sm:text-xl lg:text-2xl flex items-center gap-1 text-primary">
+                        <Target className="h-3 w-3 sm:h-4 sm:w-4" />
                         87%
                       </CardTitle>
                     </CardHeader>
                   </Card>
                 </div>
                 
-                {/* Latest Picks by IgniteX Team */}
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground">🔓 Get Access to Our Latest Picks for 2025</p>
+                    <p className="text-[11px] sm:text-xs text-muted-foreground">🔓 Latest Picks for 2025</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {/* RWA Pick */}
                     <Card className="border-blue-500/20 bg-blue-500/5">
                       <CardContent className="p-4">
@@ -268,32 +257,31 @@ const Landing = () => {
                   </div>
                 </div>
                 
-                {/* CTA */}
                 <Button 
                   onClick={() => navigate('/titan10')} 
                   size="lg" 
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm sm:text-base"
                 >
-                  View Complete Titan 10 Portfolio
+                  <span className="hidden sm:inline">View Complete Titan 10 Portfolio</span>
+                  <span className="sm:hidden">View Titan 10</span>
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
                 
-                <p className="text-xs text-center text-muted-foreground">
-                  Get instant access to 2 exclusive picks • 8 more coins available for members
+                <p className="text-[10px] sm:text-xs text-center text-muted-foreground">
+                  2 exclusive picks • 8 more for members
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Crypto Table */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle>Market Overview</CardTitle>
-              <CardDescription>Real-time cryptocurrency prices and analytics</CardDescription>
+            <CardHeader className="px-3 sm:px-6 py-4 sm:py-6">
+              <CardTitle className="text-lg sm:text-xl">Market Overview</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Real-time prices and analytics</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <CryptoTable />
             </CardContent>
           </Card>
