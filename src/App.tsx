@@ -5,11 +5,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthProvider } from "@/hooks/useAuth";
 
 // Lazy load all pages for better performance
 const Landing = lazy(() => import("./pages/Landing"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const About = lazy(() => import("./pages/About"));
+const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
@@ -50,25 +52,28 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/terms-of-service" element={<TermsOfService />} />
-            <Route path="/cookie-policy" element={<CookiePolicy />} />
-            <Route path="/disclaimer" element={<Disclaimer />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/titan10" element={<Titan10 />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/ai-analysis" element={<AIAnalysis />} />
-            <Route path="/profit-guard" element={<ProfitGuard />} />
-            <Route path="/calculator" element={<Calculator />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/cookie-policy" element={<CookiePolicy />} />
+              <Route path="/disclaimer" element={<Disclaimer />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/titan10" element={<Titan10 />} />
+              <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/ai-analysis" element={<AIAnalysis />} />
+              <Route path="/profit-guard" element={<ProfitGuard />} />
+              <Route path="/calculator" element={<Calculator />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

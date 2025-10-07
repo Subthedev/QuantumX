@@ -246,10 +246,9 @@ const CryptoReport = ({ coin, icon, name, existingReport }: CryptoReportProps) =
       }
 
       setReport(data);
-      const creditMessage = isTester ? '(Tester - No credits consumed)' : '(Credit consumed)';
       toast({
         title: "Report Generated",
-        description: `Professional analysis for ${name} has been created successfully. ${creditMessage}`
+        description: `Professional analysis for ${name} has been created successfully.`
       });
     } catch (error: any) {
       console.error('Report generation error:', error);
