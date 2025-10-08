@@ -10,7 +10,6 @@ import { AppHeader } from '@/components/AppHeader';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { MarketIndices } from '@/components/MarketIndices';
 
 interface CryptoReportData {
   id: string;
@@ -166,9 +165,6 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Market Sentiment Indices */}
-        <MarketIndices />
 
         {/* Titan 10 Section - Premium Feature */}
         <Titan10Section />
