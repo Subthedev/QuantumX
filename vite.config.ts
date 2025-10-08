@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => ({
     minify: 'esbuild',
     sourcemap: false,
     cssCodeSplit: true,
+    cssMinify: true,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -50,14 +51,24 @@ export default defineConfig(({ mode }) => ({
         },
         assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js'
+        entryFileNames: 'assets/[name]-[hash].js',
+        inlineDynamicImports: false
       }
-    }
+    },
+    chunkSizeWarningLimit: 500
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom']
   },
   css: {
-    devSourcemap: false
+    devSourcemap: false,
+    modules: {
+      localsConvention: 'camelCase'
+    }
+  },
+  experimental: {
+    renderBuiltUrl(filename) {
+      return { relative: true };
+    }
   },
 }));
