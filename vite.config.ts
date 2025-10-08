@@ -61,14 +61,6 @@ export default defineConfig(({ mode }) => ({
     include: ['react', 'react-dom', 'react-router-dom']
   },
   css: {
-    devSourcemap: false,
-    modules: {
-      localsConvention: 'camelCase'
-    }
-  },
-  experimental: {
-    renderBuiltUrl(filename) {
-      return { relative: true };
-    }
+    devSourcemap: false
   },
 }));
