@@ -6,20 +6,26 @@
 /* Optimize font loading */
 @font-face {
   font-family: 'Inter';
-  font-display: swap;
+  font-display: optional;
   src: local('Inter');
 }
 
-/* Reduce motion for accessibility and performance */
+/* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  * {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
+}
+
+/* Optimize rendering */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img, video {
+  content-visibility: auto;
 }
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
