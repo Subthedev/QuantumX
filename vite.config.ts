@@ -9,7 +9,10 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(),
+    react({
+      jsxRuntime: 'automatic',
+      jsxImportSource: 'react'
+    }),
     mode === 'development' && componentTagger()
   ].filter(Boolean),
   resolve: {
@@ -20,7 +23,15 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2020',
     minify: 'esbuild',
-    sourcemap: false
+    sourcemap: false,
+    cssMinify: 'lightningcss',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom']
+        }
+      }
+    }
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom']
