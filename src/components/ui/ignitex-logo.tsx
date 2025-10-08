@@ -1,5 +1,5 @@
 import React from 'react';
-import logoImage from '@/assets/ignitex-logo.png';
+import logoImage from '@/assets/ignitex-logo.svg';
 
 interface IgniteXLogoProps {
   className?: string;
