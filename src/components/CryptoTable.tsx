@@ -59,16 +59,16 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   return (
     <>
       <div className="w-full overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[600px] sm:min-w-full">
             <thead className="bg-muted/30 border-b">
               <tr className="text-[10px] sm:text-xs font-medium text-muted-foreground">
-                <th className="text-center p-2 sm:p-3">#</th>
-                <th className="text-left p-2 sm:p-3 min-w-[140px] sm:min-w-[200px]">Name</th>
-                <th className="text-right p-2 sm:p-3 min-w-[80px] sm:min-w-[100px]">Price</th>
-                <th className="text-right p-2 sm:p-3 min-w-[60px] sm:min-w-[80px]">24h</th>
-                <th className="text-right p-2 sm:p-3 min-w-[80px] hidden lg:table-cell">Market Cap</th>
-                <th className="text-center p-2 sm:p-3 min-w-[60px]">Info</th>
+                <th className="text-center p-2 sm:p-3 w-8">#</th>
+                <th className="text-left p-2 sm:p-3">Name</th>
+                <th className="text-right p-2 sm:p-3">Price</th>
+                <th className="text-right p-2 sm:p-3">24h</th>
+                <th className="text-right p-2 sm:p-3 hidden lg:table-cell">Market Cap</th>
+                <th className="text-center p-2 sm:p-3 w-12">Info</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -80,19 +80,19 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                     </span>
                   </td>
                   <td className="p-2 sm:p-3">
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2">
                       <img 
                         src={crypto.image} 
                         alt={crypto.name} 
-                        width="40"
-                        height="40"
-                        className="w-7 h-7 sm:w-10 sm:h-10 rounded-full object-cover" 
+                        width="32"
+                        height="32"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0" 
                         loading="lazy"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
-                      <div className="min-w-0">
+                      <div className="min-w-0 max-w-[120px] sm:max-w-none">
                         <div className="font-semibold text-xs sm:text-sm truncate">{crypto.name}</div>
-                        <div className="text-[10px] sm:text-xs text-muted-foreground uppercase">{crypto.symbol}</div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground uppercase truncate">{crypto.symbol}</div>
                       </div>
                     </div>
                   </td>
