@@ -23,16 +23,16 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
     try {
       const data = await cryptoDataService.getTopCryptos(100);
       setCryptos(data);
+      setLoading(false);
     } catch (error) {
       toast.error('Failed to load data');
-    } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadCryptoData();
-    const interval = setInterval(loadCryptoData, 60000);
+    const interval = setInterval(loadCryptoData, 300000);
     return () => clearInterval(interval);
   }, [loadCryptoData]);
   const handleViewDetails = useCallback((crypto: CryptoData) => {

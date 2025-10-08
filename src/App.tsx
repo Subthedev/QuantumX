@@ -25,14 +25,16 @@ const ProfitGuard = lazy(() => import("./pages/ProfitGuard"));
 const Calculator = lazy(() => import("./pages/Calculator"));
 const MarketSentiment = lazy(() => import("./pages/MarketSentiment"));
 
-// Optimize React Query with better defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000, // 1 minute
-      gcTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       retry: 1,
+      retryDelay: 1000,
+      networkMode: 'online'
     },
   },
 });

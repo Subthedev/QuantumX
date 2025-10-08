@@ -33,8 +33,9 @@ export interface CryptoData {
 
 class CryptoDataService {
   private cache: Map<string, { data: CryptoData[], timestamp: number }> = new Map();
-  private CACHE_DURATION = 60000; // 1 minute cache
+  private CACHE_DURATION = 300000; // 5 minutes cache for better performance
   private COINGECKO_API = 'https://api.coingecko.com/api/v3';
+  private requestQueue: Map<string, Promise<any>> = new Map();
 
   async getTopCryptos(limit: number = 100): Promise<CryptoData[]> {
     const cacheKey = `top-${limit}`;
@@ -44,29 +45,49 @@ class CryptoDataService {
       return cached.data;
     }
 
+    // Prevent duplicate requests
+    if (this.requestQueue.has(cacheKey)) {
+      return this.requestQueue.get(cacheKey)!;
+    }
+
+    const request = this.fetchTopCryptos(limit);
+    this.requestQueue.set(cacheKey, request);
+    
     try {
-      // Fetch more coins to account for filtered stablecoins
+      const data = await request;
+      this.requestQueue.delete(cacheKey);
+      return data;
+    } catch (error) {
+      this.requestQueue.delete(cacheKey);
+      throw error;
+    }
+  }
+
+  private async fetchTopCryptos(limit: number): Promise<CryptoData[]> {
+    try {
       const fetchLimit = limit + 20;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
       const response = await fetch(
-        `${this.COINGECKO_API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${fetchLimit}&page=1&sparkline=true&price_change_percentage=7d`
+        `${this.COINGECKO_API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${fetchLimit}&page=1&sparkline=true&price_change_percentage=7d`,
+        { signal: controller.signal }
       );
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
+        const cached = this.cache.get(`top-${limit}`);
+        if (cached) return cached.data;
         throw new Error('Failed to fetch crypto data');
       }
       
       let data: CryptoData[] = await response.json();
       
-      // Filter out USD stablecoins
       const stablecoins = ['usdt', 'usdc', 'busd', 'dai', 'tusd', 'usdp', 'gusd', 'frax', 'usdd', 'paxg', 'xaut'];
-      data = data.filter(coin => !stablecoins.includes(coin.symbol.toLowerCase()));
+      data = data.filter(coin => !stablecoins.includes(coin.symbol.toLowerCase())).slice(0, limit);
       
-      // Limit to requested amount after filtering
-      data = data.slice(0, limit);
-      
-      // Cache the data
-      this.cache.set(cacheKey, { data, timestamp: Date.now() });
-      
+      this.cache.set(`top-${limit}`, { data, timestamp: Date.now() });
       return data;
     } catch (error) {
       console.error('Error fetching crypto data:', error);
