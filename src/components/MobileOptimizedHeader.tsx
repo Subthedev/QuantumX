@@ -21,7 +21,8 @@ import {
   Shield,
   Briefcase,
   Menu,
-  User
+  User,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ const featureLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Market overview' },
   { href: '/titan10', label: 'Titan 10', icon: Crown, description: 'Expert portfolio' },
   { href: '/ai-analysis', label: 'AI Analysis', icon: Brain, description: 'Smart insights' },
+  { href: '/market-sentiment', label: 'Market Sentiment', icon: TrendingUp, description: 'Fear & Greed' },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase, description: 'Track holdings' },
   { href: '/profit-guard', label: 'ProfitGuard', icon: Shield, description: 'Protect gains' },
   { href: '/calculator', label: 'Calculator', icon: Calculator, description: 'Trading tools' },
