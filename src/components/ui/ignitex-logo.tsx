@@ -30,11 +30,11 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
   const currentSize = sizeClasses[size];
 
   return (
-    <div className={`flex items-center gap-0 ${className}`}>
+    <div className={`flex items-center -ml-2 ${className}`}>
       <img 
         src={logoImage} 
         alt="IgniteX Logo" 
-        className={`${currentSize.container} w-auto object-contain`}
+        className={`${currentSize.container} w-auto object-contain -mr-2`}
       />
       {showText && (
         <span className={`${currentSize.text} font-bold text-foreground tracking-tight`}>
