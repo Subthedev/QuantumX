@@ -4,8 +4,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/hooks/useAuth";
 
+// Lazy load all pages for better performance
 const Landing = lazy(() => import("./pages/Landing"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const About = lazy(() => import("./pages/About"));
@@ -29,14 +31,22 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      retry: 1
+      refetchOnReconnect: false,
+      retry: 1,
+      retryDelay: 1000,
+      networkMode: 'online',
+      suspense: false
     },
   },
 });
 
+// Loading fallback component
 const PageLoader = () => (
-  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ width: '32px', height: '32px', border: '2px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="space-y-4 text-center">
+      <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+      <Skeleton className="h-4 w-32 mx-auto" />
+    </div>
   </div>
 );
 
@@ -64,6 +74,7 @@ const App = () => (
               <Route path="/profit-guard" element={<ProfitGuard />} />
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/market-sentiment" element={<MarketSentiment />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

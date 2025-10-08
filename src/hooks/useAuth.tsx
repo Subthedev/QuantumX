@@ -20,18 +20,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  if (!supabase) {
+    console.error('Supabase client not initialized');
+    return <>{children}</>;
+  }
+
   useEffect(() => {
     let mounted = true;
     
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth init error:', error);
+        if (mounted) setLoading(false);
       }
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
+    };
+
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -49,9 +60,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
     const { error } = await supabase.auth.signUp({
       email,
-      password
+      password,
+      options: {
+        emailRedirectTo: redirectUrl
+      }
     });
     return { error };
   };
