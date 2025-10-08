@@ -14,15 +14,15 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
 }) => {
   const sizeClasses = {
     sm: {
-      container: 'h-8',
+      container: 'h-12',
       text: 'text-xl'
     },
     md: {
-      container: 'h-10',
+      container: 'h-[3.75rem]',
       text: 'text-2xl'
     },
     lg: {
-      container: 'h-12',
+      container: 'h-[4.5rem]',
       text: 'text-3xl'
     }
   };
@@ -30,7 +30,7 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
   const currentSize = sizeClasses[size];
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-1 ${className}`}>
       <img 
         src={logoImage} 
         alt="IgniteX Logo" 
