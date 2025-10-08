@@ -20,12 +20,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  if (!supabase) {
-    console.error('Supabase client not initialized');
-    return <>{children}</>;
-  }
-
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     
     const initAuth = async () => {
