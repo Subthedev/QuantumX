@@ -471,8 +471,9 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
                     </CardHeader>
                     <CardContent>
                       <div className="prose prose-sm max-w-none">
-                        <p className="text-sm text-muted-foreground leading-relaxed" 
-                           dangerouslySetInnerHTML={{ __html: detailedData.description.en }} />
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {detailedData.description.en.replace(/<[^>]*>/g, '')}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
