@@ -34,7 +34,8 @@ const queryClient = new QueryClient({
       refetchOnReconnect: false,
       retry: 1,
       retryDelay: 1000,
-      networkMode: 'online'
+      networkMode: 'online',
+      suspense: false
     },
   },
 });
