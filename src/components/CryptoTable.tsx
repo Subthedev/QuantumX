@@ -25,7 +25,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
       setCryptos(data);
       setLoading(false);
     } catch (error) {
-      toast.error('Failed to load data');
+      console.error('Failed to load crypto data:', error);
       setLoading(false);
     }
   }, []);
@@ -84,8 +84,11 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                       <img 
                         src={crypto.image} 
                         alt={crypto.name} 
-                        className="w-7 h-7 sm:w-10 sm:h-10 rounded-full" 
-                        loading="lazy" 
+                        width="40"
+                        height="40"
+                        className="w-7 h-7 sm:w-10 sm:h-10 rounded-full object-cover" 
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                       <div className="min-w-0">
                         <div className="font-semibold text-xs sm:text-sm truncate">{crypto.name}</div>
