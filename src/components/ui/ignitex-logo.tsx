@@ -30,7 +30,7 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
   const currentSize = sizeClasses[size];
 
   return (
-    <div className={`flex items-center gap-0.5 ${className}`}>
+    <div className={`flex items-center gap-0 ${className}`}>
       <img 
         src={logoImage} 
         alt="IgniteX Logo" 
