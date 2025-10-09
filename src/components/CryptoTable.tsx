@@ -42,15 +42,18 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   if (loading) {
     return (
       <div className="space-y-0">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-center p-1.5 sm:p-4 border-b">
-            <Skeleton className="w-4 h-3 mr-1 sm:mr-4" />
-            <Skeleton className="h-6 w-6 sm:h-10 sm:w-10 rounded-full mr-1.5 sm:mr-3" />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center px-2 py-2.5 sm:p-4 border-b">
+            <Skeleton className="w-5 h-3.5 mr-2 sm:mr-4" />
+            <Skeleton className="h-7 w-7 sm:h-10 sm:w-10 rounded-full mr-2 sm:mr-3" />
             <div className="flex-1">
-              <Skeleton className="h-3 w-16 sm:w-32 mb-1" />
-              <Skeleton className="h-2 w-8 sm:w-12" />
+              <Skeleton className="h-3.5 w-20 sm:w-32 mb-1" />
+              <Skeleton className="h-2.5 w-10 sm:w-12" />
             </div>
-            <Skeleton className="h-4 w-12 sm:w-24 ml-1 sm:ml-4" />
+            <div className="text-right">
+              <Skeleton className="h-3.5 w-16 sm:w-24 mb-1 ml-auto" />
+              <Skeleton className="h-2.5 w-12 sm:w-16 ml-auto" />
+            </div>
           </div>
         ))}
       </div>
@@ -58,76 +61,132 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   }
   return (
     <>
-      <div className="w-full overflow-hidden">
-        <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="w-full min-w-full">
+      <div className="w-full">
+        {/* Mobile: Compact List View */}
+        <div className="block md:hidden">
+          {cryptos.map((crypto) => (
+            <div
+              key={crypto.id}
+              onClick={() => handleViewDetails(crypto)}
+              className="flex items-center px-2 py-2.5 border-b border-border/50 hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer"
+            >
+              {/* Rank */}
+              <div className="w-6 flex-shrink-0 text-center">
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  {crypto.market_cap_rank}
+                </span>
+              </div>
+
+              {/* Logo + Name */}
+              <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
+                <img
+                  src={crypto.image}
+                  alt={crypto.name}
+                  className="w-7 h-7 rounded-full flex-shrink-0"
+                  loading="lazy"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-[12px] leading-tight truncate">
+                    {crypto.name}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase truncate">
+                    {crypto.symbol}
+                  </div>
+                </div>
+              </div>
+
+              {/* Price + Change (Right aligned) */}
+              <div className="flex flex-col items-end ml-2 flex-shrink-0">
+                <div className="font-semibold text-[12px] leading-tight whitespace-nowrap">
+                  ${crypto.current_price >= 1000
+                    ? crypto.current_price.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                    : crypto.current_price >= 1
+                    ? crypto.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : crypto.current_price.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })
+                  }
+                </div>
+                <div className={cn(
+                  "text-[10px] font-semibold leading-tight mt-0.5",
+                  crypto.price_change_percentage_24h >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {crypto.price_change_percentage_24h >= 0 ? "+" : ""}
+                  {crypto.price_change_percentage_24h.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full">
             <thead className="bg-muted/30 border-b">
-              <tr className="text-[10px] sm:text-xs font-medium text-muted-foreground">
-                <th className="text-center p-1.5 sm:p-3 w-[8%] sm:w-auto">#</th>
-                <th className="text-left p-1.5 sm:p-3 w-[42%] sm:w-auto">Name</th>
-                <th className="text-right p-1.5 sm:p-3 w-[22%] sm:w-auto">Price</th>
-                <th className="text-right p-1.5 sm:p-3 w-[18%] sm:w-auto">24h</th>
-                <th className="text-right p-2 sm:p-3 hidden lg:table-cell">Market Cap</th>
-                <th className="text-center p-1.5 sm:p-3 w-[10%] sm:w-auto">Info</th>
+              <tr className="text-xs font-medium text-muted-foreground">
+                <th className="text-center p-3">#</th>
+                <th className="text-left p-3">Name</th>
+                <th className="text-right p-3">Price</th>
+                <th className="text-right p-3">24h %</th>
+                <th className="text-right p-3 hidden lg:table-cell">Market Cap</th>
+                <th className="text-center p-3">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
               {cryptos.map((crypto) => (
                 <tr key={crypto.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="p-1.5 sm:p-3 text-center">
-                    <span className="text-[10px] sm:text-sm font-semibold text-muted-foreground">
+                  <td className="p-3 text-center">
+                    <span className="text-sm font-semibold text-muted-foreground">
                       {crypto.market_cap_rank}
                     </span>
                   </td>
-                  <td className="p-1.5 sm:p-3">
-                    <div className="flex items-center gap-1.5 sm:gap-3">
+                  <td className="p-3">
+                    <div className="flex items-center gap-3">
                       <img
                         src={crypto.image}
                         alt={crypto.name}
-                        className="w-6 h-6 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
+                        className="w-10 h-10 rounded-full flex-shrink-0"
                         loading="lazy"
                       />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-[11px] sm:text-sm truncate">{crypto.name}</div>
-                        <div className="text-[9px] sm:text-xs text-muted-foreground uppercase truncate">{crypto.symbol}</div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm truncate">{crypto.name}</div>
+                        <div className="text-xs text-muted-foreground uppercase truncate">{crypto.symbol}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="p-1.5 sm:p-3 text-right">
-                    <div className="font-semibold text-[10px] sm:text-sm">
+                  <td className="p-3 text-right">
+                    <div className="font-semibold text-sm">
                       ${crypto.current_price.toLocaleString(undefined, {
-                        minimumFractionDigits: crypto.current_price >= 1 ? 0 : 2,
-                        maximumFractionDigits: crypto.current_price < 1 ? 4 : 0
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: crypto.current_price < 1 ? 6 : 2
                       })}
                     </div>
                   </td>
-                  <td className="p-1.5 sm:p-3 text-right">
+                  <td className="p-3 text-right">
                     <div className={cn(
-                      "flex items-center justify-end gap-0.5 text-[10px] sm:text-sm font-semibold",
+                      "flex items-center justify-end gap-1 text-sm font-semibold",
                       crypto.price_change_percentage_24h >= 0 ? "text-green-600" : "text-red-600"
                     )}>
                       {crypto.price_change_percentage_24h >= 0 ? (
-                        <TrendingUp className="w-2 h-2 sm:w-3 sm:h-3 hidden sm:inline" />
+                        <TrendingUp className="w-3.5 h-3.5" />
                       ) : (
-                        <TrendingDown className="w-2 h-2 sm:w-3 sm:h-3 hidden sm:inline" />
+                        <TrendingDown className="w-3.5 h-3.5" />
                       )}
-                      <span>{Math.abs(crypto.price_change_percentage_24h).toFixed(1)}%</span>
+                      <span>{Math.abs(crypto.price_change_percentage_24h).toFixed(2)}%</span>
                     </div>
                   </td>
-                  <td className="p-2 sm:p-3 text-right hidden lg:table-cell">
-                    <span className="text-xs sm:text-sm font-medium">
-                      ${cryptoDataService.formatNumber(crypto.market_cap)}
+                  <td className="p-3 text-right hidden lg:table-cell">
+                    <span className="text-sm font-medium">
+                      {cryptoDataService.formatNumber(crypto.market_cap)}
                     </span>
                   </td>
-                  <td className="p-1.5 sm:p-3">
+                  <td className="p-3">
                     <div className="flex items-center justify-center">
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => handleViewDetails(crypto)}
-                        className="h-6 w-6 sm:h-8 sm:w-8 p-0 hover:bg-muted"
+                        className="h-8 w-8 p-0 hover:bg-muted"
                       >
-                        <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Eye className="w-4 h-4" />
                       </Button>
                     </div>
                   </td>
