@@ -158,17 +158,30 @@ const MarketSentiment = () => {
 
           {/* Fear & Greed Index */}
           {indices.fearGreed && (
-            <Card className="border-2 hover:border-primary/50 transition-colors">
-              <CardHeader>
+            <Card className="border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg animate-fade-in">
+              <CardHeader className="space-y-4">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-2xl">Fear & Greed Index</CardTitle>
-                    <CardDescription className="text-base">
+                  <div className="space-y-2">
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      Fear & Greed Index
+                      <span className="text-sm font-normal text-muted-foreground">
+                        • Updated Live
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="text-base leading-relaxed">
                       {getDescription('fear-greed')}
                     </CardDescription>
                   </div>
-                  <Badge variant={getBadgeVariant(indices.fearGreed.value, 'fear-greed')} className="text-sm px-3 py-1">
-                    Live Data
+                  <Badge 
+                    variant={getBadgeVariant(indices.fearGreed.value, 'fear-greed')} 
+                    className="text-sm px-4 py-1.5 animate-pulse"
+                    style={{ 
+                      backgroundColor: `${getColorForValue(indices.fearGreed.value, 'fear-greed')}20`,
+                      color: getColorForValue(indices.fearGreed.value, 'fear-greed'),
+                      borderColor: getColorForValue(indices.fearGreed.value, 'fear-greed')
+                    }}
+                  >
+                    Live
                   </Badge>
                 </div>
               </CardHeader>
@@ -190,20 +203,34 @@ const MarketSentiment = () => {
                   )}
                 </div>
 
-                {/* Bar Chart */}
+                {/* Bar Chart with Segments */}
                 <div className="space-y-3">
-                  <div className="relative h-16 bg-muted rounded-lg overflow-hidden">
+                  <div className="relative h-16 rounded-lg overflow-hidden">
+                    {/* Background segments */}
+                    <div className="absolute inset-0 flex">
+                      <div className="w-[25%] bg-destructive/20"></div>
+                      <div className="w-[20%] bg-orange-500/20"></div>
+                      <div className="w-[10%] bg-yellow-500/20"></div>
+                      <div className="w-[20%] bg-green-500/20"></div>
+                      <div className="w-[25%] bg-primary/20"></div>
+                    </div>
+                    {/* Progress bar */}
                     <div 
-                      className="absolute left-0 top-0 h-full transition-all duration-500 ease-out flex items-center justify-end pr-4"
+                      className="absolute left-0 top-0 h-full transition-all duration-700 ease-out flex items-center justify-end pr-4 animate-fade-in"
                       style={{ 
                         width: `${indices.fearGreed.value}%`,
-                        background: `linear-gradient(to right, ${getColorForValue(indices.fearGreed.value, 'fear-greed')}, ${getColorForValue(indices.fearGreed.value, 'fear-greed')}dd)`
+                        background: `linear-gradient(90deg, ${getColorForValue(indices.fearGreed.value, 'fear-greed')}dd, ${getColorForValue(indices.fearGreed.value, 'fear-greed')})`
                       }}
                     >
                       <span className="text-white font-bold text-lg drop-shadow-lg">
                         {indices.fearGreed.value}
                       </span>
                     </div>
+                    {/* Current position indicator */}
+                    <div 
+                      className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-700"
+                      style={{ left: `${indices.fearGreed.value}%` }}
+                    ></div>
                   </div>
                   
                   {/* Scale markers */}
@@ -245,17 +272,30 @@ const MarketSentiment = () => {
 
           {/* Altcoin Season Index */}
           {indices.altcoinSeason && (
-            <Card className="border-2 hover:border-primary/50 transition-colors">
-              <CardHeader>
+            <Card className="border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg animate-fade-in">
+              <CardHeader className="space-y-4">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-2xl">Altcoin Season Index</CardTitle>
-                    <CardDescription className="text-base">
+                  <div className="space-y-2">
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      Altcoin Season Index
+                      <span className="text-sm font-normal text-muted-foreground">
+                        • Updated Live
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="text-base leading-relaxed">
                       {getDescription('altcoin')}
                     </CardDescription>
                   </div>
-                  <Badge variant={getBadgeVariant(indices.altcoinSeason.value, 'altcoin')} className="text-sm px-3 py-1">
-                    Live Data
+                  <Badge 
+                    variant={getBadgeVariant(indices.altcoinSeason.value, 'altcoin')} 
+                    className="text-sm px-4 py-1.5 animate-pulse"
+                    style={{ 
+                      backgroundColor: `${getColorForValue(indices.altcoinSeason.value, 'altcoin')}20`,
+                      color: getColorForValue(indices.altcoinSeason.value, 'altcoin'),
+                      borderColor: getColorForValue(indices.altcoinSeason.value, 'altcoin')
+                    }}
+                  >
+                    Live
                   </Badge>
                 </div>
               </CardHeader>
@@ -277,20 +317,33 @@ const MarketSentiment = () => {
                   )}
                 </div>
 
-                {/* Bar Chart */}
+                {/* Bar Chart with Segments */}
                 <div className="space-y-3">
-                  <div className="relative h-16 bg-muted rounded-lg overflow-hidden">
+                  <div className="relative h-16 rounded-lg overflow-hidden">
+                    {/* Background segments */}
+                    <div className="absolute inset-0 flex">
+                      <div className="w-[25%] bg-green-500/20"></div>
+                      <div className="w-[25%] bg-green-400/20"></div>
+                      <div className="w-[25%] bg-yellow-500/20"></div>
+                      <div className="w-[25%] bg-primary/20"></div>
+                    </div>
+                    {/* Progress bar */}
                     <div 
-                      className="absolute left-0 top-0 h-full transition-all duration-500 ease-out flex items-center justify-end pr-4"
+                      className="absolute left-0 top-0 h-full transition-all duration-700 ease-out flex items-center justify-end pr-4 animate-fade-in"
                       style={{ 
                         width: `${indices.altcoinSeason.value}%`,
-                        background: `linear-gradient(to right, ${getColorForValue(indices.altcoinSeason.value, 'altcoin')}, ${getColorForValue(indices.altcoinSeason.value, 'altcoin')}dd)`
+                        background: `linear-gradient(90deg, ${getColorForValue(indices.altcoinSeason.value, 'altcoin')}dd, ${getColorForValue(indices.altcoinSeason.value, 'altcoin')})`
                       }}
                     >
                       <span className="text-white font-bold text-lg drop-shadow-lg">
                         {indices.altcoinSeason.value}
                       </span>
                     </div>
+                    {/* Current position indicator */}
+                    <div 
+                      className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-700"
+                      style={{ left: `${indices.altcoinSeason.value}%` }}
+                    ></div>
                   </div>
                   
                   {/* Scale markers */}
@@ -324,17 +377,30 @@ const MarketSentiment = () => {
 
           {/* Bitcoin Dominance */}
           {indices.btcDominance && (
-            <Card className="border-2 hover:border-primary/50 transition-colors">
-              <CardHeader>
+            <Card className="border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg animate-fade-in">
+              <CardHeader className="space-y-4">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-2xl">Bitcoin Dominance Index</CardTitle>
-                    <CardDescription className="text-base">
+                  <div className="space-y-2">
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                      Bitcoin Dominance Index
+                      <span className="text-sm font-normal text-muted-foreground">
+                        • Updated Live
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="text-base leading-relaxed">
                       {getDescription('dominance')}
                     </CardDescription>
                   </div>
-                  <Badge variant={getBadgeVariant(indices.btcDominance.value, 'dominance')} className="text-sm px-3 py-1">
-                    Live Data
+                  <Badge 
+                    variant={getBadgeVariant(indices.btcDominance.value, 'dominance')} 
+                    className="text-sm px-4 py-1.5 animate-pulse"
+                    style={{ 
+                      backgroundColor: `${getColorForValue(indices.btcDominance.value, 'dominance')}20`,
+                      color: getColorForValue(indices.btcDominance.value, 'dominance'),
+                      borderColor: getColorForValue(indices.btcDominance.value, 'dominance')
+                    }}
+                  >
+                    Live
                   </Badge>
                 </div>
               </CardHeader>
@@ -352,20 +418,33 @@ const MarketSentiment = () => {
                   <AlertCircle className="h-16 w-16" style={{ color: getColorForValue(indices.btcDominance.value, 'dominance') }} />
                 </div>
 
-                {/* Bar Chart */}
+                {/* Bar Chart with Segments */}
                 <div className="space-y-3">
-                  <div className="relative h-16 bg-muted rounded-lg overflow-hidden">
+                  <div className="relative h-16 rounded-lg overflow-hidden">
+                    {/* Background segments */}
+                    <div className="absolute inset-0 flex">
+                      <div className="w-[30%] bg-primary/20"></div>
+                      <div className="w-[25%] bg-yellow-500/20"></div>
+                      <div className="w-[20%] bg-green-400/20"></div>
+                      <div className="w-[25%] bg-green-500/20"></div>
+                    </div>
+                    {/* Progress bar */}
                     <div 
-                      className="absolute left-0 top-0 h-full transition-all duration-500 ease-out flex items-center justify-end pr-4"
+                      className="absolute left-0 top-0 h-full transition-all duration-700 ease-out flex items-center justify-end pr-4 animate-fade-in"
                       style={{ 
                         width: `${indices.btcDominance.value}%`,
-                        background: `linear-gradient(to right, ${getColorForValue(indices.btcDominance.value, 'dominance')}, ${getColorForValue(indices.btcDominance.value, 'dominance')}dd)`
+                        background: `linear-gradient(90deg, ${getColorForValue(indices.btcDominance.value, 'dominance')}dd, ${getColorForValue(indices.btcDominance.value, 'dominance')})`
                       }}
                     >
                       <span className="text-white font-bold text-lg drop-shadow-lg">
                         {indices.btcDominance.value}%
                       </span>
                     </div>
+                    {/* Current position indicator */}
+                    <div 
+                      className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-700"
+                      style={{ left: `${indices.btcDominance.value}%` }}
+                    ></div>
                   </div>
                   
                   {/* Scale markers */}

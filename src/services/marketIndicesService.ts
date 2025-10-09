@@ -49,8 +49,15 @@ class MarketIndicesService {
     }
 
     try {
-      // Blockchaincenter.net altcoin season index
-      const response = await fetch('https://api.blockchaincenter.net/v1/altcoin-season-index');
+      // Use edge function to bypass CORS
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/market-indices?index=altcoin-season`,
+        {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+        }
+      );
       const data = await response.json();
       
       const value = parseInt(data.data.value);
