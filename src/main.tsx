@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
@@ -53,9 +52,7 @@ try {
   rootElement.setAttribute('data-loading', 'true');
 
   createRoot(rootElement).render(
-    <StrictMode>
-      <App />
-    </StrictMode>
+    <App />
   );
 
   // Mark app as loaded after a brief delay
