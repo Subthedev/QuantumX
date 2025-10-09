@@ -36,14 +36,9 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     // Enable source maps for production debugging
     sourcemap: mode === 'production' ? 'hidden' : true,
-    // Minify for smaller bundles
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: mode === 'production',
-        drop_debugger: mode === 'production',
-      },
-    },
+    // Minify for smaller bundles - using esbuild (faster and built-in)
+    minify: 'esbuild',
+    target: 'es2015',
   },
   // Optimize dependencies
   optimizeDeps: {
