@@ -84,6 +84,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                   alt={crypto.name}
                   className="w-7 h-7 rounded-full flex-shrink-0"
                   loading="lazy"
+                  decoding="async"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-[12px] leading-tight truncate">
@@ -145,6 +146,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                         alt={crypto.name}
                         className="w-10 h-10 rounded-full flex-shrink-0"
                         loading="lazy"
+                        decoding="async"
                       />
                       <div className="min-w-0">
                         <div className="font-semibold text-sm truncate">{crypto.name}</div>
