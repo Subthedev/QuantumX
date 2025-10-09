@@ -34,6 +34,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 
 interface RequestBody {
   coin: string; // Now accepts any coin symbol
+  userId: string;
   timeframe?: '4H';
 }
 
@@ -44,46 +45,15 @@ serve(async (req) => {
   }
 
   try {
-    // Extract and verify JWT token
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create authenticated Supabase client
-    const supabaseClient = createClient(
-      supabaseUrl!,
-      supabaseServiceKey!,
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
-    );
-
-    // Get authenticated user from JWT
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { coin, timeframe }: RequestBody = await req.json();
+    const { coin, userId, timeframe }: RequestBody = await req.json();
 
     const tf = timeframe || '4H';
 
     // Validate input - coin symbol should be uppercase and not empty
     const coinSymbol = coin?.toUpperCase();
-    if (!coinSymbol || coinSymbol.length === 0 || coinSymbol.length > 10) {
+    if (!coinSymbol || !userId || coinSymbol.length === 0 || coinSymbol.length > 10) {
       return new Response(
-        JSON.stringify({ error: 'Invalid coin symbol' }),
+        JSON.stringify({ error: 'Invalid coin symbol or userId' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -91,7 +61,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Generating comprehensive report for ${coinSymbol} for user ${user.id}`);
+    console.log(`Generating comprehensive report for ${coinSymbol} for user ${userId}`);
 
     // Create a timeout promise (25 seconds to leave buffer for response)
     const timeoutPromise = new Promise((_, reject) => {
@@ -104,11 +74,11 @@ serve(async (req) => {
       timeoutPromise
     ]) as any;
 
-    // Save the report to the database using verified user ID from JWT
+    // Save the report to the database
     const { data: report, error: insertError } = await supabase
       .from('crypto_reports')
       .insert({
-        user_id: user.id, // Use verified user ID from JWT token
+        user_id: userId,
         coin_symbol: coinSymbol,
         prediction_summary: prediction.summary,
         confidence_score: prediction.confidence, // This is now a number

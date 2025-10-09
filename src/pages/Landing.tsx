@@ -52,20 +52,10 @@ const Landing = () => {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          fetchExistingReports(),
-          fetchTotalReportsCount()
-        ]);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadData();
+    Promise.all([
+      fetchExistingReports(),
+      fetchTotalReportsCount()
+    ]);
   }, [fetchExistingReports, fetchTotalReportsCount]);
 
   useEffect(() => {
