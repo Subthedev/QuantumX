@@ -79,10 +79,10 @@ const Landing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
       <AppHeader />
       
-      <main className="flex-1 container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-7xl w-full">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-7xl">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Card>
             <CardHeader className="pb-2 sm:pb-3">
