@@ -88,13 +88,11 @@
     </svg>
     
     <script>
-      // Hide inline logo once React component is ready
-      window.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() {
-          var logo = document.getElementById('critical-logo');
-          if (logo) logo.className = 'critical-logo-hide';
-        }, 100);
-      });
+      // Hide inline logo only when React logo has loaded
+      window.hideInlineLogo = function() {
+        var logo = document.getElementById('critical-logo');
+        if (logo) logo.className = 'critical-logo-hide';
+      };
     </script>
     
     <div id="root"></div>

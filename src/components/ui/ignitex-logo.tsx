@@ -39,6 +39,11 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
         height="48"
         fetchPriority="high"
         loading="eager"
+        onLoad={() => {
+          if (typeof window !== 'undefined' && (window as any).hideInlineLogo) {
+            (window as any).hideInlineLogo();
+          }
+        }}
       />
       {showText && (
         <span className={`${currentSize.text} font-bold text-foreground tracking-tight`}>
