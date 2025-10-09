@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 
 interface Holding {
   id: string;
@@ -26,7 +25,6 @@ interface ProfitGuardRecommendationsProps {
 
 export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendationsProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [isActivating, setIsActivating] = useState(false);
 
   // Find holdings with significant profits (>15%)
@@ -40,15 +38,6 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
   }
 
   const handleActivateAll = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to activate ProfitGuards",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsActivating(true);
     let successCount = 0;
     let failCount = 0;
@@ -78,9 +67,12 @@ export function ProfitGuardRecommendations({ holdings }: ProfitGuardRecommendati
 
           if (analysisError) throw analysisError;
 
-          // Create position using authenticated user's ID
+          // Temporary placeholder user_id until authentication is re-implemented
+          const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+
+          // Create position
           const { error: insertError } = await supabase.from("profit_guard_positions").insert({
-            user_id: user.id, // Use authenticated user's ID
+            user_id: placeholderUserId,
             coin_id: holding.coin_id,
             coin_symbol: holding.coin_symbol.toUpperCase(),
             coin_name: holding.coin_name,

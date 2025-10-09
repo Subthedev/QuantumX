@@ -62,9 +62,7 @@ const AIAnalysis = () => {
   const { data: cryptos = [], isLoading: cryptosLoading } = useQuery({
     queryKey: ['top-cryptos-ai'],
     queryFn: () => cryptoDataService.getTopCryptos(100),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchInterval: false
+    refetchInterval: 60000
   });
 
   const analysisTypes = [

@@ -121,14 +121,7 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <img 
-                  src={coin.image} 
-                  alt={coin.name} 
-                  width="64" 
-                  height="64" 
-                  className="w-16 h-16 rounded-full object-cover" 
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
+                <img src={coin.image} alt={coin.name} className="w-16 h-16 rounded-full" />
                 <div>
                   <h2 className="text-2xl font-bold">{coin.name}</h2>
                   <div className="flex items-center gap-2">

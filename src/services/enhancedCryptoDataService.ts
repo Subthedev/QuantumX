@@ -1,8 +1,7 @@
 class EnhancedCryptoDataService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private CACHE_DURATION = 300000; // 5 minutes
+  private CACHE_DURATION = 60000; // 1 minute
   private COINGECKO_API = 'https://api.coingecko.com/api/v3';
-  private requestQueue: Map<string, Promise<any>> = new Map();
 
   async getDetailedMarketData(coinId: string) {
     const cacheKey = `detailed-${coinId}`;
@@ -12,36 +11,14 @@ class EnhancedCryptoDataService {
       return cached.data;
     }
 
-    if (this.requestQueue.has(cacheKey)) {
-      return this.requestQueue.get(cacheKey)!;
-    }
-
-    const request = this.fetchDetailedData(coinId);
-    this.requestQueue.set(cacheKey, request);
-    
     try {
-      const data = await request;
-      this.requestQueue.delete(cacheKey);
-      return data;
-    } catch (error) {
-      this.requestQueue.delete(cacheKey);
-      throw error;
-    }
-  }
-
-  private async fetchDetailedData(coinId: string) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+      // Fetch comprehensive data
       const [coinDetails, tickers, globalData] = await Promise.all([
         this.fetchCoinDetails(coinId),
         this.fetchTickers(coinId),
         this.fetchGlobalData()
       ]);
 
-      clearTimeout(timeoutId);
-      
       const enrichedData = {
         ...coinDetails,
         tickers,
@@ -52,7 +29,7 @@ class EnhancedCryptoDataService {
         developerMetrics: this.extractDeveloperMetrics(coinDetails)
       };
 
-      this.cache.set(`detailed-${coinId}`, { data: enrichedData, timestamp: Date.now() });
+      this.cache.set(cacheKey, { data: enrichedData, timestamp: Date.now() });
       return enrichedData;
     } catch (error) {
       console.error('Error fetching detailed market data:', error);
@@ -61,33 +38,22 @@ class EnhancedCryptoDataService {
   }
 
   private async fetchCoinDetails(coinId: string) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const response = await fetch(
-      `${this.COINGECKO_API}/coins/${coinId}?localization=false&tickers=true&market_data=true&community_data=true&developer_data=true&sparkline=true`,
-      { signal: controller.signal }
+      `${this.COINGECKO_API}/coins/${coinId}?localization=false&tickers=true&market_data=true&community_data=true&developer_data=true&sparkline=true`
     );
-    clearTimeout(timeoutId);
     return response.json();
   }
 
   private async fetchTickers(coinId: string) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const response = await fetch(
-      `${this.COINGECKO_API}/coins/${coinId}/tickers?include_exchange_logo=true`,
-      { signal: controller.signal }
+      `${this.COINGECKO_API}/coins/${coinId}/tickers?include_exchange_logo=true`
     );
-    clearTimeout(timeoutId);
     const data = await response.json();
-    return data.tickers?.slice(0, 10) || [];
+    return data.tickers?.slice(0, 10) || []; // Top 10 exchanges
   }
 
   private async fetchGlobalData() {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(`${this.COINGECKO_API}/global`, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const response = await fetch(`${this.COINGECKO_API}/global`);
     const data = await response.json();
     return data.data;
   }

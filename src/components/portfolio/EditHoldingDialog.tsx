@@ -11,7 +11,6 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { holdingSchema } from '@/lib/validation';
 
 interface Holding {
   id: string;
@@ -51,21 +50,11 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
 
     setLoading(true);
     try {
-      // Validate input
-      const parsedQuantity = parseFloat(quantity);
-      const parsedPrice = parseFloat(purchasePrice);
-      
-      holdingSchema.parse({
-        quantity: parsedQuantity,
-        purchase_price: parsedPrice,
-        notes: notes || undefined
-      });
-
       const { error } = await supabase
         .from('portfolio_holdings')
         .update({
-          quantity: parsedQuantity,
-          purchase_price: parsedPrice,
+          quantity: parseFloat(quantity),
+          purchase_price: parseFloat(purchasePrice),
           purchase_date: purchaseDate.toISOString(),
           notes: notes || null,
           updated_at: new Date().toISOString(),
@@ -81,11 +70,11 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
 
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating holding:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update holding',
+        description: 'Failed to update holding',
         variant: 'destructive',
       });
     } finally {
