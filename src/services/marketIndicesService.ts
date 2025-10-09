@@ -1,4 +1,10 @@
-// Service for fetching market sentiment indices
+// Service for fetching market sentiment indices with historical data
+
+export interface HistoricalPoint {
+  timestamp: number;
+  value: number;
+  classification?: string;
+}
 
 export interface FearGreedData {
   value: string;
@@ -15,54 +21,123 @@ export interface BitcoinDominanceData {
   value: number;
 }
 
+export interface EnhancedIndexData<T> {
+  current: T;
+  history: HistoricalPoint[];
+  trend24h: number | null;
+  trend7d: number | null;
+  trend30d: number | null;
+  percentile: number | null;
+  lastUpdated: number;
+}
+
 class MarketIndicesService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private MAX_RETRIES = 3;
+  private RETRY_DELAY = 1000; // 1 second
 
+  private async retryFetch(
+    url: string,
+    options?: RequestInit,
+    retries = this.MAX_RETRIES
+  ): Promise<Response> {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response;
+      } catch (error) {
+        if (i === retries - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY * (i + 1)));
+      }
+    }
+    throw new Error('Max retries exceeded');
+  }
+
+  // Fear & Greed Index with historical data
   async getFearGreedIndex(): Promise<FearGreedData> {
     const cacheKey = 'fear-greed';
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
     }
 
     try {
-      const response = await fetch('https://api.alternative.me/fng/?limit=1');
+      const response = await this.retryFetch('https://api.alternative.me/fng/?limit=1');
       const data = await response.json();
       const result = data.data[0];
-      
+
       this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
       return result;
     } catch (error) {
       console.error('Error fetching Fear & Greed Index:', error);
-      throw error;
+      // Return cached data if available, even if stale
+      if (cached) {
+        console.warn('Using stale cached data for Fear & Greed');
+        return cached.data;
+      }
+      throw new Error('Failed to fetch Fear & Greed Index. Please try again later.');
     }
   }
 
-  async getAltcoinSeasonIndex(): Promise<AltcoinSeasonData> {
-    const cacheKey = 'altcoin-season';
+  async getFearGreedHistory(days: 7 | 30 | 90 | 365 = 30): Promise<HistoricalPoint[]> {
+    const cacheKey = `fear-greed-history-${days}`;
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
     }
 
     try {
-      // Use edge function to bypass CORS
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/market-indices?index=altcoin-season`,
-        {
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
+      const response = await this.retryFetch(`https://api.alternative.me/fng/?limit=${days}`);
       const data = await response.json();
-      
-      const value = parseInt(data.data.value);
+
+      const history: HistoricalPoint[] = data.data.map((item: any) => ({
+        timestamp: parseInt(item.timestamp) * 1000,
+        value: parseInt(item.value),
+        classification: item.value_classification,
+      })).reverse(); // Oldest first
+
+      this.cache.set(cacheKey, { data: history, timestamp: Date.now() });
+      return history;
+    } catch (error) {
+      console.error('Error fetching Fear & Greed history:', error);
+      if (cached) return cached.data;
+      return []; // Return empty array instead of throwing
+    }
+  }
+
+  // Altcoin Season Index with fallback
+  async getAltcoinSeasonIndex(): Promise<AltcoinSeasonData> {
+    const cacheKey = 'altcoin-season';
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data;
+    }
+
+    try {
+      // Try direct CoinGecko API approach (calculate from market caps)
+      const response = await this.retryFetch('https://api.coingecko.com/api/v3/global');
+      const data = await response.json();
+
+      // Calculate altcoin season based on BTC dominance
+      // Lower BTC dominance = Higher altcoin season score
+      const btcDom = data.data.market_cap_percentage.btc;
+      const ethDom = data.data.market_cap_percentage.eth || 0;
+
+      // Simple altcoin season calculation:
+      // If BTC dom < 40%: Strong altcoin season
+      // If BTC dom 40-60%: Neutral/transitioning
+      // If BTC dom > 60%: Bitcoin season
+      const altcoinStrength = Math.max(0, Math.min(100, 100 - btcDom + ethDom/2));
+      const value = Math.round(altcoinStrength);
+
       let classification = 'Neutral';
-      
       if (value >= 75) {
         classification = 'Altcoin Season';
       } else if (value >= 50) {
@@ -70,36 +145,157 @@ class MarketIndicesService {
       } else {
         classification = 'Bitcoin Season';
       }
-      
+
       const result = { value, classification };
       this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
       return result;
     } catch (error) {
       console.error('Error fetching Altcoin Season Index:', error);
-      throw error;
+      if (cached) {
+        console.warn('Using stale cached data for Altcoin Season');
+        return cached.data;
+      }
+      // Fallback to neutral if all else fails
+      return { value: 50, classification: 'Neutral (Unavailable)' };
     }
   }
 
+  async getAltcoinSeasonHistory(days: 30 | 90 | 365 = 90): Promise<HistoricalPoint[]> {
+    // Since we don't have a direct API, we'll return empty for now
+    // In production, you'd want to store this data or use a paid API
+    const cacheKey = `altcoin-season-history-${days}`;
+    const cached = this.cache.get(cacheKey);
+
+    if (cached) return cached.data;
+
+    // Return empty array - this feature requires data storage
+    return [];
+  }
+
+  // Bitcoin Dominance with historical data
   async getBitcoinDominance(): Promise<BitcoinDominanceData> {
     const cacheKey = 'btc-dominance';
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
     }
 
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/global');
+      const response = await this.retryFetch('https://api.coingecko.com/api/v3/global');
       const data = await response.json();
       const value = data.data.market_cap_percentage.btc;
-      
+
       const result = { value };
       this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
       return result;
     } catch (error) {
       console.error('Error fetching Bitcoin Dominance:', error);
-      throw error;
+      if (cached) {
+        console.warn('Using stale cached data for Bitcoin Dominance');
+        return cached.data;
+      }
+      throw new Error('Failed to fetch Bitcoin Dominance. Please try again later.');
     }
+  }
+
+  async getBitcoinDominanceHistory(days: 7 | 30 | 90 = 30): Promise<HistoricalPoint[]> {
+    // CoinGecko free API doesn't provide historical dominance
+    // Would need CoinGecko Pro API or alternative source
+    // For now, return empty array
+    return [];
+  }
+
+  // Calculate trend from historical data
+  calculateTrend(history: HistoricalPoint[], hours: number): number | null {
+    if (history.length === 0) return null;
+
+    const now = Date.now();
+    const cutoff = now - (hours * 60 * 60 * 1000);
+    const recent = history.filter(p => p.timestamp >= cutoff);
+
+    if (recent.length < 2) return null;
+
+    const oldest = recent[0].value;
+    const newest = recent[recent.length - 1].value;
+
+    return ((newest - oldest) / oldest) * 100;
+  }
+
+  // Calculate percentile (what % of historical values are below current)
+  calculatePercentile(currentValue: number, history: HistoricalPoint[]): number | null {
+    if (history.length === 0) return null;
+
+    const values = history.map(p => p.value);
+    const belowCurrent = values.filter(v => v < currentValue).length;
+
+    return (belowCurrent / values.length) * 100;
+  }
+
+  // Get enhanced data with trends and context
+  async getEnhancedFearGreed(): Promise<EnhancedIndexData<FearGreedData>> {
+    const current = await this.getFearGreedIndex();
+    const history = await this.getFearGreedHistory(90);
+
+    const currentValue = parseInt(current.value);
+
+    return {
+      current,
+      history,
+      trend24h: this.calculateTrend(history, 24),
+      trend7d: this.calculateTrend(history, 24 * 7),
+      trend30d: this.calculateTrend(history, 24 * 30),
+      percentile: this.calculatePercentile(currentValue, history),
+      lastUpdated: Date.now(),
+    };
+  }
+
+  async getEnhancedAltcoinSeason(): Promise<EnhancedIndexData<AltcoinSeasonData>> {
+    const current = await this.getAltcoinSeasonIndex();
+    const history = await this.getAltcoinSeasonHistory(90);
+
+    return {
+      current,
+      history,
+      trend24h: null, // Not available without historical data
+      trend7d: null,
+      trend30d: null,
+      percentile: null,
+      lastUpdated: Date.now(),
+    };
+  }
+
+  async getEnhancedBitcoinDominance(): Promise<EnhancedIndexData<BitcoinDominanceData>> {
+    const current = await this.getBitcoinDominance();
+    const history = await this.getBitcoinDominanceHistory(90);
+
+    return {
+      current,
+      history,
+      trend24h: null, // Not available without historical data
+      trend7d: null,
+      trend30d: null,
+      percentile: null,
+      lastUpdated: Date.now(),
+    };
+  }
+
+  // Clear cache manually
+  clearCache() {
+    this.cache.clear();
+  }
+
+  // Get cache status for debugging
+  getCacheStatus() {
+    const status: Record<string, any> = {};
+    this.cache.forEach((value, key) => {
+      const age = Date.now() - value.timestamp;
+      status[key] = {
+        age: `${Math.round(age / 1000)}s`,
+        stale: age > this.CACHE_DURATION,
+      };
+    });
+    return status;
   }
 }
 
