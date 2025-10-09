@@ -20,12 +20,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  if (!supabase) {
-    console.error('Supabase client not initialized');
-    return <>{children}</>;
-  }
-
   useEffect(() => {
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      setLoading(false);
+      return;
+    }
+
+
     let mounted = true;
     
     const initAuth = async () => {
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
