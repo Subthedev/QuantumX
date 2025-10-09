@@ -35,32 +35,47 @@ const MarketSentiment = () => {
   }, []);
 
   const fetchAllIndices = async () => {
-    try {
-      const [fearGreed, altcoinSeason, btcDominance] = await Promise.all([
-        marketIndicesService.getFearGreedIndex(),
-        marketIndicesService.getAltcoinSeasonIndex(),
-        marketIndicesService.getBitcoinDominance(),
-      ]);
+    const newIndices: IndexData = {
+      fearGreed: null,
+      altcoinSeason: null,
+      btcDominance: null,
+    };
 
-      setIndices({
-        fearGreed: {
-          value: parseInt(fearGreed.value),
-          label: fearGreed.value_classification,
-        },
-        altcoinSeason: {
-          value: altcoinSeason.value,
-          label: altcoinSeason.classification,
-        },
-        btcDominance: {
-          value: Math.round(btcDominance.value),
-          label: `${btcDominance.value.toFixed(2)}%`,
-        },
-      });
+    // Fetch Fear & Greed Index
+    try {
+      const fearGreed = await marketIndicesService.getFearGreedIndex();
+      newIndices.fearGreed = {
+        value: parseInt(fearGreed.value),
+        label: fearGreed.value_classification,
+      };
     } catch (error) {
-      console.error('Error fetching indices:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching Fear & Greed Index:', error);
     }
+
+    // Fetch Altcoin Season Index
+    try {
+      const altcoinSeason = await marketIndicesService.getAltcoinSeasonIndex();
+      newIndices.altcoinSeason = {
+        value: altcoinSeason.value,
+        label: altcoinSeason.classification,
+      };
+    } catch (error) {
+      console.error('Error fetching Altcoin Season Index:', error);
+    }
+
+    // Fetch Bitcoin Dominance
+    try {
+      const btcDominance = await marketIndicesService.getBitcoinDominance();
+      newIndices.btcDominance = {
+        value: Math.round(btcDominance.value),
+        label: `${btcDominance.value.toFixed(2)}%`,
+      };
+    } catch (error) {
+      console.error('Error fetching Bitcoin Dominance:', error);
+    }
+
+    setIndices(newIndices);
+    setLoading(false);
   };
 
   const getColorForValue = (value: number, type: 'fear-greed' | 'altcoin' | 'dominance') => {
