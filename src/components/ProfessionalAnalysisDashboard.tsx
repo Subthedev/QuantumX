@@ -28,7 +28,7 @@ import { TRXLogo } from '@/components/ui/trx-logo';
 import { ADALogo } from '@/components/ui/ada-logo';
 import { HYPELogo } from '@/components/ui/hype-logo';
 import { LINKLogo } from '@/components/ui/link-logo';
-import { debounce } from '@/utils/debounce';
+import { debounce } from '@/utils/performance';
 interface SignalHistory {
   id: string;
   symbol: string;
