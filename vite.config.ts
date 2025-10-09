@@ -25,8 +25,10 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs'],
-          'utils': ['clsx', 'tailwind-merge', 'class-variance-authority'],
+          'query-vendor': ['@tanstack/react-query'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-toast'],
+          'chart-vendor': ['recharts', 'lightweight-charts'],
+          'utils': ['clsx', 'tailwind-merge', 'class-variance-authority', 'date-fns'],
         },
       },
     },
@@ -34,9 +36,18 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     // Enable source maps for production debugging
     sourcemap: mode === 'production' ? 'hidden' : true,
+    // Minify for smaller bundles
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+      },
+    },
   },
   // Optimize dependencies
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'date-fns'],
+    exclude: ['lovable-tagger'],
   },
 }));
