@@ -23,6 +23,9 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#FF5F6D">
     
+    <!-- Preload Critical Logo for LCP -->
+    <link rel="preload" href="/src/assets/ignitex-logo.svg" as="image" type="image/svg+xml" fetchpriority="high">
+    
     <!-- DNS Prefetch and Preconnect for Performance -->
     <link rel="dns-prefetch" href="https://api.coingecko.com">
     <link rel="dns-prefetch" href="https://coin-images.coingecko.com">
@@ -88,10 +91,15 @@
     </svg>
     
     <script>
-      // Hide inline logo only when React logo has loaded
+      // Hide inline logo only after React fully renders
       window.hideInlineLogo = function() {
-        var logo = document.getElementById('critical-logo');
-        if (logo) logo.className = 'critical-logo-hide';
+        // Use requestAnimationFrame to ensure React has painted
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            var logo = document.getElementById('critical-logo');
+            if (logo) logo.className = 'critical-logo-hide';
+          });
+        });
       };
     </script>
     
