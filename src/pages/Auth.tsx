@@ -7,6 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email too long"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password too long")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+});
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -25,31 +35,54 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Signed in successfully!");
-      navigate("/dashboard");
+    try {
+      // Validate for sign-in (less strict requirements)
+      const simpleSchema = z.object({
+        email: z.string().email("Invalid email address").max(255),
+        password: z.string().min(1, "Password is required")
+      });
+      
+      simpleSchema.parse({ email, password });
+      
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Signed in successfully!");
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await signUp(email, password);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Account created! You can now sign in.");
+    try {
+      // Validate with full requirements for sign-up
+      authSchema.parse({ email, password });
+      
+      const { error } = await signUp(email, password);
+      
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Account created! You can now sign in.");
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (

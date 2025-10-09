@@ -13,6 +13,8 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { holdingSchema } from '@/lib/validation';
 
 interface AddHoldingDialogProps {
   open: boolean;
@@ -21,6 +23,7 @@ interface AddHoldingDialogProps {
 }
 
 export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDialogProps) {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const [quantity, setQuantity] = useState('');
@@ -53,6 +56,15 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
   );
 
   const handleSubmit = async () => {
+    if (!user) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please sign in to add holdings',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!selectedCoin || !quantity || !purchasePrice) {
       toast({
         title: 'Error',
@@ -64,17 +76,24 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
 
     setLoading(true);
     try {
-      // Temporary placeholder user_id until authentication is re-implemented
-      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+      // Validate input
+      const parsedQuantity = parseFloat(quantity);
+      const parsedPrice = parseFloat(purchasePrice);
+      
+      holdingSchema.parse({
+        quantity: parsedQuantity,
+        purchase_price: parsedPrice,
+        notes: notes || undefined
+      });
       
       const { error } = await supabase.from('portfolio_holdings').insert({
-        user_id: placeholderUserId,
+        user_id: user.id, // Use authenticated user's ID
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol,
         coin_name: selectedCoin.name,
         coin_image: selectedCoin.image,
-        quantity: parseFloat(quantity),
-        purchase_price: parseFloat(purchasePrice),
+        quantity: parsedQuantity,
+        purchase_price: parsedPrice,
         purchase_date: purchaseDate.toISOString(),
         notes: notes || null,
       });

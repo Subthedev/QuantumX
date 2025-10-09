@@ -10,6 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Zap, X, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cryptoDataService } from "@/services/cryptoDataService";
+import { useAuth } from "@/hooks/useAuth";
+import { profitGuardSchema } from "@/lib/validation";
 
 interface AddProfitGuardDialogProps {
   open: boolean;
@@ -27,6 +29,7 @@ interface AddProfitGuardDialogProps {
 }
 
 export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledHolding }: AddProfitGuardDialogProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,6 +76,15 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
   );
 
   const handleSubmit = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to activate ProfitGuard",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!selectedCoin || !entryPrice || !quantity || !investmentPeriod) {
       toast({
         title: "Missing Information",
@@ -97,6 +109,14 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
 
     try {
       const entry = parseFloat(entryPrice);
+      const qty = parseFloat(quantity);
+
+      // Validate input
+      profitGuardSchema.parse({
+        entry_price: entry,
+        quantity: qty,
+        investment_period: period
+      });
 
       // Call AI analysis first to get profit levels
       toast({
@@ -121,19 +141,16 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
 
       setAnalyzing(false);
 
-      // Temporary placeholder user_id until authentication is re-implemented
-      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
-
-      // Create position with AI-generated profit levels
+      // Create position with AI-generated profit levels using authenticated user's ID
       const { error } = await supabase.from("profit_guard_positions").insert({
-        user_id: placeholderUserId,
+        user_id: user.id, // Use authenticated user's ID
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol.toUpperCase(),
         coin_name: selectedCoin.name,
         coin_image: selectedCoin.image,
         entry_price: entry,
         current_price: selectedCoin.current_price,
-        quantity: parseFloat(quantity),
+        quantity: qty,
         timeframe,
         investment_period: period,
         profit_levels: analysisData.profit_levels,
