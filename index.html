@@ -6,8 +6,11 @@
     <!-- End cookieyes banner -->
     
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     
     <!-- SEO Meta Tags -->
     <title>IgniteX - AI Crypto Trading Signals | Professional BTC & ETH Analysis</title>
@@ -59,7 +62,60 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Initial loading state to prevent white screen -->
+      <style>
+        #initial-loader {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #0a0a0a;
+          z-index: 9999;
+        }
+        #initial-loader .spinner {
+          width: 50px;
+          height: 50px;
+          border: 3px solid rgba(255, 95, 109, 0.1);
+          border-top-color: #FF5F6D;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        #initial-loader .logo {
+          position: absolute;
+          font-size: 24px;
+          font-weight: 700;
+          background: linear-gradient(135deg, #FF5F6D 0%, #FFC371 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          margin-top: 100px;
+        }
+      </style>
+      <div id="initial-loader">
+        <div>
+          <div class="spinner"></div>
+          <div class="logo">IgniteX</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove initial loader once React takes over
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loader = document.getElementById('initial-loader');
+          if (loader) {
+            loader.style.opacity = '0';
+            loader.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => loader.remove(), 300);
+          }
+        }, 500);
+      });
+    </script>
   </body>
 </html>
