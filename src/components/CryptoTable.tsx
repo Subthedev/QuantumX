@@ -59,8 +59,8 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   return (
     <>
       <div className="w-full overflow-hidden">
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <table className="w-full min-w-[600px] sm:min-w-full">
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-thin">
+          <table className="w-full min-w-[640px] sm:min-w-full">
             <thead className="bg-muted/30 border-b">
               <tr className="text-[10px] sm:text-xs font-medium text-muted-foreground">
                 <th className="text-center p-2 sm:p-3 w-8">#</th>
