@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -13,47 +14,105 @@ const EmailVerified = () => {
   const [countdown, setCountdown] = useState(3);
   const [hasShownToast, setHasShownToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isWaiting, setIsWaiting] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(true);
+  const [sessionEstablished, setSessionEstablished] = useState(false);
 
   useEffect(() => {
-    // Check for errors in URL (both search params and hash)
-    const searchParams = new URLSearchParams(location.search);
-    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const handleEmailVerification = async () => {
+      // Check for errors in URL (both search params and hash)
+      const searchParams = new URLSearchParams(location.search);
+      const hashParams = new URLSearchParams(location.hash.substring(1));
 
-    const errorFromSearch = searchParams.get('error');
-    const errorFromHash = hashParams.get('error');
-    const errorCode = searchParams.get('error_code') || hashParams.get('error_code');
-    const errorDescription = searchParams.get('error_description') || hashParams.get('error_description');
+      const errorFromSearch = searchParams.get('error');
+      const errorFromHash = hashParams.get('error');
+      const errorCode = searchParams.get('error_code') || hashParams.get('error_code');
+      const errorDescription = searchParams.get('error_description') || hashParams.get('error_description');
 
-    console.log('EmailVerified: user =', user ? 'exists' : 'null', ', session =', session ? 'exists' : 'null');
-    console.log('URL search:', location.search);
-    console.log('URL hash:', location.hash);
-    console.log('Error:', errorFromSearch || errorFromHash, 'Code:', errorCode, 'Description:', errorDescription);
+      console.log('EmailVerified: Processing verification...');
+      console.log('URL search:', location.search);
+      console.log('URL hash:', location.hash);
 
-    if (errorFromSearch || errorFromHash) {
-      if (errorCode === 'otp_expired') {
-        setError('expired');
-        setIsWaiting(false);
-      } else {
-        setError('general');
-        setIsWaiting(false);
+      // Handle errors
+      if (errorFromSearch || errorFromHash) {
+        console.log('Error detected:', errorFromSearch || errorFromHash, 'Code:', errorCode);
+        if (errorCode === 'otp_expired') {
+          setError('expired');
+        } else {
+          setError('general');
+        }
+        setIsProcessing(false);
+        return;
       }
-      return;
-    }
 
-    // Give Supabase some time to process the session
-    const timeout = setTimeout(() => {
-      if (!user && !session) {
-        console.log('Timeout: No session detected after 5 seconds');
-        setIsWaiting(false);
+      // Check if there are auth tokens in the URL
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+
+      console.log('Token type:', type, 'Has access token:', !!accessToken);
+
+      // If we have tokens, manually set the session (backup for automatic detection)
+      if (accessToken && refreshToken && type === 'signup') {
+        console.log('Setting session manually from URL tokens');
+        try {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) {
+            console.error('Error setting session:', sessionError);
+            setError('general');
+            setIsProcessing(false);
+            return;
+          }
+
+          if (data.session) {
+            console.log('Session established manually');
+            setSessionEstablished(true);
+          }
+        } catch (err) {
+          console.error('Exception setting session:', err);
+          setError('general');
+          setIsProcessing(false);
+          return;
+        }
       }
-    }, 5000);
 
-    if (user && session) {
-      console.log('User and session found, showing success');
-      clearTimeout(timeout);
-      setIsWaiting(false);
+      // Wait for session to be detected (either automatically or manually set)
+      const maxWaitTime = 8000; // 8 seconds
+      const startTime = Date.now();
+      
+      const checkSession = setInterval(async () => {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const elapsed = Date.now() - startTime;
+        
+        console.log('Checking session... Elapsed:', elapsed, 'ms, Has session:', !!currentSession);
+        
+        if (currentSession) {
+          console.log('Session confirmed!');
+          clearInterval(checkSession);
+          setSessionEstablished(true);
+          setIsProcessing(false);
+        } else if (elapsed > maxWaitTime) {
+          console.log('Timeout: No session detected after', elapsed, 'ms');
+          clearInterval(checkSession);
+          setError('timeout');
+          setIsProcessing(false);
+        }
+      }, 500);
 
+      return () => clearInterval(checkSession);
+    };
+
+    handleEmailVerification();
+  }, [location]);
+
+  // Handle successful authentication
+  useEffect(() => {
+    if (sessionEstablished && (user || session)) {
+      console.log('User authenticated, starting redirect countdown');
+      
       // Show success toast once
       if (!hasShownToast) {
         toast.success("Email verified successfully! You're now logged in.");
@@ -65,22 +124,16 @@ const EmailVerified = () => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            // Redirect to dashboard
-            navigate("/dashboard");
+            navigate("/dashboard", { replace: true });
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
 
-      return () => {
-        clearInterval(timer);
-        clearTimeout(timeout);
-      };
+      return () => clearInterval(timer);
     }
-
-    return () => clearTimeout(timeout);
-  }, [user, session, navigate, hasShownToast, location]);
+  }, [sessionEstablished, user, session, navigate, hasShownToast]);
 
   // Show error states
   if (error === 'expired') {
@@ -138,8 +191,38 @@ const EmailVerified = () => {
     );
   }
 
-  // If no user/session yet and still waiting, show loading
-  if ((!user || !session) && isWaiting) {
+  // Show timeout error
+  if (error === 'timeout') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-amber-600" />
+            </div>
+            <CardTitle>Verification Taking Longer Than Expected</CardTitle>
+            <CardDescription>
+              Please wait a moment or try refreshing the page
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              If the issue persists, please try signing in manually.
+            </p>
+            <Button
+              onClick={() => navigate("/auth")}
+              className="w-full"
+            >
+              Go to Sign In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // If still processing, show loading
+  if (isProcessing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -157,28 +240,20 @@ const EmailVerified = () => {
     );
   }
 
-  // If no user/session and timeout passed, show error
-  if (!user || !session) {
+  // Show success only when we have confirmed session
+  if (!sessionEstablished || !user || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
-              <AlertCircle className="h-8 w-8 text-amber-600" />
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
             </div>
-            <CardTitle>Verification Incomplete</CardTitle>
+            <CardTitle>Completing Verification...</CardTitle>
             <CardDescription>
-              We couldn't complete the verification. The link may be invalid or expired.
+              Please wait while we log you in
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <Button
-              onClick={() => navigate("/auth")}
-              className="w-full"
-            >
-              Return to Sign In
-            </Button>
-          </CardContent>
         </Card>
       </div>
     );
