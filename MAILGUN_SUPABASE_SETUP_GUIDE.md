@@ -262,30 +262,30 @@ Scroll down to **"URL Configuration"** section:
 https://ignitexagency.com
 ```
 
-**Redirect URLs** (add each one):
+**Redirect URLs** (add these):
 ```
 https://ignitexagency.com/email-verified
 https://ignitexagency.com/reset-password
-http://localhost:8080/email-verified
-http://localhost:8080/reset-password
-http://192.168.1.4:8080/email-verified
-http://192.168.1.4:8080/reset-password
 ```
 
-> **Important for Mobile Testing**:
-> - `localhost:8080` only works on the same computer
-> - For mobile device testing, use your computer's local IP (e.g., `192.168.1.4:8080`)
-> - Find your local IP: Run `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
-> - Add your local IP redirect URLs to Supabase (shown above)
-> - For production, always use `https://ignitexagency.com`
+> **Important - Production URLs Only**:
+> - The app is configured to **always use production URLs** for email verification
+> - Email verification links redirect to `https://ignitexagency.com/email-verified`
+> - Password reset links redirect to `https://ignitexagency.com/reset-password`
+> - This ensures verification works on **both desktop and mobile devices**
+> - Users can sign up from localhost, but will be verified and logged in on production
+> - No need for localhost or local IP redirect URLs!
 
 Click **"Add URL"** for each one, then **Save**
 
-> **Note**: After email verification, users are redirected to `/email-verified` page where they:
-> - See a success message with checkmark
-> - Are automatically logged in
-> - Get redirected to dashboard after 3 seconds
-> - Can skip the wait and go directly to dashboard
+> **How It Works**:
+> 1. User signs up (from localhost or production)
+> 2. Clicks verification link in email
+> 3. Redirected to **https://ignitexagency.com/email-verified**
+> 4. Sees success message with checkmark
+> 5. **Automatically logged in on production**
+> 6. Redirected to dashboard after 3 seconds
+> 7. Works seamlessly on mobile and desktop! 🎉
 
 ### Step 3: Configure Rate Limits
 
