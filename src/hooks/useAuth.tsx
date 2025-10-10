@@ -44,7 +44,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/email-verified`;
+    // Always use production URL for email verification
+    // This ensures mobile users can access verification links
+    const redirectUrl = 'https://ignitexagency.com/email-verified';
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -74,8 +76,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
+    // Always use production URL for password reset
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: 'https://ignitexagency.com/reset-password',
     });
     return { error };
   };
@@ -92,11 +95,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return { error: { message: 'Email is required', name: 'NoEmailError', status: 400 } as AuthError };
     }
 
+    // Always use production URL for email verification
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email,
       options: {
-        emailRedirectTo: `${window.location.origin}/email-verified`,
+        emailRedirectTo: 'https://ignitexagency.com/email-verified',
       }
     });
 
