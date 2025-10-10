@@ -27,10 +27,11 @@ const Auth = () => {
   const passwordValidation = password ? validatePassword(password) : null;
 
   useEffect(() => {
-    if (user) {
+    // Auto-redirect verified and logged-in users to dashboard
+    if (user && session) {
       navigate("/dashboard");
     }
-  }, [user, navigate]);
+  }, [user, session, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

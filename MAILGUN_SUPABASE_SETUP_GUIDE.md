@@ -264,13 +264,19 @@ https://ignitexagency.com
 
 **Redirect URLs** (add each one):
 ```
-https://ignitexagency.com/auth
+https://ignitexagency.com/email-verified
 https://ignitexagency.com/reset-password
-http://localhost:8080/auth
+http://localhost:8080/email-verified
 http://localhost:8080/reset-password
 ```
 
 Click **"Add URL"** for each one, then **Save**
+
+> **Note**: After email verification, users are redirected to `/email-verified` page where they:
+> - See a success message with checkmark
+> - Are automatically logged in
+> - Get redirected to dashboard after 3 seconds
+> - Can skip the wait and go directly to dashboard
 
 ### Step 3: Configure Rate Limits
 
