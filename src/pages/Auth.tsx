@@ -20,7 +20,7 @@ const Auth = () => {
   const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState("");
   const [resetEmail, setResetEmail] = useState("");
-  const { signIn, signUp, resetPassword, resendVerificationEmail, user } = useAuth();
+  const { signIn, signUp, resetPassword, resendVerificationEmail, user, session } = useAuth();
   const navigate = useNavigate();
 
   // Password strength tracking for signup
