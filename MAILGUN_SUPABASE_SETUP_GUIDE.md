@@ -268,7 +268,16 @@ https://ignitexagency.com/email-verified
 https://ignitexagency.com/reset-password
 http://localhost:8080/email-verified
 http://localhost:8080/reset-password
+http://192.168.1.4:8080/email-verified
+http://192.168.1.4:8080/reset-password
 ```
+
+> **Important for Mobile Testing**:
+> - `localhost:8080` only works on the same computer
+> - For mobile device testing, use your computer's local IP (e.g., `192.168.1.4:8080`)
+> - Find your local IP: Run `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
+> - Add your local IP redirect URLs to Supabase (shown above)
+> - For production, always use `https://ignitexagency.com`
 
 Click **"Add URL"** for each one, then **Save**
 
@@ -548,6 +557,34 @@ Click **Save**
 - **For production**: Make sure production URL `https://ignitexagency.com/auth` is in Supabase redirect URLs
 - **Quick fix for testing**: Manually edit the URL in email from `localhost:8080` to `ignitexagency.com`
 - **Proper fix**: Deploy to production and test there, OR configure Supabase environment
+
+#### Issue 7: Verification link doesn't work on mobile
+**Problem:** Link opens but doesn't load or stays loading forever
+
+**Solution:**
+1. **If testing locally (localhost:8080):**
+   - Mobile can't access `localhost:8080` (it's on your computer)
+   - **Fix**: Use your computer's local network IP instead
+   - Find IP: Run `ipconfig getifaddr en0` (Mac) or `ipconfig` (Windows)
+   - Example: `http://192.168.1.4:8080`
+   - Update Supabase redirect URLs to include `http://192.168.1.4:8080/email-verified`
+   - Make sure mobile is on the **same WiFi network** as your computer
+
+2. **If using production (ignitexagency.com):**
+   - Make sure HTTPS is enabled and certificate is valid
+   - Check that `https://ignitexagency.com/email-verified` is in Supabase redirect URLs
+   - Try opening the link in mobile browser directly (not in email app's internal viewer)
+   - Some email apps block external links - long-press link and choose "Open in Browser"
+
+3. **Email app issues:**
+   - Gmail app sometimes blocks redirects - open in Chrome/Safari instead
+   - Outlook app may show security warning - click "Trust" or "Open Anyway"
+   - If link shows preview instead of opening, tap the URL text at bottom
+
+4. **Test directly:**
+   - Copy the verification URL from email
+   - Paste it into mobile Safari/Chrome address bar
+   - This bypasses email app restrictions
 
 ---
 
