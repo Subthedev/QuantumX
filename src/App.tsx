@@ -20,6 +20,7 @@ const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const Disclaimer = lazy(() => import("./pages/Disclaimer"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const PasswordReset = lazy(() => import("./pages/PasswordReset"));
+const EmailVerified = lazy(() => import("./pages/EmailVerified"));
 const Titan10 = lazy(() => import("./pages/Titan10"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const AIAnalysis = lazy(() => import("./pages/AIAnalysis"));
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/" element={<Landing />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/email-verified" element={<EmailVerified />} />
               <Route path="/reset-password" element={<PasswordReset />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
