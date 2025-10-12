@@ -1,6 +1,6 @@
 class EnhancedCryptoDataService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private CACHE_DURATION = 300000; // 5 minutes - increased to avoid rate limits
+  private CACHE_DURATION = 1800000; // 30 minutes - optimized for production performance
   private COINGECKO_API = 'https://api.coingecko.com/api/v3';
 
   async getDetailedMarketData(coinId: string) {

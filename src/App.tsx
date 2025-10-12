@@ -28,14 +28,16 @@ const ProfitGuard = lazy(() => import("./pages/ProfitGuard"));
 const Calculator = lazy(() => import("./pages/Calculator"));
 const MarketSentiment = lazy(() => import("./pages/MarketSentiment"));
 
-// Optimize React Query with better defaults
+// Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60 * 1000, // 1 minute
-      gcTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false,
-      retry: 1,
+      staleTime: 30 * 60 * 1000, // 30 minutes - data stays fresh longer
+      gcTime: 60 * 60 * 1000, // 1 hour - cache persists in memory
+      refetchOnWindowFocus: false, // Reduce unnecessary refetches
+      refetchOnReconnect: true, // Refetch on reconnect
+      retry: 2, // Retry failed requests twice
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
     },
   },
 });
