@@ -1,285 +1,451 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, AreaSeries } from 'lightweight-charts';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Brush, ComposedChart, Bar } from 'recharts';
-import { format } from 'date-fns';
+import { Loader2, BarChart3, TrendingUp, Activity, RefreshCw } from 'lucide-react';
+import { ohlcDataService } from '@/services/ohlcDataService';
+import type { ChartType, ChartTimeframe, OHLCData, PriceInfo } from '@/types/chart';
+import { useTheme } from 'next-themes';
 
 interface TradingViewChartProps {
-  data: number[] | { price: number[] } | any[];
+  coinId: string;
   symbol: string;
-  timeframe?: string;
+  currentPrice?: number;
   height?: number;
-  showVolume?: boolean;
-  indicators?: {
-    sma20?: number[];
-    sma50?: number[];
-    bollinger?: { upper: number[]; lower: number[]; middle: number[] };
-  };
 }
 
-export const TradingViewChart = ({ 
-  data, 
-  symbol, 
-  timeframe = '7D',
-  height = 400,
-  showVolume = false,
-  indicators 
-}: TradingViewChartProps) => {
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
+const TIMEFRAMES: { label: string; value: ChartTimeframe; days: number }[] = [
+  { label: '1H', value: '1H', days: 1 },
+  { label: '4H', value: '4H', days: 1 },
+  { label: '1D', value: '1D', days: 1 },
+  { label: '7D', value: '7D', days: 7 },
+  { label: '30D', value: '30D', days: 30 },
+  { label: '90D', value: '90D', days: 90 },
+  { label: '1Y', value: '1Y', days: 365 },
+  { label: 'ALL', value: 'ALL', days: 9999 },
+];
 
-  useEffect(() => {
-    // Process data based on input format
-    let processedData: any[] = [];
-    
-    if (Array.isArray(data)) {
-      if (typeof data[0] === 'number') {
-        // Simple price array
-        processedData = data.map((price, index) => ({
-          time: index,
-          price,
-          volume: Math.random() * 1000000,
-          date: new Date(Date.now() - (data.length - index) * 3600000).toISOString()
-        }));
-      } else if (data[0]?.price !== undefined) {
-        // Sparkline format
-        const prices = data[0].price;
-        processedData = prices.map((price: number, index: number) => ({
-          time: index,
-          price,
-          volume: Math.random() * 1000000,
-          date: new Date(Date.now() - (prices.length - index) * 3600000).toISOString()
-        }));
+const CHART_TYPES: { label: string; value: ChartType; icon: React.ReactNode }[] = [
+  { label: 'Candlestick', value: 'candlestick', icon: <BarChart3 className="w-3 h-3" /> },
+  { label: 'Line', value: 'line', icon: <TrendingUp className="w-3 h-3" /> },
+  { label: 'Area', value: 'area', icon: <Activity className="w-3 h-3" /> },
+];
+
+const TradingViewChart: React.FC<TradingViewChartProps> = ({
+  coinId,
+  symbol,
+  currentPrice,
+  height = 450,
+}) => {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<any> | null>(null);
+  const isInitializedRef = useRef(false);
+  const { theme: appTheme } = useTheme();
+
+  const [chartType, setChartType] = useState<ChartType>('candlestick');
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>('7D');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [priceInfo, setPriceInfo] = useState<PriceInfo>({
+    current: currentPrice || 0,
+    change: 0,
+    changePercent: 0,
+    high: 0,
+    low: 0,
+    volume: 0,
+  });
+
+  // Theme configuration
+  const chartTheme = useMemo(() => {
+    const isDark = appTheme === 'dark';
+    return {
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: isDark ? '#9ca3af' : '#6b7280',
+      },
+      grid: {
+        vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
+        horzLines: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
+      },
+      crosshair: {
+        mode: 1,
+        vertLine: {
+          color: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+          width: 1,
+          style: 3,
+        },
+        horzLine: {
+          color: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+          width: 1,
+          style: 3,
+        },
+      },
+      rightPriceScale: {
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+      },
+      timeScale: {
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    };
+  }, [appTheme]);
+
+  // Load data function - defined early so it can be used in useEffects
+  const loadChartData = useCallback(async () => {
+    if (!chartRef.current) {
+      console.warn('Chart not initialized yet, skipping data load');
+      return;
+    }
+
+    console.log('Loading chart data for', coinId, timeframe, chartType);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await ohlcDataService.fetchDataForTimeframe(coinId, timeframe);
+
+      if (!data.ohlc || data.ohlc.length === 0) {
+        throw new Error('No data available for this timeframe');
       }
-    }
 
-    // Add moving averages
-    if (processedData.length > 20) {
-      processedData = processedData.map((item, index) => {
-        const sma20 = index >= 19 
-          ? processedData.slice(index - 19, index + 1).reduce((sum, d) => sum + d.price, 0) / 20
-          : null;
-        const sma50 = index >= 49
-          ? processedData.slice(index - 49, index + 1).reduce((sum, d) => sum + d.price, 0) / 50
-          : null;
-        return { ...item, sma20, sma50 };
+      console.log(`Received ${data.ohlc.length} data points for ${timeframe}`);
+
+      // CRITICAL: Sort data by time to ensure proper display
+      const sortedOHLC = [...data.ohlc].sort((a, b) => a.time - b.time);
+
+      console.log('Time range:', {
+        first: new Date(sortedOHLC[0].time * 1000).toISOString(),
+        last: new Date(sortedOHLC[sortedOHLC.length - 1].time * 1000).toISOString(),
+        points: sortedOHLC.length
       });
+
+      // Remove old series
+      if (seriesRef.current && chartRef.current) {
+        chartRef.current.removeSeries(seriesRef.current);
+        seriesRef.current = null;
+      }
+
+      // Create appropriate series based on chart type using v5 API
+      let series: ISeriesApi<any>;
+
+      if (chartType === 'candlestick') {
+        series = chartRef.current.addSeries(CandlestickSeries, {
+          upColor: '#10b981',
+          downColor: '#ef4444',
+          borderUpColor: '#10b981',
+          borderDownColor: '#ef4444',
+          wickUpColor: '#10b981',
+          wickDownColor: '#ef4444',
+        });
+        series.setData(sortedOHLC);
+      } else if (chartType === 'line') {
+        series = chartRef.current.addSeries(LineSeries, {
+          color: '#3b82f6',
+          lineWidth: 2,
+        });
+        // Convert OHLC to line data (using close price)
+        const lineData = sortedOHLC.map(d => ({ time: d.time, value: d.close }));
+        series.setData(lineData);
+      } else {
+        // area
+        series = chartRef.current.addSeries(AreaSeries, {
+          topColor: 'rgba(59, 130, 246, 0.4)',
+          bottomColor: 'rgba(59, 130, 246, 0.0)',
+          lineColor: '#3b82f6',
+          lineWidth: 2,
+        });
+        // Convert OHLC to area data (using close price)
+        const areaData = sortedOHLC.map(d => ({ time: d.time, value: d.close }));
+        series.setData(areaData);
+      }
+
+      seriesRef.current = series;
+
+      // CRITICAL: Configure timeScale to show ALL data with proper range
+      const timeScale = chartRef.current.timeScale();
+
+      // Fit content first to auto-scale
+      timeScale.fitContent();
+
+      // Force the chart to show the FULL time range from first to last data point
+      // Using actual timestamps ensures the full horizontal range is visible
+      if (sortedOHLC.length > 0) {
+        const firstTime = sortedOHLC[0].time;
+        const lastTime = sortedOHLC[sortedOHLC.length - 1].time;
+
+        console.log('Setting visible time range:', {
+          from: new Date(firstTime * 1000).toISOString(),
+          to: new Date(lastTime * 1000).toISOString()
+        });
+
+        // Set visible range using actual timestamps with small padding
+        timeScale.setVisibleRange({
+          from: firstTime as any,
+          to: lastTime as any,
+        });
+
+        // Alternative: Use logical range for complete coverage
+        setTimeout(() => {
+          timeScale.setVisibleLogicalRange({
+            from: -0.5, // Small padding on left
+            to: sortedOHLC.length - 0.5 // Small padding on right
+          });
+        }, 100);
+      }
+
+      // Calculate price info using sorted data
+      if (sortedOHLC.length > 0) {
+        const firstClose = sortedOHLC[0].close;
+        const lastCandle = sortedOHLC[sortedOHLC.length - 1];
+        const lastClose = lastCandle.close;
+        const change = lastClose - firstClose;
+        const changePercent = (change / firstClose) * 100;
+
+        const high = Math.max(...sortedOHLC.map(d => d.high));
+        const low = Math.min(...sortedOHLC.map(d => d.low));
+
+        setPriceInfo({
+          current: lastClose,
+          change,
+          changePercent,
+          high,
+          low,
+          volume: 0, // TODO: Add volume when available
+        });
+      }
+
+      console.log('✓ Chart data loaded successfully');
+    } catch (err) {
+      console.error('Error loading chart data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load chart data');
+    } finally {
+      setLoading(false);
+    }
+  }, [coinId, timeframe, chartType]);
+
+  // Initialize chart
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+
+    console.log('Initializing chart for', coinId);
+
+    // Reset initialization flag when creating new chart
+    isInitializedRef.current = false;
+
+    const chart = createChart(chartContainerRef.current, {
+      ...chartTheme,
+      width: chartContainerRef.current.clientWidth,
+      height,
+      timeScale: {
+        ...chartTheme.timeScale,
+        rightOffset: 5,
+        barSpacing: 6,
+        minBarSpacing: 2,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+        lockVisibleTimeRangeOnResize: false,
+        rightBarStaysOnScroll: true,
+        borderVisible: true,
+        visible: true,
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      rightPriceScale: {
+        ...chartTheme.rightPriceScale,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
+      },
+    });
+
+    chartRef.current = chart;
+
+    // Handle resize - preserve visible range
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        const timeScale = chartRef.current.timeScale();
+        const currentRange = timeScale.getVisibleLogicalRange();
+
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+
+        // Restore visible range after resize
+        if (currentRange) {
+          requestAnimationFrame(() => {
+            timeScale.setVisibleLogicalRange(currentRange);
+          });
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      console.log('Cleaning up chart');
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+      isInitializedRef.current = false;
+    };
+  }, [height, chartTheme, coinId]);
+
+  // Load initial data when chart is ready and coinId is available
+  useEffect(() => {
+    if (!chartRef.current || !coinId) {
+      console.log('Skipping initial data load - chart or coinId not ready');
+      return;
     }
 
-    setChartData(processedData);
-  }, [data]);
-
-  const formatXAxis = (tickItem: any) => {
-    if (chartData.length > 0 && chartData[tickItem]?.date) {
-      const date = new Date(chartData[tickItem].date);
-      if (timeframe === '24H') return format(date, 'HH:mm');
-      if (timeframe === '7D') return format(date, 'MMM dd');
-      if (timeframe === '30D') return format(date, 'MMM dd');
-      return format(date, 'MMM dd');
+    if (isInitializedRef.current) {
+      console.log('Already initialized, skipping duplicate initial load');
+      return;
     }
-    return '';
+
+    console.log('Chart ready, loading initial data for', coinId);
+    isInitializedRef.current = true;
+    loadChartData();
+  }, [coinId, loadChartData]);
+
+  // Load data when timeframe or chart type changes (skip initial mount)
+  useEffect(() => {
+    if (!chartRef.current) {
+      console.log('Skipping data load - chart not ready');
+      return;
+    }
+
+    // Only reload if already initialized (skip first mount)
+    if (!isInitializedRef.current) {
+      console.log('Skipping timeframe/chartType effect - not yet initialized');
+      return;
+    }
+
+    console.log('Timeframe/ChartType changed, reloading data');
+    loadChartData();
+  }, [timeframe, chartType, loadChartData]);
+
+  const handleRefresh = () => {
+    ohlcDataService.clearCache(coinId);
+    loadChartData();
   };
 
-  const formatTooltip = (value: any, name: string) => {
-    if (name === 'volume') return `$${(value / 1000000).toFixed(2)}M`;
-    return `$${value?.toFixed(2) || '0.00'}`;
+  const getChangeColor = (value: number) => {
+    if (value > 0) return 'text-green-500';
+    if (value < 0) return 'text-red-500';
+    return 'text-muted-foreground';
   };
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || !payload.length) return null;
-
-    return (
-      <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
-        <p className="text-xs text-muted-foreground mb-1">
-          {chartData[label]?.date && format(new Date(chartData[label].date), 'MMM dd, yyyy HH:mm')}
-        </p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
-            {entry.name === 'price' ? 'Price' : entry.name === 'volume' ? 'Volume' : entry.name.toUpperCase()}: {formatTooltip(entry.value, entry.name)}
-          </p>
-        ))}
-      </div>
-    );
-  };
-
-  if (!chartData.length) {
-    return (
-      <Card className="p-6">
-        <div className="h-[400px] flex items-center justify-center text-muted-foreground">
-          No chart data available
-        </div>
-      </Card>
-    );
-  }
-
-  const minPrice = Math.min(...chartData.map(d => d.price));
-  const maxPrice = Math.max(...chartData.map(d => d.price));
-  const priceRange = maxPrice - minPrice;
-  const yDomain = [minPrice - priceRange * 0.1, maxPrice + priceRange * 0.1];
 
   return (
-    <Card className="p-6 bg-background/50 backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">{symbol} Price Chart</h3>
-        <div className="flex gap-2">
-          {['24H', '7D', '30D'].map((tf) => (
-            <button
-              key={tf}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                timeframe === tf 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted hover:bg-muted/80'
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
+    <Card className="p-4 space-y-4">
+      {/* Header Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Price Info */}
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="text-2xl font-bold">
+              ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
+            </div>
+            <div className={`text-sm ${getChangeColor(priceInfo.changePercent)}`}>
+              {priceInfo.changePercent >= 0 ? '+' : ''}
+              {priceInfo.changePercent.toFixed(2)}% ({timeframe})
+            </div>
+          </div>
+          <div className="flex gap-3 text-xs">
+            <div>
+              <span className="text-muted-foreground">H:</span>{' '}
+              <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">L:</span>{' '}
+              <span className="font-semibold">${priceInfo.low.toFixed(priceInfo.low < 1 ? 6 : 2)}</span>
+            </div>
+          </div>
         </div>
+
+        {/* Refresh Button */}
+        <Button
+          onClick={handleRefresh}
+          variant="ghost"
+          size="sm"
+          disabled={loading}
+          className="h-8"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
 
-      <ResponsiveContainer width="100%" height={height}>
-        {showVolume ? (
-          <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-            <XAxis 
-              dataKey="time" 
-              tickFormatter={formatXAxis}
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={11}
-            />
-            <YAxis 
-              yAxisId="price"
-              orientation="right"
-              domain={yDomain}
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={11}
-              tickFormatter={(value) => `$${value.toFixed(2)}`}
-            />
-            <YAxis 
-              yAxisId="volume"
-              orientation="left"
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={11}
-              tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar 
-              yAxisId="volume"
-              dataKey="volume" 
-              fill="hsl(var(--muted-foreground))" 
-              opacity={0.3}
-            />
-            <Area
-              yAxisId="price"
-              type="monotone"
-              dataKey="price"
-              stroke="hsl(var(--primary))"
-              strokeWidth={2}
-              fill="url(#colorPrice)"
-            />
-            {activeIndicators.includes('sma20') && (
-              <Line
-                yAxisId="price"
-                type="monotone"
-                dataKey="sma20"
-                stroke="hsl(var(--warning))"
-                strokeWidth={1}
-                dot={false}
-              />
-            )}
-            {activeIndicators.includes('sma50') && (
-              <Line
-                yAxisId="price"
-                type="monotone"
-                dataKey="sma50"
-                stroke="hsl(var(--destructive))"
-                strokeWidth={1}
-                dot={false}
-              />
-            )}
-            <Brush 
-              dataKey="time" 
-              height={30} 
-              stroke="hsl(var(--primary))"
-              fill="hsl(var(--muted))"
-              tickFormatter={formatXAxis}
-            />
-          </ComposedChart>
-        ) : (
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-            <XAxis 
-              dataKey="time" 
-              tickFormatter={formatXAxis}
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={11}
-            />
-            <YAxis 
-              domain={yDomain}
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={11}
-              tickFormatter={(value) => `$${value.toFixed(2)}`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="price"
-              stroke="hsl(var(--primary))"
-              strokeWidth={2}
-              fill="url(#colorPrice)"
-            />
-          </AreaChart>
-        )}
-      </ResponsiveContainer>
+      {/* Chart Type Selector */}
+      <div className="flex items-center gap-2">
+        {CHART_TYPES.map((type) => (
+          <Button
+            key={type.value}
+            onClick={() => setChartType(type.value)}
+            variant={chartType === type.value ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 text-xs"
+          >
+            {type.icon}
+            <span className="ml-1.5">{type.label}</span>
+          </Button>
+        ))}
+      </div>
 
-      <div className="flex items-center gap-4 mt-4">
-        <button
-          onClick={() => setActiveIndicators(prev => 
-            prev.includes('sma20') 
-              ? prev.filter(i => i !== 'sma20')
-              : [...prev, 'sma20']
-          )}
-          className={`px-3 py-1 text-xs rounded-md transition-colors ${
-            activeIndicators.includes('sma20')
-              ? 'bg-warning text-warning-foreground' 
-              : 'bg-muted hover:bg-muted/80'
-          }`}
-        >
-          SMA 20
-        </button>
-        <button
-          onClick={() => setActiveIndicators(prev => 
-            prev.includes('sma50') 
-              ? prev.filter(i => i !== 'sma50')
-              : [...prev, 'sma50']
-          )}
-          className={`px-3 py-1 text-xs rounded-md transition-colors ${
-            activeIndicators.includes('sma50')
-              ? 'bg-destructive text-destructive-foreground' 
-              : 'bg-muted hover:bg-muted/80'
-          }`}
-        >
-          SMA 50
-        </button>
-        <span className="text-xs text-muted-foreground ml-auto">
-          Powered by IgniteX AI
-        </span>
+      {/* Timeframe Selector */}
+      <div className="flex flex-wrap gap-2">
+        {TIMEFRAMES.map((tf) => (
+          <Button
+            key={tf.value}
+            onClick={() => setTimeframe(tf.value)}
+            variant={timeframe === tf.value ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 px-3 text-xs"
+          >
+            {tf.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Chart Container */}
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+            <div className="text-center space-y-2">
+              <p className="text-destructive text-sm">{error}</p>
+              <Button onClick={loadChartData} variant="outline" size="sm">
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+        <div
+          ref={chartContainerRef}
+          className="w-full rounded-lg overflow-hidden border border-border"
+          style={{ height: `${height}px` }}
+        />
+      </div>
+
+      {/* Chart Info */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            {symbol.toUpperCase()}
+          </Badge>
+          <span>Real-time {chartType} chart powered by TradingView</span>
+        </div>
+        <span>Data from CoinGecko</span>
       </div>
     </Card>
   );
 };
+
+export default TradingViewChart;

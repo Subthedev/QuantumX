@@ -1,23 +1,35 @@
 class EnhancedCryptoDataService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private CACHE_DURATION = 60000; // 1 minute
+  private CACHE_DURATION = 300000; // 5 minutes - increased to avoid rate limits
   private COINGECKO_API = 'https://api.coingecko.com/api/v3';
 
   async getDetailedMarketData(coinId: string) {
     const cacheKey = `detailed-${coinId}`;
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data;
     }
 
     try {
-      // Fetch comprehensive data
-      const [coinDetails, tickers, globalData] = await Promise.all([
-        this.fetchCoinDetails(coinId),
-        this.fetchTickers(coinId),
-        this.fetchGlobalData()
-      ]);
+      // Fetch only the essential coin details first (less likely to hit rate limits)
+      const coinDetails = await this.fetchCoinDetails(coinId);
+
+      // Try to fetch additional data, but continue if they fail (graceful degradation)
+      let tickers = [];
+      let globalData = null;
+
+      try {
+        tickers = await this.fetchTickers(coinId);
+      } catch (tickerError) {
+        console.warn('Could not fetch tickers (rate limited or CORS), continuing without them');
+      }
+
+      try {
+        globalData = await this.fetchGlobalData();
+      } catch (globalError) {
+        console.warn('Could not fetch global data (rate limited or CORS), continuing without it');
+      }
 
       const enrichedData = {
         ...coinDetails,
@@ -41,6 +53,14 @@ class EnhancedCryptoDataService {
     const response = await fetch(
       `${this.COINGECKO_API}/coins/${coinId}?localization=false&tickers=true&market_data=true&community_data=true&developer_data=true&sparkline=true`
     );
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a few moments.');
+      }
+      throw new Error(`Failed to fetch coin details: ${response.status}`);
+    }
+
     return response.json();
   }
 
@@ -48,12 +68,22 @@ class EnhancedCryptoDataService {
     const response = await fetch(
       `${this.COINGECKO_API}/coins/${coinId}/tickers?include_exchange_logo=true`
     );
+
+    if (!response.ok) {
+      throw new Error(`Tickers API error: ${response.status}`);
+    }
+
     const data = await response.json();
     return data.tickers?.slice(0, 10) || []; // Top 10 exchanges
   }
 
   private async fetchGlobalData() {
     const response = await fetch(`${this.COINGECKO_API}/global`);
+
+    if (!response.ok) {
+      throw new Error(`Global API error: ${response.status}`);
+    }
+
     const data = await response.json();
     return data.data;
   }

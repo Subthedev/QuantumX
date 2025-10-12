@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Brain, AlertCircle, Clock, History, Trash2, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Brain, AlertCircle, Clock, History, Trash2 } from 'lucide-react';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -19,25 +19,32 @@ import { FundamentalAnalysisCard } from '@/components/analysis/FundamentalAnalys
 import { SentimentAnalysisCard } from '@/components/analysis/SentimentAnalysisCard';
 import { OnChainAnalysisCard } from '@/components/analysis/OnChainAnalysisCard';
 import { ETFAnalysisCard } from '@/components/analysis/ETFAnalysisCard';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { validateAnalysis } from '@/schemas/analysis-schemas';
-import type { AnalysisResult } from '@/schemas/analysis-schemas';
 
-interface AnalysisLoadingState {
-  type: string;
-  status: 'pending' | 'loading' | 'success' | 'error';
-  error?: string;
+interface AnalysisResult {
+  id: string;
+  analysisType: string;
+  structuredAnalysis: any;
+  timestamp: string;
+  confidence: number;
+  metrics: Record<string, any>;
+  coinData: {
+    id: string;
+    name: string;
+    symbol: string;
+    price: number;
+    change24h: number;
+    marketCap: number;
+    volume: number;
+  };
 }
 
 const AIAnalysis = () => {
   const [selectedCoin, setSelectedCoin] = useState<string>('');
   const [selectedAnalysisTypes, setSelectedAnalysisTypes] = useState<string[]>(['technical']);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [loadingStates, setLoadingStates] = useState<AnalysisLoadingState[]>([]);
   const [currentResults, setCurrentResults] = useState<AnalysisResult[]>([]);
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisResult[]>([]);
   const [viewingHistory, setViewingHistory] = useState(false);
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Load recent analyses from localStorage on mount
@@ -62,58 +69,36 @@ const AIAnalysis = () => {
     {
       id: 'technical',
       label: 'Technical',
-      description: 'Price action & indicators',
-      gradient: 'from-blue-500 to-cyan-500',
-      icon: '📈'
+      description: 'Price action & indicators'
     },
     {
       id: 'fundamental',
       label: 'Fundamental',
-      description: 'Tokenomics & valuation',
-      gradient: 'from-purple-500 to-pink-500',
-      icon: '💎'
+      description: 'Tokenomics & valuation'
     },
     {
       id: 'sentiment',
       label: 'Sentiment',
-      description: 'Market psychology',
-      gradient: 'from-orange-500 to-amber-500',
-      icon: '🧠'
+      description: 'Market psychology'
     },
     {
       id: 'onchain',
       label: 'On-Chain',
-      description: 'Network metrics',
-      gradient: 'from-green-500 to-emerald-500',
-      icon: '⛓️'
+      description: 'Network metrics'
     },
     {
       id: 'etf',
       label: 'Institutional',
-      description: 'ETF & flows',
-      gradient: 'from-indigo-500 to-violet-500',
-      icon: '🏦'
+      description: 'ETF & flows'
     }
   ];
 
   const toggleAnalysisType = (typeId: string) => {
-    setSelectedAnalysisTypes(prev =>
-      prev.includes(typeId)
+    setSelectedAnalysisTypes(prev => 
+      prev.includes(typeId) 
         ? prev.filter(id => id !== typeId)
         : [...prev, typeId]
     );
-  };
-
-  const toggleCardExpansion = (cardId: string) => {
-    setExpandedCards(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(cardId)) {
-        newSet.delete(cardId);
-      } else {
-        newSet.add(cardId);
-      }
-      return newSet;
-    });
   };
 
   const generateAnalysis = async () => {
@@ -139,118 +124,56 @@ const AIAnalysis = () => {
     setCurrentResults([]);
     setViewingHistory(false);
 
-    // Initialize loading states
-    const initialLoadingStates = selectedAnalysisTypes.map(type => ({
-      type,
-      status: 'loading' as const
-    }));
-    setLoadingStates(initialLoadingStates);
-
     try {
       const coinData = cryptos.find(c => c.id === selectedCoin);
       if (!coinData) throw new Error('Coin data not found');
 
       const detailedData = await cryptoDataService.getCryptoDetails(selectedCoin);
+      const newResults: AnalysisResult[] = [];
 
-      // ✨ PARALLEL PROCESSING - Generate all analyses at once
-      const analysisPromises = selectedAnalysisTypes.map(async (analysisType) => {
-        try {
-          const { data, error } = await supabase.functions.invoke('ai-analysis', {
-            body: {
-              coin: coinData,
-              detailedData,
-              analysisType
-            }
-          });
-
-          if (error) {
-            throw new Error(error.message || 'Failed to generate analysis');
+      // Generate analyses for each selected type
+      for (const analysisType of selectedAnalysisTypes) {
+        const { data, error } = await supabase.functions.invoke('ai-analysis', {
+          body: {
+            coin: coinData,
+            detailedData,
+            analysisType
           }
+        });
 
-          // ✨ VALIDATION - Validate response with Zod
-          const validationResult = validateAnalysis(analysisType, data.structuredAnalysis);
+        if (error) throw error;
 
-          if (!validationResult.success) {
-            console.error(`Validation failed for ${analysisType}:`, validationResult.error);
-            throw new Error(`Invalid analysis data: ${validationResult.error}`);
+        const result: AnalysisResult = {
+          id: `${selectedCoin}-${analysisType}-${Date.now()}`,
+          ...data,
+          coinData: {
+            ...data.coinData,
+            id: selectedCoin
           }
-
-          const result: AnalysisResult = {
-            id: `${selectedCoin}-${analysisType}-${Date.now()}`,
-            ...data,
-            structuredAnalysis: validationResult.data, // Use validated data
-            coinData: {
-              ...data.coinData,
-              id: selectedCoin
-            }
-          };
-
-          // Update loading state for this analysis
-          setLoadingStates(prev =>
-            prev.map(s =>
-              s.type === analysisType ? { ...s, status: 'success' as const } : s
-            )
-          );
-
-          return { success: true, result };
-        } catch (error: any) {
-          console.error(`Error generating ${analysisType} analysis:`, error);
-
-          // Update loading state with error
-          setLoadingStates(prev =>
-            prev.map(s =>
-              s.type === analysisType
-                ? { ...s, status: 'error' as const, error: error.message }
-                : s
-            )
-          );
-
-          return { success: false, analysisType, error: error.message };
-        }
-      });
-
-      // Wait for all analyses to complete
-      const results = await Promise.allSettled(analysisPromises);
-
-      // Extract successful results
-      const newResults: AnalysisResult[] = results
-        .filter((r): r is PromiseFulfilledResult<{ success: boolean; result?: AnalysisResult }> =>
-          r.status === 'fulfilled' && r.value.success && r.value.result !== undefined
-        )
-        .map(r => r.value.result!);
-
-      if (newResults.length === 0) {
-        throw new Error('All analyses failed. Please try again.');
+        };
+        newResults.push(result);
       }
 
       setCurrentResults(newResults);
-
-      // Auto-expand all generated cards
-      setExpandedCards(new Set(newResults.map(r => r.id)));
 
       // Save to recent analyses
       const updatedRecent = [...newResults, ...recentAnalyses].slice(0, 20);
       setRecentAnalyses(updatedRecent);
       localStorage.setItem('recentAnalyses', JSON.stringify(updatedRecent));
 
-      const successCount = newResults.length;
-      const failedCount = selectedAnalysisTypes.length - successCount;
-
       toast({
         title: 'Analysis Complete',
-        description: `Successfully generated ${successCount} analysis type(s)${failedCount > 0 ? `. ${failedCount} failed.` : ''}`,
-        variant: failedCount > 0 ? 'destructive' : 'default'
+        description: `Generated ${selectedAnalysisTypes.length} analysis type(s) for ${coinData.name}`
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error generating analysis:', error);
       toast({
         title: 'Generation Failed',
-        description: error.message || 'Failed to generate analysis. Please try again.',
+        description: 'Failed to generate analysis. Please try again.',
         variant: 'destructive'
       });
     } finally {
       setIsGenerating(false);
-      setLoadingStates([]);
     }
   };
 
@@ -273,35 +196,6 @@ const AIAnalysis = () => {
     });
   };
 
-  const exportAnalysis = (result: AnalysisResult, format: 'json' | 'text') => {
-    const filename = `${result.coinData.symbol}-${result.analysisType}-${new Date().toISOString().split('T')[0]}.${format === 'json' ? 'json' : 'txt'}`;
-
-    let content: string;
-    if (format === 'json') {
-      content = JSON.stringify(result, null, 2);
-    } else {
-      content = `${result.coinData.name} (${result.coinData.symbol.toUpperCase()}) - ${result.analysisType.toUpperCase()} ANALYSIS\n`;
-      content += `Generated: ${new Date(result.timestamp).toLocaleString()}\n`;
-      content += `Confidence: ${result.confidence}%\n\n`;
-      content += JSON.stringify(result.structuredAnalysis, null, 2);
-    }
-
-    const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: 'Export successful',
-      description: `Analysis exported as ${filename}`
-    });
-  };
-
   const renderAnalysisCard = (result: AnalysisResult) => {
     const { analysisType, structuredAnalysis, coinData } = result;
 
@@ -314,119 +208,6 @@ const AIAnalysis = () => {
     };
 
     return cards[analysisType] || null;
-  };
-
-  const renderAnalysisTypeCard = (result: AnalysisResult) => {
-    const analysisConfig = analysisTypes.find(t => t.id === result.analysisType);
-    if (!analysisConfig) return null;
-
-    const isExpanded = expandedCards.has(result.id);
-    const borderGradient = `bg-gradient-to-r ${analysisConfig.gradient}`;
-
-    return (
-      <Card
-        key={result.id}
-        className="relative overflow-hidden border-2 shadow-lg transition-all duration-300 hover:shadow-xl"
-        style={{
-          borderImage: `linear-gradient(to right, var(--tw-gradient-stops)) 1`,
-        }}
-      >
-        {/* Gradient accent bar */}
-        <div className={`absolute top-0 left-0 right-0 h-1 ${borderGradient}`} />
-
-        {/* Card Header */}
-        <CardHeader className="cursor-pointer" onClick={() => toggleCardExpansion(result.id)}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl ${borderGradient} text-3xl`}>
-                {analysisConfig.icon}
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                  {analysisConfig.label} Analysis
-                  <Badge variant="outline" className="text-xs font-normal">
-                    {result.confidence}% confidence
-                  </Badge>
-                </CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Clock className="h-3 w-3" />
-                  {new Date(result.timestamp).toLocaleString()}
-                </CardDescription>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  exportAnalysis(result, 'json');
-                }}
-                title="Export as JSON"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-
-              <Button size="icon" variant="ghost">
-                {isExpanded ? (
-                  <ChevronUp className="h-5 w-5" />
-                ) : (
-                  <ChevronDown className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-
-        {/* Card Content - Collapsible */}
-        {isExpanded && (
-          <CardContent className="pt-0">
-            <Separator className="mb-6" />
-            <ErrorBoundary
-              fallbackTitle="Analysis rendering error"
-              fallbackMessage="Failed to render this analysis. The data may be corrupted."
-            >
-              {renderAnalysisCard(result)}
-            </ErrorBoundary>
-          </CardContent>
-        )}
-      </Card>
-    );
-  };
-
-  const renderLoadingCards = () => {
-    return loadingStates.map((state) => {
-      const analysisConfig = analysisTypes.find(t => t.id === state.type);
-      if (!analysisConfig) return null;
-
-      const borderGradient = `bg-gradient-to-r ${analysisConfig.gradient}`;
-
-      return (
-        <Card key={state.type} className="border-2">
-          <div className={`absolute top-0 left-0 right-0 h-1 ${borderGradient}`} />
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${borderGradient}`}>
-                  {state.status === 'loading' && <Loader2 className="h-6 w-6 animate-spin text-white" />}
-                  {state.status === 'error' && <AlertCircle className="h-6 w-6 text-white" />}
-                </div>
-                <div>
-                  <CardTitle className="text-xl">
-                    {analysisConfig.label} Analysis
-                  </CardTitle>
-                  <CardDescription>
-                    {state.status === 'loading' && 'Generating with IgniteX AI...'}
-                    {state.status === 'error' && `Error: ${state.error}`}
-                  </CardDescription>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-      );
-    });
   };
 
   const renderResults = (results: AnalysisResult[]) => {
@@ -442,7 +223,7 @@ const AIAnalysis = () => {
 
     return Object.entries(groupedByCoin).map(([coinId, coinResults]) => {
       const firstResult = coinResults[0];
-
+      
       return (
         <div key={`${coinId}-${firstResult.timestamp}`} className="space-y-6">
           {/* Coin Header */}
@@ -472,9 +253,19 @@ const AIAnalysis = () => {
           </Card>
 
           {/* Analysis Cards */}
-          <div className="space-y-6">
-            {coinResults.map(result => renderAnalysisTypeCard(result))}
-          </div>
+          {coinResults.map(result => (
+            <div key={result.id}>
+              <div className="flex items-center gap-2 mb-4">
+                <Badge variant="outline" className="text-sm font-medium">
+                  {analysisTypes.find(t => t.id === result.analysisType)?.label} Analysis
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {result.confidence}% Confidence
+                </Badge>
+              </div>
+              {renderAnalysisCard(result)}
+            </div>
+          ))}
 
           <Separator className="my-8" />
         </div>
@@ -483,7 +274,7 @@ const AIAnalysis = () => {
   };
 
   return (
-    <ErrorBoundary>
+    <>
       <AppHeader />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="space-y-8">
@@ -496,7 +287,7 @@ const AIAnalysis = () => {
             </div>
             <h1 className="text-4xl font-bold">AI Crypto Analysis</h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Professional multi-dimensional analysis powered by IgniteX AI
+              Professional multi-analysis powered by IgniteX AI
             </p>
           </div>
 
@@ -548,43 +339,37 @@ const AIAnalysis = () => {
               {/* Analysis Types - Multiple Selection */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">Analysis Types (Select Multiple)</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {analysisTypes.map(type => {
-                    const isSelected = selectedAnalysisTypes.includes(type.id);
-                    return (
-                      <div
-                        key={type.id}
-                        onClick={() => toggleAnalysisType(type.id)}
-                        className={`
-                          relative p-4 rounded-xl border-2 cursor-pointer transition-all
-                          hover:scale-105 hover:shadow-lg
-                          ${isSelected
-                            ? `bg-gradient-to-br ${type.gradient} text-white border-transparent shadow-lg`
-                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                          }
-                        `}
-                      >
-                        <div className="flex flex-col items-center text-center space-y-2">
-                          <div className="text-3xl">{type.icon}</div>
-                          <div className="text-sm font-semibold">{type.label}</div>
-                          <div className={`text-xs ${isSelected ? 'text-white/90' : 'text-muted-foreground'}`}>
-                            {type.description}
-                          </div>
-                          <Checkbox
-                            checked={isSelected}
-                            className="pointer-events-none"
-                          />
-                        </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {analysisTypes.map(type => (
+                    <div
+                      key={type.id}
+                      onClick={() => toggleAnalysisType(type.id)}
+                      className={`
+                        relative p-4 rounded-lg border-2 cursor-pointer transition-all
+                        ${selectedAnalysisTypes.includes(type.id)
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                        }
+                      `}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="text-sm font-medium">{type.label}</div>
+                        <Checkbox
+                          checked={selectedAnalysisTypes.includes(type.id)}
+                          className="pointer-events-none"
+                        />
                       </div>
-                    );
-                  })}
+                      <div className="text-xs text-muted-foreground">
+                        {type.description}
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 {selectedAnalysisTypes.length > 0 && (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
                       {selectedAnalysisTypes.length} analysis type{selectedAnalysisTypes.length > 1 ? 's' : ''} selected
-                      • IgniteX AI will generate them in parallel
                     </AlertDescription>
                   </Alert>
                 )}
@@ -594,37 +379,29 @@ const AIAnalysis = () => {
               <Button
                 onClick={generateAnalysis}
                 disabled={isGenerating || !selectedCoin || selectedAnalysisTypes.length === 0}
-                className="w-full h-12 text-lg"
+                className="w-full"
                 size="lg"
               >
                 {isGenerating ? (
                   <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Generating {loadingStates.filter(s => s.status === 'loading').length} Analysis...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Analysis...
                   </>
                 ) : (
                   <>
-                    <Brain className="mr-2 h-5 w-5" />
-                    Generate {selectedAnalysisTypes.length} Analysis{selectedAnalysisTypes.length > 1 ? 'es' : ''}
+                    <Brain className="mr-2 h-4 w-4" />
+                    Generate Analysis ({selectedAnalysisTypes.length})
                   </>
                 )}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Loading States */}
-          {isGenerating && loadingStates.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Generating Analyses...</h2>
-              {renderLoadingCards()}
-            </div>
-          )}
-
           {/* Current Results */}
           {currentResults.length > 0 && !viewingHistory && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Analysis Results</h2>
+                <h2 className="text-2xl font-bold">Current Analysis</h2>
                 {recentAnalyses.length > 0 && (
                   <Button variant="outline" onClick={() => setViewingHistory(true)}>
                     <History className="mr-2 h-4 w-4" />
@@ -674,7 +451,7 @@ const AIAnalysis = () => {
           )}
         </div>
       </div>
-    </ErrorBoundary>
+    </>
   );
 };
 

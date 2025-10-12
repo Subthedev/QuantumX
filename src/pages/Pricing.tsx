@@ -28,11 +28,11 @@ const monthlyPlans = [
   },
   {
     name: "PRO",
-    price: "$49",
+    price: "$19",
     period: "/month",
     badge: "MOST POPULAR",
     description: "Everything you need for serious trading",
-    originalPrice: undefined,
+    originalPrice: "$49",
     features: [
       "Access to Titan 10 exclusive picks",
       "Unlimited AI analysis reports",
@@ -89,11 +89,11 @@ const yearlyPlans = [
   },
   {
     name: "PRO",
-    price: "$499",
+    price: "$199",
     period: "/year",
     badge: "SAVE 15%",
     description: "Everything you need for serious trading",
-    originalPrice: "$588",
+    originalPrice: "$228",
     features: [
       "Access to Titan 10 exclusive picks",
       "Unlimited AI analysis reports",

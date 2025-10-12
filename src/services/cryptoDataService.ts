@@ -33,7 +33,7 @@ export interface CryptoData {
 
 class CryptoDataService {
   private cache: Map<string, { data: CryptoData[], timestamp: number }> = new Map();
-  private CACHE_DURATION = 60000; // 1 minute cache
+  private CACHE_DURATION = 120000; // 2 minutes cache - increased to avoid rate limits
   private COINGECKO_API = 'https://api.coingecko.com/api/v3';
 
   async getTopCryptos(limit: number = 100): Promise<CryptoData[]> {

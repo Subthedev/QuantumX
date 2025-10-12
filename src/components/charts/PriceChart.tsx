@@ -31,7 +31,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
     low: 0,
     volume: 0
   });
-  const [showVolume, setShowVolume] = useState(true);
+  const [showVolume, setShowVolume] = useState(false); // Disabled: using synthetic data
   const [showMA, setShowMA] = useState(true);
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);

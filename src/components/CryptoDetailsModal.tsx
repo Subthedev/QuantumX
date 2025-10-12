@@ -1,12 +1,13 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Activity,
   DollarSign,
   BarChart3,
   Clock,
@@ -20,26 +21,33 @@ import {
   Code,
   GitFork,
   Star,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  Bell,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { enhancedCryptoDataService } from '@/services/enhancedCryptoDataService';
 import PriceChart from './charts/PriceChart';
+import TradingViewChart from './charts/TradingViewChart';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { formatNumber, formatPercentage } from '@/lib/utils';
+import type { CoinData, DetailedCoinData, EnhancedMarketData, PriceChange } from '@/types/crypto';
 
 interface CryptoDetailsModalProps {
-  coin: any;
+  coin: CoinData;
   open: boolean;
   onClose: () => void;
 }
 
-export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetailsModalProps) {
-  const [detailedData, setDetailedData] = useState<any>(null);
-  const [enhancedData, setEnhancedData] = useState<any>(null);
+const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) => {
+  const [detailedData, setDetailedData] = useState<DetailedCoinData | null>(null);
+  const [enhancedData, setEnhancedData] = useState<EnhancedMarketData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (coin && open) {
@@ -54,15 +62,27 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
 
   const loadDetailedData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const [basicData, enhanced] = await Promise.all([
-        cryptoDataService.getCryptoDetails(coin.id),
-        enhancedCryptoDataService.getDetailedMarketData(coin.id)
-      ]);
+      // Try to fetch basic data first
+      const basicData = await cryptoDataService.getCryptoDetails(coin.id);
       setDetailedData(basicData);
-      setEnhancedData(enhanced);
-    } catch (error) {
-      console.error('Error loading detailed data:', error);
+
+      // Then try to fetch enhanced data separately (graceful degradation)
+      try {
+        const enhanced = await enhancedCryptoDataService.getDetailedMarketData(coin.id);
+        setEnhancedData(enhanced);
+      } catch (enhancedErr) {
+        console.warn('Could not load enhanced data, continuing with basic data:', enhancedErr);
+        // Don't set error, just continue without enhanced data
+      }
+    } catch (err) {
+      console.error('Error loading detailed data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load coin details. Please try again.';
+      setError(errorMessage.includes('Rate limit') ?
+        'API rate limit reached. Please wait a moment and try again.' :
+        errorMessage
+      );
     } finally {
       setIsLoading(false);
     }
@@ -81,29 +101,40 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
     return 'text-muted-foreground';
   };
 
-  if (!coin) return null;
-
-  const metrics = [
+  // Memoized metrics arrays for performance
+  const metrics = useMemo(() => [
     { label: 'Market Cap', value: cryptoDataService.formatNumber(coin.market_cap), change: coin.market_cap_change_percentage_24h },
     { label: '24h Volume', value: cryptoDataService.formatNumber(coin.total_volume), change: null },
     { label: '24h High', value: `$${coin.high_24h?.toFixed(coin.high_24h < 1 ? 6 : 2) || '0'}`, change: null },
     { label: '24h Low', value: `$${coin.low_24h?.toFixed(coin.low_24h < 1 ? 6 : 2) || '0'}`, change: null },
-  ];
+  ], [coin]);
 
-  const supplyMetrics = [
+  const supplyMetrics = useMemo(() => [
     { label: 'Circulating Supply', value: formatSupply(coin.circulating_supply, coin.symbol) },
-    { label: 'Total Supply', value: formatSupply(coin.total_supply, coin.symbol) },
-    { label: 'Max Supply', value: formatSupply(coin.max_supply, coin.symbol) },
+    { label: 'Total Supply', value: formatSupply(coin.total_supply || 0, coin.symbol) },
+    { label: 'Max Supply', value: formatSupply(coin.max_supply || 0, coin.symbol) },
     { label: 'Market Dominance', value: detailedData?.market_data?.market_cap_dominance ? `${detailedData.market_data.market_cap_dominance.toFixed(2)}%` : 'N/A' },
-  ];
+  ], [coin, detailedData]);
 
-  const priceChanges = [
+  const priceChanges: PriceChange[] = useMemo(() => [
     { period: '1h', value: detailedData?.market_data?.price_change_percentage_1h_in_currency?.usd },
     { period: '24h', value: coin.price_change_percentage_24h },
     { period: '7d', value: coin.price_change_percentage_7d_in_currency },
     { period: '30d', value: detailedData?.market_data?.price_change_percentage_30d },
     { period: '1y', value: detailedData?.market_data?.price_change_percentage_1y },
-  ];
+  ], [coin, detailedData]);
+
+  const handleAddToPortfolio = () => {
+    // TODO: Implement add to portfolio functionality
+    console.log('Add to portfolio:', coin.id);
+  };
+
+  const handleSetAlert = () => {
+    // TODO: Implement price alert functionality
+    console.log('Set alert for:', coin.id);
+  };
+
+  if (!coin) return null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -116,10 +147,24 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
+        ) : error ? (
+          <Card className="border-destructive/50">
+            <CardContent className="p-8 text-center space-y-4">
+              <AlertCircle className="w-16 h-16 mx-auto text-destructive opacity-50" />
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">Failed to Load Data</h3>
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </div>
+              <Button onClick={loadDetailedData} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
                 <img src={coin.image} alt={coin.name} className="w-16 h-16 rounded-full" />
                 <div>
@@ -141,6 +186,18 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
               </div>
             </div>
 
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={handleAddToPortfolio} className="flex-1 min-w-[140px]">
+                <Plus className="w-4 h-4 mr-2" />
+                Add to Portfolio
+              </Button>
+              <Button onClick={handleSetAlert} variant="outline" className="flex-1 min-w-[140px]">
+                <Bell className="w-4 h-4 mr-2" />
+                Set Price Alert
+              </Button>
+            </div>
+
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -149,14 +206,13 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
-                {/* Price Chart */}
+                {/* TradingView Price Chart */}
                 <div className="w-full">
-                  <PriceChart 
+                  <TradingViewChart
                     coinId={coin.id}
                     symbol={coin.symbol}
                     currentPrice={coin.current_price}
-                    sparklineData={coin.sparkline_in_7d?.price}
-                    height={400}
+                    height={450}
                   />
                 </div>
 
@@ -454,7 +510,7 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
 
               <TabsContent value="about" className="space-y-6">
                 {/* Description */}
-                {detailedData?.description?.en && (
+                {detailedData?.description?.en ? (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -464,9 +520,16 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
                     </CardHeader>
                     <CardContent>
                       <div className="prose prose-sm max-w-none">
-                        <p className="text-sm text-muted-foreground leading-relaxed" 
+                        <p className="text-sm text-muted-foreground leading-relaxed"
                            dangerouslySetInnerHTML={{ __html: detailedData.description.en }} />
                       </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      <Info className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">No description available for {coin.name}</p>
                     </CardContent>
                   </Card>
                 )}
@@ -600,4 +663,6 @@ export default function CryptoDetailsModal({ coin, open, onClose }: CryptoDetail
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default memo(CryptoDetailsModal);

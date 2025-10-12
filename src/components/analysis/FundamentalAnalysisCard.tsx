@@ -3,10 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import type { FundamentalAnalysis } from '@/schemas/analysis-schemas';
 
 interface FundamentalAnalysisProps {
-  data: any;
-  coinData: any;
+  data: FundamentalAnalysis;
+  coinData: {
+    id: string;
+    name: string;
+    symbol: string;
+    price: number;
+    change24h: number;
+    marketCap: number;
+    volume: number;
+  };
 }
 
 export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ data, coinData }) => {
