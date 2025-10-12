@@ -3,10 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Brain, Activity } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import type { SentimentAnalysis } from '@/schemas/analysis-schemas';
 
 interface SentimentAnalysisProps {
-  data: any;
-  coinData: any;
+  data: SentimentAnalysis;
+  coinData: {
+    id: string;
+    name: string;
+    symbol: string;
+    price: number;
+    change24h: number;
+    marketCap: number;
+    volume: number;
+  };
 }
 
 export const SentimentAnalysisCard: React.FC<SentimentAnalysisProps> = ({ data, coinData }) => {

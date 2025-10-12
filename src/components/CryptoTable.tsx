@@ -1,7 +1,8 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Eye } from 'lucide-react';
-import { cryptoDataService, CryptoData } from '@/services/cryptoDataService';
+import { cryptoDataService } from '@/services/cryptoDataService';
+import type { CoinData } from '@/types/crypto';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -10,13 +11,13 @@ import CryptoDetailsModal from './CryptoDetailsModal';
 import { toast } from 'sonner';
 
 interface CryptoTableProps {
-  onGenerateReport?: (coin: CryptoData) => void;
+  onGenerateReport?: (coin: CoinData) => void;
 }
 
 const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
-  const [cryptos, setCryptos] = useState<CryptoData[]>([]);
+  const [cryptos, setCryptos] = useState<CoinData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCrypto, setSelectedCrypto] = useState<CryptoData | null>(null);
+  const [selectedCrypto, setSelectedCrypto] = useState<CoinData | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
   const loadCryptoData = useCallback(async () => {
@@ -35,7 +36,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
     const interval = setInterval(loadCryptoData, 60000);
     return () => clearInterval(interval);
   }, [loadCryptoData]);
-  const handleViewDetails = useCallback((crypto: CryptoData) => {
+  const handleViewDetails = useCallback((crypto: CoinData) => {
     setSelectedCrypto(crypto);
     setShowDetails(true);
   }, []);

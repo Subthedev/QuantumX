@@ -8,7 +8,7 @@ import { cryptoDataService } from '@/services/cryptoDataService';
 
 export default function Titan10Section() {
   const navigate = useNavigate();
-  const [hbarReturn, setHbarReturn] = useState('+962%');
+  const [hbarReturn, setHbarReturn] = useState('+387%');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function Titan10Section() {
         const hbarData = cryptos.find(c => c.id === 'hedera-hashgraph');
         
         if (hbarData) {
-          const entryPrice = 0.05;
+          const entryPrice = 0.0421;
           const currentPrice = hbarData.current_price;
           const returnPercentage = ((currentPrice - entryPrice) / entryPrice) * 100;
           setHbarReturn(`${returnPercentage >= 0 ? '+' : ''}${returnPercentage.toFixed(0)}%`);
@@ -61,33 +61,36 @@ export default function Titan10Section() {
           
           {/* Key Metrics - Clean Professional Grid */}
           <div className="grid grid-cols-3 gap-4">
-            <Card className="border-border bg-background">
+            <Card className="border-border bg-gradient-to-br from-green-500/5 to-background">
               <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+                <div className="flex items-center justify-center gap-1.5 text-green-500 mb-1">
                   <TrendingUp className="w-4 h-4" />
-                  <p className="text-2xl font-bold">23,879%</p>
+                  <p className="text-2xl font-bold">+1,218%</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Avg. Returns</p>
+                <p className="text-xs text-muted-foreground">Portfolio Return</p>
+                <p className="text-[9px] text-muted-foreground">vs BTC +57%</p>
               </CardContent>
             </Card>
-            
-            <Card className="border-border bg-background">
+
+            <Card className="border-border bg-gradient-to-br from-blue-500/5 to-background">
               <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
-                  <DollarSign className="w-4 h-4" />
-                  <p className="text-2xl font-bold">$2.8M</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Total Volume</p>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-border bg-background">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+                <div className="flex items-center justify-center gap-1.5 text-blue-500 mb-1">
                   <Target className="w-4 h-4" />
-                  <p className="text-2xl font-bold">87%</p>
+                  <p className="text-2xl font-bold">8/10</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Hit Rate</p>
+                <p className="text-xs text-muted-foreground">Win Rate</p>
+                <p className="text-[9px] text-muted-foreground">80% profitable</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-gradient-to-br from-purple-500/5 to-background">
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-purple-500 mb-1">
+                  <DollarSign className="w-4 h-4" />
+                  <p className="text-2xl font-bold">+1,527%</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Winners Avg</p>
+                <p className="text-[9px] text-muted-foreground">8 of 10 picks</p>
               </CardContent>
             </Card>
           </div>
@@ -149,8 +152,8 @@ export default function Titan10Section() {
                     
                     <div className="pt-2 border-t border-border">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Return Till Date:</span>
-                        <span className="text-lg font-bold text-purple-500">+4,900%</span>
+                        <span className="text-xs text-muted-foreground">Target 2026:</span>
+                        <span className="text-lg font-bold text-purple-500">$85</span>
                       </div>
                     </div>
                   </div>
@@ -165,9 +168,14 @@ export default function Titan10Section() {
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
           
-          <p className="text-xs text-center text-muted-foreground">
-            Get instant access to 2 exclusive picks • 8 more coins available for members
-          </p>
+          <div className="text-center space-y-1">
+            <p className="text-xs text-muted-foreground">
+              🔥 1,200+ members • +1,218% avg returns • 8/10 win rate
+            </p>
+            <p className="text-xs font-semibold text-green-500">
+              14-day performance guarantee - Outperform BTC or full refund
+            </p>
+          </div>
         </div>
       </div>
     </div>;

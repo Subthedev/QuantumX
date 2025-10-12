@@ -3,10 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, TrendingUp, TrendingDown, Building2, Scale, AlertCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import type { ETFAnalysis } from '@/schemas/analysis-schemas';
 
 interface ETFAnalysisProps {
-  data: any;
-  coinData: any;
+  data: ETFAnalysis;
+  coinData: {
+    id: string;
+    name: string;
+    symbol: string;
+    price: number;
+    change24h: number;
+    marketCap: number;
+    volume: number;
+  };
 }
 
 export const ETFAnalysisCard: React.FC<ETFAnalysisProps> = ({ data, coinData }) => {

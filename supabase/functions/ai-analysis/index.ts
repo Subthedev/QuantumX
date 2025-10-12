@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { rateLimitMiddleware, getClientIP, getUserId } from "../_shared/rate-limiter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -429,8 +430,28 @@ serve(async (req) => {
   }
 
   try {
+    // Check rate limits
+    const userId = getUserId(req);
+    const clientIP = getClientIP(req);
+    const rateLimitCheck = rateLimitMiddleware(userId, clientIP);
+
+    if (!rateLimitCheck.allowed) {
+      console.warn('Rate limit exceeded for:', userId || clientIP);
+      return new Response(
+        JSON.stringify({
+          error: 'Rate limit exceeded',
+          message: rateLimitCheck.reason,
+          resetAt: rateLimitCheck.headers['X-RateLimit-Reset']
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, ...rateLimitCheck.headers, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const { coin, detailedData, analysisType } = await req.json();
-    
+
     console.log('Generating AI analysis for:', coin.symbol, 'Type:', analysisType);
 
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -468,156 +489,396 @@ serve(async (req) => {
       day: 'numeric' 
     });
     
-    let systemPrompt = `You are a professional cryptocurrency analyst with expertise in ${analysisType} analysis. 
+    let systemPrompt = `You are an elite cryptocurrency trading analyst powered by IgniteX AI with 10+ years of market experience.
 
-CRITICAL REQUIREMENTS:
-- Today's date is ${currentDate}. All analysis must reflect current market conditions as of this date.
-- Provide actionable insights that save traders time by doing the analysis for them.
-- Reference quality data sources: CoinGecko API, on-chain metrics, market depth, and trading volume.
-- Be specific with price levels, percentages, and timeframes.
-- Focus on what traders should DO, not just what's happening.
-- Include risk factors and confidence levels in your assessment.`;
+TODAY'S DATE: ${currentDate}
+
+YOUR MISSION:
+Transform raw market data into immediate ACTION PLANS for traders and investors. Your analysis should answer:
+- "Should I buy, hold, or sell RIGHT NOW?"
+- "At what exact price levels should I enter/exit?"
+- "What's my risk and how do I protect my capital?"
+- "What catalysts or events could change this thesis?"
+
+ANALYSIS PRINCIPLES:
+✓ Be brutally honest - if data is uncertain, say so
+✓ Give specific dollar amounts, not vague ranges
+✓ Explain WHY behind every recommendation
+✓ Highlight what could go WRONG (risk management)
+✓ Use real-time market data to support every claim
+✓ Write like you're managing the trader's portfolio
+✓ Skip textbook definitions - traders know the basics
+✓ Focus on EDGE - what insight gives traders an advantage?
+
+OUTPUT STYLE:
+- Direct, confident, no fluff
+- "BTC is breaking $67,500 resistance with 3x volume" NOT "Price appears to show upward momentum"
+- Include exact entry/exit prices, stop losses, profit targets
+- Reference specific market events, news, or catalysts from recent days/weeks
+- Quantify everything: percentages, dollar amounts, timeframes`;
 
     let userPrompt = '';
 
     switch (analysisType) {
       case 'technical':
-        userPrompt = `Perform a detailed technical analysis for ${coin.name} (${coin.symbol.toUpperCase()}) as of ${currentDate}:
+        const volatility24h = ((coin.high_24h - coin.low_24h) / coin.current_price * 100).toFixed(1);
+        const volumeToMcap = (coin.total_volume / coin.market_cap * 100).toFixed(2);
+        const athDrawdown = ((1 - coin.current_price / coin.ath) * 100).toFixed(1);
 
-REAL-TIME MARKET DATA (Source: CoinGecko API):
-- Current Price: $${coin.current_price.toLocaleString()}
-- 24h Change: ${coin.price_change_percentage_24h > 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}%
-- 7d Change: ${coin.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${coin.price_change_percentage_7d_in_currency.toFixed(2)}%
-- 24h High/Low: $${coin.high_24h.toLocaleString()} / $${coin.low_24h.toLocaleString()}
-- 24h Volume: $${coin.total_volume.toLocaleString()}
-- Market Cap: $${coin.market_cap.toLocaleString()} (Rank #${coin.market_cap_rank})
-- All-Time High: $${coin.ath.toLocaleString()} (${new Date(coin.ath_date).toLocaleDateString()})
-- Distance from ATH: ${((1 - coin.current_price / coin.ath) * 100).toFixed(1)}%
+        userPrompt = `TRADING DESK: ${coin.name} (${coin.symbol.toUpperCase()}) - ${currentDate}
 
-REQUIRED OUTPUT:
-1. **Price Action & Trend**: Current momentum, trend strength, and timeframe analysis
-2. **Key Levels**: Specific support levels (at least 2) and resistance levels (at least 2) with exact prices
-3. **Volume Profile**: Compare current vs average volume, identify accumulation/distribution
-4. **Entry Strategy**: 2-3 specific entry price points with reasoning
-5. **Exit Strategy**: Take-profit levels and stop-loss recommendations
-6. **Risk/Reward**: Calculate R:R ratio for recommended trades
-7. **Timeframe**: Short-term (1-7 days) and medium-term (1-4 weeks) outlook
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 LIVE MARKET SNAPSHOT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Price: $${coin.current_price.toLocaleString()}
+24h Range: $${coin.low_24h.toLocaleString()} → $${coin.high_24h.toLocaleString()} (${volatility24h}% volatility)
+24h Move: ${coin.price_change_percentage_24h > 0 ? '📈 +' : '📉 '}${coin.price_change_percentage_24h.toFixed(2)}%
+7d Move: ${coin.price_change_percentage_7d_in_currency > 0 ? '📈 +' : '📉 '}${coin.price_change_percentage_7d_in_currency.toFixed(2)}%
 
-Be specific with dollar amounts and percentages. This analysis should save the trader hours of chart reading.`;
+Volume: $${(coin.total_volume / 1e9).toFixed(2)}B (${volumeToMcap}% of market cap)
+Market Cap: $${(coin.market_cap / 1e9).toFixed(2)}B (#${coin.market_cap_rank} globally)
+ATH: $${coin.ath.toLocaleString()} → Currently ${athDrawdown}% below ATH
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ YOUR TASK: ACTIONABLE TECHNICAL ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Analyze this data and provide a COMPLETE TRADING PLAN:
+
+1. **TREND ASSESSMENT**
+   - What's the current trend? (use price action + volume to confirm)
+   - Momentum status: Accelerating/Stable/Decelerating?
+   - Trend strength score: 0-100 (be specific)
+
+2. **CRITICAL PRICE LEVELS** (exact dollar amounts)
+   - Immediate Resistance: $XXX (why this level matters)
+   - Strong Resistance: $XXX (what happens if we break it?)
+   - Immediate Support: $XXX (where buyers step in)
+   - Strong Support: $XXX (last line of defense)
+
+3. **VOLUME ANALYSIS**
+   - Is current volume above/below average? By how much?
+   - Volume quality: Strong/Average/Weak conviction?
+   - Are we seeing accumulation or distribution? Evidence?
+
+4. **TRADE SETUP** (be extremely specific)
+   - ENTRY ZONES: Give 2-3 exact price levels
+     Example: "Buy Zone 1: $42,800-$43,200 (retest of broken resistance)"
+   - STOP LOSS: Exact price (explain why this invalidates the trade)
+   - TAKE PROFIT: 2-3 targets with percentages
+     Example: "TP1: $45,500 (+6.2%), TP2: $48,200 (+12.8%)"
+
+5. **RISK/REWARD**
+   - Calculate exact R:R ratio for this setup
+   - Position size recommendation (% of portfolio)
+   - Risk level: Low/Medium/High?
+
+6. **TIME HORIZON**
+   - Short-term (1-7 days): Specific price prediction with catalyst
+   - Medium-term (1-4 weeks): Where could we be and why?
+
+7. **KEY INSIGHTS** (5-7 bullets of EDGE)
+   - What patterns do you see?
+   - Any divergences or unusual signals?
+   - What could invalidate this analysis?
+   - What news/events should traders watch?
+
+Remember: Traders will execute based on your analysis. Be precise, confident, and risk-aware.`;
         break;
 
       case 'fundamental':
-        userPrompt = `Perform a comprehensive fundamental analysis for ${coin.name} (${coin.symbol.toUpperCase()}) as of ${currentDate}:
+        const fdvMultiple = coin.fully_diluted_valuation ? (coin.fully_diluted_valuation / coin.market_cap).toFixed(2) : 'N/A';
+        const supplyIssued = coin.max_supply ? ((coin.circulating_supply / coin.max_supply) * 100).toFixed(1) : 'N/A';
+        const liquidityGrade = coin.total_volume > coin.market_cap * 0.1 ? '🟢 Excellent' :
+                               coin.total_volume > coin.market_cap * 0.05 ? '🟡 Good' : '🔴 Poor';
 
-KEY METRICS (Source: CoinGecko):
-- Market Cap: $${(coin.market_cap / 1e9).toFixed(2)}B (Rank #${coin.market_cap_rank})
-- Fully Diluted Valuation: $${coin.fully_diluted_valuation ? (coin.fully_diluted_valuation / 1e9).toFixed(2) + 'B' : 'N/A'}
-- Circulating Supply: ${coin.circulating_supply?.toLocaleString() || 'N/A'}
-- Total Supply: ${coin.total_supply?.toLocaleString() || 'N/A'}
-- Max Supply: ${coin.max_supply ? coin.max_supply.toLocaleString() : 'Unlimited'}
-- Supply Ratio: ${coin.max_supply ? ((coin.circulating_supply / coin.max_supply) * 100).toFixed(1) : 'N/A'}%
-- Volume/MCap Ratio: ${(coin.total_volume / coin.market_cap).toFixed(4)}
-- Liquidity Score: ${coin.total_volume > coin.market_cap * 0.1 ? 'High' : coin.total_volume > coin.market_cap * 0.05 ? 'Medium' : 'Low'}
+        userPrompt = `INVESTMENT RESEARCH: ${coin.name} (${coin.symbol.toUpperCase()}) - ${currentDate}
 
-REQUIRED ANALYSIS:
-1. **Tokenomics Assessment**: Supply dynamics, inflation rate, token utility
-2. **Market Position**: Competitive advantages, market share, category leadership
-3. **Adoption Metrics**: Real-world use cases, transaction volume trends, user growth
-4. **Development Activity**: Recent updates, roadmap progress, GitHub activity (if available)
-5. **Ecosystem Strength**: Partnerships, integrations, community size
-6. **Valuation**: Compare to competitors, assess if overvalued/undervalued
-7. **Investment Thesis**: Bull and bear cases, 6-12 month outlook
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💼 FUNDAMENTAL DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Market Cap: $${(coin.market_cap / 1e9).toFixed(2)}B (Global Rank #${coin.market_cap_rank})
+FDV: $${coin.fully_diluted_valuation ? (coin.fully_diluted_valuation / 1e9).toFixed(2) + 'B' : 'N/A'} (${fdvMultiple}x current mcap)
+Daily Volume: $${(coin.total_volume / 1e9).toFixed(2)}B
+Liquidity: ${liquidityGrade} (${(coin.total_volume / coin.market_cap * 100).toFixed(1)}% volume/mcap)
 
-Provide specific valuation targets and investment timeframe recommendations.`;
+Supply Metrics:
+• Circulating: ${coin.circulating_supply ? (coin.circulating_supply / 1e9).toFixed(2) + 'B' : 'N/A'}
+• Max Supply: ${coin.max_supply ? (coin.max_supply / 1e9).toFixed(2) + 'B' : '♾️ Unlimited'}
+• Issued: ${supplyIssued}% ${supplyIssued !== 'N/A' ? `(${100 - parseFloat(supplyIssued)}% left to unlock)` : ''}
+
+Price History:
+• ATH: $${coin.ath.toLocaleString()} (${new Date(coin.ath_date).toLocaleDateString()})
+• ATL: $${coin.atl.toLocaleString()} (${new Date(coin.atl_date).toLocaleDateString()})
+• Current vs ATH: ${athDrawdown}% drawdown
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 YOUR TASK: INVESTMENT GRADE ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Provide a COMPLETE INVESTMENT THESIS:
+
+1. **TOKENOMICS HEALTH CHECK**
+   - Supply model: Deflationary/Inflationary/Fixed/Elastic?
+   - Inflation rate: Is new supply diluting holders?
+   - Token utility: What does the token actually DO? (be specific)
+   - Supply health: Excellent/Good/Fair/Poor? Why?
+
+2. **VALUATION ANALYSIS**
+   - MCap/FDV Ratio: Is this overvalued based on unlock schedule?
+   - Volume/Liquidity: Can large investors enter/exit easily?
+   - Relative valuation: Undervalued/Fair Value/Overvalued vs competitors?
+   - Price/Sales or other relevant metrics
+
+3. **MARKET POSITION**
+   - What category/sector? (DeFi, L1, L2, Gaming, AI, etc.)
+   - Category rank: Top 3? Top 10? Underdog?
+   - Competitive advantages: What makes this unique?
+   - Market share: Growing or losing ground?
+
+4. **ECOSYSTEM STRENGTH**
+   - Developer activity: Active development or ghost chain?
+   - Partnerships: Any major integrations or collaborations?
+   - Adoption metrics: Real users or bot activity?
+   - Network effects: Is growth accelerating?
+
+5. **INVESTMENT THESIS**
+   BULL CASE (3-5 reasons why this could 3x-10x):
+   - Specific catalysts, partnerships, technical milestones
+
+   BEAR CASE (3-5 risks that could tank this):
+   - Competition, token unlocks, regulatory risks, tech failures
+
+   CATALYST EVENTS (upcoming):
+   - Token unlocks, protocol upgrades, partnership announcements
+
+6. **PRICE TARGETS** (be specific)
+   - Conservative (6mo): $XXX (+XX%)
+   - Base Case (6mo): $XXX (+XX%)
+   - Optimistic (6mo): $XXX (+XX%)
+   - Timeframe justification
+
+7. **INVESTMENT RECOMMENDATION**
+   - Rating: Strong Accumulate/Accumulate/Hold/Reduce/Avoid
+   - Score: X/100
+   - Position size: X% of crypto portfolio
+   - Time horizon: Short-term trade or long-term hold?
+
+Focus on ASYMMETRIC OPPORTUNITIES - where risk/reward is heavily skewed to upside.`;
         break;
 
       case 'sentiment':
-        userPrompt = `Perform a sentiment analysis for ${coin.name} (${coin.symbol.toUpperCase()}) as of ${currentDate}:
+        const atlGain = ((coin.current_price / coin.atl - 1) * 100).toFixed(0);
 
-MARKET PERFORMANCE INDICATORS:
-- 24h Price Change: ${coin.price_change_percentage_24h > 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}%
-- 7d Price Change: ${coin.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${coin.price_change_percentage_7d_in_currency.toFixed(2)}%
-- 30d Price Change: ${coin.price_change_percentage_30d_in_currency > 0 ? '+' : ''}${(coin.price_change_percentage_30d_in_currency || 0).toFixed(2)}%
-- 24h Volume: $${coin.total_volume.toLocaleString()}
-- Distance from ATH: ${((1 - coin.current_price / coin.ath) * 100).toFixed(1)}% below
-- Distance from ATL: ${((coin.current_price / coin.atl - 1) * 100).toFixed(0)}% above
+        userPrompt = `SENTIMENT PULSE: ${coin.name} (${coin.symbol.toUpperCase()}) - ${currentDate}
 
-SENTIMENT ANALYSIS FRAMEWORK:
-1. **Overall Sentiment Score**: Rate as Extremely Bullish/Bullish/Neutral/Bearish/Extremely Bearish
-2. **Price-Volume Divergence**: Analyze if volume supports price movement
-3. **Momentum Status**: Identify if momentum is accelerating, decelerating, or stable
-4. **Market Psychology**: Fear vs Greed based on price action and ATH distance
-5. **Crowd Positioning**: Are retail/institutions accumulating or distributing?
-6. **Contrarian Signals**: Identify oversold/overbought opportunities
-7. **Catalyst Events**: Recent news, updates, or events affecting sentiment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 MARKET PSYCHOLOGY INDICATORS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Recent Performance:
+• 24h: ${coin.price_change_percentage_24h > 0 ? '🟢 +' : '🔴 '}${coin.price_change_percentage_24h.toFixed(2)}%
+• 7d: ${coin.price_change_percentage_7d_in_currency > 0 ? '🟢 +' : '🔴 '}${coin.price_change_percentage_7d_in_currency.toFixed(2)}%
+• 30d: ${coin.price_change_percentage_30d_in_currency > 0 ? '🟢 +' : '🔴 '}${(coin.price_change_percentage_30d_in_currency || 0).toFixed(2)}%
 
-ACTIONABLE OUTPUT:
-- Sentiment score (0-100)
-- Recommended position: Accumulate/Hold/Reduce/Avoid
-- Timeframe for reassessment
-- Key price levels that would change sentiment`;
+Position vs Extremes:
+• From ATH: -${athDrawdown}% (${athDrawdown > 50 ? 'DEEP DISCOUNT' : athDrawdown > 25 ? 'Moderate pullback' : 'Near highs'})
+• From ATL: +${atlGain}% (${atlGain > 10000 ? 'Massive rally' : atlGain > 1000 ? 'Strong rally' : 'Early recovery'})
+
+Volume Signal:
+• 24h Volume: $${(coin.total_volume / 1e9).toFixed(2)}B
+• Volume Quality: ${coin.total_volume / coin.market_cap > 0.1 ? 'HIGH - Strong conviction' : coin.total_volume / coin.market_cap > 0.05 ? 'MEDIUM - Normal activity' : 'LOW - Weak conviction'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 YOUR TASK: MARKET SENTIMENT DECODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read between the lines and provide ACTIONABLE PSYCHOLOGY ANALYSIS:
+
+1. **SENTIMENT SCORE & LABEL**
+   - Overall score: 0-100 (0=Extreme Fear, 100=Extreme Greed)
+   - Sentiment label: Extreme Fear/Fear/Neutral/Greed/Extreme Greed
+   - Trend: Improving/Stable/Deteriorating?
+
+2. **MARKET PSYCHOLOGY**
+   - Fear vs Greed: What emotion is driving price?
+   - Crowd emotion: FOMO? Panic? Apathy? Uncertainty?
+   - Contrarian opportunity: Is everyone on the same side of the boat?
+
+3. **MOMENTUM INDICATORS**
+   - Price momentum: Strong Positive/Positive/Neutral/Negative/Strong Negative
+   - Volume momentum: Increasing/Stable/Decreasing?
+   - Divergence alert: Price up but volume down (or vice versa)?
+
+4. **POSITIONING ANALYSIS**
+   - Retail positioning: Heavy Long/Long/Neutral/Short/Heavy Short?
+   - Smart money signals: What are whales/institutions doing?
+   - Crowd consensus: Is everyone bullish or bearish? (Contrarian signal!)
+
+5. **SENTIMENT DRIVERS** (3-5 specific events)
+   - Recent news, partnerships, protocol updates
+   - Macro events (BTC moves, Fed decisions, regulations)
+   - Social media buzz or influencer narratives
+
+6. **CONTRARIAN SIGNALS** (opportunities against the herd)
+   - Examples: "Extreme fear + strong fundamentals = buy zone"
+   - "Euphoria + overextension = take profits"
+
+7. **OUTLOOK & TRIGGERS**
+   - Next 7 days: Where is sentiment heading?
+   - Key levels to watch: What prices would flip sentiment?
+   - Change triggers: Events that could shift market mood
+
+8. **RECOMMENDED STANCE**
+   - Action: Aggressive Accumulation/Moderate Accumulation/Hold & Monitor/Reduce Exposure/Defensive
+   - Rationale: Why this stance based on sentiment?
+
+Remember: Be contrarian when you have an edge. When everyone is greedy, be fearful. When everyone is fearful, be greedy.`;
         break;
 
       case 'onchain':
-        userPrompt = `Perform on-chain analysis for ${coin.name} (${coin.symbol.toUpperCase()}) as of ${currentDate}:
+        const supplyRemaining = coin.max_supply ? (((coin.max_supply - coin.circulating_supply) / coin.max_supply) * 100).toFixed(1) : 'N/A';
+        const volumeMcapRatio = ((coin.total_volume / coin.market_cap) * 100).toFixed(2);
 
-SUPPLY METRICS (Source: CoinGecko):
-- Circulating Supply: ${coin.circulating_supply?.toLocaleString() || 'N/A'}
-- Total Supply: ${coin.total_supply?.toLocaleString() || 'N/A'}
-- Max Supply: ${coin.max_supply ? coin.max_supply.toLocaleString() : 'Unlimited'}
-- Supply Issued: ${coin.max_supply ? ((coin.circulating_supply / coin.max_supply) * 100).toFixed(1) : 'N/A'}%
-- Remaining to Issue: ${coin.max_supply ? (((coin.max_supply - coin.circulating_supply) / coin.max_supply) * 100).toFixed(1) : 'N/A'}%
+        userPrompt = `ON-CHAIN INTEL: ${coin.name} (${coin.symbol.toUpperCase()}) - ${currentDate}
 
-MARKET DEPTH:
-- 24h Trading Volume: $${coin.total_volume.toLocaleString()}
-- Volume/Market Cap: ${((coin.total_volume / coin.market_cap) * 100).toFixed(2)}%
-- Market Cap Rank: #${coin.market_cap_rank}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⛓️ BLOCKCHAIN DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Supply Dynamics:
+• Circulating: ${coin.circulating_supply ? (coin.circulating_supply / 1e9).toFixed(2) + 'B' : 'N/A'} tokens
+• Max Supply: ${coin.max_supply ? (coin.max_supply / 1e9).toFixed(2) + 'B' : '♾️ Unlimited'}
+• Issued: ${supplyIssued}% | Remaining: ${supplyRemaining}%
+${supplyRemaining !== 'N/A' && parseFloat(supplyRemaining) > 20 ? '⚠️ SIGNIFICANT UNLOCK RISK AHEAD' : ''}
 
-ON-CHAIN ANALYSIS FRAMEWORK:
-1. **Supply Distribution**: Analyze concentration risk and decentralization
-2. **Whale Activity Signals**: Infer large holder behavior from price/volume patterns
-3. **Exchange Flow Pattern**: Volume trends suggesting accumulation or distribution
-4. **Holder Behavior**: Long-term holders vs short-term traders based on volatility
-5. **Smart Money Indicators**: Volume spikes, support/resistance tests, OI changes
-6. **Network Health**: Transaction volume trends, active address growth
-7. **Accumulation Phases**: Identify if we're in markup, distribution, or accumulation
+Market Depth:
+• 24h Volume: $${(coin.total_volume / 1e9).toFixed(2)}B
+• Vol/MCap: ${volumeMcapRatio}% ${parseFloat(volumeMcapRatio) < 5 ? '(🔴 Low liquidity)' : parseFloat(volumeMcapRatio) > 10 ? '(🟢 High liquidity)' : '(🟡 Normal)'}
+• Rank: #${coin.market_cap_rank}
 
-ACTIONABLE INSIGHTS:
-- Current phase: Accumulation/Distribution/Markup/Markdown
-- Whale positioning: Buying/Selling/Neutral
-- Recommended action based on on-chain signals
-- Risk factors from supply dynamics`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 YOUR TASK: DECODE BLOCKCHAIN SIGNALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Use volume, price action, and supply data to infer on-chain behavior:
+
+1. **NETWORK HEALTH**
+   - Activity trend: Growing/Stable/Declining?
+   - Network usage: Based on volume patterns
+   - Congestion level: High/Medium/Low (infer from volatility)
+
+2. **SUPPLY DYNAMICS**
+   - Circulating %: What % is in circulation vs locked?
+   - Supply concentration: Highly Concentrated/Moderately Concentrated/Well Distributed?
+   - Inflation pressure: Are unlocks diluting holders?
+
+3. **WHALE ACTIVITY** (infer from price/volume)
+   - Large holder trend: Accumulating/Distributing/Holding?
+   - Whale signals: Sudden volume spikes = whale movement
+   - Top holder risk: Concentration in few wallets?
+
+4. **EXCHANGE FLOWS** (infer from volume patterns)
+   - Net flow: Strong Inflows/Inflows/Neutral/Outflows/Strong Outflows
+   - Interpretation: Inflows = selling pressure, Outflows = hodling
+   - Exchange balance trend: Growing (bearish) or Shrinking (bullish)?
+
+5. **HOLDER BEHAVIOR**
+   - Holding time: Are holders patient or trigger-happy?
+   - Long-term holder trend: Increasing/Stable/Decreasing?
+   - Short-term speculation: High volatility = speculation
+
+6. **SMART MONEY SIGNALS** (3-5 signals)
+   - Volume spikes during consolidation = accumulation
+   - Strong support holding = institutional bids
+   - Low volume rallies = weak hands, likely reversal
+
+7. **ACCUMULATION PHASE**
+   - Current phase: Accumulation/Markup/Distribution/Markdown?
+   - Confidence: High/Medium/Low?
+   - Phase analysis: Why this phase and what's next?
+
+8. **ON-CHAIN OUTLOOK**
+   - Bullish signals: (3-5 data points supporting upside)
+   - Bearish signals: (3-5 data points suggesting downside)
+   - Key metrics to monitor: What should traders watch?
+
+Focus on ACTIONABLE SIGNALS that give traders an informational edge over the market.`;
         break;
 
       case 'etf':
-        userPrompt = `Analyze ETF and institutional flow implications for ${coin.name} (${coin.symbol.toUpperCase()}) as of ${currentDate}:
+        const marketDominance = ((coin.market_cap / 2500000000000) * 100).toFixed(2);
+        const liquidityScore = coin.total_volume / coin.market_cap > 0.1 ? '🟢 Excellent' : coin.total_volume / coin.market_cap > 0.05 ? '🟡 Good' : '🔴 Fair';
 
-MARKET CONTEXT (Source: CoinGecko):
-- Market Cap: $${(coin.market_cap / 1e9).toFixed(2)}B (Rank #${coin.market_cap_rank})
-- 24h Volume: $${(coin.total_volume / 1e9).toFixed(2)}B
-- Market Dominance: ${((coin.market_cap / 2500000000000) * 100).toFixed(2)}% of total crypto market
-- Liquidity Grade: ${coin.total_volume / coin.market_cap > 0.1 ? 'Excellent' : coin.total_volume / coin.market_cap > 0.05 ? 'Good' : 'Fair'}
+        userPrompt = `INSTITUTIONAL FLOW ANALYSIS: ${coin.name} (${coin.symbol.toUpperCase()}) - ${currentDate}
 
-ETF & INSTITUTIONAL ANALYSIS:
-1. **ETF Availability**: Current spot ETF products, approval status, AUM estimates
-2. **Institutional Interest**: Volume patterns suggesting institutional accumulation
-3. **Spot vs Derivatives**: Analyze spot volume vs futures OI for institutional sentiment
-4. **Premium/Discount Patterns**: Compare spot price action to futures for institutional positioning
-5. **Flow Direction Analysis**: Infer net inflows/outflows from volume and price patterns
-6. **Regulatory Landscape**: Impact of recent regulatory developments on institutional access
-7. **TradFi Integration**: Adoption by traditional finance institutions, custody solutions
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏦 TRADFI & INSTITUTIONAL METRICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Market Size:
+• Market Cap: $${(coin.market_cap / 1e9).toFixed(2)}B (#${coin.market_cap_rank} globally)
+• Market Dominance: ${marketDominance}% of total crypto market
+• 24h Volume: $${(coin.total_volume / 1e9).toFixed(2)}B
+• Liquidity Grade: ${liquidityScore}
 
-INSTITUTIONAL SENTIMENT INDICATORS:
-- Volume consistency (institutions trade in size consistently)
-- Price stability during high volume (institutional accumulation)
-- Support level strength (institutional bid zones)
-- Correlation with institutional hours (9am-4pm ET vs 24/7 retail)
+Institutional Accessibility:
+• ETF Products: ${coin.market_cap_rank <= 5 ? 'Likely available for BTC/ETH' : 'Limited/None for smaller caps'}
+• Volume/MCap: ${((coin.total_volume / coin.market_cap) * 100).toFixed(2)}% (${coin.total_volume / coin.market_cap > 0.1 ? 'Institutions CAN move size' : 'Low liquidity for large players'})
 
-ACTIONABLE OUTLOOK:
-- Institutional sentiment: Bullish/Neutral/Bearish
-- Flow prediction: Net Inflows/Outflows/Sideways
-- Impact on retail traders: Front-run institutional moves or follow
-- Timeframe for institutional positioning to play out`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 YOUR TASK: INSTITUTIONAL FLOW INTEL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Analyze institutional and ETF dynamics for trading edge:
+
+1. **ETF LANDSCAPE**
+   - Spot ETF status: Available? Approved? Pending?
+   - Futures ETF products: What derivative products exist?
+   - Total AUM estimate: How much institutional money?
+   - Approval probability: Very High/High/Medium/Low/Very Low (if pending)
+
+2. **INSTITUTIONAL FLOWS**
+   - Flow direction: Strong Inflows/Moderate Inflows/Neutral/Moderate Outflows/Strong Outflows
+   - Weekly flow estimate: Based on volume trends
+   - Cumulative flows: YTD institutional positioning
+   - Flow sustainability: Sustainable/Moderate/Unsustainable?
+
+3. **SPOT VS DERIVATIVES**
+   - Futures OI: Is it growing or shrinking?
+   - Spot volume: Real buying or paper trading?
+   - Basis analysis: Contango (bullish) or backwardation (bearish)?
+   - Institutional preference: Are they spot or futures players?
+
+4. **PREMIUM/DISCOUNT ANALYSIS**
+   - Current premium: ETF trading at premium or discount to NAV?
+   - Premium trend: Expanding/Stable/Contracting?
+   - Arbitrage opportunities: Can retail exploit mispricings?
+
+5. **INSTITUTIONAL SENTIMENT**
+   - Sentiment: Very Bullish/Bullish/Neutral/Bearish/Very Bearish
+   - Positioning: How are institutions positioned?
+   - Risk appetite: Aggressive/Moderate/Conservative?
+
+6. **TRADFI INTEGRATION**
+   - Custody solutions: Which big players offer custody?
+   - Banking partnerships: Any major bank partnerships?
+   - Payment integrations: Real-world utility driving adoption?
+
+7. **REGULATORY LANDSCAPE**
+   - Regulatory clarity: High/Medium/Low?
+   - Recent developments: Any new rules or enforcement actions?
+   - Impact assessment: Bullish or bearish for institutional adoption?
+
+8. **INSTITUTIONAL OUTLOOK**
+   - Next 30 days: Where are institutions heading?
+   - Next 90 days: Medium-term flow prediction?
+   - Catalysts: What events could drive institutional flows?
+   - Risks: What could reverse institutional interest?
+
+TRADING STRATEGY:
+- Should retail front-run institutions or follow them?
+- What price levels indicate institutional accumulation?
+- Time horizon for institutional thesis to play out?
+
+Remember: Institutions move slowly but with size. Identify their footprints early for maximum edge.`;
         break;
     }
 
@@ -630,8 +891,9 @@ ACTIONABLE OUTLOOK:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2500,
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 2048, // Optimized for speed while maintaining quality
+        temperature: 0.7, // Balanced creativity and consistency
         system: systemPrompt,
         messages: [
           { role: 'user', content: userPrompt }
@@ -717,7 +979,7 @@ ACTIONABLE OUTLOOK:
         }
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, ...rateLimitCheck.headers, 'Content-Type': 'application/json' },
       }
     );
   } catch (error) {
