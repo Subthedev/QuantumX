@@ -214,10 +214,10 @@ const AIAnalysis = () => {
 
       // Extract successful results
       const newResults: AnalysisResult[] = results
-        .filter((r): r is PromiseFulfilledResult<{ success: boolean; result?: AnalysisResult }> =>
+        .filter((r): r is PromiseFulfilledResult<{ success: boolean; result: AnalysisResult }> =>
           r.status === 'fulfilled' && r.value.success && r.value.result !== undefined
         )
-        .map(r => r.value.result!);
+        .map(r => r.value.result);
 
       if (newResults.length === 0) {
         throw new Error('All analyses failed. Please try again.');
@@ -306,11 +306,11 @@ const AIAnalysis = () => {
     const { analysisType, structuredAnalysis, coinData } = result;
 
     const cards: Record<string, JSX.Element> = {
-      technical: <TechnicalAnalysisCard data={structuredAnalysis} coinData={coinData} />,
-      fundamental: <FundamentalAnalysisCard data={structuredAnalysis} coinData={coinData} />,
-      sentiment: <SentimentAnalysisCard data={structuredAnalysis} coinData={coinData} />,
-      onchain: <OnChainAnalysisCard data={structuredAnalysis} coinData={coinData} />,
-      etf: <ETFAnalysisCard data={structuredAnalysis} coinData={coinData} />
+      technical: <TechnicalAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
+      fundamental: <FundamentalAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
+      sentiment: <SentimentAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
+      onchain: <OnChainAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
+      etf: <ETFAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />
     };
 
     return cards[analysisType] || null;

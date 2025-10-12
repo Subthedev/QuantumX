@@ -33,7 +33,7 @@ export interface EnhancedIndexData<T> {
 
 class MarketIndicesService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - production-optimized
   private MAX_RETRIES = 3;
   private RETRY_DELAY = 1000; // 1 second
 

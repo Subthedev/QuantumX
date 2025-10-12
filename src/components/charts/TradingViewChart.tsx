@@ -73,13 +73,13 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         mode: 1,
         vertLine: {
           color: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
-          width: 1,
-          style: 3,
+          width: 1 as any,
+          style: 3 as any,
         },
         horzLine: {
           color: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
-          width: 1,
-          style: 3,
+          width: 1 as any,
+          style: 3 as any,
         },
       },
       rightPriceScale: {
