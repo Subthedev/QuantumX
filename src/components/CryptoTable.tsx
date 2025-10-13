@@ -109,10 +109,10 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                 </div>
                 <div className={cn(
                   "text-[10px] font-semibold leading-tight mt-0.5",
-                  crypto.price_change_percentage_24h >= 0 ? "text-green-600" : "text-red-600"
+                  (crypto.price_change_percentage_24h ?? 0) >= 0 ? "text-green-600" : "text-red-600"
                 )}>
-                  {crypto.price_change_percentage_24h >= 0 ? "+" : ""}
-                  {crypto.price_change_percentage_24h.toFixed(2)}%
+                  {(crypto.price_change_percentage_24h ?? 0) >= 0 ? "+" : ""}
+                  {(crypto.price_change_percentage_24h ?? 0).toFixed(2)}%
                 </div>
               </div>
             </div>
@@ -166,14 +166,14 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                   <td className="p-3 text-right">
                     <div className={cn(
                       "flex items-center justify-end gap-1 text-sm font-semibold",
-                      crypto.price_change_percentage_24h >= 0 ? "text-green-600" : "text-red-600"
+                      (crypto.price_change_percentage_24h ?? 0) >= 0 ? "text-green-600" : "text-red-600"
                     )}>
-                      {crypto.price_change_percentage_24h >= 0 ? (
+                      {(crypto.price_change_percentage_24h ?? 0) >= 0 ? (
                         <TrendingUp className="w-3.5 h-3.5" />
                       ) : (
                         <TrendingDown className="w-3.5 h-3.5" />
                       )}
-                      <span>{Math.abs(crypto.price_change_percentage_24h).toFixed(2)}%</span>
+                      <span>{Math.abs(crypto.price_change_percentage_24h ?? 0).toFixed(2)}%</span>
                     </div>
                   </td>
                   <td className="p-3 text-right hidden lg:table-cell">
