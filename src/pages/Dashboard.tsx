@@ -166,8 +166,10 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Titan 10 Section - Premium Feature */}
-        <Titan10Section />
+        {/* Titan 10 Section - Premium Feature - Hidden on Mobile */}
+        <div className="hidden md:block">
+          <Titan10Section />
+        </div>
 
         {/* Main Crypto Table */}
         <CryptoTable />

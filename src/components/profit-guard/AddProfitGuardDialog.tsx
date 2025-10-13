@@ -121,12 +121,22 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
 
       setAnalyzing(false);
 
-      // Temporary placeholder user_id until authentication is re-implemented
-      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+      // Get authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: 'Error',
+          description: 'You must be logged in to add profit guards',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        setAnalyzing(false);
+        return;
+      }
 
       // Create position with AI-generated profit levels
       const { error } = await supabase.from("profit_guard_positions").insert({
-        user_id: placeholderUserId,
+        user_id: user.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol.toUpperCase(),
         coin_name: selectedCoin.name,
@@ -201,9 +211,9 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
               className="w-full"
             />
             {(showDropdown || searchQuery) && !selectedCoin && filteredCoins.length > 0 && (
-              <Card className="absolute z-50 w-full bg-background border shadow-lg mt-1 overflow-hidden">
+              <Card className="absolute z-50 w-full bg-background border shadow-lg mt-1 overflow-hidden max-h-[400px]">
                 <ScrollArea className="h-[320px]">
-                  <div className="p-2 space-y-1">
+                  <div className="p-2 space-y-1 min-h-[320px]">
                     {filteredCoins.slice(0, 100).map((coin) => (
                       <button
                         key={coin.id}
