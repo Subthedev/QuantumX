@@ -51,10 +51,13 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
       return;
     }
 
-    if (parseFloat(quantity) <= 0 || parseFloat(totalAmount) <= 0) {
+    const qty = parseFloat(quantity);
+    const amt = parseFloat(totalAmount);
+
+    if (qty <= 0 || amt <= 0 || isNaN(qty) || isNaN(amt)) {
       toast({
         title: 'Error',
-        description: 'Quantity and Total Amount must be greater than zero',
+        description: 'Quantity and Total Amount must be valid positive numbers',
         variant: 'destructive',
       });
       return;
@@ -63,12 +66,12 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
     setLoading(true);
     try {
       // Calculate average entry price
-      const calculatedAvgPrice = parseFloat(totalAmount) / parseFloat(quantity);
+      const calculatedAvgPrice = amt / qty;
       
       const { error } = await supabase
         .from('portfolio_holdings')
         .update({
-          quantity: parseFloat(quantity),
+          quantity: qty,
           purchase_price: calculatedAvgPrice,
           purchase_date: purchaseDate.toISOString(),
           notes: notes || null,

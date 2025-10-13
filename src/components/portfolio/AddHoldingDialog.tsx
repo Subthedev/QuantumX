@@ -76,14 +76,23 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
 
     setLoading(true);
     try {
+      // Get authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: 'Error',
+          description: 'You must be logged in to add holdings',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
       // Calculate average entry price
       const calculatedAvgPrice = parseFloat(totalAmount) / parseFloat(quantity);
       
-      // Temporary placeholder user_id until authentication is re-implemented
-      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
-      
       const { error } = await supabase.from('portfolio_holdings').insert({
-        user_id: placeholderUserId,
+        user_id: user.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol,
         coin_name: selectedCoin.name,
@@ -160,9 +169,9 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[450px] p-0" align="start">
-                <div className="flex flex-col">
-                  <div className="border-b p-2">
+              <PopoverContent className="w-full sm:w-[450px] p-0" align="start">
+                <div className="flex flex-col max-h-[400px]">
+                  <div className="border-b p-2 sticky top-0 bg-background z-10">
                     <Input
                       placeholder="Search cryptocurrency..."
                       value={searchTerm}
@@ -170,8 +179,8 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                       className="h-9"
                     />
                   </div>
-                  <ScrollArea className="h-[320px] overflow-y-auto">
-                    <div className="p-2 space-y-1 min-h-[320px]">
+                  <ScrollArea className="h-[320px]">
+                    <div className="p-2 space-y-1">
                       {filteredCoins.slice(0, 100).length === 0 ? (
                         <div className="py-6 text-center text-sm text-muted-foreground">
                           No cryptocurrency found.

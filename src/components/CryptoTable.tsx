@@ -83,12 +83,12 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                 <img
                   src={crypto.image}
                   alt={crypto.name}
-                  className="w-7 h-7 rounded-full flex-shrink-0"
+                  className="w-9 h-9 rounded-full flex-shrink-0"
                   loading="lazy"
                   decoding="async"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[12px] leading-tight truncate">
+                  <div className="font-semibold text-[13px] leading-tight truncate">
                     {crypto.name}
                   </div>
                   <div className="text-[10px] text-muted-foreground uppercase truncate">
@@ -99,7 +99,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
 
               {/* Price + Change (Right aligned) */}
               <div className="flex flex-col items-end ml-2 flex-shrink-0">
-                <div className="font-semibold text-[12px] leading-tight whitespace-nowrap">
+                <div className="font-semibold text-[13px] leading-tight whitespace-nowrap">
                   ${crypto.current_price >= 1000
                     ? crypto.current_price.toLocaleString(undefined, { maximumFractionDigits: 0 })
                     : crypto.current_price >= 1
@@ -108,7 +108,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
                   }
                 </div>
                 <div className={cn(
-                  "text-[10px] font-semibold leading-tight mt-0.5",
+                  "text-[11px] font-semibold leading-tight mt-0.5",
                   (crypto.price_change_percentage_24h ?? 0) >= 0 ? "text-green-600" : "text-red-600"
                 )}>
                   {(crypto.price_change_percentage_24h ?? 0) >= 0 ? "+" : ""}
