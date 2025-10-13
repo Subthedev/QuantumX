@@ -239,6 +239,24 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       ...chartTheme,
       width: chartContainerRef.current.clientWidth,
       height,
+      handleScale: {
+        axisPressedMouseMove: {
+          time: true,
+          price: true,
+        },
+        axisDoubleClickReset: {
+          time: true,
+          price: true,
+        },
+        mouseWheel: true,
+        pinch: true, // Enable pinch zoom
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
       timeScale: {
         ...chartTheme.timeScale,
         rightOffset: 5,
@@ -341,21 +359,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   return (
-    <Card className="p-4 space-y-4">
+    <Card className="p-2 sm:p-4 space-y-3 sm:space-y-4">
       {/* Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         {/* Price Info */}
-        <div className="flex items-center gap-4">
-          <div>
-            <div className="text-2xl font-bold">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="min-w-0">
+            <div className="text-lg sm:text-2xl font-bold truncate">
               ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
             </div>
-            <div className={`text-sm ${getChangeColor(priceInfo.changePercent)}`}>
+            <div className={`text-xs sm:text-sm ${getChangeColor(priceInfo.changePercent)}`}>
               {priceInfo.changePercent >= 0 ? '+' : ''}
               {priceInfo.changePercent.toFixed(2)}% ({timeframe})
             </div>
           </div>
-          <div className="flex gap-3 text-xs">
+          <div className="hidden sm:flex gap-3 text-xs">
             <div>
               <span className="text-muted-foreground">H:</span>{' '}
               <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
@@ -373,37 +391,39 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           variant="ghost"
           size="sm"
           disabled={loading}
-          className="h-8"
+          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
       {/* Chart Type Selector */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
         {CHART_TYPES.map((type) => (
           <Button
             key={type.value}
             onClick={() => setChartType(type.value)}
             variant={chartType === type.value ? 'default' : 'outline'}
             size="sm"
-            className="h-8 text-xs"
+            className="h-7 sm:h-8 text-xs flex-shrink-0 px-2 sm:px-3"
           >
-            {type.icon}
-            <span className="ml-1.5">{type.label}</span>
+            <span className="flex items-center gap-1 sm:gap-1.5">
+              {type.icon}
+              <span className="hidden sm:inline">{type.label}</span>
+            </span>
           </Button>
         ))}
       </div>
 
       {/* Timeframe Selector */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2">
         {TIMEFRAMES.map((tf) => (
           <Button
             key={tf.value}
             onClick={() => setTimeframe(tf.value)}
             variant={timeframe === tf.value ? 'default' : 'outline'}
             size="sm"
-            className="h-8 px-3 text-xs"
+            className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
           >
             {tf.label}
           </Button>
@@ -413,15 +433,15 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       {/* Chart Container */}
       <div className="relative">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10 rounded-lg">
+            <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-primary" />
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-            <div className="text-center space-y-2">
-              <p className="text-destructive text-sm">{error}</p>
-              <Button onClick={loadChartData} variant="outline" size="sm">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10 rounded-lg">
+            <div className="text-center space-y-2 p-4">
+              <p className="text-destructive text-xs sm:text-sm">{error}</p>
+              <Button onClick={loadChartData} variant="outline" size="sm" className="text-xs">
                 Retry
               </Button>
             </div>
@@ -429,20 +449,20 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         )}
         <div
           ref={chartContainerRef}
-          className="w-full rounded-lg overflow-hidden border border-border"
+          className="w-full rounded-lg overflow-hidden border border-border touch-pan-y"
           style={{ height: `${height}px` }}
         />
       </div>
 
       {/* Chart Info */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
+      <div className="flex items-center justify-between text-xs text-muted-foreground gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Badge variant="outline" className="text-xs flex-shrink-0">
             {symbol.toUpperCase()}
           </Badge>
-          <span>Real-time {chartType} chart powered by TradingView</span>
+          <span className="hidden sm:inline truncate">Real-time {chartType} chart</span>
         </div>
-        <span>Data from CoinGecko</span>
+        <span className="flex-shrink-0 text-[10px] sm:text-xs">CoinGecko</span>
       </div>
     </Card>
   );

@@ -138,7 +138,7 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
         <VisuallyHidden>
           <DialogTitle>{coin.name} Details</DialogTitle>
           <DialogDescription>Detailed information and analysis for {coin.name}</DialogDescription>
@@ -162,69 +162,69 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <img src={coin.image} alt={coin.name} className="w-16 h-16 rounded-full" />
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <img src={coin.image} alt={coin.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full" />
                 <div>
-                  <h2 className="text-2xl font-bold">{coin.name}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold">{coin.name}</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground uppercase">{coin.symbol}</span>
-                    <Badge variant="secondary">Rank #{coin.market_cap_rank}</Badge>
+                    <span className="text-sm text-muted-foreground uppercase">{coin.symbol}</span>
+                    <Badge variant="secondary" className="text-xs">#{coin.market_cap_rank}</Badge>
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold">
+                <div className="text-2xl sm:text-3xl font-bold">
                   ${coin.current_price?.toFixed(coin.current_price < 1 ? 6 : 2) || '0'}
                 </div>
-                <div className={`flex items-center justify-end gap-1 ${getChangeColor(coin.price_change_percentage_24h)}`}>
-                  {coin.price_change_percentage_24h > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                <div className={`flex items-center justify-end gap-1 text-sm ${getChangeColor(coin.price_change_percentage_24h)}`}>
+                  {coin.price_change_percentage_24h > 0 ? <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" /> : <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />}
                   <span>{Math.abs(coin.price_change_percentage_24h || 0).toFixed(2)}%</span>
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={handleAddToPortfolio} className="flex-1 min-w-[140px]">
-                <Plus className="w-4 h-4 mr-2" />
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button onClick={handleAddToPortfolio} className="flex-1 text-sm h-9 sm:h-10">
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                 Add to Portfolio
               </Button>
-              <Button onClick={handleSetAlert} variant="outline" className="flex-1 min-w-[140px]">
-                <Bell className="w-4 h-4 mr-2" />
+              <Button onClick={handleSetAlert} variant="outline" className="flex-1 text-sm h-9 sm:h-10">
+                <Bell className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                 Set Price Alert
               </Button>
             </div>
 
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="market">Market Data</TabsTrigger>
-                <TabsTrigger value="about">About</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+                <TabsTrigger value="market" className="text-xs sm:text-sm">Market</TabsTrigger>
+                <TabsTrigger value="about" className="text-xs sm:text-sm">About</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-6">
+              <TabsContent value="overview" className="space-y-4 sm:space-y-6">
                 {/* TradingView Price Chart */}
-                <div className="w-full">
+                <div className="w-full -mx-3 sm:mx-0">
                   <TradingViewChart
                     coinId={coin.id}
                     symbol={coin.symbol}
                     currentPrice={coin.current_price}
-                    height={450}
+                    height={350}
                   />
                 </div>
 
                 {/* Key Metrics */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   {metrics.map((metric, index) => (
                     <Card key={index}>
-                      <CardContent className="p-4">
-                        <div className="text-sm text-muted-foreground mb-1">{metric.label}</div>
-                        <div className="text-xl font-bold">{metric.value}</div>
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="text-xs sm:text-sm text-muted-foreground mb-1">{metric.label}</div>
+                        <div className="text-base sm:text-xl font-bold truncate">{metric.value}</div>
                         {metric.change !== null && (
-                          <div className={`text-sm ${getChangeColor(metric.change)}`}>
+                          <div className={`text-xs sm:text-sm ${getChangeColor(metric.change)}`}>
                             {cryptoDataService.formatPercentage(metric.change)}
                           </div>
                         )}
@@ -235,16 +235,16 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
 
                 {/* Price Changes */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Price Changes</CardTitle>
+                  <CardHeader className="p-3 sm:p-6">
+                    <CardTitle className="text-sm sm:text-base">Price Changes</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-5 gap-4">
+                  <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4">
                       {priceChanges.map((change, index) => (
                         <div key={index} className="text-center">
-                          <div className="text-sm text-muted-foreground mb-1">{change.period}</div>
-                          <div className={`font-bold ${getChangeColor(change.value || 0)}`}>
-                            {change.value ? `${change.value >= 0 ? '+' : ''}${change.value.toFixed(2)}%` : 'N/A'}
+                          <div className="text-xs sm:text-sm text-muted-foreground mb-1">{change.period}</div>
+                          <div className={`text-sm sm:text-base font-bold ${getChangeColor(change.value || 0)}`}>
+                            {change.value ? `${change.value >= 0 ? '+' : ''}${change.value.toFixed(1)}%` : 'N/A'}
                           </div>
                         </div>
                       ))}

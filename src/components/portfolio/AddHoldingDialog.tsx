@@ -151,17 +151,17 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                   variant="outline"
                   role="combobox"
                   aria-expanded={showSearch}
-                  className="w-full justify-between"
+                  className="w-full justify-between h-11"
                 >
                   {selectedCoin ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <img 
                         src={selectedCoin.image} 
                         alt={selectedCoin.name}
-                        className="h-5 w-5 rounded-full"
+                        className="h-5 w-5 rounded-full flex-shrink-0"
                       />
-                      <span>{selectedCoin.name}</span>
-                      <span className="text-muted-foreground uppercase">({selectedCoin.symbol})</span>
+                      <span className="truncate">{selectedCoin.name}</span>
+                      <span className="text-muted-foreground uppercase text-xs flex-shrink-0">({selectedCoin.symbol})</span>
                     </div>
                   ) : (
                     <span className="text-muted-foreground">Select a cryptocurrency...</span>
@@ -169,20 +169,21 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-full sm:w-[450px] p-0" align="start">
-                <div className="flex flex-col max-h-[400px]">
-                  <div className="border-b p-2 sticky top-0 bg-background z-10">
+              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[450px] p-0 max-w-[450px]" align="start" side="bottom" sideOffset={4}>
+                <div className="flex flex-col">
+                  <div className="border-b p-2 sticky top-0 bg-background z-20">
                     <Input
                       placeholder="Search cryptocurrency..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-9"
+                      className="h-10"
+                      autoFocus
                     />
                   </div>
-                  <ScrollArea className="h-[320px]">
-                    <div className="p-2 space-y-1">
+                  <ScrollArea className="h-[min(60vh,400px)]">
+                    <div className="p-1.5 space-y-0.5">
                       {filteredCoins.slice(0, 100).length === 0 ? (
-                        <div className="py-6 text-center text-sm text-muted-foreground">
+                        <div className="py-8 text-center text-sm text-muted-foreground">
                           No cryptocurrency found.
                         </div>
                       ) : (
@@ -195,20 +196,20 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
                               setSearchTerm('');
                             }}
                             className={cn(
-                              "w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors text-left",
+                              "w-full flex items-center gap-2.5 p-2.5 rounded-md hover:bg-accent transition-colors text-left",
                               selectedCoin?.id === coin.id && "bg-accent"
                             )}
                           >
                             <img 
                               src={coin.image} 
                               alt={coin.name}
-                              className="h-6 w-6 rounded-full flex-shrink-0"
+                              className="h-8 w-8 rounded-full flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{coin.name}</div>
+                              <div className="font-medium truncate text-sm">{coin.name}</div>
                               <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
                             </div>
-                            <div className="text-sm font-medium flex-shrink-0">${coin.current_price.toLocaleString()}</div>
+                            <div className="text-sm font-medium flex-shrink-0 tabular-nums">${coin.current_price.toLocaleString()}</div>
                             {selectedCoin?.id === coin.id && (
                               <Check className="h-4 w-4 text-primary flex-shrink-0" />
                             )}
