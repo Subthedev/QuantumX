@@ -208,12 +208,12 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
                 setShowDropdown(true);
               }}
               onFocus={() => setShowDropdown(true)}
-              className="w-full"
+              className="w-full h-11"
             />
             {(showDropdown || searchQuery) && !selectedCoin && filteredCoins.length > 0 && (
-              <Card className="absolute z-50 w-full bg-background border shadow-lg mt-1 overflow-hidden max-h-[400px]">
-                <ScrollArea className="h-[320px]">
-                  <div className="p-2 space-y-1 min-h-[320px]">
+              <Card className="absolute z-50 w-full bg-background border shadow-lg mt-1 overflow-hidden">
+                <ScrollArea className="h-[min(60vh,400px)]">
+                  <div className="p-1.5 space-y-0.5">
                     {filteredCoins.slice(0, 100).map((coin) => (
                       <button
                         key={coin.id}
@@ -222,14 +222,14 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
                           setSearchQuery("");
                           setShowDropdown(false);
                         }}
-                        className="w-full flex items-center gap-3 p-2 hover:bg-accent transition-colors rounded-md text-left"
+                        className="w-full flex items-center gap-2.5 p-2.5 hover:bg-accent transition-colors rounded-md text-left"
                       >
-                        <img src={coin.image} alt={coin.name} className="h-6 w-6 rounded-full flex-shrink-0" />
+                        <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold truncate">{coin.name}</div>
+                          <div className="font-semibold truncate text-sm">{coin.name}</div>
                           <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
                         </div>
-                        <div className="text-sm font-medium flex-shrink-0">${coin.current_price.toLocaleString()}</div>
+                        <div className="text-sm font-medium flex-shrink-0 tabular-nums">${coin.current_price.toLocaleString()}</div>
                       </button>
                     ))}
                   </div>
