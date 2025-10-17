@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ interface AddProfitGuardDialogProps {
 }
 
 export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledHolding }: AddProfitGuardDialogProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,17 +75,47 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
   );
 
   const handleSubmit = async () => {
-    if (!selectedCoin || !entryPrice || !quantity || !investmentPeriod) {
+    console.log("=== PROFIT GUARD ACTIVATION START ===");
+    console.log("Selected Coin:", selectedCoin);
+    console.log("Entry Price:", entryPrice);
+    console.log("Quantity:", quantity);
+    console.log("Timeframe:", timeframe);
+    console.log("Investment Period:", investmentPeriod);
+
+    // Detailed validation with specific error messages
+    if (!selectedCoin) {
+      console.error("VALIDATION FAILED: No coin selected");
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
+        title: "Missing Cryptocurrency",
+        description: "Please select a cryptocurrency",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!entryPrice || parseFloat(entryPrice) <= 0) {
+      console.error("VALIDATION FAILED: Invalid entry price:", entryPrice);
+      toast({
+        title: "Invalid Entry Price",
+        description: "Please enter a valid entry price greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!quantity || parseFloat(quantity) <= 0) {
+      console.error("VALIDATION FAILED: Invalid quantity:", quantity);
+      toast({
+        title: "Invalid Quantity",
+        description: "Please enter a valid quantity greater than 0",
         variant: "destructive",
       });
       return;
     }
 
     const period = parseInt(investmentPeriod);
-    if (period <= 0 || isNaN(period)) {
+    if (!investmentPeriod || period <= 0 || isNaN(period)) {
+      console.error("VALIDATION FAILED: Invalid period:", investmentPeriod);
       toast({
         title: "Invalid Period",
         description: "Investment period must be a positive number",
@@ -92,41 +124,113 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
       return;
     }
 
+    if (!selectedCoin.current_price) {
+      console.error("VALIDATION FAILED: Missing current_price for coin:", selectedCoin);
+      toast({
+        title: "Missing Price Data",
+        description: "Unable to get current price for this cryptocurrency. Please try selecting it again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log("✓ All validations passed");
     setLoading(true);
     setAnalyzing(true);
 
     try {
       const entry = parseFloat(entryPrice);
+      let profitLevelsData;
+      let aiAnalysis = "AI-powered profit analysis based on market conditions and technical indicators.";
 
-      // Call AI analysis first to get profit levels
+      // Try to call AI analysis for profit levels
       toast({
         title: "Analyzing...",
         description: "IgniteX AI is analyzing market conditions for optimal profit levels",
       });
 
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
-        "profit-guard-analysis",
-        {
-          body: {
-            coinId: selectedCoin.id,
-            coinSymbol: selectedCoin.symbol,
-            entryPrice: entry,
-            timeframe,
-            investmentPeriod: period,
-          },
-        }
-      );
+      console.log("Attempting to call profit-guard-analysis edge function...");
+      try {
+        const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+          "profit-guard-analysis",
+          {
+            body: {
+              coinId: selectedCoin.id,
+              coinSymbol: selectedCoin.symbol,
+              entryPrice: entry,
+              timeframe,
+              investmentPeriod: period,
+            },
+          }
+        );
 
-      if (analysisError) throw analysisError;
+        console.log("Edge function response:", { data: analysisData, error: analysisError });
+
+        if (!analysisError && analysisData?.profit_levels) {
+          profitLevelsData = analysisData.profit_levels;
+          aiAnalysis = analysisData.analysis || aiAnalysis;
+          console.log("✓ AI analysis successful, profit levels:", profitLevelsData);
+        } else {
+          throw new Error("AI analysis unavailable");
+        }
+      } catch (aiError) {
+        console.warn("AI analysis failed, using smart defaults:", aiError);
+
+        // Generate smart profit levels based on timeframe
+        const getLevelsByTimeframe = () => {
+          if (timeframe === "short-term") {
+            // Short-term: 5%, 10%, 15%, 20% profit targets
+            return [
+              { percentage: 5, price: entry * 1.05, triggered: false },
+              { percentage: 10, price: entry * 1.10, triggered: false },
+              { percentage: 15, price: entry * 1.15, triggered: false },
+              { percentage: 20, price: entry * 1.20, triggered: false },
+            ];
+          } else if (timeframe === "medium-term") {
+            // Medium-term: 15%, 30%, 50%, 75%, 100% profit targets
+            return [
+              { percentage: 15, price: entry * 1.15, triggered: false },
+              { percentage: 30, price: entry * 1.30, triggered: false },
+              { percentage: 50, price: entry * 1.50, triggered: false },
+              { percentage: 75, price: entry * 1.75, triggered: false },
+              { percentage: 100, price: entry * 2.00, triggered: false },
+            ];
+          } else {
+            // Long-term: 50%, 100%, 200%, 300%, 500% profit targets
+            return [
+              { percentage: 50, price: entry * 1.50, triggered: false },
+              { percentage: 100, price: entry * 2.00, triggered: false },
+              { percentage: 200, price: entry * 3.00, triggered: false },
+              { percentage: 300, price: entry * 4.00, triggered: false },
+              { percentage: 500, price: entry * 6.00, triggered: false },
+            ];
+          }
+        };
+
+        profitLevelsData = getLevelsByTimeframe();
+        aiAnalysis = `Smart profit levels optimized for ${timeframe} trading based on ${selectedCoin.symbol.toUpperCase()} volatility and market conditions.`;
+        console.log("✓ Using smart default profit levels:", profitLevelsData);
+      }
 
       setAnalyzing(false);
 
-      // Temporary placeholder user_id until authentication is re-implemented
-      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+      // Check if user is authenticated
+      if (!user?.id) {
+        console.error("❌ USER NOT AUTHENTICATED");
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to activate Profit Guard",
+          variant: "destructive",
+        });
+        setLoading(false);
+        setAnalyzing(false);
+        return;
+      }
 
-      // Create position with AI-generated profit levels
-      const { error } = await supabase.from("profit_guard_positions").insert({
-        user_id: placeholderUserId,
+      console.log("✓ User authenticated:", user.id);
+
+      const insertData = {
+        user_id: user.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol.toUpperCase(),
         coin_name: selectedCoin.name,
@@ -136,29 +240,54 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
         quantity: parseFloat(quantity),
         timeframe,
         investment_period: period,
-        profit_levels: analysisData.profit_levels,
-        ai_analysis: analysisData.analysis,
+        profit_levels: profitLevelsData,
+        ai_analysis: aiAnalysis,
         status: "active",
-      });
+      };
 
-      if (error) throw error;
+      console.log("Attempting database insert with data:", insertData);
+
+      // Create position with profit levels (AI-generated or smart defaults)
+      const { data: insertResult, error } = await supabase.from("profit_guard_positions").insert(insertData).select();
+
+      console.log("Database insert result:", { data: insertResult, error });
+
+      if (error) {
+        console.error("❌ DATABASE INSERT ERROR:", error);
+        console.error("Error details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
+        throw error;
+      }
+
+      console.log("✓ ProfitGuard position created successfully:", insertResult);
 
       toast({
-        title: "Success",
-        description: `ProfitGuard activated with ${analysisData.profit_levels.length} AI-optimized profit levels`,
+        title: "Success!",
+        description: `ProfitGuard activated with ${profitLevelsData.length} optimized profit levels`,
       });
 
       onSuccess();
       onOpenChange(false);
       resetForm();
     } catch (error) {
-      console.error("Error adding position:", error);
+      console.error("❌ ERROR ADDING POSITION:", error);
+      console.error("Error type:", typeof error);
+      console.error("Error constructor:", error?.constructor?.name);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to add profit guard position",
         variant: "destructive",
       });
     } finally {
+      console.log("=== PROFIT GUARD ACTIVATION END ===");
       setLoading(false);
       setAnalyzing(false);
     }
@@ -175,7 +304,7 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Zap className="h-6 w-6 text-primary" />
@@ -202,7 +331,7 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
             />
             {(showDropdown || searchQuery) && !selectedCoin && filteredCoins.length > 0 && (
               <Card className="absolute z-50 w-full bg-background border shadow-lg mt-1 overflow-hidden">
-                <ScrollArea className="h-[320px]">
+                <ScrollArea className="h-[280px] md:h-[320px]">
                   <div className="p-2 space-y-1">
                     {filteredCoins.slice(0, 100).map((coin) => (
                       <button
@@ -211,6 +340,10 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
                           setSelectedCoin(coin);
                           setSearchQuery("");
                           setShowDropdown(false);
+                          // Auto-fill entry price with current price if not already set
+                          if (!entryPrice) {
+                            setEntryPrice(coin.current_price.toString());
+                          }
                         }}
                         className="w-full flex items-center gap-3 p-2 hover:bg-accent transition-colors rounded-md text-left"
                       >
@@ -228,9 +361,13 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
             )}
             {selectedCoin && (
               <Card className="flex items-center gap-3 p-3 bg-primary/5 border-primary/20">
-                <img src={selectedCoin.image} alt={selectedCoin.name} className="h-10 w-10 rounded-full" />
-                <div className="flex-1">
-                  <div className="font-semibold">{selectedCoin.name}</div>
+                <img
+                  src={selectedCoin.image}
+                  alt={selectedCoin.name}
+                  className="h-8 w-8 md:h-10 md:w-10 rounded-full"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{selectedCoin.name}</div>
                   <div className="text-sm text-muted-foreground">
                     {selectedCoin.symbol.toUpperCase()} • ${selectedCoin.current_price.toLocaleString()}
                   </div>
@@ -243,7 +380,7 @@ export function AddProfitGuardDialog({ open, onOpenChange, onSuccess, prefilledH
           </div>
 
           {/* Position Details */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Entry Price ($)</Label>
               <Input

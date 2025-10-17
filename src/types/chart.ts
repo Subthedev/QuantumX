@@ -14,6 +14,11 @@ export interface VolumeData {
   color?: string;
 }
 
+export interface RSIData {
+  time: number;
+  value: number;
+}
+
 export interface CandlestickData {
   time: number;
   open: number;
@@ -44,6 +49,7 @@ export interface TimeframeConfig {
 export interface ChartData {
   ohlc: OHLCData[];
   volume?: VolumeData[];
+  rsi?: RSIData[];
   lastUpdate: number;
 }
 

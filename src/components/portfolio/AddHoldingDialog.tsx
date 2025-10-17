@@ -7,11 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AddHoldingDialogProps {
@@ -21,6 +23,7 @@ interface AddHoldingDialogProps {
 }
 
 export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDialogProps) {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
   const [quantity, setQuantity] = useState('');
@@ -29,8 +32,7 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [coins, setCoins] = useState<any[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -40,7 +42,7 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
 
   const fetchTopCoins = async () => {
     try {
-      const data = await cryptoDataService.getTopCryptos(250);
+      const data = await cryptoDataService.getTopCryptos(100);
       setCoins(data);
     } catch (error) {
       console.error('Error fetching coins:', error);
@@ -62,13 +64,20 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
       return;
     }
 
+    // Check if user is authenticated
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to add holdings",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // Temporary placeholder user_id until authentication is re-implemented
-      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
-      
       const { error } = await supabase.from('portfolio_holdings').insert({
-        user_id: placeholderUserId,
+        user_id: user.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol,
         coin_name: selectedCoin.name,
@@ -110,7 +119,7 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Holding</DialogTitle>
           <DialogDescription>
@@ -119,87 +128,71 @@ export function AddHoldingDialog({ open, onOpenChange, onSuccess }: AddHoldingDi
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
+          {/* Coin Selection */}
+          <div className="space-y-2 relative">
             <Label>Select Cryptocurrency</Label>
-            <Popover open={showSearch} onOpenChange={setShowSearch}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={showSearch}
-                  className="w-full justify-between"
-                >
-                  {selectedCoin ? (
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src={selectedCoin.image} 
-                        alt={selectedCoin.name}
-                        className="h-5 w-5 rounded-full"
-                      />
-                      <span>{selectedCoin.name}</span>
-                      <span className="text-muted-foreground uppercase">({selectedCoin.symbol})</span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">Select a cryptocurrency...</span>
-                  )}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[450px] p-0" align="start">
-                <div className="flex flex-col">
-                  <div className="border-b p-2">
-                    <Input
-                      placeholder="Search cryptocurrency..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <ScrollArea className="h-[320px] overflow-y-auto">
-                    <div className="p-2 space-y-1 min-h-[320px]">
-                      {filteredCoins.slice(0, 100).length === 0 ? (
-                        <div className="py-6 text-center text-sm text-muted-foreground">
-                          No cryptocurrency found.
+            <Input
+              placeholder="Search top 100 coins..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowDropdown(true);
+              }}
+              onFocus={() => setShowDropdown(true)}
+              className="w-full"
+            />
+            {(showDropdown || searchTerm) && !selectedCoin && filteredCoins.length > 0 && (
+              <Card className="absolute z-50 w-full bg-background border shadow-lg mt-1 overflow-hidden">
+                <ScrollArea className="h-[280px] md:h-[320px]">
+                  <div className="p-2 space-y-1">
+                    {filteredCoins.slice(0, 100).map((coin) => (
+                      <button
+                        key={coin.id}
+                        onClick={() => {
+                          setSelectedCoin(coin);
+                          setSearchTerm('');
+                          setShowDropdown(false);
+                          setPurchasePrice(coin.current_price.toString());
+                        }}
+                        className="w-full flex items-center gap-3 p-2 hover:bg-accent transition-colors rounded-md text-left"
+                      >
+                        <img
+                          src={coin.image}
+                          alt={coin.name}
+                          className="h-6 w-6 rounded-full flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{coin.name}</div>
+                          <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
                         </div>
-                      ) : (
-                        filteredCoins.slice(0, 100).map((coin) => (
-                          <button
-                            key={coin.id}
-                            onClick={() => {
-                              setSelectedCoin(coin);
-                              setShowSearch(false);
-                              setPurchasePrice(coin.current_price.toString());
-                              setSearchTerm('');
-                            }}
-                            className={cn(
-                              "w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors text-left",
-                              selectedCoin?.id === coin.id && "bg-accent"
-                            )}
-                          >
-                            <img 
-                              src={coin.image} 
-                              alt={coin.name}
-                              className="h-6 w-6 rounded-full flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{coin.name}</div>
-                              <div className="text-xs text-muted-foreground uppercase">{coin.symbol}</div>
-                            </div>
-                            <div className="text-sm font-medium flex-shrink-0">${coin.current_price.toLocaleString()}</div>
-                            {selectedCoin?.id === coin.id && (
-                              <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
+                        <div className="text-sm font-medium flex-shrink-0">${coin.current_price.toLocaleString()}</div>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </Card>
+            )}
+            {selectedCoin && (
+              <Card className="flex items-center gap-3 p-3 bg-primary/5 border-primary/20">
+                <img
+                  src={selectedCoin.image}
+                  alt={selectedCoin.name}
+                  className="h-8 w-8 md:h-10 md:w-10 rounded-full"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{selectedCoin.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {selectedCoin.symbol.toUpperCase()} • ${selectedCoin.current_price.toLocaleString()}
+                  </div>
                 </div>
-              </PopoverContent>
-            </Popover>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedCoin(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </Card>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantity</Label>
               <Input

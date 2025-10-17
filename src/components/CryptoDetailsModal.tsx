@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import {
   TrendingUp,
   TrendingDown,
@@ -29,6 +31,7 @@ import {
 } from 'lucide-react';
 
 import { useState, useEffect, useMemo, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { enhancedCryptoDataService } from '@/services/enhancedCryptoDataService';
 import PriceChart from './charts/PriceChart';
@@ -44,10 +47,13 @@ interface CryptoDetailsModalProps {
 }
 
 const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [detailedData, setDetailedData] = useState<DetailedCoinData | null>(null);
   const [enhancedData, setEnhancedData] = useState<EnhancedMarketData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [alertPrice, setAlertPrice] = useState<string>('');
 
   useEffect(() => {
     if (coin && open) {
@@ -125,13 +131,45 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
   ], [coin, detailedData]);
 
   const handleAddToPortfolio = () => {
-    // TODO: Implement add to portfolio functionality
-    console.log('Add to portfolio:', coin.id);
+    // Close the modal
+    onClose();
+    // Navigate to portfolio page with coin info
+    navigate('/portfolio', { state: { selectedCoin: coin } });
   };
 
   const handleSetAlert = () => {
-    // TODO: Implement price alert functionality
-    console.log('Set alert for:', coin.id);
+    const price = parseFloat(alertPrice);
+
+    if (!alertPrice || isNaN(price) || price <= 0) {
+      toast({
+        title: 'Invalid Price',
+        description: 'Please enter a valid price for the alert.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Store alert in localStorage
+    const existingAlerts = JSON.parse(localStorage.getItem('priceAlerts') || '[]');
+    const newAlert = {
+      id: `${coin.id}-${Date.now()}`,
+      coinId: coin.id,
+      coinName: coin.name,
+      symbol: coin.symbol,
+      targetPrice: price,
+      currentPrice: coin.current_price,
+      createdAt: new Date().toISOString(),
+    };
+
+    existingAlerts.push(newAlert);
+    localStorage.setItem('priceAlerts', JSON.stringify(existingAlerts));
+
+    toast({
+      title: 'Price Alert Set!',
+      description: `You'll be notified when ${coin.name} reaches $${formatNumber(price)}`,
+    });
+
+    setAlertPrice('');
   };
 
   if (!coin) return null;
@@ -187,44 +225,81 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={handleAddToPortfolio} className="flex-1 min-w-[140px]">
-                <Plus className="w-4 h-4 mr-2" />
-                Add to Portfolio
-              </Button>
-              <Button onClick={handleSetAlert} variant="outline" className="flex-1 min-w-[140px]">
-                <Bell className="w-4 h-4 mr-2" />
-                Set Price Alert
-              </Button>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleAddToPortfolio} className="flex-1 min-w-[140px]">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to Portfolio
+                </Button>
+              </div>
+
+              {/* Price Alert Section */}
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label htmlFor="alertPrice" className="text-sm font-medium mb-2 block">
+                    Set Price Alert (USD)
+                  </label>
+                  <Input
+                    id="alertPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder={`Current: $${formatNumber(coin.current_price)}`}
+                    value={alertPrice}
+                    onChange={(e) => setAlertPrice(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <Button onClick={handleSetAlert} className="min-w-[140px]">
+                  <Bell className="w-4 h-4 mr-2" />
+                  Set Alert
+                </Button>
+              </div>
             </div>
 
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="market">Market Data</TabsTrigger>
+            <Tabs defaultValue="chart" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="chart">Chart</TabsTrigger>
+                <TabsTrigger value="stats">Stats</TabsTrigger>
+                <TabsTrigger value="market">Market</TabsTrigger>
                 <TabsTrigger value="about">About</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-6">
-                {/* TradingView Price Chart */}
+              {/* CHART TAB - Clean, focused on chart only */}
+              <TabsContent value="chart" className="space-y-4">
                 <div className="w-full">
                   <TradingViewChart
                     coinId={coin.id}
                     symbol={coin.symbol}
                     currentPrice={coin.current_price}
-                    height={450}
+                    height={500}
                   />
                 </div>
 
-                {/* Key Metrics */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Minimal Price Changes - Inline */}
+                <div className="flex items-center justify-center gap-6 py-3 bg-muted/30 rounded-lg">
+                  {priceChanges.slice(0, 5).map((change, index) => (
+                    <div key={index} className="text-center">
+                      <div className="text-xs text-muted-foreground">{change.period}</div>
+                      <div className={`text-sm font-semibold ${getChangeColor(change.value || 0)}`}>
+                        {change.value ? `${change.value >= 0 ? '+' : ''}${change.value.toFixed(1)}%` : 'N/A'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* STATS TAB - Key metrics and supply */}
+              <TabsContent value="stats" className="space-y-6">
+                {/* Key Metrics - Compact Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {metrics.map((metric, index) => (
-                    <Card key={index}>
-                      <CardContent className="p-4">
-                        <div className="text-sm text-muted-foreground mb-1">{metric.label}</div>
-                        <div className="text-xl font-bold">{metric.value}</div>
+                    <Card key={index} className="border-muted">
+                      <CardContent className="p-3">
+                        <div className="text-xs text-muted-foreground mb-1">{metric.label}</div>
+                        <div className="text-base font-bold">{metric.value}</div>
                         {metric.change !== null && (
-                          <div className={`text-sm ${getChangeColor(metric.change)}`}>
+                          <div className={`text-xs ${getChangeColor(metric.change)}`}>
                             {cryptoDataService.formatPercentage(metric.change)}
                           </div>
                         )}
@@ -233,69 +308,49 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
                   ))}
                 </div>
 
-                {/* Price Changes */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Price Changes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-5 gap-4">
-                      {priceChanges.map((change, index) => (
-                        <div key={index} className="text-center">
-                          <div className="text-sm text-muted-foreground mb-1">{change.period}</div>
-                          <div className={`font-bold ${getChangeColor(change.value || 0)}`}>
-                            {change.value ? `${change.value >= 0 ? '+' : ''}${change.value.toFixed(2)}%` : 'N/A'}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Supply Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
+                {/* Supply Information - Compact */}
+                <Card className="border-muted">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
                       <Coins className="w-4 h-4" />
-                      Supply Information
+                      Supply
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {supplyMetrics.map((metric, index) => (
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-2 gap-3">
+                      {supplyMetrics.slice(0, 3).map((metric, index) => (
                         <div key={index}>
-                          <div className="text-sm text-muted-foreground mb-1">{metric.label}</div>
-                          <div className="font-semibold">{metric.value}</div>
+                          <div className="text-xs text-muted-foreground">{metric.label}</div>
+                          <div className="text-sm font-semibold">{metric.value}</div>
                         </div>
                       ))}
                     </div>
                     {coin.max_supply && (
-                      <div className="mt-4">
-                        <div className="text-sm text-muted-foreground mb-2">Circulating Supply Progress</div>
-                        <Progress value={(coin.circulating_supply / coin.max_supply) * 100} className="h-2" />
+                      <div className="mt-3">
+                        <Progress value={(coin.circulating_supply / coin.max_supply) * 100} className="h-1.5" />
                         <div className="text-xs text-muted-foreground mt-1">
-                          {((coin.circulating_supply / coin.max_supply) * 100).toFixed(1)}% of max supply
+                          {((coin.circulating_supply / coin.max_supply) * 100).toFixed(1)}% circulating
                         </div>
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                {/* ATH/ATL */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">All-Time High</span>
-                        <Badge variant="outline" className="text-xs">
-                          {new Date(coin.ath_date).toLocaleDateString()}
+                {/* ATH/ATL - Compact */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="border-muted">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">ATH</span>
+                        <Badge variant="outline" className="text-xs py-0 h-5">
+                          {new Date(coin.ath_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                         </Badge>
                       </div>
-                      <div className="text-xl font-bold">
+                      <div className="text-lg font-bold">
                         ${coin.ath?.toFixed(coin.ath < 1 ? 6 : 2) || '0'}
                       </div>
-                      <div className="text-sm text-red-500">
-                        {coin.ath_change_percentage?.toFixed(2)}% from ATH
+                      <div className="text-xs text-red-500">
+                        {coin.ath_change_percentage?.toFixed(1)}% from ATH
                       </div>
                     </CardContent>
                   </Card>

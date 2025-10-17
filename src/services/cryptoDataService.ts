@@ -33,58 +33,152 @@ export interface CryptoData {
 
 class CryptoDataService {
   private cache: Map<string, { data: CryptoData[], timestamp: number }> = new Map();
+  private pendingRequests: Map<string, Promise<any>> = new Map(); // Request deduplication
   private CACHE_DURATION = 120000; // 2 minutes cache - increased to avoid rate limits
-  private COINGECKO_API = 'https://api.coingecko.com/api/v3';
+  private USE_PROXY = true; // Use Supabase proxy to avoid CORS issues
 
   async getTopCryptos(limit: number = 100): Promise<CryptoData[]> {
     const cacheKey = `top-${limit}`;
+
+    // 1. Check cache first (instant response)
     const cached = this.cache.get(cacheKey);
-    
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      console.log('✅ Cache HIT:', cacheKey, `(age: ${Math.floor((Date.now() - cached.timestamp) / 1000)}s)`);
       return cached.data;
     }
 
-    try {
-      // Fetch more coins to account for filtered stablecoins
-      const fetchLimit = limit + 20;
-      const response = await fetch(
-        `${this.COINGECKO_API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${fetchLimit}&page=1&sparkline=true&price_change_percentage=7d`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch crypto data');
+    // 2. Deduplicate concurrent requests (prevent hammering API)
+    if (this.pendingRequests.has(cacheKey)) {
+      console.log('🔄 Request DEDUP:', cacheKey, '(waiting for in-flight request)');
+      return this.pendingRequests.get(cacheKey)!;
+    }
+
+    // 3. Create new request and store as pending
+    const request = (async () => {
+      console.log('📡 API CALL via Supabase proxy:', cacheKey);
+
+      try {
+        // Fetch more coins to account for filtered stablecoins, wrapped tokens, and unsupported coins
+        const fetchLimit = limit + 70;
+
+        // Use Supabase proxy to avoid CORS issues
+        const { data: proxyData, error } = await supabase.functions.invoke('crypto-proxy', {
+          body: {
+            endpoint: 'list',
+            vs_currency: 'usd',
+            order: 'market_cap_desc',
+            per_page: fetchLimit,
+            page: 1,
+            sparkline: true
+          }
+        });
+
+        if (error) {
+          console.error('❌ Proxy error:', error);
+          throw new Error('Failed to fetch crypto data via proxy');
+        }
+
+        let data: CryptoData[] = proxyData.data;
+
+      // Filter out unwanted coins: stablecoins, wrapped tokens, bridged tokens, and unsupported coins
+      const excludedCoins = [
+        // USD Stablecoins & Yield tokens
+        'usdt', 'usdc', 'busd', 'dai', 'tusd', 'usdp', 'gusd', 'frax', 'usdd', 'paxg', 'xaut',
+        'pax', 'fdusd', 'pyusd', 'usdt0', 'usds', 'usde', 'usdx', 'usdk', 'usdj', 'usdn',
+        'rlusd', 'usdy', 'ustb', 'ousg', // Ripple USD, Ondo USD Yield, USTB, OUSG
+        // Wrapped versions (duplicates of native coins)
+        'wbtc', 'weth', 'steth', 'reth', 'cbeth', 'wbnb', 'wmatic', 'wsteth', 'eeth', 'weeth',
+        'clbtc', 'msol', 'cgeth.hashkey', 'sn117', // Wrapped BTC, staked SOL, wrapped ETH variants
+        // Bridged tokens (cross-chain duplicates)
+        'btcb', 'eth.b', 'weth.e', 'usdt.e', 'usdc.e',
+        // Coins with no CryptoCompare support or problematic symbols
+        'xpl', 's', // Plasma, Sonic (too short/unsupported)
+      ];
+
+      data = data.filter(coin => {
+        const symbol = coin.symbol.toLowerCase();
+        const name = coin.name.toLowerCase();
+        const id = coin.id.toLowerCase();
+
+        // Filter by symbol
+        if (excludedCoins.includes(symbol)) return false;
+
+        // Filter by coin ID patterns
+        if (id.includes('wrapped-') && (id.includes('eth') || id.includes('btc') || id.includes('sol'))) return false;
+        if (id.includes('staked-ether')) return false;
+        if (id.includes('wrapped-beacon-eth')) return false;
+        if (id.includes('ethena-usde')) return false;
+        if (id.includes('figure-heloc')) return false;
+        if (id.includes('bridged-weth')) return false;
+        if (id.includes('usd-yield')) return false;
+        if (id.includes('ripple-usd')) return false;
+        if (id.includes('l2-standard-bridged')) return false;
+
+        // Filter by name patterns (catches variants like "Binance Bridged USDT")
+        if (name.includes('wrapped') && (name.includes('bitcoin') || name.includes('ethereum') || name.includes('eth') || name.includes('solana'))) return false;
+        if (name.includes('staked ether') || name.includes('staked sol')) return false;
+        if (name.includes('bridged') && (name.includes('usdt') || name.includes('usdc') || name.includes('weth'))) return false;
+        if (name.includes('usd') && name.includes('pegged')) return false;
+        if (name.includes('usd') && name.includes('yield')) return false;
+        if (name.includes('dollar yield')) return false;
+        if (name.startsWith('ethena') && name.includes('usd')) return false;
+        if (name.includes('government securities')) return false;
+        if (name.includes('short duration')) return false;
+
+        return true;
+      });
+
+        // Limit to requested amount after filtering
+        data = data.slice(0, limit);
+
+        // Cache the data
+        this.cache.set(cacheKey, { data, timestamp: Date.now() });
+        console.log('💾 Cached:', cacheKey, `(${data.length} coins)`);
+
+        return data;
+      } catch (error) {
+        console.error('❌ API Error:', cacheKey, error);
+        throw error;
       }
-      
-      let data: CryptoData[] = await response.json();
-      
-      // Filter out USD stablecoins
-      const stablecoins = ['usdt', 'usdc', 'busd', 'dai', 'tusd', 'usdp', 'gusd', 'frax', 'usdd', 'paxg', 'xaut'];
-      data = data.filter(coin => !stablecoins.includes(coin.symbol.toLowerCase()));
-      
-      // Limit to requested amount after filtering
-      data = data.slice(0, limit);
-      
-      // Cache the data
-      this.cache.set(cacheKey, { data, timestamp: Date.now() });
-      
+    })();
+
+    // 4. Store pending request
+    this.pendingRequests.set(cacheKey, request);
+
+    try {
+      const data = await request;
       return data;
-    } catch (error) {
-      console.error('Error fetching crypto data:', error);
-      throw error;
+    } finally {
+      // 5. Clean up pending request
+      this.pendingRequests.delete(cacheKey);
     }
   }
 
   async getCryptoDetails(coinId: string): Promise<any> {
     try {
-      const response = await fetch(
-        `${this.COINGECKO_API}/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=true`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch crypto details');
+      console.log('🔍 Fetching details for:', coinId, 'via Supabase proxy');
+
+      // Use Supabase proxy to avoid CORS issues
+      const { data: proxyData, error } = await supabase.functions.invoke('crypto-proxy', {
+        body: {
+          endpoint: 'details',
+          coinId,
+          localization: false,
+          tickers: false,
+          market_data: true,
+          community_data: false,
+          developer_data: false,
+          sparkline: true
+        }
+      });
+
+      if (error) {
+        console.error('❌ Proxy error for coin details:', error);
+        throw new Error(`Failed to fetch ${coinId} details via proxy`);
       }
-      
-      return await response.json();
+
+      console.log('✅ Received details for:', coinId, proxyData.source);
+      return proxyData.data;
     } catch (error) {
       console.error('Error fetching crypto details:', error);
       throw error;
