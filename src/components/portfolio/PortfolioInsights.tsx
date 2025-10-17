@@ -43,63 +43,63 @@ export function PortfolioInsights({ holdings, totalValue }: PortfolioInsightsPro
   return (
     <div className="space-y-4">
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground mb-1">
               <Target className="h-3 w-3" />
-              Win Rate
+              <span className="text-[10px] md:text-xs">Win Rate</span>
             </div>
-            <div className="text-xl font-bold">
+            <div className="text-lg md:text-xl font-bold">
               {holdings.length > 0 ? ((profitableHoldings.length / holdings.length) * 100).toFixed(0) : 0}%
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
               {profitableHoldings.length} of {holdings.length}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground mb-1">
               <PieChart className="h-3 w-3" />
-              Diversification
+              <span className="text-[10px] md:text-xs">Diversification</span>
             </div>
-            <div className="text-xl font-bold">
+            <div className="text-lg md:text-xl font-bold">
               {diversificationScore.toFixed(0)}%
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
               {diversificationScore > 70 ? 'Excellent' : diversificationScore > 40 ? 'Good' : 'Low'}
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground mb-1">
               <AlertTriangle className="h-3 w-3" />
-              Risk Level
+              <span className="text-[10px] md:text-xs">Risk Level</span>
             </div>
-            <div className={`text-xl font-bold ${riskColor}`}>
+            <div className={`text-lg md:text-xl font-bold ${riskColor}`}>
               {riskLevel}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {avgVolatility.toFixed(1)}% avg volatility
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              {avgVolatility.toFixed(1)}% volatility
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground mb-1">
               <Shield className="h-3 w-3" />
-              Protected
+              <span className="text-[10px] md:text-xs">Protected</span>
             </div>
-            <div className="text-xl font-bold">
+            <div className="text-lg md:text-xl font-bold">
               0
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              With ProfitGuard
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              ProfitGuard
             </div>
           </CardContent>
         </Card>
@@ -174,16 +174,16 @@ export function PortfolioInsights({ holdings, totalValue }: PortfolioInsightsPro
 
       {/* Actionable Insights */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">💡 Portfolio Insights</CardTitle>
+        <CardHeader className="pb-2 md:pb-3">
+          <CardTitle className="text-sm md:text-base">💡 Portfolio Insights</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2 md:space-y-3">
           {largestHolding > 50 && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-              <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
+            <div className="flex items-start gap-2 md:gap-3 p-2.5 md:p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs md:text-sm">
                 <div className="font-medium">High Concentration Risk</div>
-                <div className="text-muted-foreground mt-1">
+                <div className="text-muted-foreground mt-0.5 md:mt-1">
                   Your largest holding represents {largestHolding.toFixed(0)}% of your portfolio. Consider diversifying to reduce risk.
                 </div>
               </div>
@@ -191,11 +191,11 @@ export function PortfolioInsights({ holdings, totalValue }: PortfolioInsightsPro
           )}
 
           {profitableHoldings.length > 0 && profitableHoldings.some(h => (h.profit_loss_percentage || 0) > 20) && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-              <Shield className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
+            <div className="flex items-start gap-2 md:gap-3 p-2.5 md:p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              <Shield className="h-4 w-4 md:h-5 md:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs md:text-sm">
                 <div className="font-medium">Protect Your Gains</div>
-                <div className="text-muted-foreground mt-1">
+                <div className="text-muted-foreground mt-0.5 md:mt-1">
                   You have positions with 20%+ gains. Activate ProfitGuard to secure profits automatically.
                 </div>
               </div>
@@ -203,11 +203,11 @@ export function PortfolioInsights({ holdings, totalValue }: PortfolioInsightsPro
           )}
 
           {holdings.length < 3 && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <PieChart className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm">
+            <div className="flex items-start gap-2 md:gap-3 p-2.5 md:p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <PieChart className="h-4 w-4 md:h-5 md:w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs md:text-sm">
                 <div className="font-medium">Expand Your Portfolio</div>
-                <div className="text-muted-foreground mt-1">
+                <div className="text-muted-foreground mt-0.5 md:mt-1">
                   Consider adding more assets to improve diversification and reduce overall risk.
                 </div>
               </div>
