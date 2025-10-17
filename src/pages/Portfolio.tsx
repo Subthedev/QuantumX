@@ -10,8 +10,8 @@ import { MobileOptimizedHeader } from '@/components/MobileOptimizedHeader';
 import { AddHoldingDialog } from '@/components/portfolio/AddHoldingDialog';
 import { EditHoldingDialog } from '@/components/portfolio/EditHoldingDialog';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
+import { PortfolioPerformance } from '@/components/portfolio/PortfolioPerformance';
 import { PortfolioInsights } from '@/components/portfolio/PortfolioInsights';
-import { ProfitGuardRecommendations } from '@/components/portfolio/ProfitGuardRecommendations';
 import { AddProfitGuardDialog } from '@/components/profit-guard/AddProfitGuardDialog';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import { toast } from '@/hooks/use-toast';
@@ -284,9 +284,10 @@ function Portfolio() {
         )}
 
         <Tabs defaultValue="holdings" className="space-y-4">
-          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
-            <TabsTrigger value="holdings">Holdings</TabsTrigger>
-            <TabsTrigger value="allocation">Allocation</TabsTrigger>
+          <TabsList className="grid w-full max-w-full grid-cols-3">
+            <TabsTrigger value="holdings" className="text-xs md:text-sm">Holdings</TabsTrigger>
+            <TabsTrigger value="allocation" className="text-xs md:text-sm">Allocation</TabsTrigger>
+            <TabsTrigger value="performance" className="text-xs md:text-sm">Performance</TabsTrigger>
           </TabsList>
 
           <TabsContent value="holdings" className="space-y-4">
@@ -509,18 +510,29 @@ function Portfolio() {
             )}
           </TabsContent>
 
-          <TabsContent value="allocation">
-            {metrics.holdings.length > 0 ? (
-              <PortfolioChart holdings={metrics.holdings} />
-            ) : (
+          <TabsContent value="allocation" className="space-y-4">
+            {metrics.holdings.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <ChartBar className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    Add holdings to see your portfolio allocation
-                  </p>
+                  <p className="text-sm text-muted-foreground">Add holdings to see allocation</p>
                 </CardContent>
               </Card>
+            ) : (
+              <PortfolioChart holdings={metrics.holdings} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="performance" className="space-y-4">
+            {metrics.holdings.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground">Add holdings to see performance</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <PortfolioPerformance holdings={metrics.holdings} />
             )}
           </TabsContent>
         </Tabs>
