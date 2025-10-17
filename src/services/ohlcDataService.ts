@@ -2,7 +2,7 @@
 // Solution: CryptoCompare API (reliable, generous free tier) + multiple fallbacks
 import type { OHLCData, ChartData, ChartTimeframe, VolumeData } from '@/types/chart';
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minute cache
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minute cache - optimized for production
 
 // CryptoCompare API - Reliable with generous free tier (100,000 calls/month)
 const CRYPTOCOMPARE_API = 'https://min-api.cryptocompare.com/data';
