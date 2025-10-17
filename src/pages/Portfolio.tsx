@@ -10,6 +10,7 @@ import { MobileOptimizedHeader } from '@/components/MobileOptimizedHeader';
 import { AddHoldingDialog } from '@/components/portfolio/AddHoldingDialog';
 import { EditHoldingDialog } from '@/components/portfolio/EditHoldingDialog';
 import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
+import { PortfolioInsights } from '@/components/portfolio/PortfolioInsights';
 import { ProfitGuardRecommendations } from '@/components/portfolio/ProfitGuardRecommendations';
 import { AddProfitGuardDialog } from '@/components/profit-guard/AddProfitGuardDialog';
 import { cryptoDataService } from '@/services/cryptoDataService';
@@ -275,10 +276,10 @@ function Portfolio() {
           </Card>
         </div>
 
-        {/* ProfitGuard Recommendations */}
+        {/* Portfolio Insights */}
         {holdings.length > 0 && metrics.holdings.length > 0 && (
           <div className="mb-6">
-            <ProfitGuardRecommendations holdings={metrics.holdings} />
+            <PortfolioInsights holdings={metrics.holdings} totalValue={metrics.totalValue} />
           </div>
         )}
 
@@ -509,26 +510,18 @@ function Portfolio() {
           </TabsContent>
 
           <TabsContent value="allocation">
-            <Card>
-              <CardHeader>
-                <CardTitle>Portfolio Allocation</CardTitle>
-                <CardDescription>
-                  Visual breakdown of your cryptocurrency holdings
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {metrics.holdings.length > 0 ? (
-                  <PortfolioChart holdings={metrics.holdings} />
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <ChartBar className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">
-                      Add holdings to see your portfolio allocation
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {metrics.holdings.length > 0 ? (
+              <PortfolioChart holdings={metrics.holdings} />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <ChartBar className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    Add holdings to see your portfolio allocation
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 
