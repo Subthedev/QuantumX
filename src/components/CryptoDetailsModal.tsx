@@ -176,7 +176,7 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
         <VisuallyHidden>
           <DialogTitle>{coin.name} Details</DialogTitle>
           <DialogDescription>Detailed information and analysis for {coin.name}</DialogDescription>
@@ -200,25 +200,25 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <img src={coin.image} alt={coin.name} className="w-16 h-16 rounded-full" />
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <img src={coin.image} alt={coin.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full" />
                 <div>
-                  <h2 className="text-2xl font-bold">{coin.name}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold">{coin.name}</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground uppercase">{coin.symbol}</span>
-                    <Badge variant="secondary">Rank #{coin.market_cap_rank}</Badge>
+                    <span className="text-sm text-muted-foreground uppercase">{coin.symbol}</span>
+                    <Badge variant="secondary" className="text-xs">#{coin.market_cap_rank}</Badge>
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold">
+                <div className="text-2xl sm:text-3xl font-bold">
                   ${coin.current_price?.toFixed(coin.current_price < 1 ? 6 : 2) || '0'}
                 </div>
-                <div className={`flex items-center justify-end gap-1 ${getChangeColor(coin.price_change_percentage_24h)}`}>
-                  {coin.price_change_percentage_24h > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                <div className={`flex items-center justify-end gap-1 text-sm ${getChangeColor(coin.price_change_percentage_24h)}`}>
+                  {coin.price_change_percentage_24h > 0 ? <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" /> : <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />}
                   <span>{Math.abs(coin.price_change_percentage_24h || 0).toFixed(2)}%</span>
                 </div>
               </div>
@@ -355,18 +355,18 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">All-Time Low</span>
-                        <Badge variant="outline" className="text-xs">
-                          {new Date(coin.atl_date).toLocaleDateString()}
+                  <Card className="border-muted">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">ATL</span>
+                        <Badge variant="outline" className="text-xs py-0 h-5">
+                          {new Date(coin.atl_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                         </Badge>
                       </div>
-                      <div className="text-xl font-bold">
+                      <div className="text-lg font-bold">
                         ${coin.atl?.toFixed(coin.atl < 1 ? 8 : 2) || '0'}
                       </div>
-                      <div className="text-sm text-green-500">
+                      <div className="text-xs text-green-500">
                         +{coin.atl_change_percentage?.toFixed(2)}% from ATL
                       </div>
                     </CardContent>

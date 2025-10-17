@@ -33,13 +33,16 @@ interface EditHoldingDialogProps {
 
 export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: EditHoldingDialogProps) {
   const [quantity, setQuantity] = useState(holding.quantity.toString());
-  const [purchasePrice, setPurchasePrice] = useState(holding.purchase_price.toString());
+  const [totalAmount, setTotalAmount] = useState((holding.quantity * holding.purchase_price).toString());
   const [purchaseDate, setPurchaseDate] = useState<Date>(new Date(holding.purchase_date));
   const [notes, setNotes] = useState(holding.notes || '');
   const [loading, setLoading] = useState(false);
 
+  // Calculate average entry price
+  const avgEntryPrice = quantity && totalAmount ? parseFloat(totalAmount) / parseFloat(quantity) : 0;
+
   const handleSubmit = async () => {
-    if (!quantity || !purchasePrice) {
+    if (!quantity || !totalAmount) {
       toast({
         title: 'Error',
         description: 'Please fill in all required fields',
@@ -48,13 +51,28 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
       return;
     }
 
+    const qty = parseFloat(quantity);
+    const amt = parseFloat(totalAmount);
+
+    if (qty <= 0 || amt <= 0 || isNaN(qty) || isNaN(amt)) {
+      toast({
+        title: 'Error',
+        description: 'Quantity and Total Amount must be valid positive numbers',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Calculate average entry price
+      const calculatedAvgPrice = amt / qty;
+      
       const { error } = await supabase
         .from('portfolio_holdings')
         .update({
-          quantity: parseFloat(quantity),
-          purchase_price: parseFloat(purchasePrice),
+          quantity: qty,
+          purchase_price: calculatedAvgPrice,
           purchase_date: purchaseDate.toISOString(),
           notes: notes || null,
           updated_at: new Date().toISOString(),
@@ -119,17 +137,31 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Purchase Price (USD)</Label>
+              <Label htmlFor="totalAmount">Total Amount (USD)</Label>
               <Input
-                id="price"
+                id="totalAmount"
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
               />
             </div>
           </div>
+
+          {quantity && totalAmount && avgEntryPrice > 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Calculated Avg Entry Price:</span>
+                <span className="text-lg font-semibold text-primary">
+                  ${avgEntryPrice.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 8
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Purchase Date</Label>
@@ -170,12 +202,12 @@ export function EditHoldingDialog({ holding, open, onOpenChange, onSuccess }: Ed
             />
           </div>
 
-          {quantity && purchasePrice && (
+          {quantity && totalAmount && (
             <div className="bg-muted rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Cost:</span>
+                <span className="text-muted-foreground">Total Investment:</span>
                 <span className="font-medium">
-                  ${(parseFloat(quantity) * parseFloat(purchasePrice)).toLocaleString(undefined, {
+                  ${parseFloat(totalAmount).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                   })}
