@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Analytics } from "@vercel/analytics/next"
 
 // Lazy load all pages for better performance
 const Landing = lazy(() => import("./pages/Landing"));

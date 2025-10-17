@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, AreaSeries } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -41,13 +41,16 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<any> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<any> | null>(null);
   const isInitializedRef = useRef(false);
   const { theme: appTheme } = useTheme();
 
   const [chartType, setChartType] = useState<ChartType>('candlestick');
-  const [timeframe, setTimeframe] = useState<ChartTimeframe>('7D');
+  const [timeframe] = useState<ChartTimeframe>('ALL'); // Fixed to ALL time
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataPointsCount, setDataPointsCount] = useState<number>(0);
+  const [showVolume, setShowVolume] = useState(true);
   const [priceInfo, setPriceInfo] = useState<PriceInfo>({
     current: currentPrice || 0,
     change: 0,
@@ -113,6 +116,8 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
       console.log(`Received ${data.ohlc.length} data points for ${timeframe}`);
 
+      setDataPointsCount(data.ohlc.length);
+
       // CRITICAL: Sort data by time to ensure proper display
       const sortedOHLC = [...data.ohlc].sort((a, b) => a.time - b.time);
 
@@ -126,6 +131,10 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       if (seriesRef.current && chartRef.current) {
         chartRef.current.removeSeries(seriesRef.current);
         seriesRef.current = null;
+      }
+      if (volumeSeriesRef.current && chartRef.current) {
+        chartRef.current.removeSeries(volumeSeriesRef.current);
+        volumeSeriesRef.current = null;
       }
 
       // Create appropriate series based on chart type using v5 API
@@ -164,34 +173,46 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
       seriesRef.current = series;
 
-      // CRITICAL: Configure timeScale to show ALL data with proper range
+      // Add Volume indicator if data exists and enabled
+      if (showVolume && data.volume && data.volume.length > 0) {
+        const volumeSeries = chartRef.current.addSeries(HistogramSeries, {
+          color: '#26a69a',
+          priceFormat: {
+            type: 'volume',
+          },
+          priceScaleId: 'volume',
+        });
+
+        const sortedVolume = [...data.volume].sort((a, b) => a.time - b.time);
+        volumeSeries.setData(sortedVolume);
+        volumeSeriesRef.current = volumeSeries;
+
+        // Configure volume price scale (bottom 20% of chart)
+        volumeSeries.priceScale().applyOptions({
+          scaleMargins: {
+            top: 0.8, // Volume takes bottom 20%
+            bottom: 0,
+          },
+        });
+      }
+
+      // Configure timeScale to show ALL data - Binance style
       const timeScale = chartRef.current.timeScale();
 
-      // Fit content first to auto-scale
-      timeScale.fitContent();
-
-      // Force the chart to show the FULL time range from first to last data point
-      // Using actual timestamps ensures the full horizontal range is visible
+      // Show ALL data points from first to last with small padding
+      // This is the key to displaying the full chart without empty space
       if (sortedOHLC.length > 0) {
-        const firstTime = sortedOHLC[0].time;
-        const lastTime = sortedOHLC[sortedOHLC.length - 1].time;
-
-        console.log('Setting visible time range:', {
-          from: new Date(firstTime * 1000).toISOString(),
-          to: new Date(lastTime * 1000).toISOString()
+        // Add small negative padding to show from very start
+        timeScale.setVisibleLogicalRange({
+          from: -0.5,
+          to: sortedOHLC.length - 0.5,
         });
 
-        // Set visible range using actual timestamps with small padding
-        timeScale.setVisibleRange({
-          from: firstTime as any,
-          to: lastTime as any,
-        });
-
-        // Alternative: Use logical range for complete coverage
+        // Force the range again after a short delay to override any defaults
         setTimeout(() => {
           timeScale.setVisibleLogicalRange({
-            from: -0.5, // Small padding on left
-            to: sortedOHLC.length - 0.5 // Small padding on right
+            from: -0.5,
+            to: sortedOHLC.length - 0.5,
           });
         }, 100);
       }
@@ -220,7 +241,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       console.log('✓ Chart data loaded successfully');
     } catch (err) {
       console.error('Error loading chart data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load chart data');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load chart data';
+
+      // Create user-friendly error message
+      let userFriendlyError = 'Unable to load chart data. ';
+      if (errorMessage.includes('No data returned') || errorMessage.includes('No chart data available')) {
+        userFriendlyError += 'This cryptocurrency may not have historical data available at this time.';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('fetch')) {
+        userFriendlyError += 'Network connection issue. Please check your internet and try again.';
+      } else if (errorMessage.includes('HTTP 429')) {
+        userFriendlyError += 'Too many requests. Please wait a moment and try again.';
+      } else {
+        userFriendlyError += 'Please try again later or contact support if the issue persists.';
+      }
+
+      setError(userFriendlyError);
     } finally {
       setLoading(false);
     }
@@ -239,15 +274,26 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       ...chartTheme,
       width: chartContainerRef.current.clientWidth,
       height,
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true, // ✅ Enable pinch-to-zoom on mobile
+      },
       timeScale: {
         ...chartTheme.timeScale,
-        rightOffset: 5,
+        rightOffset: 0,
         barSpacing: 6,
-        minBarSpacing: 2,
+        minBarSpacing: 0.5,
         fixLeftEdge: false,
         fixRightEdge: false,
         lockVisibleTimeRangeOnResize: false,
-        rightBarStaysOnScroll: true,
+        rightBarStaysOnScroll: false,
         borderVisible: true,
         visible: true,
         timeVisible: true,
@@ -395,21 +441,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         ))}
       </div>
 
-      {/* Timeframe Selector */}
-      <div className="flex flex-wrap gap-2">
-        {TIMEFRAMES.map((tf) => (
-          <Button
-            key={tf.value}
-            onClick={() => setTimeframe(tf.value)}
-            variant={timeframe === tf.value ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 px-3 text-xs"
-          >
-            {tf.label}
-          </Button>
-        ))}
-      </div>
-
       {/* Chart Container */}
       <div className="relative">
         {loading && (
@@ -418,13 +449,26 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-            <div className="text-center space-y-2">
-              <p className="text-destructive text-sm">{error}</p>
-              <Button onClick={loadChartData} variant="outline" size="sm">
-                Retry
-              </Button>
-            </div>
+          <div className="absolute inset-0 flex items-center justify-center bg-background/95 backdrop-blur-sm z-10">
+            <Card className="max-w-md mx-4 p-6">
+              <div className="text-center space-y-4">
+                <div className="w-12 h-12 rounded-full bg-destructive/10 mx-auto flex items-center justify-center">
+                  <svg className="w-6 h-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Chart Load Failed</h3>
+                  <p className="text-muted-foreground text-sm">{error}</p>
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={loadChartData} variant="default" size="sm">
+                    <RefreshCw className="w-3 h-3 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
         <div
@@ -432,17 +476,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           className="w-full rounded-lg overflow-hidden border border-border"
           style={{ height: `${height}px` }}
         />
-      </div>
-
-      {/* Chart Info */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            {symbol.toUpperCase()}
-          </Badge>
-          <span>Real-time {chartType} chart powered by TradingView</span>
-        </div>
-        <span>Data from CoinGecko</span>
       </div>
     </Card>
   );

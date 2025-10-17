@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, Eye } from 'lucide-react';
+import { TrendingUp, TrendingDown, Eye, Zap } from 'lucide-react';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CoinData } from '@/types/crypto';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import CryptoDetailsModal from './CryptoDetailsModal';
 import { toast } from 'sonner';
+import { useBinancePrices } from '@/hooks/useBinancePrices';
 
 interface CryptoTableProps {
   onGenerateReport?: (coin: CoinData) => void;
@@ -19,6 +20,14 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedCrypto, setSelectedCrypto] = useState<CoinData | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Get Binance real-time prices for all coins
+  const binanceSymbols = cryptos.map(c => c.symbol.toLowerCase());
+  const { prices: binancePrices, latency } = useBinancePrices({
+    symbols: binanceSymbols,
+    refetchInterval: 10000, // Update every 10s for real-time feel
+    enabled: cryptos.length > 0
+  });
 
   const loadCryptoData = useCallback(async () => {
     try {
@@ -33,9 +42,27 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
 
   useEffect(() => {
     loadCryptoData();
-    const interval = setInterval(loadCryptoData, 60000);
+    // Reduced polling to 2 minutes since Binance provides real-time updates
+    const interval = setInterval(loadCryptoData, 120000);
     return () => clearInterval(interval);
   }, [loadCryptoData]);
+
+  // Merge Binance real-time prices with CoinGecko data
+  const mergedCryptos = cryptos.map(crypto => {
+    const binancePrice = binancePrices[crypto.symbol.toLowerCase()];
+    if (binancePrice) {
+      return {
+        ...crypto,
+        current_price: binancePrice.price,
+        price_change_percentage_24h: binancePrice.change_24h,
+        high_24h: binancePrice.high_24h,
+        low_24h: binancePrice.low_24h,
+        total_volume: binancePrice.volume_24h,
+        lastUpdated: 'realtime' // Mark as real-time data
+      };
+    }
+    return crypto;
+  });
   const handleViewDetails = useCallback((crypto: CoinData) => {
     setSelectedCrypto(crypto);
     setShowDetails(true);
@@ -63,9 +90,23 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   return (
     <>
       <div className="w-full">
+        {/* Real-time indicator */}
+        {latency && latency !== 'unavailable' && latency !== 'connecting' && (
+          <div className="flex items-center justify-end gap-1.5 px-2 py-1 text-[10px] text-green-600 font-medium bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900">
+            <Zap className="w-3 h-3 animate-pulse" />
+            <span>Real-time updates ({latency})</span>
+          </div>
+        )}
+        {latency === 'connecting' && (
+          <div className="flex items-center justify-end gap-1.5 px-2 py-1 text-[10px] text-yellow-600 font-medium bg-yellow-50 dark:bg-yellow-950/30 border-b border-yellow-200 dark:border-yellow-900">
+            <Zap className="w-3 h-3 animate-spin" />
+            <span>Connecting to real-time data...</span>
+          </div>
+        )}
+
         {/* Mobile: Compact List View */}
         <div className="block md:hidden">
-          {cryptos.map((crypto) => (
+          {mergedCryptos.map((crypto, index) => (
             <div
               key={crypto.id}
               onClick={() => handleViewDetails(crypto)}
@@ -74,7 +115,7 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
               {/* Rank */}
               <div className="w-6 flex-shrink-0 text-center">
                 <span className="text-[10px] font-semibold text-muted-foreground">
-                  {crypto.market_cap_rank}
+                  {index + 1}
                 </span>
               </div>
 
@@ -133,11 +174,11 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {cryptos.map((crypto) => (
+              {mergedCryptos.map((crypto, index) => (
                 <tr key={crypto.id} className="hover:bg-muted/20 transition-colors">
                   <td className="p-3 text-center">
                     <span className="text-sm font-semibold text-muted-foreground">
-                      {crypto.market_cap_rank}
+                      {index + 1}
                     </span>
                   </td>
                   <td className="p-3">
