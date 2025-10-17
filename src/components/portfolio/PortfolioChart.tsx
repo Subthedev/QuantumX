@@ -1,10 +1,13 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend as RechartsLegend } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Holding {
   coin_symbol: string;
   coin_name: string;
   value?: number;
+  profit_loss?: number;
   profit_loss_percentage?: number;
 }
 
@@ -38,8 +41,14 @@ export function PortfolioChart({ holdings }: PortfolioChartProps) {
       percentage: ((holding.value || 0) / totalValue) * 100,
       fullName: holding.coin_name,
       profitLoss: holding.profit_loss_percentage || 0,
+      profitLossValue: holding.profit_loss || 0,
     }))
     .sort((a, b) => b.value - a.value);
+
+  const performanceData = data.map(item => ({
+    name: item.name,
+    performance: item.profitLoss,
+  })).slice(0, 8);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload[0]) {
@@ -89,63 +98,142 @@ export function PortfolioChart({ holdings }: PortfolioChartProps) {
   };
 
   return (
-    <div className="w-full">
-      <ResponsiveContainer width="100%" height={400}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={CustomLabel}
-            outerRadius={120}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend 
-            verticalAlign="bottom" 
-            height={36}
-            formatter={(value: string, entry: any) => (
-              <span style={{ color: entry.color }}>
-                {value} ({entry.payload.percentage.toFixed(1)}%)
-              </span>
-            )}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+    <Tabs defaultValue="allocation" className="w-full">
+      <TabsList className="grid w-full max-w-[400px] grid-cols-2 mb-4">
+        <TabsTrigger value="allocation">Allocation</TabsTrigger>
+        <TabsTrigger value="performance">Performance</TabsTrigger>
+      </TabsList>
 
-      <div className="mt-6 space-y-2">
-        {data.slice(0, 5).map((item, index) => (
-          <div key={item.name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-            <div className="flex items-center gap-3">
-              <div 
-                className="w-4 h-4 rounded"
-                style={{ backgroundColor: COLORS[index % COLORS.length] }}
-              />
-              <div>
-                <span className="font-medium">{item.fullName}</span>
-                <span className="text-sm text-muted-foreground ml-2">({item.name})</span>
+      <TabsContent value="allocation" className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Portfolio Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={80}
+                    outerRadius={120}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              
+              {/* Center Stats */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                <div className="text-2xl md:text-3xl font-bold">
+                  {holdings.length}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Assets
+                </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-medium">
-                ${item.value.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                })}
+
+            {/* Legend List */}
+            <div className="mt-4 space-y-2 max-h-[200px] overflow-y-auto">
+              {data.map((item, index) => (
+                <div 
+                  key={item.name} 
+                  className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm truncate">{item.fullName}</div>
+                      <div className="text-xs text-muted-foreground">{item.name}</div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-3">
+                    <div className="font-semibold text-sm">
+                      {item.percentage.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      ${(item.value / 1000).toFixed(1)}k
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="performance" className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Performance Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={performanceData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [`${value.toFixed(2)}%`, 'P&L']}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Bar 
+                  dataKey="performance" 
+                  fill="hsl(var(--primary))"
+                  radius={[6, 6, 0, 0]}
+                >
+                  {performanceData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.performance >= 0 ? '#16DB65' : '#FF5F6D'} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* Performance Summary */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className="text-xs text-muted-foreground mb-1">Gainers</div>
+                <div className="text-xl font-bold text-green-500">
+                  {data.filter(d => d.profitLoss > 0).length}
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                {item.percentage.toFixed(2)}%
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <div className="text-xs text-muted-foreground mb-1">Losers</div>
+                <div className="text-xl font-bold text-red-500">
+                  {data.filter(d => d.profitLoss < 0).length}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   );
 }
