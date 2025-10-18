@@ -38,6 +38,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   currentPrice,
   height = 450,
 }) => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<any> | null>(null);
@@ -60,13 +61,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
     volume: 0,
   });
 
-  // Theme configuration
+  // Update mobile state on resize
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Theme configuration with mobile optimizations
   const chartTheme = useMemo(() => {
     const isDark = appTheme === 'dark';
     return {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: isDark ? '#9ca3af' : '#6b7280',
+        fontSize: isMobile ? 10 : 12,
       },
       grid: {
         vertLines: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
@@ -87,14 +96,33 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       },
       rightPriceScale: {
         borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
       },
       timeScale: {
         borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         timeVisible: true,
         secondsVisible: false,
+        fixLeftEdge: isMobile,
+        fixRightEdge: isMobile,
+      },
+      // Enable touch-based pinch zoom for mobile
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true, // Enable pinch zoom on mobile
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
       },
     };
-  }, [appTheme]);
+  }, [appTheme, isMobile]);
 
   // Load data function - defined early so it can be used in useEffects
   const loadChartData = useCallback(async () => {
@@ -387,59 +415,76 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   return (
-    <Card className="p-4 space-y-4">
+    <Card className={isMobile ? "p-2 space-y-2" : "p-4 space-y-4"}>
       {/* Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         {/* Price Info */}
-        <div className="flex items-center gap-4">
-          <div>
-            <div className="text-2xl font-bold">
-              ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
-            </div>
-            <div className={`text-sm ${getChangeColor(priceInfo.changePercent)}`}>
-              {priceInfo.changePercent >= 0 ? '+' : ''}
-              {priceInfo.changePercent.toFixed(2)}% ({timeframe})
-            </div>
+        <div className="flex-1 min-w-0">
+          <div className={isMobile ? "text-lg font-bold" : "text-2xl font-bold"}>
+            ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
           </div>
-          <div className="flex gap-3 text-xs">
-            <div>
-              <span className="text-muted-foreground">H:</span>{' '}
-              <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">L:</span>{' '}
-              <span className="font-semibold">${priceInfo.low.toFixed(priceInfo.low < 1 ? 6 : 2)}</span>
-            </div>
+          <div className={`text-xs ${getChangeColor(priceInfo.changePercent)}`}>
+            {priceInfo.changePercent >= 0 ? '+' : ''}
+            {priceInfo.changePercent.toFixed(2)}% ({timeframe})
           </div>
+          {!isMobile && (
+            <div className="flex gap-3 text-xs mt-1">
+              <div>
+                <span className="text-muted-foreground">H:</span>{' '}
+                <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">L:</span>{' '}
+                <span className="font-semibold">${priceInfo.low.toFixed(priceInfo.low < 1 ? 6 : 2)}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Refresh Button */}
-        <Button
-          onClick={handleRefresh}
-          variant="ghost"
-          size="sm"
-          disabled={loading}
-          className="h-8"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
+        {/* Compact controls for mobile */}
+        <div className="flex items-center gap-1">
+          {/* Chart Type Selector - Compact for mobile */}
+          {CHART_TYPES.map((type) => (
+            <Button
+              key={type.value}
+              onClick={() => setChartType(type.value)}
+              variant={chartType === type.value ? 'default' : 'outline'}
+              size={isMobile ? 'icon' : 'sm'}
+              className={isMobile ? "h-7 w-7" : "h-8"}
+              title={type.label}
+            >
+              {type.icon}
+              {!isMobile && <span className="ml-1.5 text-xs">{type.label}</span>}
+            </Button>
+          ))}
+
+          {/* Refresh Button */}
+          <Button
+            onClick={handleRefresh}
+            variant="ghost"
+            size={isMobile ? 'icon' : 'sm'}
+            disabled={loading}
+            className={isMobile ? "h-7 w-7" : "h-8"}
+            title="Refresh"
+          >
+            <RefreshCw className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
-      {/* Chart Type Selector */}
-      <div className="flex items-center gap-2">
-        {CHART_TYPES.map((type) => (
-          <Button
-            key={type.value}
-            onClick={() => setChartType(type.value)}
-            variant={chartType === type.value ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 text-xs"
-          >
-            {type.icon}
-            <span className="ml-1.5">{type.label}</span>
-          </Button>
-        ))}
-      </div>
+      {/* High/Low for mobile - shown below price */}
+      {isMobile && (
+        <div className="flex gap-4 text-[10px] px-1">
+          <div>
+            <span className="text-muted-foreground">High:</span>{' '}
+            <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Low:</span>{' '}
+            <span className="font-semibold">${priceInfo.low.toFixed(priceInfo.low < 1 ? 6 : 2)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Chart Container */}
       <div className="relative">
@@ -474,7 +519,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         <div
           ref={chartContainerRef}
           className="w-full rounded-lg overflow-hidden border border-border"
-          style={{ height: `${height}px` }}
+          style={{ height: `${isMobile ? Math.min(height, 300) : height}px` }}
         />
       </div>
     </Card>

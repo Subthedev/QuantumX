@@ -150,21 +150,78 @@ const AIAnalysis = () => {
       const coinData = cryptos.find(c => c.id === selectedCoin);
       if (!coinData) throw new Error('Coin data not found');
 
-      const detailedData = await cryptoDataService.getCryptoDetails(selectedCoin);
+      console.log('🚀 Generating analysis for:', coinData.symbol, 'Types:', selectedAnalysisTypes);
+      console.log('📊 Coin data structure:', {
+        id: coinData.id,
+        symbol: coinData.symbol,
+        name: coinData.name,
+        hasPrice: !!coinData.current_price,
+        hasMarketCap: !!coinData.market_cap,
+        hasVolume: !!coinData.total_volume,
+        has24hChange: !!coinData.price_change_percentage_24h,
+        has7dChange: !!coinData.price_change_percentage_7d_in_currency,
+        hasATH: !!coinData.ath,
+        hasATL: !!coinData.atl,
+        allKeys: Object.keys(coinData)
+      });
 
       // ✨ PARALLEL PROCESSING - Generate all analyses at once
+      // Note: Not fetching detailedData as it's not used in compressed prompts
       const analysisPromises = selectedAnalysisTypes.map(async (analysisType) => {
         try {
-          const { data, error } = await supabase.functions.invoke('ai-analysis', {
-            body: {
+          console.log(`🚀 Invoking ai-analysis for ${analysisType} with coin:`, coinData.symbol);
+
+          let data, error;
+          try {
+            // Log the request body
+            const requestBody = {
               coin: coinData,
-              detailedData,
               analysisType
+            };
+            console.log(`📤 Sending request for ${analysisType}:`, {
+              coinId: coinData.id,
+              coinSymbol: coinData.symbol,
+              analysisType,
+              bodySize: JSON.stringify(requestBody).length
+            });
+
+            // Use direct fetch instead of Supabase client (which has response parsing issues)
+            const directResponse = await fetch(
+              'https://vidziydspeewmcexqicg.supabase.co/functions/v1/ai-analysis',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZHppeWRzcGVld21jZXhxaWNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4NDc3MzIsImV4cCI6MjA2OTQyMzczMn0.cn4UuIO1zg-vtNZbHuVhTHK0fuZIIGFhNzz4hwkdwvg`
+                },
+                body: JSON.stringify(requestBody)
+              }
+            );
+
+            if (!directResponse.ok) {
+              const errorText = await directResponse.text();
+              console.error(`❌ HTTP ${directResponse.status}:`, errorText);
+              error = { message: errorText };
+              data = null;
+            } else {
+              data = await directResponse.json();
+              error = null;
+              console.log(`✅ Successfully received analysis for ${analysisType}`);
             }
-          });
+
+          } catch (invocationError: any) {
+            console.error(`❌ INVOCATION EXCEPTION for ${analysisType}:`, invocationError);
+            throw new Error(`Network or invocation error: ${invocationError.message}`);
+          }
 
           if (error) {
+            console.error(`❌ Edge function error for ${analysisType}:`, error);
             throw new Error(error.message || 'Failed to generate analysis');
+          }
+
+          if (!data) {
+            console.error(`❌ No data returned for ${analysisType}`);
+            throw new Error('No data returned from analysis');
           }
 
           // ✨ VALIDATION - Validate response with Zod

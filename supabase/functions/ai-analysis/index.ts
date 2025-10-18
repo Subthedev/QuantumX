@@ -12,6 +12,8 @@ import {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 function getToolName(analysisType: string): string {
@@ -431,8 +433,11 @@ function getAnalysisSchema(analysisType: string) {
 }
 
 serve(async (req) => {
+  console.log('🚀 AI Analysis function called - Method:', req.method, 'URL:', req.url);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('✅ Handling CORS preflight');
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -440,6 +445,7 @@ serve(async (req) => {
     // Check rate limits
     const userId = getUserId(req);
     const clientIP = getClientIP(req);
+    console.log('👤 Request from:', userId || clientIP);
     const rateLimitCheck = rateLimitMiddleware(userId, clientIP);
 
     if (!rateLimitCheck.allowed) {
@@ -467,6 +473,7 @@ serve(async (req) => {
     }
 
     // Prepare market data context
+    // Note: detailedData is optional and not used in compressed prompts
     const marketContext = {
       name: coin.name,
       symbol: coin.symbol,
@@ -486,7 +493,7 @@ serve(async (req) => {
       atlDate: coin.atl_date,
       sparklineData: coin.sparkline_in_7d?.price || [],
       marketCapRank: coin.market_cap_rank,
-      detailedMetrics: detailedData,
+      // detailedMetrics not included - not used in compressed prompts
     };
 
     // Select optimal model and get compressed prompts (80% cost reduction)
@@ -884,7 +891,6 @@ TRADING STRATEGY:
       headers: {
         'x-api-key': anthropicKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'prompt-caching-2024-07-31', // Enable prompt caching for 90% cost reduction
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
@@ -893,7 +899,8 @@ TRADING STRATEGY:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Claude API error:', response.status, errorText);
-      throw new Error(`Failed to generate analysis: ${response.status}`);
+      console.error('Request body:', JSON.stringify(requestBody, null, 2));
+      throw new Error(`Anthropic API error (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();
@@ -986,9 +993,17 @@ TRADING STRATEGY:
       }
     );
   } catch (error) {
-    console.error('Error in ai-analysis function:', error);
+    console.error('❌ Error in ai-analysis function:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({
+        error: error.message || 'Internal server error',
+        errorType: error.name,
+        details: error.stack?.split('\n')?.[0] || 'No additional details'
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -41,24 +41,25 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const endpoint = url.searchParams.get('endpoint');
-    const coinId = url.searchParams.get('coinId');
+    // Parse request body (supabase.functions.invoke sends data in body)
+    const body = await req.json();
+    const endpoint = body.endpoint;
+    const coinId = body.coinId;
 
-    console.log(`📡 Crypto proxy request: ${endpoint}, coin: ${coinId || 'list'}`);
+    console.log(`📡 Crypto proxy request: ${endpoint}, coin: ${coinId || 'list'}`, body);
 
     // Get list of cryptocurrencies
     if (endpoint === 'list') {
-      return await handleCryptoList(url);
+      return await handleCryptoList(body);
     }
 
     // Get detailed coin data
     if (endpoint === 'details' && coinId) {
-      return await handleCoinDetails(coinId, url);
+      return await handleCoinDetails(coinId, body);
     }
 
     return new Response(
-      JSON.stringify({ error: 'Invalid endpoint' }),
+      JSON.stringify({ error: 'Invalid endpoint. Use endpoint: "list" or "details"', received: body }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -80,13 +81,13 @@ serve(async (req) => {
   }
 });
 
-async function handleCryptoList(url: URL): Promise<Response> {
+async function handleCryptoList(body: any): Promise<Response> {
   const params: CryptoListParams = {
-    vs_currency: url.searchParams.get('vs_currency') || 'usd',
-    order: url.searchParams.get('order') || 'market_cap_desc',
-    per_page: parseInt(url.searchParams.get('per_page') || '100'),
-    page: parseInt(url.searchParams.get('page') || '1'),
-    sparkline: url.searchParams.get('sparkline') === 'true'
+    vs_currency: body.vs_currency || 'usd',
+    order: body.order || 'market_cap_desc',
+    per_page: parseInt(body.per_page || '100'),
+    page: parseInt(body.page || '1'),
+    sparkline: body.sparkline !== false
   };
 
   const cacheKey = `list-${JSON.stringify(params)}`;
@@ -171,14 +172,14 @@ async function handleCryptoList(url: URL): Promise<Response> {
   }
 }
 
-async function handleCoinDetails(coinId: string, url: URL): Promise<Response> {
+async function handleCoinDetails(coinId: string, body: any): Promise<Response> {
   const params: CryptoDetailsParams = {
-    localization: url.searchParams.get('localization') !== 'false',
-    tickers: url.searchParams.get('tickers') !== 'false',
-    market_data: url.searchParams.get('market_data') !== 'false',
-    community_data: url.searchParams.get('community_data') !== 'false',
-    developer_data: url.searchParams.get('developer_data') !== 'false',
-    sparkline: url.searchParams.get('sparkline') !== 'false'
+    localization: body.localization !== false,
+    tickers: body.tickers !== false,
+    market_data: body.market_data !== false,
+    community_data: body.community_data !== false,
+    developer_data: body.developer_data !== false,
+    sparkline: body.sparkline !== false
   };
 
   const cacheKey = `details-${coinId}-${JSON.stringify(params)}`;
