@@ -101,7 +101,6 @@ export function useAnalysisCacheStatus(coinId: string, analysisTypes: string[]) 
   return {
     isCached: !!state?.data,
     dataUpdatedAt: state?.dataUpdatedAt,
-    isStale: state?.isStale,
     fetchStatus: state?.fetchStatus
   };
 }

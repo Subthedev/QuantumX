@@ -4,8 +4,9 @@
  * Uses react-window for efficient large list rendering
  */
 
+// Temporarily disabled due to react-window compatibility issues
 import React from 'react';
-import { FixedSizeList as List } from 'react-window';
+// import { FixedSizeList } from 'react-window';
 import { Card } from '@/components/ui/card';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
@@ -133,16 +134,17 @@ export const VirtualCryptoTable: React.FC<VirtualCryptoTableProps> = ({
         </div>
       </div>
 
-      {/* Virtual List */}
-      <List
-        height={height}
-        itemCount={cryptos.length}
-        itemSize={68} // Height of each row
-        width="100%"
-        itemData={{ cryptos, onCoinClick }}
-      >
-        {CryptoRow}
-      </List>
+      {/* Virtual List - Temporarily using standard rendering */}
+      <div style={{ height: `${height}px`, overflow: 'auto' }}>
+        {cryptos.map((crypto, index) => (
+          <CryptoRow 
+            key={crypto.id}
+            index={index}
+            style={{ height: 68 }}
+            data={{ cryptos, onCoinClick }}
+          />
+        ))}
+      </div>
     </Card>
   );
 };
