@@ -36,147 +36,98 @@ export default function Titan10Section() {
   const handleViewPortfolio = () => {
     navigate('/titan10');
   };
-  return <div className="space-y-6">
-      {/* Professional Hero Section */}
-      <div className="rounded-xl bg-card border border-border p-6">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-lg">
-                <Crown className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">
-                  IgniteX Titan 10
-                </h2>
-                <p className="text-sm text-muted-foreground">Expert-Curated Portfolio for 2025 Bull Run</p>
-              </div>
+  return (
+    <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+      <CardContent className="p-3 md:p-5 space-y-3 md:space-y-4">
+        {/* Compact Header - Single Row on Mobile */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 md:p-2 bg-primary/10 rounded-lg flex-shrink-0">
+              <Crown className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
-            
-            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-              EXCLUSIVE
-            </Badge>
+            <div className="min-w-0">
+              <h3 className="text-sm md:text-base font-bold truncate">Titan 10 Portfolio</h3>
+              <p className="text-[10px] md:text-xs text-muted-foreground truncate">2025 Bull Run Picks</p>
+            </div>
           </div>
-          
-          {/* Key Metrics - Clean Professional Grid */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card className="border-border bg-gradient-to-br from-green-500/5 to-background">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-green-500 mb-1">
-                  <TrendingUp className="w-4 h-4" />
-                  <p className="text-2xl font-bold">+1,218%</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Portfolio Return</p>
-                <p className="text-[9px] text-muted-foreground">vs BTC +57%</p>
-              </CardContent>
-            </Card>
+          <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 text-[10px] md:text-xs flex-shrink-0">
+            LIVE
+          </Badge>
+        </div>
 
-            <Card className="border-border bg-gradient-to-br from-blue-500/5 to-background">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-blue-500 mb-1">
-                  <Target className="w-4 h-4" />
-                  <p className="text-2xl font-bold">8/10</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Win Rate</p>
-                <p className="text-[9px] text-muted-foreground">80% profitable</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-gradient-to-br from-purple-500/5 to-background">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-purple-500 mb-1">
-                  <DollarSign className="w-4 h-4" />
-                  <p className="text-2xl font-bold">+1,527%</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Winners Avg</p>
-                <p className="text-[9px] text-muted-foreground">8 of 10 picks</p>
-              </CardContent>
-            </Card>
+        {/* Compact Stats Grid - 2 Columns */}
+        <div className="grid grid-cols-2 gap-2 md:gap-3">
+          <div className="text-center p-2 md:p-3 rounded-lg bg-gradient-to-br from-green-500/10 to-background border border-green-500/20">
+            <p className="text-base md:text-xl font-bold text-green-500">+1,218%</p>
+            <p className="text-[9px] md:text-xs text-muted-foreground mt-0.5">Total Return</p>
           </div>
-          
-          {/* Latest Picks - 2 Column Grid */}
-          <div className="space-y-3">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">🔓 Get Access to Our Latest Picks for 2025</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* RWA Pick */}
-              <Card className="border-blue-500/20 bg-blue-500/5">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-xs font-semibold text-blue-500 border-blue-500/50">
-                        💎 RWA PICK
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">Locked</Badge>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 blur-sm"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground blur-sm">HBAR</p>
-                        <p className="text-xs text-muted-foreground">Enterprise DLT</p>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Return Till Date:</span>
-                        <span className="text-lg font-bold text-blue-500">{hbarReturn}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* MEME Pick */}
-              <Card className="border-purple-500/20 bg-purple-500/5">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-xs font-semibold text-purple-500 border-purple-500/50">
-                        🚀 MEME PICK
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">Locked</Badge>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 blur-sm"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground blur-sm">HYPE</p>
-                        <p className="text-xs text-muted-foreground">Perp DEX</p>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Target 2026:</span>
-                        <span className="text-lg font-bold text-purple-500">$85</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          
-          {/* CTA */}
-          <Button onClick={handleViewPortfolio} size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-            View Complete Titan 10 Portfolio
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-          
-          <div className="text-center space-y-1">
-            <p className="text-xs text-muted-foreground">
-              🔥 1,200+ members • +1,218% avg returns • 8/10 win rate
-            </p>
-            <p className="text-xs font-semibold text-green-500">
-              14-day performance guarantee - Outperform BTC or full refund
-            </p>
+          <div className="text-center p-2 md:p-3 rounded-lg bg-gradient-to-br from-blue-500/10 to-background border border-blue-500/20">
+            <p className="text-base md:text-xl font-bold text-blue-500">8/10</p>
+            <p className="text-[9px] md:text-xs text-muted-foreground mt-0.5">Win Rate</p>
           </div>
         </div>
-      </div>
-    </div>;
+
+        {/* Top Picks Preview - Horizontal Layout */}
+        <div className="space-y-2">
+          <p className="text-[10px] md:text-xs text-center text-muted-foreground">Top 2 Picks Preview</p>
+          <div className="flex gap-2 md:gap-3">
+            {/* RWA Pick - HBAR */}
+            <div className="flex-1 p-2.5 md:p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+              <div className="flex items-center justify-between mb-2">
+                <Badge variant="outline" className="text-[9px] md:text-xs text-blue-500 border-blue-500/50">
+                  💎 RWA
+                </Badge>
+                <Badge variant="secondary" className="text-[9px] md:text-xs">Locked</Badge>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 blur-sm flex-shrink-0"></div>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-semibold blur-sm">HBAR</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
+                <span className="text-[9px] md:text-xs text-muted-foreground">Return:</span>
+                <span className="text-sm md:text-base font-bold text-blue-500">{hbarReturn}</span>
+              </div>
+            </div>
+
+            {/* DEX Pick - HYPE */}
+            <div className="flex-1 p-2.5 md:p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
+              <div className="flex items-center justify-between mb-2">
+                <Badge variant="outline" className="text-[9px] md:text-xs text-purple-500 border-purple-500/50">
+                  🚀 DEX
+                </Badge>
+                <Badge variant="secondary" className="text-[9px] md:text-xs">Locked</Badge>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 blur-sm flex-shrink-0"></div>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-semibold blur-sm">HYPE</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
+                <span className="text-[9px] md:text-xs text-muted-foreground">Target:</span>
+                <span className="text-sm md:text-base font-bold text-purple-500">$85</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Compact CTA */}
+        <Button
+          onClick={handleViewPortfolio}
+          size="sm"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm py-2 md:py-2.5"
+        >
+          View Full Portfolio
+          <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-1.5" />
+        </Button>
+
+        {/* Compact Footer */}
+        <p className="text-[9px] md:text-xs text-center text-muted-foreground">
+          🔥 1,200+ members • 80% win rate • 14-day guarantee
+        </p>
+      </CardContent>
+    </Card>
+  );
 }

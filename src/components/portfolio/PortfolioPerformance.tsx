@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -14,7 +14,7 @@ interface PortfolioPerformanceProps {
   holdings: Holding[];
 }
 
-export function PortfolioPerformance({ holdings }: PortfolioPerformanceProps) {
+const PortfolioPerformanceComponent = ({ holdings }: PortfolioPerformanceProps) => {
   const performanceData = holdings
     .filter(h => h.value && h.value > 0)
     .map((holding) => ({
@@ -100,4 +100,6 @@ export function PortfolioPerformance({ holdings }: PortfolioPerformanceProps) {
       </CardContent>
     </Card>
   );
-}
+};
+
+export const PortfolioPerformance = memo(PortfolioPerformanceComponent);

@@ -184,7 +184,7 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+      <DialogContent className={`max-w-6xl max-h-[90vh] ${isMobile ? 'p-0 pb-20' : 'p-6'} overflow-y-auto`}>
         <VisuallyHidden>
           <DialogTitle>{coin.name} Details</DialogTitle>
           <DialogDescription>Detailed information and analysis for {coin.name}</DialogDescription>
@@ -208,104 +208,78 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
             </CardContent>
           </Card>
         ) : (
-          <div className={isMobile ? "space-y-2" : "space-y-4 sm:space-y-6"}>
-            {/* Header */}
-            <div className={`flex items-center justify-between ${isMobile ? 'gap-2' : 'flex-wrap gap-3'}`}>
-              <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
-                <img src={coin.image} alt={coin.name} className={isMobile ? "w-10 h-10 rounded-full" : "w-12 h-12 sm:w-16 sm:h-16 rounded-full"} />
-                <div>
-                  <h2 className={isMobile ? "text-lg font-bold" : "text-xl sm:text-2xl font-bold"}>{coin.name}</h2>
-                  <div className="flex items-center gap-2">
-                    <span className={isMobile ? "text-xs text-muted-foreground uppercase" : "text-sm text-muted-foreground uppercase"}>{coin.symbol}</span>
-                    <Badge variant="secondary" className="text-xs">#{coin.market_cap_rank}</Badge>
+          <>
+            <div className={isMobile ? "space-y-3 p-3" : "space-y-4 sm:space-y-6"}>
+              {/* Compact Header - CMC/Binance Style */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <img src={coin.image} alt={coin.name} className={isMobile ? "w-9 h-9 rounded-full flex-shrink-0" : "w-12 h-12 rounded-full flex-shrink-0"} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className={isMobile ? "text-base font-bold" : "text-xl font-bold"}>{coin.name}</h2>
+                      <span className={isMobile ? "text-xs text-muted-foreground uppercase" : "text-sm text-muted-foreground uppercase"}>{coin.symbol}</span>
+                      <Badge variant="secondary" className={isMobile ? "text-[10px] h-4 px-1.5" : "text-xs"}>#{coin.market_cap_rank}</Badge>
+                    </div>
+                    <div className={isMobile ? "text-lg font-bold mt-0.5" : "text-2xl font-bold mt-1"}>
+                      ${coin.current_price?.toFixed(coin.current_price < 1 ? 6 : 2) || '0'}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className={isMobile ? "text-xl font-bold" : "text-2xl sm:text-3xl font-bold"}>
-                  ${coin.current_price?.toFixed(coin.current_price < 1 ? 6 : 2) || '0'}
-                </div>
-                <div className={`flex items-center justify-end gap-1 ${isMobile ? 'text-xs' : 'text-sm'} ${getChangeColor(coin.price_change_percentage_24h)}`}>
-                  {coin.price_change_percentage_24h > 0 ? <TrendingUp className={isMobile ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"} /> : <TrendingDown className={isMobile ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"} />}
-                  <span>{Math.abs(coin.price_change_percentage_24h || 0).toFixed(2)}%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className={isMobile ? "flex flex-col gap-2" : "flex flex-col gap-3"}>
-              <Button onClick={handleAddToPortfolio} className="w-full" size={isMobile ? "sm" : "default"}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add to Portfolio
-              </Button>
-
-              {/* Price Alert Section - Simplified for mobile */}
-              {isMobile ? (
-                <div className="flex flex-col gap-2">
-                  <Input
-                    id="alertPrice"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder={`Alert price: $${formatNumber(coin.current_price)}`}
-                    value={alertPrice}
-                    onChange={(e) => setAlertPrice(e.target.value)}
-                    className="text-sm h-9"
-                  />
-                  <Button onClick={handleSetAlert} size="sm" className="w-full">
-                    <Bell className="w-3.5 h-3.5 mr-2" />
-                    Set Alert
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <label htmlFor="alertPrice" className="text-sm font-medium mb-2 block">
-                      Set Price Alert (USD)
-                    </label>
-                    <Input
-                      id="alertPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder={`Current: $${formatNumber(coin.current_price)}`}
-                      value={alertPrice}
-                      onChange={(e) => setAlertPrice(e.target.value)}
-                      className="w-full"
-                    />
+                <div className="text-right flex-shrink-0">
+                  <div className={`flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-sm'} ${getChangeColor(coin.price_change_percentage_24h)}`}>
+                    {coin.price_change_percentage_24h > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    <span className="font-semibold">{Math.abs(coin.price_change_percentage_24h || 0).toFixed(2)}%</span>
                   </div>
-                  <Button onClick={handleSetAlert} className="min-w-[140px]">
-                    <Bell className="w-4 h-4 mr-2" />
-                    Set Alert
-                  </Button>
+                  <div className={isMobile ? "text-[10px] text-muted-foreground" : "text-xs text-muted-foreground"}>24h</div>
+                </div>
+              </div>
+
+              {/* Quick Stats Row - Mobile Only */}
+              {isMobile && (
+                <div className="grid grid-cols-4 gap-1.5 text-center py-2 border-y border-border/50">
+                  <div>
+                    <div className="text-[9px] text-muted-foreground">Market Cap</div>
+                    <div className="text-xs font-semibold">{formatNumber(coin.market_cap)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-muted-foreground">Volume</div>
+                    <div className="text-xs font-semibold">{formatNumber(coin.total_volume)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-muted-foreground">High 24h</div>
+                    <div className="text-xs font-semibold">${coin.high_24h?.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-muted-foreground">Low 24h</div>
+                    <div className="text-xs font-semibold">${coin.low_24h?.toFixed(2)}</div>
+                  </div>
                 </div>
               )}
-            </div>
 
             <Tabs defaultValue="chart" className="w-full">
-              <TabsList className={isMobile ? "inline-flex w-auto min-w-full justify-start overflow-x-auto" : "grid w-full grid-cols-4"}>
-                <TabsTrigger value="chart" className={isMobile ? "text-xs px-3" : ""}>Chart</TabsTrigger>
-                <TabsTrigger value="stats" className={isMobile ? "text-xs px-3" : ""}>Stats</TabsTrigger>
-                <TabsTrigger value="market" className={isMobile ? "text-xs px-3" : ""}>Market</TabsTrigger>
-                <TabsTrigger value="about" className={isMobile ? "text-xs px-3" : ""}>About</TabsTrigger>
+              <TabsList className={isMobile ? "inline-flex w-auto min-w-full justify-start overflow-x-auto scrollbar-hide border-b border-border/50 rounded-none bg-transparent p-0" : "grid w-full grid-cols-4"}>
+                <TabsTrigger value="chart" className={isMobile ? "text-xs px-4 py-2.5 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary" : ""}>Chart</TabsTrigger>
+                <TabsTrigger value="stats" className={isMobile ? "text-xs px-4 py-2.5 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary" : ""}>Stats</TabsTrigger>
+                <TabsTrigger value="market" className={isMobile ? "text-xs px-4 py-2.5 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary" : ""}>Market</TabsTrigger>
+                <TabsTrigger value="about" className={isMobile ? "text-xs px-4 py-2.5 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary" : ""}>About</TabsTrigger>
               </TabsList>
 
               {/* CHART TAB - Clean, focused on chart only */}
-              <TabsContent value="chart" className="space-y-4">
+              <TabsContent value="chart" className={isMobile ? "space-y-2 mt-2" : "space-y-4 mt-4"}>
                 <div className="w-full">
                   <TradingViewChart
                     coinId={coin.id}
                     symbol={coin.symbol}
                     currentPrice={coin.current_price}
-                    height={500}
+                    height={isMobile ? 350 : 500}
                   />
                 </div>
 
                 {/* Minimal Price Changes - Inline */}
-                <div className={`flex items-center justify-center ${isMobile ? 'gap-3 overflow-x-auto py-2' : 'gap-6 py-3'} bg-muted/30 rounded-lg`}>
+                <div className={`flex items-center ${isMobile ? 'justify-between gap-1 px-2 py-2' : 'justify-center gap-6 py-3'} bg-muted/30 rounded-lg ${isMobile ? 'overflow-x-auto scrollbar-hide' : ''}`}>
                   {priceChanges.slice(0, 5).map((change, index) => (
-                    <div key={index} className={`text-center ${isMobile ? 'flex-shrink-0' : ''}`}>
-                      <div className={isMobile ? "text-[10px] text-muted-foreground" : "text-xs text-muted-foreground"}>{change.period}</div>
+                    <div key={index} className={`text-center ${isMobile ? 'flex-shrink-0 min-w-[50px]' : ''}`}>
+                      <div className={isMobile ? "text-[9px] text-muted-foreground" : "text-xs text-muted-foreground"}>{change.period}</div>
                       <div className={`${isMobile ? 'text-xs' : 'text-sm'} font-semibold ${getChangeColor(change.value || 0)}`}>
                         {change.value ? `${change.value >= 0 ? '+' : ''}${change.value.toFixed(1)}%` : 'N/A'}
                       </div>
@@ -315,16 +289,16 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
               </TabsContent>
 
               {/* STATS TAB - Key metrics and supply */}
-              <TabsContent value="stats" className={isMobile ? "space-y-3" : "space-y-6"}>
+              <TabsContent value="stats" className={isMobile ? "space-y-2 mt-2" : "space-y-6 mt-4"}>
                 {/* Key Metrics - Compact Grid */}
-                <div className={`grid grid-cols-2 ${isMobile ? 'gap-2' : 'md:grid-cols-4 gap-3'}`}>
+                <div className={`grid grid-cols-2 ${isMobile ? 'gap-1.5' : 'md:grid-cols-4 gap-3'}`}>
                   {metrics.map((metric, index) => (
-                    <Card key={index} className="border-muted">
+                    <Card key={index} className={isMobile ? "border-muted/50" : "border-muted"}>
                       <CardContent className={isMobile ? "p-2" : "p-3"}>
-                        <div className={isMobile ? "text-[10px] text-muted-foreground mb-0.5" : "text-xs text-muted-foreground mb-1"}>{metric.label}</div>
-                        <div className={isMobile ? "text-sm font-bold" : "text-base font-bold"}>{metric.value}</div>
+                        <div className={isMobile ? "text-[9px] text-muted-foreground mb-0.5" : "text-xs text-muted-foreground mb-1"}>{metric.label}</div>
+                        <div className={isMobile ? "text-xs font-bold" : "text-base font-bold"}>{metric.value}</div>
                         {metric.change !== null && (
-                          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} ${getChangeColor(metric.change)}`}>
+                          <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} ${getChangeColor(metric.change)}`}>
                             {cryptoDataService.formatPercentage(metric.change)}
                           </div>
                         )}
@@ -334,26 +308,26 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
                 </div>
 
                 {/* Supply Information - Compact */}
-                <Card className="border-muted">
-                  <CardHeader className={isMobile ? "pb-2" : "pb-3"}>
+                <Card className={isMobile ? "border-muted/50" : "border-muted"}>
+                  <CardHeader className={isMobile ? "p-2 pb-1.5" : "pb-3"}>
                     <CardTitle className={isMobile ? "text-xs flex items-center gap-1.5" : "text-sm flex items-center gap-2"}>
-                      <Coins className={isMobile ? "w-3.5 h-3.5" : "w-4 h-4"} />
+                      <Coins className={isMobile ? "w-3 h-3" : "w-4 h-4"} />
                       Supply
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className={isMobile ? "pt-0 px-3 pb-3" : "pt-0"}>
-                    <div className={`grid grid-cols-2 ${isMobile ? 'gap-2' : 'gap-3'}`}>
+                  <CardContent className={isMobile ? "pt-0 px-2 pb-2" : "pt-0"}>
+                    <div className={`grid grid-cols-2 ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
                       {supplyMetrics.slice(0, 3).map((metric, index) => (
                         <div key={index}>
-                          <div className={isMobile ? "text-[10px] text-muted-foreground" : "text-xs text-muted-foreground"}>{metric.label}</div>
+                          <div className={isMobile ? "text-[9px] text-muted-foreground" : "text-xs text-muted-foreground"}>{metric.label}</div>
                           <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>{metric.value}</div>
                         </div>
                       ))}
                     </div>
                     {coin.max_supply && (
-                      <div className="mt-3">
-                        <Progress value={(coin.circulating_supply / coin.max_supply) * 100} className="h-1.5" />
-                        <div className="text-xs text-muted-foreground mt-1">
+                      <div className={isMobile ? "mt-2" : "mt-3"}>
+                        <Progress value={(coin.circulating_supply / coin.max_supply) * 100} className={isMobile ? "h-1" : "h-1.5"} />
+                        <div className={isMobile ? "text-[9px] text-muted-foreground mt-1" : "text-xs text-muted-foreground mt-1"}>
                           {((coin.circulating_supply / coin.max_supply) * 100).toFixed(1)}% circulating
                         </div>
                       </div>
@@ -362,36 +336,36 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
                 </Card>
 
                 {/* ATH/ATL - Compact */}
-                <div className={`grid grid-cols-2 ${isMobile ? 'gap-2' : 'gap-3'}`}>
-                  <Card className="border-muted">
+                <div className={`grid grid-cols-2 ${isMobile ? 'gap-1.5' : 'gap-3'}`}>
+                  <Card className={isMobile ? "border-muted/50" : "border-muted"}>
                     <CardContent className={isMobile ? "p-2" : "p-3"}>
                       <div className={`flex items-center justify-between ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
-                        <span className={isMobile ? "text-[10px] text-muted-foreground" : "text-xs text-muted-foreground"}>ATH</span>
-                        <Badge variant="outline" className={isMobile ? "text-[9px] py-0 h-4 px-1" : "text-xs py-0 h-5"}>
-                          {new Date(coin.ath_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        <span className={isMobile ? "text-[9px] text-muted-foreground" : "text-xs text-muted-foreground"}>ATH</span>
+                        <Badge variant="outline" className={isMobile ? "text-[8px] py-0 h-3.5 px-1" : "text-xs py-0 h-5"}>
+                          {new Date(coin.ath_date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
                         </Badge>
                       </div>
-                      <div className={isMobile ? "text-sm font-bold" : "text-lg font-bold"}>
+                      <div className={isMobile ? "text-xs font-bold" : "text-lg font-bold"}>
                         ${coin.ath?.toFixed(coin.ath < 1 ? 6 : 2) || '0'}
                       </div>
-                      <div className={isMobile ? "text-[10px] text-red-500" : "text-xs text-red-500"}>
+                      <div className={isMobile ? "text-[9px] text-red-500" : "text-xs text-red-500"}>
                         {coin.ath_change_percentage?.toFixed(1)}% from ATH
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="border-muted">
+                  <Card className={isMobile ? "border-muted/50" : "border-muted"}>
                     <CardContent className={isMobile ? "p-2" : "p-3"}>
                       <div className={`flex items-center justify-between ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
-                        <span className={isMobile ? "text-[10px] text-muted-foreground" : "text-xs text-muted-foreground"}>ATL</span>
-                        <Badge variant="outline" className={isMobile ? "text-[9px] py-0 h-4 px-1" : "text-xs py-0 h-5"}>
-                          {new Date(coin.atl_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        <span className={isMobile ? "text-[9px] text-muted-foreground" : "text-xs text-muted-foreground"}>ATL</span>
+                        <Badge variant="outline" className={isMobile ? "text-[8px] py-0 h-3.5 px-1" : "text-xs py-0 h-5"}>
+                          {new Date(coin.atl_date).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
                         </Badge>
                       </div>
-                      <div className={isMobile ? "text-sm font-bold" : "text-lg font-bold"}>
+                      <div className={isMobile ? "text-xs font-bold" : "text-lg font-bold"}>
                         ${coin.atl?.toFixed(coin.atl < 1 ? 8 : 2) || '0'}
                       </div>
-                      <div className={isMobile ? "text-[10px] text-green-500" : "text-xs text-green-500"}>
+                      <div className={isMobile ? "text-[9px] text-green-500" : "text-xs text-green-500"}>
                         +{coin.atl_change_percentage?.toFixed(2)}% from ATL
                       </div>
                     </CardContent>
@@ -399,7 +373,7 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
                 </div>
               </TabsContent>
 
-              <TabsContent value="market" className="space-y-6">
+              <TabsContent value="market" className={isMobile ? "space-y-3 mt-2" : "space-y-6 mt-4"}>
                 {/* Enhanced Market Statistics */}
                 <Card>
                   <CardHeader>
@@ -738,7 +712,63 @@ const CryptoDetailsModal = ({ coin, open, onClose }: CryptoDetailsModalProps) =>
                 )}
               </TabsContent>
             </Tabs>
-          </div>
+            </div>
+
+            {/* Sticky Bottom Action Buttons - Mobile Only (Binance/CMC Style) */}
+            {isMobile && (
+              <div className="fixed bottom-0 left-0 right-0 p-3 bg-background border-t border-border/50 flex gap-2 z-50">
+                <Button onClick={handleAddToPortfolio} className="flex-1 h-11" size="default">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to Portfolio
+                </Button>
+                <Button
+                  onClick={() => {
+                    const price = prompt(`Set price alert for ${coin.name}`, coin.current_price.toString());
+                    if (price) {
+                      setAlertPrice(price);
+                      handleSetAlert();
+                    }
+                  }}
+                  variant="outline"
+                  className="flex-1 h-11"
+                >
+                  <Bell className="w-4 h-4 mr-2" />
+                  Set Alert
+                </Button>
+              </div>
+            )}
+
+            {/* Desktop Action Buttons */}
+            {!isMobile && (
+              <div className="flex flex-col gap-3 mt-4">
+                <Button onClick={handleAddToPortfolio} className="w-full" size="default">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to Portfolio
+                </Button>
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1">
+                    <label htmlFor="alertPrice" className="text-sm font-medium mb-2 block">
+                      Set Price Alert (USD)
+                    </label>
+                    <Input
+                      id="alertPrice"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder={`Current: $${formatNumber(coin.current_price)}`}
+                      value={alertPrice}
+                      onChange={(e) => setAlertPrice(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <Button onClick={handleSetAlert} className="min-w-[140px]">
+                    <Bell className="w-4 h-4 mr-2" />
+                    Set Alert
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>
