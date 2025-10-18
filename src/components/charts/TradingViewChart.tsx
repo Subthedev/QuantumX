@@ -519,7 +519,10 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         <div
           ref={chartContainerRef}
           className="w-full rounded-lg overflow-hidden border border-border"
-          style={{ height: `${isMobile ? Math.min(height, 300) : height}px` }}
+          style={{
+            height: `${isMobile ? Math.min(height, 300) : height}px`,
+            touchAction: 'none' // Allow pinch-to-zoom and pan gestures
+          }}
         />
       </div>
     </Card>

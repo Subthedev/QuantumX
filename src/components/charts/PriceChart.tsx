@@ -396,7 +396,8 @@ const PriceChart: React.FC<PriceChartProps> = ({
             </p>
           </div>
         </div> : <div style={{
-      height: `${height}px`
+      height: `${height}px`,
+      touchAction: 'none'
     }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{

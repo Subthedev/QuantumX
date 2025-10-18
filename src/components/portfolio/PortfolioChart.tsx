@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -29,7 +29,7 @@ const COLORS = [
   '#20B2AA',
 ];
 
-export function PortfolioChart({ holdings }: PortfolioChartProps) {
+const PortfolioChartComponent = ({ holdings }: PortfolioChartProps) => {
   const totalValue = holdings.reduce((sum, h) => sum + (h.value || 0), 0);
   
   const data = holdings
@@ -137,4 +137,6 @@ export function PortfolioChart({ holdings }: PortfolioChartProps) {
       </CardContent>
     </Card>
   );
-}
+};
+
+export const PortfolioChart = memo(PortfolioChartComponent);

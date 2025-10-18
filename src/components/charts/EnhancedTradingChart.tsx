@@ -337,11 +337,12 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
           </div>
         </CardHeader>
         <CardContent className="p-0 pt-4">
-          <ResponsiveContainer width="100%" height={400}>
-            <AreaChart 
-              data={chartData} 
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
+          <div style={{ touchAction: 'none' }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -421,6 +422,7 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
               )}
             </AreaChart>
           </ResponsiveContainer>
+          </div>
 
           {/* RSI Chart */}
           {showRSI && (
@@ -429,8 +431,9 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
                 <Activity className="w-4 h-4" />
                 RSI (14)
               </div>
-              <ResponsiveContainer width="100%" height={100}>
-                <LineChart data={chartData} margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+              <div style={{ touchAction: 'none' }}>
+                <ResponsiveContainer width="100%" height={100}>
+                  <LineChart data={chartData} margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
                   <XAxis dataKey="time" hide />
                   <YAxis
@@ -451,6 +454,7 @@ export function EnhancedTradingChart({ coinId, symbol, currentPrice }: EnhancedT
                   />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
               
               {/* RSI Legend */}
               <div className="flex items-center justify-center gap-4 mt-2 text-xs">

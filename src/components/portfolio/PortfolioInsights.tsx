@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, AlertTriangle, Target, Shield, PieChart } from 'lucide-react';
@@ -16,7 +16,7 @@ interface PortfolioInsightsProps {
   totalValue: number;
 }
 
-export function PortfolioInsights({ holdings, totalValue }: PortfolioInsightsProps) {
+const PortfolioInsightsComponent = ({ holdings, totalValue }: PortfolioInsightsProps) => {
   // Calculate insights
   const topPerformer = holdings.reduce((max, h) => 
     (h.profit_loss_percentage || 0) > (max.profit_loss_percentage || 0) ? h : max
@@ -217,4 +217,6 @@ export function PortfolioInsights({ holdings, totalValue }: PortfolioInsightsPro
       </Card>
     </div>
   );
-}
+};
+
+export const PortfolioInsights = memo(PortfolioInsightsComponent);
