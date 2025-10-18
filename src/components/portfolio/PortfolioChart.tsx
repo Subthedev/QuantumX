@@ -1,10 +1,12 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Holding {
   coin_symbol: string;
   coin_name: string;
   value?: number;
+  profit_loss?: number;
   profit_loss_percentage?: number;
 }
 
@@ -38,6 +40,7 @@ export function PortfolioChart({ holdings }: PortfolioChartProps) {
       percentage: ((holding.value || 0) / totalValue) * 100,
       fullName: holding.coin_name,
       profitLoss: holding.profit_loss_percentage || 0,
+      profitLossValue: holding.profit_loss || 0,
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -66,86 +69,72 @@ export function PortfolioChart({ holdings }: PortfolioChartProps) {
     return null;
   };
 
-  const CustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percentage }: any) => {
-    if (percentage < 5) return null; // Don't show label for small slices
-    
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor={x > cx ? 'start' : 'end'}
-        dominantBaseline="central"
-        className="font-medium text-sm"
-      >
-        {`${percentage.toFixed(1)}%`}
-      </text>
-    );
-  };
-
   return (
-    <div className="w-full">
-      <ResponsiveContainer width="100%" height={400}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={CustomLabel}
-            outerRadius={120}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend 
-            verticalAlign="bottom" 
-            height={36}
-            formatter={(value: string, entry: any) => (
-              <span style={{ color: entry.color }}>
-                {value} ({entry.payload.percentage.toFixed(1)}%)
-              </span>
-            )}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-
-      <div className="mt-6 space-y-2">
-        {data.slice(0, 5).map((item, index) => (
-          <div key={item.name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-            <div className="flex items-center gap-3">
-              <div 
-                className="w-4 h-4 rounded"
-                style={{ backgroundColor: COLORS[index % COLORS.length] }}
-              />
-              <div>
-                <span className="font-medium">{item.fullName}</span>
-                <span className="text-sm text-muted-foreground ml-2">({item.name})</span>
-              </div>
+    <Card>
+      <CardHeader className="pb-2 md:pb-3">
+        <CardTitle className="text-base md:text-lg">Portfolio Distribution</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="relative">
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          
+          {/* Center Stats */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+            <div className="text-2xl md:text-3xl font-bold">
+              {holdings.length}
             </div>
-            <div className="text-right">
-              <div className="font-medium">
-                ${item.value.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-                })}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {item.percentage.toFixed(2)}%
-              </div>
+            <div className="text-xs text-muted-foreground">
+              Assets
             </div>
           </div>
-        ))}
-      </div>
-    </div>
+        </div>
+
+        {/* Legend List */}
+        <div className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
+          {data.map((item, index) => (
+            <div 
+              key={item.name} 
+              className="flex items-center justify-between p-2 md:p-2.5 rounded-lg hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2 md:gap-2.5 min-w-0 flex-1">
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-xs md:text-sm truncate">{item.fullName}</div>
+                  <div className="text-xs text-muted-foreground">{item.name}</div>
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0 ml-2 md:ml-3">
+                <div className="font-semibold text-xs md:text-sm">
+                  {item.percentage.toFixed(1)}%
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  ${item.value >= 1000 ? `${(item.value / 1000).toFixed(1)}k` : item.value.toFixed(0)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
