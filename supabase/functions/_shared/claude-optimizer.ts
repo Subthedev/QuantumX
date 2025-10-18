@@ -25,22 +25,24 @@ export interface ModelConfig {
 export function selectOptimalModel(config: OptimizationConfig): ModelConfig {
   const { analysisType, complexity = 'simple', enableCaching = true } = config;
 
-  // Use Haiku 4 for simple single-dimension analysis
+  // Use Haiku 3 for simple single-dimension analysis (technical, sentiment)
+  // Use Sonnet 3.5 for complex schemas (fundamental, onchain, etf)
   const isSimpleAnalysis = complexity === 'simple' ||
     ['technical', 'sentiment'].includes(analysisType);
 
   if (isSimpleAnalysis) {
     return {
-      model: 'claude-haiku-4-20250528',
+      model: 'claude-3-haiku-20240307',
       maxTokens: config.maxTokens || 1200,
       temperature: 0.7,
       useCache: enableCaching
     };
   }
 
-  // Use Sonnet 4.5 for complex multi-factor analysis
+  // Use Sonnet 3.5 for complex multi-factor analysis
+  // onchain, fundamental, and etf have complex nested schemas requiring better adherence
   return {
-    model: 'claude-sonnet-4-5-20250929',
+    model: 'claude-3-5-sonnet-20241022',
     maxTokens: config.maxTokens || (analysisType === 'etf' ? 1000 : 1500),
     temperature: 0.7,
     useCache: enableCaching
@@ -101,18 +103,21 @@ export function buildCachedRequest(
   const messages: any[] = [{ role: 'user', content: userPrompt }];
 
   // Add cache control to system prompt for prompt caching
+  // System must always be an array of content blocks
   const systemMessage = modelConfig.useCache
-    ? {
-        role: 'system' as const,
-        content: [
-          {
-            type: 'text',
-            text: systemPrompt,
-            cache_control: { type: 'ephemeral' }
-          }
-        ]
-      }
-    : systemPrompt;
+    ? [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' }
+        }
+      ]
+    : [
+        {
+          type: 'text',
+          text: systemPrompt
+        }
+      ];
 
   const requestBody: any = {
     model: modelConfig.model,
@@ -155,7 +160,7 @@ export function estimateCostSavings(analysisType: string, usesCache: boolean): {
   const isHaiku = config.model.includes('haiku');
 
   return {
-    model: isHaiku ? 'Haiku 4' : 'Sonnet 4.5',
+    model: isHaiku ? 'Haiku 3' : 'Sonnet 3.5',
     estimatedSavings: isHaiku ? 87 : (usesCache ? 60 : 0),
     responseTime: isHaiku ? '1-2s' : '3-5s'
   };
@@ -196,11 +201,15 @@ function buildTechnicalPrompt(coin: any, context: any, date: string): string {
   const volumeToMcap = (coin.total_volume / coin.market_cap * 100).toFixed(2);
   const athDrawdown = ((1 - coin.current_price / coin.ath) * 100).toFixed(1);
 
+  // Safe handling of potentially undefined fields
+  const change24h = coin.price_change_percentage_24h ?? 0;
+  const change7d = coin.price_change_percentage_7d_in_currency ?? 0;
+
   return `TECHNICAL ANALYSIS: ${coin.name} (${coin.symbol.toUpperCase()}) - ${date}
 
 MARKET DATA:
 Price: $${coin.current_price.toLocaleString()} | 24h Range: $${coin.low_24h.toLocaleString()}-$${coin.high_24h.toLocaleString()} (${volatility24h}% volatility)
-24h: ${coin.price_change_percentage_24h > 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}% | 7d: ${coin.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${coin.price_change_percentage_7d_in_currency.toFixed(2)}%
+24h: ${change24h > 0 ? '+' : ''}${change24h.toFixed(2)}% | 7d: ${change7d > 0 ? '+' : ''}${change7d.toFixed(2)}%
 Volume: $${(coin.total_volume / 1e9).toFixed(2)}B (${volumeToMcap}% of mcap) | MCap: $${(coin.market_cap / 1e9).toFixed(2)}B (#${coin.market_cap_rank})
 ATH: $${coin.ath.toLocaleString()} (${athDrawdown}% below)
 
@@ -245,10 +254,14 @@ function buildSentimentPrompt(coin: any, context: any, date: string): string {
   const atlGain = ((coin.current_price / coin.atl - 1) * 100).toFixed(0);
   const athDrawdown = ((1 - coin.current_price / coin.ath) * 100).toFixed(1);
 
+  // Safe handling of potentially undefined fields
+  const change24h = coin.price_change_percentage_24h ?? 0;
+  const change7d = coin.price_change_percentage_7d_in_currency ?? 0;
+
   return `SENTIMENT ANALYSIS: ${coin.name} (${coin.symbol.toUpperCase()}) - ${date}
 
 PERFORMANCE:
-24h: ${coin.price_change_percentage_24h > 0 ? '+' : ''}${coin.price_change_percentage_24h.toFixed(2)}% | 7d: ${coin.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${coin.price_change_percentage_7d_in_currency.toFixed(2)}%
+24h: ${change24h > 0 ? '+' : ''}${change24h.toFixed(2)}% | 7d: ${change7d > 0 ? '+' : ''}${change7d.toFixed(2)}%
 From ATH: -${athDrawdown}% | From ATL: +${atlGain}%
 Volume: $${(coin.total_volume / 1e9).toFixed(2)}B (${coin.total_volume / coin.market_cap > 0.1 ? 'HIGH conviction' : coin.total_volume / coin.market_cap > 0.05 ? 'MEDIUM' : 'LOW conviction'})
 
