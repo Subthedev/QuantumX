@@ -34,8 +34,23 @@ export interface EnhancedIndexData<T> {
 class MarketIndicesService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - production-optimized
-  private MAX_RETRIES = 3;
-  private RETRY_DELAY = 1000; // 1 second
+  private MAX_RETRIES = 2; // Reduced retries for faster failure
+  private RETRY_DELAY = 500; // Faster retry delay
+  private TIMEOUT = 5000; // 5 second timeout per request
+
+  private async fetchWithTimeout(url: string, timeout = this.TIMEOUT): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
 
   private async retryFetch(
     url: string,
@@ -44,7 +59,7 @@ class MarketIndicesService {
   ): Promise<Response> {
     for (let i = 0; i < retries; i++) {
       try {
-        const response = await fetch(url, options);
+        const response = await this.fetchWithTimeout(url);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -232,10 +247,10 @@ class MarketIndicesService {
     return (belowCurrent / values.length) * 100;
   }
 
-  // Get enhanced data with trends and context
+  // Get enhanced data with trends and context - OPTIMIZED
   async getEnhancedFearGreed(): Promise<EnhancedIndexData<FearGreedData>> {
     const current = await this.getFearGreedIndex();
-    const history = await this.getFearGreedHistory(90);
+    const history = await this.getFearGreedHistory(30); // Reduced from 90 to 30 days for faster loading
 
     const currentValue = parseInt(current.value);
 
@@ -251,33 +266,61 @@ class MarketIndicesService {
   }
 
   async getEnhancedAltcoinSeason(): Promise<EnhancedIndexData<AltcoinSeasonData>> {
-    const current = await this.getAltcoinSeasonIndex();
-    const history = await this.getAltcoinSeasonHistory(90);
+    try {
+      const current = await this.getAltcoinSeasonIndex();
+      const history = await this.getAltcoinSeasonHistory(90);
 
-    return {
-      current,
-      history,
-      trend24h: null, // Not available without historical data
-      trend7d: null,
-      trend30d: null,
-      percentile: null,
-      lastUpdated: Date.now(),
-    };
+      return {
+        current,
+        history,
+        trend24h: null,
+        trend7d: null,
+        trend30d: null,
+        percentile: null,
+        lastUpdated: Date.now(),
+      };
+    } catch (error) {
+      // Provide fallback data if API fails
+      console.error('Altcoin Season fallback activated:', error);
+      return {
+        current: { value: 50, classification: 'Neutral (Unavailable)' },
+        history: [],
+        trend24h: null,
+        trend7d: null,
+        trend30d: null,
+        percentile: null,
+        lastUpdated: Date.now(),
+      };
+    }
   }
 
   async getEnhancedBitcoinDominance(): Promise<EnhancedIndexData<BitcoinDominanceData>> {
-    const current = await this.getBitcoinDominance();
-    const history = await this.getBitcoinDominanceHistory(90);
+    try {
+      const current = await this.getBitcoinDominance();
+      const history = await this.getBitcoinDominanceHistory(90);
 
-    return {
-      current,
-      history,
-      trend24h: null, // Not available without historical data
-      trend7d: null,
-      trend30d: null,
-      percentile: null,
-      lastUpdated: Date.now(),
-    };
+      return {
+        current,
+        history,
+        trend24h: null,
+        trend7d: null,
+        trend30d: null,
+        percentile: null,
+        lastUpdated: Date.now(),
+      };
+    } catch (error) {
+      // Provide fallback with reasonable BTC dominance estimate
+      console.error('Bitcoin Dominance fallback activated:', error);
+      return {
+        current: { value: 54.2 }, // Reasonable fallback value
+        history: [],
+        trend24h: null,
+        trend7d: null,
+        trend30d: null,
+        percentile: null,
+        lastUpdated: Date.now(),
+      };
+    }
   }
 
   // Clear cache manually

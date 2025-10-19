@@ -41,33 +41,48 @@ const MarketSentiment = () => {
     if (showToast) setRefreshing(true);
     const newErrors: IndexError = {};
 
-    try {
-      const data = await marketIndicesService.getEnhancedFearGreed();
-      setFearGreed(data);
-    } catch (error) {
+    // Fetch all indices in parallel for faster loading
+    const results = await Promise.allSettled([
+      marketIndicesService.getEnhancedFearGreed(),
+      marketIndicesService.getEnhancedAltcoinSeason(),
+      marketIndicesService.getEnhancedBitcoinDominance(),
+    ]);
+
+    // Process Fear & Greed result
+    if (results[0].status === 'fulfilled') {
+      setFearGreed(results[0].value);
+    } else {
       newErrors.fearGreed = 'Failed to load';
       if (showToast) toast.error('Failed to update Fear & Greed Index');
+      console.error('Fear & Greed error:', results[0].reason);
     }
 
-    try {
-      const data = await marketIndicesService.getEnhancedAltcoinSeason();
-      setAltcoinSeason(data);
-    } catch (error) {
+    // Process Altcoin Season result
+    if (results[1].status === 'fulfilled') {
+      setAltcoinSeason(results[1].value);
+    } else {
       newErrors.altcoinSeason = 'Failed to load';
       if (showToast) toast.error('Failed to update Altcoin Season');
+      console.error('Altcoin Season error:', results[1].reason);
     }
 
-    try {
-      const data = await marketIndicesService.getEnhancedBitcoinDominance();
-      setBtcDominance(data);
-    } catch (error) {
+    // Process Bitcoin Dominance result
+    if (results[2].status === 'fulfilled') {
+      setBtcDominance(results[2].value);
+    } else {
       newErrors.btcDominance = 'Failed to load';
       if (showToast) toast.error('Failed to update Bitcoin Dominance');
+      console.error('Bitcoin Dominance error:', results[2].reason);
     }
 
     setErrors(newErrors);
     setLoading(false);
     setRefreshing(false);
+
+    // Show success toast if refreshing and at least one succeeded
+    if (showToast && Object.keys(newErrors).length < 3) {
+      toast.success('Market data updated');
+    }
   };
 
   const getValueColor = (value: number, type: string) => {
