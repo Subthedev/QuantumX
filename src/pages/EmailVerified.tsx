@@ -124,7 +124,7 @@ const EmailVerified = () => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            navigate("/dashboard", { replace: true });
+            window.location.href = "https://ignitex.live";
             return 0;
           }
           return prev - 1;
@@ -284,7 +284,7 @@ const EmailVerified = () => {
 
           <div className="pt-4">
             <p className="text-sm text-muted-foreground">
-              Redirecting to your dashboard in <span className="font-bold text-primary">{countdown}</span> second{countdown !== 1 ? 's' : ''}...
+              Redirecting to IgniteX in <span className="font-bold text-primary">{countdown}</span> second{countdown !== 1 ? 's' : ''}...
             </p>
             <div className="mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
               <div
@@ -295,10 +295,10 @@ const EmailVerified = () => {
           </div>
 
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => window.location.href = "https://ignitex.live"}
             className="text-sm text-primary hover:underline mt-4"
           >
-            Skip and go to dashboard →
+            Skip and go to IgniteX →
           </button>
         </CardContent>
       </Card>
