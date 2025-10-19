@@ -167,12 +167,12 @@ const Dashboard = () => {
             slidesPerView="auto"
             freeMode={true}
             loop={true}
-            autoplay={{
+            autoplay={typeof window !== 'undefined' && window.innerWidth < 768 ? {
               delay: 0,
               disableOnInteraction: false,
               pauseOnMouseEnter: true,
-            }}
-            speed={3000}
+            } : false}
+            speed={typeof window !== 'undefined' && window.innerWidth < 768 ? 3000 : 300}
             className="!px-4 md:!px-0"
           >
             {statsCards.map((stat, index) => (
