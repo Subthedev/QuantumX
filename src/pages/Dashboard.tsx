@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { FreeMode } from 'swiper/modules';
+import { FreeMode, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/free-mode';
 
@@ -162,10 +162,17 @@ const Dashboard = () => {
         {/* Horizontal Scrolling Stats - Mobile Optimized */}
         <div className="relative -mx-4 md:mx-0">
           <Swiper
-            modules={[FreeMode]}
+            modules={[FreeMode, Autoplay]}
             spaceBetween={12}
             slidesPerView="auto"
             freeMode={true}
+            loop={true}
+            autoplay={{
+              delay: 0,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true,
+            }}
+            speed={3000}
             className="!px-4 md:!px-0"
           >
             {statsCards.map((stat, index) => (
