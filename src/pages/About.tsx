@@ -16,7 +16,8 @@ import {
   Globe,
   Lock
 } from 'lucide-react';
-import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { AppHeader } from '@/components/AppHeader';
+import { IgniteXLogo } from '@/components/ui/ignitex-logo';
 import { useEffect } from 'react';
 
 const About = () => {
@@ -34,40 +35,7 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="bg-background/95 backdrop-blur-lg border-b border-border/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link to="/" className="flex items-center gap-3">
-                <AIBrainIcon className="h-9 w-9" />
-                <h1 className="text-2xl font-bold text-foreground">IgniteX</h1>
-              </Link>
-            </div>
-            
-            <div className="hidden md:flex items-center gap-8">
-              <Link to="/dashboard" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
-                Services
-              </Link>
-              <Link to="/pricing" className="text-muted-foreground hover:text-foreground font-medium transition-colors">
-                Pricing
-              </Link>
-              <Link to="/about" className="text-foreground font-medium">
-                About Us
-              </Link>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard">
-                <Button size="default" className="shadow-lg bg-primary hover:bg-primary-hover">
-                  Dashboard
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <AppHeader />
 
       {/* Hero Section with Mission Statement */}
       <section className="relative py-24 overflow-hidden">
@@ -327,10 +295,10 @@ const About = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
-              <AIBrainIcon className="h-10 w-10" />
-              <div>
-                <h3 className="text-lg font-bold">IgniteX</h3>
-                <p className="text-sm text-muted-foreground">Trust Through Transparency</p>
+              <div className="flex items-center">
+                <Link to="/" className="flex items-center">
+                  <IgniteXLogo size="sm" showText={true} />
+                </Link>
               </div>
             </div>
             

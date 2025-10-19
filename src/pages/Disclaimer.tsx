@@ -2,26 +2,12 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AIBrainIcon } from '@/components/ui/ai-brain-icon';
+import { AppHeader } from '@/components/AppHeader';
 
 const Disclaimer = () => {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <nav className="bg-white/90 backdrop-blur-sm border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <AIBrainIcon className="h-8 w-8" />
-            <span className="font-bold text-lg">IgniteX</span>
-          </Link>
-          <Link to="/">
-            <Button variant="ghost" className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
-      </nav>
+      <AppHeader />
 
       {/* Content */}
       <div className="container mx-auto px-4 py-12 max-w-4xl">
