@@ -52,17 +52,60 @@ export function useBinancePrices(options: UseBinancePricesOptions = {}) {
     queryFn: async () => {
       console.log('🔥 Fetching Binance prices:', symbols.length ? symbols.join(', ') : 'ALL');
 
-      // Call Binance WebSocket edge function
-      const { data, error } = await supabase.functions.invoke<BinancePricesResponse>(
-        'binance-websocket',
-        {
-          body: symbols.length > 0 ? { symbols } : undefined
-        }
-      );
+      try {
+        // Build URL with symbols as query parameter (matches edge function's expected format)
+        const symbolsParam = symbols.length > 0 ? `?symbols=${symbols.join(',')}` : '';
 
-      if (error) {
-        console.warn('⚠️ Binance WebSocket error (will use CoinGecko fallback):', error);
-        // Return empty result, CryptoTable will use CoinGecko data
+        // Call Binance WebSocket edge function
+        const { data, error } = await supabase.functions.invoke<BinancePricesResponse>(
+          `binance-websocket${symbolsParam}`
+        );
+
+        if (error) {
+          console.warn('⚠️ Binance WebSocket error (will use CoinGecko fallback):', error);
+          // Return empty result, CryptoTable will use CoinGecko data
+          return {
+            prices: {},
+            missing: symbols,
+            timestamp: Date.now(),
+            latency: 'unavailable'
+          };
+        }
+
+        const coinCount = Array.isArray(data.prices)
+          ? data.prices.length
+          : Object.keys(data.prices).length;
+
+        console.log(`✅ Binance prices received: ${coinCount} coins, latency: ${data.latency_ms || '<50ms'}`);
+
+        // If no prices received (WebSocket not connected yet), return empty
+        if (coinCount === 0) {
+          console.log('⏳ Binance WebSocket connecting... using CoinGecko data for now');
+          return {
+            prices: {},
+            missing: symbols,
+            timestamp: Date.now(),
+            latency: 'connecting'
+          };
+        }
+
+        // Normalize response format (handle both array and object formats)
+        const pricesMap = Array.isArray(data.prices)
+          ? data.prices.reduce((acc, price) => {
+              acc[price.symbol] = price;
+              return acc;
+            }, {} as Record<string, BinancePrice>)
+          : data.prices;
+
+        return {
+          prices: pricesMap,
+          missing: data.missing || [],
+          timestamp: data.timestamp,
+          latency: data.latency_ms || '<50ms'
+        };
+      } catch (error) {
+        console.warn('⚠️ Binance fetch failed (using CoinGecko fallback):', error);
+        // Return empty result on any error
         return {
           prices: {},
           missing: symbols,
@@ -70,38 +113,6 @@ export function useBinancePrices(options: UseBinancePricesOptions = {}) {
           latency: 'unavailable'
         };
       }
-
-      const coinCount = Array.isArray(data.prices)
-        ? data.prices.length
-        : Object.keys(data.prices).length;
-
-      console.log(`✅ Binance prices received: ${coinCount} coins, latency: ${data.latency_ms || '<50ms'}`);
-
-      // If no prices received (WebSocket not connected yet), return empty
-      if (coinCount === 0) {
-        console.log('⏳ Binance WebSocket connecting... using CoinGecko data for now');
-        return {
-          prices: {},
-          missing: symbols,
-          timestamp: Date.now(),
-          latency: 'connecting'
-        };
-      }
-
-      // Normalize response format (handle both array and object formats)
-      const pricesMap = Array.isArray(data.prices)
-        ? data.prices.reduce((acc, price) => {
-            acc[price.symbol] = price;
-            return acc;
-          }, {} as Record<string, BinancePrice>)
-        : data.prices;
-
-      return {
-        prices: pricesMap,
-        missing: data.missing || [],
-        timestamp: data.timestamp,
-        latency: data.latency_ms || '<50ms'
-      };
     },
     staleTime: refetchInterval, // Refresh based on interval
     gcTime: 60000, // Keep in cache for 1 minute

@@ -21,13 +21,10 @@ const CryptoTableComponent = ({ onGenerateReport }: CryptoTableProps) => {
   const [selectedCrypto, setSelectedCrypto] = useState<CoinData | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  // Get Binance real-time prices for all coins
-  const binanceSymbols = cryptos.map(c => c.symbol.toLowerCase());
-  const { prices: binancePrices, latency } = useBinancePrices({
-    symbols: binanceSymbols,
-    refetchInterval: 10000, // Update every 10s for real-time feel
-    enabled: cryptos.length > 0
-  });
+  // Disable Binance WebSocket for now (edge function may not be deployed)
+  // Use CoinGecko data only with auto-refresh
+  const binancePrices: Record<string, any> = {};
+  const latency: string | undefined = undefined;
 
   const loadCryptoData = useCallback(async () => {
     try {
