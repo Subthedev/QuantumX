@@ -63,6 +63,7 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-verified" element={<EmailVerified />} />
