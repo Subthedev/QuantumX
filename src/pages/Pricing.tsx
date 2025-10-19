@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { AIBrainIcon } from "@/components/ui/ai-brain-icon";
+import { IgniteXLogo } from "@/components/ui/ignitex-logo";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -171,13 +171,10 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/40 backdrop-blur-xl bg-background/95">
+      <header className="sticky top-0 z-50 border-b bg-background shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-            <AIBrainIcon className="h-8 w-8" />
-            <h1 className="text-xl font-bold text-foreground">
-              IgniteX
-            </h1>
+          <div className="flex items-center cursor-pointer" onClick={() => navigate("/")}>
+            <IgniteXLogo size="sm" showText={true} />
           </div>
           
           <nav className="flex items-center gap-4">
