@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { compression } from 'vite-plugin-compression2';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -11,8 +13,88 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    mode === 'development' && componentTagger(),
+    // PWA Service Worker for offline support and caching
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'favicon.webp', '*.webp'],
+      manifest: {
+        name: 'IgniteX - AI Crypto Trading Signals',
+        short_name: 'IgniteX',
+        description: 'Professional AI-powered cryptocurrency trading signals and market analysis',
+        theme_color: '#FF5F6D',
+        background_color: '#0B0C10',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        icons: [
+          {
+            src: '/favicon.webp',
+            sizes: '192x192',
+            type: 'image/webp',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/favicon.webp',
+            sizes: '512x512',
+            type: 'image/webp',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,webp,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.coingecko\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'coingecko-api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 5, // 5 minutes
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 2, // 2 minutes
+              },
+            },
+          },
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|webp|gif)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+            },
+          },
+        ],
+      },
+    }),
+    // Add Brotli and Gzip compression for production
+    mode === 'production' && compression({
+      algorithm: 'brotliCompress',
+      exclude: [/\.(br)$/, /\.(gz)$/],
+      threshold: 1024,
+    }),
+    mode === 'production' && compression({
+      algorithm: 'gzip',
+      exclude: [/\.(br)$/, /\.(gz)$/],
+      threshold: 1024,
+    }),
   ].filter(Boolean),
   resolve: {
     alias: {
@@ -28,21 +110,27 @@ export default defineConfig(({ mode }) => ({
           'query-vendor': ['@tanstack/react-query'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-toast'],
           'chart-vendor': ['recharts', 'lightweight-charts'],
-          'utils': ['clsx', 'tailwind-merge', 'class-variance-authority', 'date-fns'],
+          'utils': ['clsx', 'tailwind-merge', 'class-variance-authority'],
+          'swiper': ['swiper'],
         },
       },
     },
     // Optimize chunk size
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
     // Enable source maps for production debugging
-    sourcemap: mode === 'production' ? 'hidden' : true,
-    // Minify for smaller bundles - using esbuild (faster and built-in)
+    sourcemap: mode === 'production' ? false : true,
+    // Minify for smaller bundles - using esbuild with drop console
     minify: 'esbuild',
     target: 'es2015',
+    cssCodeSplit: true,
+    // Drop console and debugger in production
+    esbuild: {
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
   },
   // Optimize dependencies
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'date-fns'],
+    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
     exclude: ['lovable-tagger'],
   },
 }));
