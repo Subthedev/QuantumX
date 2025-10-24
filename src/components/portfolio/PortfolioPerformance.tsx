@@ -36,31 +36,37 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
   const gainers = performanceData.filter(d => d.performance > 0);
   const losers = performanceData.filter(d => d.performance < 0);
 
-  // Extract real-time top gainers and losers from market data
-  const { topMarketGainers, topMarketLosers } = useMemo(() => {
-    if (!marketData || marketData.size === 0) {
-      return { topMarketGainers: [], topMarketLosers: [] };
+  // Extract portfolio-specific gainers and losers based on 24h price changes
+  const { topPortfolioGainers, topPortfolioLosers } = useMemo(() => {
+    if (!marketData || marketData.size === 0 || holdings.length === 0) {
+      return { topPortfolioGainers: [], topPortfolioLosers: [] };
     }
 
-    const allCoins = Array.from(marketData.values());
+    // Filter market data to only include coins from user's portfolio
+    const portfolioCoins = holdings
+      .map(holding => {
+        const coinData = marketData.get(holding.coin_symbol.toLowerCase());
+        return coinData;
+      })
+      .filter(coin => coin !== undefined);
 
-    // Get top 5 gainers (by 24h price change %)
-    const topGainers = allCoins
+    // Get top 5 gainers from portfolio (by 24h price change %)
+    const topGainers = portfolioCoins
       .filter(coin => coin.price_change_percentage_24h > 0)
       .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
       .slice(0, 5);
 
-    // Get top 5 losers (by 24h price change %)
-    const topLosers = allCoins
+    // Get top 5 losers from portfolio (by 24h price change %)
+    const topLosers = portfolioCoins
       .filter(coin => coin.price_change_percentage_24h < 0)
       .sort((a, b) => a.price_change_percentage_24h - b.price_change_percentage_24h)
       .slice(0, 5);
 
     return {
-      topMarketGainers: topGainers,
-      topMarketLosers: topLosers,
+      topPortfolioGainers: topGainers,
+      topPortfolioLosers: topLosers,
     };
-  }, [marketData, lastUpdate]);
+  }, [marketData, holdings, lastUpdate]);
 
   return (
     <div className="space-y-4">
@@ -141,24 +147,24 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
         </CardContent>
       </Card>
 
-      {/* Real-Time Market Movers */}
+      {/* Portfolio Top Performers - 24h Changes */}
       <div className="grid md:grid-cols-2 gap-4">
-        {/* Top Market Gainers */}
+        {/* Top Portfolio Gainers */}
         <Card className="border-green-500/20 bg-green-500/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-green-500" />
-                Top Market Gainers (24h)
+                Top Performers (24h)
               </div>
               <Badge variant="outline" className="text-xs bg-green-500/10">
-                Live
+                <span className="text-green-500 mr-1">●</span> Live
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {topMarketGainers.length > 0 ? (
-              topMarketGainers.map((coin, index) => (
+            {topPortfolioGainers.length > 0 ? (
+              topPortfolioGainers.map((coin, index) => (
                 <div key={coin.id} className="flex items-center justify-between py-2 border-b border-green-500/10 last:border-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground w-4">{index + 1}</span>
@@ -181,27 +187,27 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-4">Loading market data...</p>
+              <p className="text-xs text-muted-foreground text-center py-4">No gainers in your portfolio today</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Top Market Losers */}
+        {/* Top Portfolio Losers */}
         <Card className="border-red-500/20 bg-red-500/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-red-500" />
-                Top Market Losers (24h)
+                Needs Attention (24h)
               </div>
               <Badge variant="outline" className="text-xs bg-red-500/10">
-                Live
+                <span className="text-red-500 mr-1">●</span> Live
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {topMarketLosers.length > 0 ? (
-              topMarketLosers.map((coin, index) => (
+            {topPortfolioLosers.length > 0 ? (
+              topPortfolioLosers.map((coin, index) => (
                 <div key={coin.id} className="flex items-center justify-between py-2 border-b border-red-500/10 last:border-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground w-4">{index + 1}</span>
@@ -224,7 +230,7 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-4">Loading market data...</p>
+              <p className="text-xs text-muted-foreground text-center py-4">No losers in your portfolio today</p>
             )}
           </CardContent>
         </Card>

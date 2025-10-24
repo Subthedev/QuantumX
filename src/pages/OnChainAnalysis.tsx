@@ -223,11 +223,11 @@ const OnChainAnalysis = () => {
           {/* Main Content - Mobile Optimized Tabs */}
           {selectedCoinData && (
             <Tabs defaultValue="insights" className="space-y-4 sm:space-y-6">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
-                <TabsTrigger value="insights" className="text-xs sm:text-sm px-2 py-2">Insights</TabsTrigger>
-                <TabsTrigger value="live-alerts" className="text-xs sm:text-sm px-2 py-2">🔴 Live</TabsTrigger>
-                <TabsTrigger value="whales" className="text-xs sm:text-sm px-2 py-2">Whales</TabsTrigger>
-                <TabsTrigger value="flows" className="text-xs sm:text-sm px-2 py-2">Flows</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
+                <TabsTrigger value="insights" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">Insights</TabsTrigger>
+                <TabsTrigger value="live-alerts" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">🔴 Live</TabsTrigger>
+                <TabsTrigger value="whales" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">Whales</TabsTrigger>
+                <TabsTrigger value="flows" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">Flows</TabsTrigger>
               </TabsList>
 
               <TabsContent value="insights" className="space-y-4 sm:space-y-6">

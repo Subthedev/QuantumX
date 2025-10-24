@@ -386,85 +386,120 @@ const ETFFlows = () => {
             {/* Table View */}
             <TabsContent value="table" className="space-y-4">
               <Card>
-                <CardHeader className="p-4 md:p-6">
-                  <CardTitle>Daily ETF Flows</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-base sm:text-lg">Daily ETF Flows</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Detailed inflow/outflow data by issuer and date
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-muted/50">
-                        <tr className="border-b">
-                          <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Date</th>
-                          <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Issuer</th>
-                          <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Ticker</th>
-                          <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Asset</th>
-                          <th className="px-4 py-3 text-right text-xs md:text-sm font-medium text-muted-foreground">Net Flow</th>
-                          <th className="px-4 py-3 text-right text-xs md:text-sm font-medium text-muted-foreground">AUM</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {flowsLoading ? (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                              Loading data...
-                            </td>
-                          </tr>
-                        ) : flowsData.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                              No data available for selected range
-                            </td>
-                          </tr>
-                        ) : (
-                          flowsData.slice().reverse().map((flow, idx) => (
-                            <tr key={`${flow.date}-${flow.issuer}-${idx}`} className="border-b hover:bg-muted/50 transition-colors">
-                              <td className="px-4 py-3 text-xs md:text-sm">
-                                {format(new Date(flow.date), 'MMM dd, yyyy')}
-                              </td>
-                              <td className="px-4 py-3 text-xs md:text-sm font-medium">
-                                {flow.issuerName}
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline" className="text-xs">
-                                  {flow.ticker}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge
-                                  variant={flow.assetClass === 'bitcoin' ? 'default' : 'secondary'}
-                                  className="text-xs"
-                                >
-                                  {flow.assetClass === 'bitcoin' ? 'BTC' : 'ETH'}
-                                </Badge>
-                              </td>
-                              <td className={cn(
-                                'px-4 py-3 text-right text-xs md:text-sm font-semibold',
-                                flow.netFlow >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                              )}>
-                                {flow.netFlow >= 0 ? (
-                                  <span className="flex items-center justify-end gap-1">
-                                    <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
-                                    {etfDataService.formatFlow(flow.netFlow)}
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center justify-end gap-1">
-                                    <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
-                                    {etfDataService.formatFlow(flow.netFlow)}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-right text-xs md:text-sm text-muted-foreground">
-                                {etfDataService.formatNumber(flow.aum, 1)}
-                              </td>
+                  {flowsLoading ? (
+                    <div className="px-4 py-8 text-center text-muted-foreground text-sm">
+                      Loading data...
+                    </div>
+                  ) : flowsData.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-muted-foreground text-sm">
+                      No data available for selected range
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="block md:hidden space-y-2 p-3">
+                        {flowsData.slice().reverse().map((flow, idx) => (
+                          <Card key={`${flow.date}-${flow.issuer}-${idx}`} className="p-3">
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm truncate">{flow.issuerName}</div>
+                                  <div className="text-xs text-muted-foreground">{format(new Date(flow.date), 'MMM dd, yyyy')}</div>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">{flow.ticker}</Badge>
+                                  <Badge variant={flow.assetClass === 'bitcoin' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0.5">
+                                    {flow.assetClass === 'bitcoin' ? 'BTC' : 'ETH'}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between pt-2 border-t">
+                                <span className="text-xs text-muted-foreground">Net Flow</span>
+                                <span className={cn(
+                                  'text-sm font-semibold flex items-center gap-1',
+                                  flow.netFlow >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                )}>
+                                  {flow.netFlow >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                  {etfDataService.formatFlow(flow.netFlow)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">AUM</span>
+                                <span className="text-sm text-muted-foreground">{etfDataService.formatNumber(flow.aum, 1)}</span>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-muted/50">
+                            <tr className="border-b">
+                              <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Date</th>
+                              <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Issuer</th>
+                              <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Ticker</th>
+                              <th className="px-4 py-3 text-left text-xs md:text-sm font-medium text-muted-foreground">Asset</th>
+                              <th className="px-4 py-3 text-right text-xs md:text-sm font-medium text-muted-foreground">Net Flow</th>
+                              <th className="px-4 py-3 text-right text-xs md:text-sm font-medium text-muted-foreground">AUM</th>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                          </thead>
+                          <tbody>
+                            {flowsData.slice().reverse().map((flow, idx) => (
+                              <tr key={`${flow.date}-${flow.issuer}-${idx}`} className="border-b hover:bg-muted/50 transition-colors">
+                                <td className="px-4 py-3 text-xs md:text-sm">
+                                  {format(new Date(flow.date), 'MMM dd, yyyy')}
+                                </td>
+                                <td className="px-4 py-3 text-xs md:text-sm font-medium">
+                                  {flow.issuerName}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge variant="outline" className="text-xs">
+                                    {flow.ticker}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge
+                                    variant={flow.assetClass === 'bitcoin' ? 'default' : 'secondary'}
+                                    className="text-xs"
+                                  >
+                                    {flow.assetClass === 'bitcoin' ? 'BTC' : 'ETH'}
+                                  </Badge>
+                                </td>
+                                <td className={cn(
+                                  'px-4 py-3 text-right text-xs md:text-sm font-semibold',
+                                  flow.netFlow >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                )}>
+                                  {flow.netFlow >= 0 ? (
+                                    <span className="flex items-center justify-end gap-1">
+                                      <TrendingUp className="h-3 w-3 md:h-4 md:w-4" />
+                                      {etfDataService.formatFlow(flow.netFlow)}
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center justify-end gap-1">
+                                      <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
+                                      {etfDataService.formatFlow(flow.netFlow)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-right text-xs md:text-sm text-muted-foreground">
+                                  {etfDataService.formatNumber(flow.aum, 1)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -603,12 +638,62 @@ const ETFFlows = () => {
             {/* Issuer Stats */}
             <TabsContent value="stats" className="space-y-4">
               <Card>
-                <CardHeader className="p-4 md:p-6">
-                  <CardTitle>ETF Statistics by Issuer</CardTitle>
-                  <CardDescription>Performance metrics and flow analysis</CardDescription>
+                <CardHeader className="p-3 sm:p-4 md:p-6">
+                  <CardTitle className="text-base sm:text-lg">ETF Statistics by Issuer</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Performance metrics and flow analysis</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="overflow-x-auto">
+                  {/* Mobile Card View */}
+                  <div className="block md:hidden space-y-2 p-3">
+                    {etfStats.map((stat, idx) => (
+                      <Card key={`${stat.issuer}-${idx}`} className="p-3">
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{stat.issuerName}</div>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 mt-1">{stat.ticker}</Badge>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground">AUM</div>
+                              <div className="font-semibold text-sm">{etfDataService.formatNumber(stat.currentAUM, 1)}</div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+                            <div>
+                              <div className="text-[10px] text-muted-foreground mb-1">7D Flow</div>
+                              <div className={cn(
+                                'text-xs font-medium',
+                                stat.flow7d >= 0 ? 'text-success dark:text-success' : 'text-destructive'
+                              )}>
+                                {etfDataService.formatFlow(stat.flow7d)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-muted-foreground mb-1">30D Flow</div>
+                              <div className={cn(
+                                'text-xs font-medium',
+                                stat.flow30d >= 0 ? 'text-success dark:text-success' : 'text-destructive'
+                              )}>
+                                {etfDataService.formatFlow(stat.flow30d)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-muted-foreground mb-1">YTD Flow</div>
+                              <div className={cn(
+                                'text-xs font-medium',
+                                stat.flowYTD >= 0 ? 'text-success dark:text-success' : 'text-destructive'
+                              )}>
+                                {etfDataService.formatFlow(stat.flowYTD)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-muted/50">
                         <tr className="border-b">
