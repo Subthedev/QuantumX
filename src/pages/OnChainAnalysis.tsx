@@ -220,14 +220,34 @@ const OnChainAnalysis = () => {
             </div>
           )}
 
-          {/* Main Content - Mobile Optimized Tabs */}
+          {/* Main Content - Enhanced Mobile Optimized Tabs */}
           {selectedCoinData && (
             <Tabs defaultValue="insights" className="space-y-4 sm:space-y-6">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
-                <TabsTrigger value="insights" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">Insights</TabsTrigger>
-                <TabsTrigger value="live-alerts" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">🔴 Live</TabsTrigger>
-                <TabsTrigger value="whales" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">Whales</TabsTrigger>
-                <TabsTrigger value="flows" className="text-[10px] sm:text-sm px-1 sm:px-2 py-2 whitespace-nowrap">Flows</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1.5 sm:gap-2 p-1.5 bg-muted/50 rounded-lg">
+                <TabsTrigger
+                  value="insights"
+                  className="text-[11px] sm:text-sm px-2 sm:px-3 py-2.5 sm:py-3 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all whitespace-nowrap font-medium"
+                >
+                  💡 Insights
+                </TabsTrigger>
+                <TabsTrigger
+                  value="live-alerts"
+                  className="text-[11px] sm:text-sm px-2 sm:px-3 py-2.5 sm:py-3 rounded-md data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all whitespace-nowrap font-medium"
+                >
+                  🔴 Live
+                </TabsTrigger>
+                <TabsTrigger
+                  value="whales"
+                  className="text-[11px] sm:text-sm px-2 sm:px-3 py-2.5 sm:py-3 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all whitespace-nowrap font-medium"
+                >
+                  🐋 Whales
+                </TabsTrigger>
+                <TabsTrigger
+                  value="flows"
+                  className="text-[11px] sm:text-sm px-2 sm:px-3 py-2.5 sm:py-3 rounded-md data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all whitespace-nowrap font-medium"
+                >
+                  📊 Flows
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="insights" className="space-y-4 sm:space-y-6">

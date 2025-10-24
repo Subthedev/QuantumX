@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, AlertTriangle, Target, Shield, PieChart } from 'lucide-react';
 
 interface Holding {
+  coin_id?: string;
   coin_symbol: string;
   coin_name: string;
   value?: number;
   profit_loss?: number;
   profit_loss_percentage?: number;
+  price_change_24h?: number;
 }
 
 interface PortfolioInsightsProps {
@@ -25,6 +27,15 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
 
   const worstPerformer = holdings.reduce((min, h) =>
     (h.profit_loss_percentage || 0) < (min.profit_loss_percentage || 0) ? h : min
+  , holdings[0]);
+
+  // Calculate top daily performers (24h price change)
+  const topDailyGainer = holdings.reduce((max, h) =>
+    (h.price_change_24h || 0) > (max.price_change_24h || 0) ? h : max
+  , holdings[0]);
+
+  const topDailyLoser = holdings.reduce((min, h) =>
+    (h.price_change_24h || 0) < (min.price_change_24h || 0) ? h : min
   , holdings[0]);
 
   const profitableHoldings = holdings.filter(h => (h.profit_loss_percentage || 0) > 0);
@@ -106,19 +117,94 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
         </Card>
       </div>
 
-      {/* Top & Worst Performers */}
+      {/* Today's Top Performers (24h) */}
       <div className="grid md:grid-cols-2 gap-4">
-        {topPerformer && (
+        {topDailyGainer && topDailyGainer.price_change_24h && topDailyGainer.price_change_24h > 0 && (
           <Card className="border-green-500/20 bg-green-500/5">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-green-500" />
-                  Top Performer
+                  Top Daily Performer
                 </div>
                 {lastUpdate && (
                   <Badge variant="outline" className="text-xs bg-green-500/10">
                     <span className="text-green-500 mr-1">●</span> Live
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold">{topDailyGainer.coin_name}</div>
+                  <div className="text-sm text-muted-foreground uppercase">
+                    {topDailyGainer.coin_symbol}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Badge className="bg-green-500 text-white">
+                    +{topDailyGainer.price_change_24h?.toFixed(2)}%
+                  </Badge>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    24h price change
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {topDailyLoser && topDailyLoser.price_change_24h && topDailyLoser.price_change_24h < 0 && (
+          <Card className="border-red-500/20 bg-red-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                  Needs Attention Today
+                </div>
+                {lastUpdate && (
+                  <Badge variant="outline" className="text-xs bg-red-500/10">
+                    <span className="text-red-500 mr-1">●</span> Live
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold">{topDailyLoser.coin_name}</div>
+                  <div className="text-sm text-muted-foreground uppercase">
+                    {topDailyLoser.coin_symbol}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Badge variant="destructive">
+                    {topDailyLoser.price_change_24h?.toFixed(2)}%
+                  </Badge>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    24h price change
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Overall Top & Worst Performers */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {topPerformer && (
+          <Card className="border-blue-500/20 bg-blue-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
+                  Top Performer (Overall)
+                </div>
+                {lastUpdate && (
+                  <Badge variant="outline" className="text-xs bg-blue-500/10">
+                    <span className="text-blue-500 mr-1">●</span> Live
                   </Badge>
                 )}
               </CardTitle>
@@ -132,7 +218,7 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
                   </div>
                 </div>
                 <div className="text-right">
-                  <Badge className="bg-green-500 text-white">
+                  <Badge className="bg-blue-500 text-white">
                     +{topPerformer.profit_loss_percentage?.toFixed(1)}%
                   </Badge>
                   <div className="text-sm text-muted-foreground mt-1">
@@ -148,16 +234,16 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
         )}
 
         {worstPerformer && worstPerformer.profit_loss_percentage && worstPerformer.profit_loss_percentage < 0 && (
-          <Card className="border-red-500/20 bg-red-500/5">
+          <Card className="border-orange-500/20 bg-orange-500/5">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                  Needs Attention
+                  <TrendingDown className="h-4 w-4 text-orange-500" />
+                  Needs Review (Overall)
                 </div>
                 {lastUpdate && (
-                  <Badge variant="outline" className="text-xs bg-red-500/10">
-                    <span className="text-red-500 mr-1">●</span> Live
+                  <Badge variant="outline" className="text-xs bg-orange-500/10">
+                    <span className="text-orange-500 mr-1">●</span> Live
                   </Badge>
                 )}
               </CardTitle>
@@ -171,7 +257,7 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
                   </div>
                 </div>
                 <div className="text-right">
-                  <Badge variant="destructive">
+                  <Badge className="bg-orange-600 text-white">
                     {worstPerformer.profit_loss_percentage?.toFixed(1)}%
                   </Badge>
                   <div className="text-sm text-muted-foreground mt-1">

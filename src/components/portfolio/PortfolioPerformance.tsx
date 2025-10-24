@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface Holding {
+  coin_id?: string;
   coin_symbol: string;
   coin_name: string;
   coin_image?: string;
@@ -45,7 +46,8 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
     // Filter market data to only include coins from user's portfolio
     const portfolioCoins = holdings
       .map(holding => {
-        const coinData = marketData.get(holding.coin_symbol.toLowerCase());
+        // Use coin_id to look up in marketData map (e.g., 'bitcoin', 'ethereum')
+        const coinData = holding.coin_id ? marketData.get(holding.coin_id) : undefined;
         return coinData;
       })
       .filter(coin => coin !== undefined);

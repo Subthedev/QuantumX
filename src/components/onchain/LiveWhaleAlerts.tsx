@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Bell, TrendingUp, TrendingDown, ArrowRight, Activity } from 'lucide-react';
 import { whaleAlertService, type WhaleTransaction } from '@/services/whaleAlertService';
 import { cn } from '@/lib/utils';
@@ -173,91 +174,96 @@ export function LiveWhaleAlerts() {
 
   return (
     <Card className="border-2 border-primary/30">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Live Whale Alerts</CardTitle>
+      <CardHeader className="p-3 sm:p-6">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+            <CardTitle className="text-sm sm:text-lg truncate">Live Whale Alerts</CardTitle>
             {isLive && (
-              <div className="flex items-center gap-1.5">
-                <Activity className="h-4 w-4 text-green-600 animate-pulse" />
-                <span className="text-xs font-medium text-green-600">LIVE</span>
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 animate-pulse" />
+                <span className="text-[10px] sm:text-xs font-medium text-green-600">LIVE</span>
               </div>
             )}
           </div>
-          <button
+          <Button
             onClick={requestNotificationPermission}
+            size="sm"
+            variant={notificationPermission === 'granted' ? 'outline' : 'default'}
+            disabled={notificationPermission === 'granted'}
             className={cn(
-              "text-xs transition-colors px-3 py-1.5 rounded-md font-medium",
+              "text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 transition-colors whitespace-nowrap",
               notificationPermission === 'granted'
-                ? "bg-green-500/10 text-green-600 cursor-default"
-                : "bg-primary/10 text-primary hover:bg-primary/20"
+                ? "bg-green-500/10 text-green-600 border-green-500/20 cursor-default hover:bg-green-500/10"
+                : notificationPermission === 'denied'
+                ? "bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20"
+                : ""
             )}
           >
-            {notificationPermission === 'granted' ? '✓ Notifications Enabled' :
-             notificationPermission === 'denied' ? '✗ Notifications Blocked' :
-             'Enable Notifications'}
-          </button>
+            {notificationPermission === 'granted' ? '✓ On' :
+             notificationPermission === 'denied' ? '✗ Off' :
+             '🔔 Enable'}
+          </Button>
         </div>
-        <CardDescription>
+        <CardDescription className="text-[10px] sm:text-sm">
           Real-time whale transaction monitoring across all blockchains
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3 sm:p-6">
         {alerts.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Bell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Waiting for whale transactions...</p>
-            <p className="text-xs mt-1">Monitoring {whaleAlertService.getSubscriberCount()} blockchain(s)</p>
+          <div className="text-center py-6 sm:py-8 text-muted-foreground">
+            <Bell className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-3 opacity-50" />
+            <p className="text-xs sm:text-sm">Waiting for whale transactions...</p>
+            <p className="text-[10px] sm:text-xs mt-1">Monitoring {whaleAlertService.getSubscriberCount()} blockchain(s)</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {alerts.map((alert) => (
               <div
                 key={alert.id}
                 className={cn(
-                  'border-l-4 p-3 rounded-r-lg transition-all duration-300',
+                  'border-l-4 p-2.5 sm:p-3 rounded-r-lg transition-all duration-300',
                   getTransactionTypeColor(alert.transactionType)
                 )}
               >
                 {/* Header */}
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                     {getTransactionTypeIcon(alert.transactionType)}
-                    <span className="font-semibold text-sm">{alert.symbol}</span>
-                    <Badge variant="outline" className="text-xs">{alert.blockchain}</Badge>
+                    <span className="font-semibold text-xs sm:text-sm">{alert.symbol}</span>
+                    <Badge variant="outline" className="text-[10px] sm:text-xs h-4 sm:h-5 px-1 sm:px-1.5">{alert.blockchain}</Badge>
                     {getSignificanceBadge(alert.significance)}
                   </div>
-                  <span className="text-xs text-muted-foreground">{formatTimestamp(alert.timestamp)}</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">{formatTimestamp(alert.timestamp)}</span>
                 </div>
 
                 {/* Amount */}
-                <div className="mb-2">
-                  <div className="text-lg font-bold">
+                <div className="mb-1.5 sm:mb-2">
+                  <div className="text-base sm:text-lg font-bold">
                     {formatAmount(alert.amount)} {alert.symbol}
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-xs sm:text-sm text-muted-foreground">
                     {formatUSD(alert.amountUSD)}
                   </div>
                 </div>
 
                 {/* Transaction details */}
-                <div className="text-xs space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="font-medium">From:</span>
-                    <code className="bg-muted px-1.5 py-0.5 rounded">{formatAddress(alert.from)}</code>
-                    {alert.fromOwner && <span className="text-foreground">({alert.fromOwner})</span>}
+                <div className="text-[10px] sm:text-xs space-y-1">
+                  <div className="flex items-start gap-1 sm:gap-1.5 text-muted-foreground">
+                    <span className="font-medium whitespace-nowrap">From:</span>
+                    <code className="bg-muted px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-xs truncate">{formatAddress(alert.from)}</code>
+                    {alert.fromOwner && <span className="text-foreground truncate">({alert.fromOwner})</span>}
                   </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="font-medium">To:</span>
-                    <code className="bg-muted px-1.5 py-0.5 rounded">{formatAddress(alert.to)}</code>
-                    {alert.toOwner && <span className="text-foreground">({alert.toOwner})</span>}
+                  <div className="flex items-start gap-1 sm:gap-1.5 text-muted-foreground">
+                    <span className="font-medium whitespace-nowrap">To:</span>
+                    <code className="bg-muted px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-xs truncate">{formatAddress(alert.to)}</code>
+                    {alert.toOwner && <span className="text-foreground truncate">({alert.toOwner})</span>}
                   </div>
                 </div>
 
                 {/* Interpretation */}
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground italic">
+                <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border/50">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground italic leading-relaxed">
                     {alert.transactionType === 'exchange_deposit' && '📉 Bearish signal: Large deposit to exchange may indicate selling pressure'}
                     {alert.transactionType === 'exchange_withdrawal' && '📈 Bullish signal: Large withdrawal from exchange indicates accumulation'}
                     {alert.transactionType === 'whale_transfer' && '🔄 Neutral: Whale-to-whale transfer, monitoring for further activity'}
