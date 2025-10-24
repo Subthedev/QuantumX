@@ -48,9 +48,9 @@ class ExchangeFlowService {
     }
 
     try {
-      // Get whale transactions
+      // Get whale transactions - fetch more for better accuracy
       const whaleStats = await whaleAlertService.getWhaleStats(coinSymbol);
-      const whaleTransactions = await whaleAlertService.getRecentWhaleTransactions(coinSymbol, 100);
+      const whaleTransactions = await whaleAlertService.getRecentWhaleTransactions(coinSymbol, 200);
 
       // Filter by timeframe
       const cutoffTime = this.getTimeframeCutoff(timeframe);
@@ -60,15 +60,15 @@ class ExchangeFlowService {
       const deposits = filteredTransactions.filter(tx => tx.transactionType === 'exchange_deposit');
       const withdrawals = filteredTransactions.filter(tx => tx.transactionType === 'exchange_withdrawal');
 
-      const inflowUsd = deposits.reduce((sum, tx) => sum + tx.amountUsd, 0);
-      const outflowUsd = withdrawals.reduce((sum, tx) => sum + tx.amountUsd, 0);
+      const inflowUsd = deposits.reduce((sum, tx) => sum + tx.amountUSD, 0);
+      const outflowUsd = withdrawals.reduce((sum, tx) => sum + tx.amountUSD, 0);
       const netFlowUsd = inflowUsd - outflowUsd;
 
       // Find largest transactions
       const largestDeposit = deposits.length > 0 ?
-        deposits.reduce((max, tx) => tx.amountUsd > max.amountUsd ? tx : max) : null;
+        deposits.reduce((max, tx) => tx.amountUSD > max.amountUSD ? tx : max) : null;
       const largestWithdrawal = withdrawals.length > 0 ?
-        withdrawals.reduce((max, tx) => tx.amountUsd > max.amountUsd ? tx : max) : null;
+        withdrawals.reduce((max, tx) => tx.amountUSD > max.amountUSD ? tx : max) : null;
 
       // Calculate interpretation
       const flowInterpretation = this.interpretFlow(netFlowUsd, inflowUsd, outflowUsd);
@@ -263,13 +263,16 @@ class ExchangeFlowService {
   }
 
   /**
-   * Format currency
+   * Format currency with proper handling of negative values
    */
   formatUsd(amount: number): string {
-    if (amount >= 1000000000) return `$${(amount / 1000000000).toFixed(2)}B`;
-    if (amount >= 1000000) return `$${(amount / 1000000).toFixed(2)}M`;
-    if (amount >= 1000) return `$${(amount / 1000).toFixed(2)}K`;
-    return `$${amount.toFixed(2)}`;
+    const absAmount = Math.abs(amount);
+    const sign = amount < 0 ? '-' : amount > 0 ? '+' : '';
+
+    if (absAmount >= 1000000000) return `${sign}$${(absAmount / 1000000000).toFixed(2)}B`;
+    if (absAmount >= 1000000) return `${sign}$${(absAmount / 1000000).toFixed(2)}M`;
+    if (absAmount >= 1000) return `${sign}$${(absAmount / 1000).toFixed(2)}K`;
+    return `${sign}$${absAmount.toFixed(2)}`;
   }
 
   /**

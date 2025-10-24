@@ -69,34 +69,58 @@ const ETFFlows = () => {
     return { startDate: start, endDate: end };
   }, [timeRange, customStartDate, customEndDate]);
 
-  // Fetch ETF flows data
-  const { data: flowsData = [], isLoading: flowsLoading, refetch: refetchFlows } = useQuery({
+  // Fetch ETF flows data with daily automatic updates
+  const { data: flowsData = [], isLoading: flowsLoading, refetch: refetchFlows, isRefetching } = useQuery({
     queryKey: ['etf-flows', startDate.toISOString(), endDate.toISOString(), assetClass],
     queryFn: async () => {
+      console.log('[ETFFlows] Fetching flows data for', { startDate: startDate.toISOString(), endDate: endDate.toISOString(), assetClass });
       const flows = await etfDataService.getETFFlows(
         startDate,
         endDate,
-        assetClass === 'all' ? undefined : assetClass
+        assetClass === 'all' ? undefined : assetClass,
+        false // Normal fetch, not force refresh
       );
       setLastUpdate(new Date());
+      console.log('[ETFFlows] Received', flows.length, 'flow records');
       return flows;
     },
-    refetchInterval: 60000 // Refetch every minute
+    refetchInterval: 24 * 60 * 60 * 1000, // Refetch every 24 hours (daily update)
+    refetchIntervalInBackground: true, // Continue refetching even when tab is not focused
+    staleTime: 5 * 60 * 1000 // Consider data stale after 5 minutes
   });
 
   // Fetch daily aggregates
-  const { data: dailyAggregates = [] } = useQuery({
+  const { data: dailyAggregates = [], refetch: refetchAggregates } = useQuery({
     queryKey: ['etf-daily-aggregates', startDate.toISOString(), endDate.toISOString()],
     queryFn: () => etfDataService.getDailyAggregates(startDate, endDate),
-    refetchInterval: 60000
+    refetchInterval: 24 * 60 * 60 * 1000, // Daily update
+    staleTime: 5 * 60 * 1000
   });
 
   // Fetch ETF stats
-  const { data: etfStats = [] } = useQuery({
+  const { data: etfStats = [], refetch: refetchStats } = useQuery({
     queryKey: ['etf-stats', assetClass],
     queryFn: () => etfDataService.getETFStats(assetClass === 'all' ? undefined : assetClass),
-    refetchInterval: 60000
+    refetchInterval: 24 * 60 * 60 * 1000, // Daily update
+    staleTime: 5 * 60 * 1000
   });
+
+  // Manual hard refresh - clears cache and forces new data fetch
+  const handleManualRefresh = async () => {
+    console.log('[ETFFlows] Hard refresh initiated - clearing cache and refetching all data');
+    // Clear the service cache to force fresh data
+    etfDataService.clearCache();
+
+    // Refetch all queries
+    await Promise.all([
+      refetchFlows(),
+      refetchAggregates(),
+      refetchStats()
+    ]);
+
+    setLastUpdate(new Date());
+    console.log('[ETFFlows] Hard refresh completed');
+  };
 
   // Calculate summary statistics based on the selected time range
   const summaryStats = useMemo(() => {
@@ -200,10 +224,10 @@ const ETFFlows = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => refetchFlows()}
-                    disabled={flowsLoading}
+                    onClick={handleManualRefresh}
+                    disabled={flowsLoading || isRefetching}
                   >
-                    <RefreshCw className={cn('h-4 w-4 mr-2', flowsLoading && 'animate-spin')} />
+                    <RefreshCw className={cn('h-4 w-4 mr-2', (flowsLoading || isRefetching) && 'animate-spin')} />
                     Refresh
                   </Button>
                   <Button variant="outline" size="sm" onClick={exportToCSV}>

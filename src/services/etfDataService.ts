@@ -173,7 +173,15 @@ export const ETF_ISSUERS: ETFIssuer[] = [
 
 class ETFDataService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private CACHE_DURATION = 60000; // 1 minute cache for real-time feel
+  private CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+  /**
+   * Clear cache to force fresh data fetch
+   */
+  clearCache(): void {
+    this.cache.clear();
+    console.log('[ETFDataService] Cache cleared');
+  }
 
   /**
    * Get ETF flow data for a specific date range
@@ -181,17 +189,22 @@ class ETFDataService {
   async getETFFlows(
     startDate: Date,
     endDate: Date,
-    assetClass?: 'bitcoin' | 'ethereum'
+    assetClass?: 'bitcoin' | 'ethereum',
+    forceRefresh: boolean = false
   ): Promise<ETFFlowData[]> {
     const cacheKey = `flows-${startDate.toISOString()}-${endDate.toISOString()}-${assetClass || 'all'}`;
 
-    // Check cache
-    const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
+    // Check cache (skip if force refresh)
+    if (!forceRefresh) {
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        console.log('[ETFDataService] Returning cached data for', cacheKey);
+        return cached.data;
+      }
     }
 
     try {
+      console.log('[ETFDataService] Generating fresh data for', cacheKey);
       // Generate mock data (in production, this would call real APIs)
       const data = this.generateMockETFFlows(startDate, endDate, assetClass);
 
@@ -361,16 +374,48 @@ class ETFDataService {
       !assetClass || i.assetClass === assetClass
     );
 
-    const currentDate = new Date(startDate);
+    // Get the last trading day (adjust for weekends)
+    const getLastTradingDay = (date: Date): Date => {
+      const day = new Date(date);
+      const dayOfWeek = day.getDay();
 
-    while (currentDate <= endDate) {
-      // Skip weekends
+      // If Saturday (6), go back to Friday
+      if (dayOfWeek === 6) {
+        day.setDate(day.getDate() - 1);
+      }
+      // If Sunday (0), go back to Friday
+      else if (dayOfWeek === 0) {
+        day.setDate(day.getDate() - 2);
+      }
+
+      return day;
+    };
+
+    const currentDate = new Date(startDate);
+    const adjustedEndDate = new Date(endDate);
+
+    // If the time range is just today and it's a weekend, show last Friday's data
+    const isSingleDay = Math.abs(endDate.getTime() - startDate.getTime()) < 24 * 60 * 60 * 1000;
+    if (isSingleDay) {
+      const dayOfWeek = endDate.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        const lastTrading = getLastTradingDay(endDate);
+        currentDate.setTime(lastTrading.getTime());
+        adjustedEndDate.setTime(lastTrading.getTime());
+        console.log('[ETFDataService] Weekend detected, showing data for last trading day:', lastTrading.toISOString().split('T')[0]);
+      }
+    }
+
+    while (currentDate <= adjustedEndDate) {
+      // Skip weekends for multi-day ranges
       const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const shouldInclude = isSingleDay || (dayOfWeek !== 0 && dayOfWeek !== 6);
+
+      if (shouldInclude) {
         issuers.forEach(issuer => {
-          // Generate realistic flow data
+          // Generate realistic flow data with more variation
           const baseFlow = this.getBaseFlow(issuer);
-          const randomVariation = (Math.random() - 0.5) * baseFlow * 0.5;
+          const randomVariation = (Math.random() - 0.5) * baseFlow * 0.8;
           const netFlow = Math.round((baseFlow + randomVariation) * 10) / 10;
 
           // Calculate AUM (growing over time with flows)
@@ -400,6 +445,7 @@ class ETFDataService {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
+    console.log(`[ETFDataService] Generated ${flows.length} flow records`);
     return flows;
   }
 
