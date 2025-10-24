@@ -34,7 +34,7 @@ export interface CryptoData {
 class CryptoDataService {
   private cache: Map<string, { data: CryptoData[], timestamp: number }> = new Map();
   private pendingRequests: Map<string, Promise<any>> = new Map(); // Request deduplication
-  private CACHE_DURATION = 120000; // 2 minutes cache - increased to avoid rate limits
+  private CACHE_DURATION = 2000; // 2 seconds cache for near real-time updates
   private USE_PROXY = true; // Use Supabase proxy to avoid CORS issues
 
   async getTopCryptos(limit: number = 100): Promise<CryptoData[]> {
