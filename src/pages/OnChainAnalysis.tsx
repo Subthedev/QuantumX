@@ -65,35 +65,35 @@ const OnChainAnalysis = () => {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="space-y-6">
-          {/* Clean Header */}
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-7xl">
+        <div className="space-y-4 sm:space-y-6">
+          {/* Clean Header - Mobile Optimized */}
           <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-hover">
-                <Activity className="h-6 w-6 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-hover shrink-0">
+                <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold">On-Chain Analysis</h1>
-                <p className="text-sm text-muted-foreground">
-                  Real-time blockchain intelligence & actionable insights
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">On-Chain Analysis</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                  Real-time blockchain intelligence
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Coin Selector - Clean & Minimal */}
+          {/* Coin Selector - Mobile Optimized */}
           <Card>
-            <CardHeader className="pb-4">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-lg">Select Cryptocurrency</CardTitle>
+            <CardHeader className="p-3 sm:p-4 sm:pb-4 pb-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-base sm:text-lg truncate">Select Cryptocurrency</CardTitle>
                   <CardDescription className="text-xs">
-                    {cryptos.length} coins with verified on-chain data
+                    {cryptos.length} coins with verified data
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
                     Updated {format(lastUpdate, 'HH:mm:ss')}
                   </span>
                   <Button
@@ -101,28 +101,28 @@ const OnChainAnalysis = () => {
                     size="sm"
                     onClick={() => refetch()}
                     disabled={onChainLoading}
-                    className="h-8"
+                    className="h-7 sm:h-8 w-7 sm:w-8 p-0"
                   >
                     <RefreshCw className={cn('h-3.5 w-3.5', onChainLoading && 'animate-spin')} />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="p-3 sm:p-4 pt-0">
               <Select value={selectedCoin} onValueChange={setSelectedCoin} disabled={cryptosLoading}>
-                <SelectTrigger className="h-12">
+                <SelectTrigger className="h-11 sm:h-12">
                   <SelectValue>
                     {selectedCoinData && (
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                         <img
                           src={selectedCoinData.image}
                           alt={selectedCoinData.name}
-                          className="h-6 w-6 rounded-full"
+                          className="h-5 w-5 sm:h-6 sm:w-6 rounded-full shrink-0"
                         />
-                        <span className="font-semibold">{selectedCoinData.name}</span>
-                        <span className="text-muted-foreground">({selectedCoinData.symbol.toUpperCase()})</span>
+                        <span className="font-semibold text-sm sm:text-base truncate">{selectedCoinData.name}</span>
+                        <span className="text-muted-foreground text-xs sm:text-sm hidden sm:inline">({selectedCoinData.symbol.toUpperCase()})</span>
                         {supportedCoinInfo && (
-                          <Badge className={supportedCoinsService.getQualityColor(supportedCoinInfo.dataQuality)}>
+                          <Badge className={cn(supportedCoinsService.getQualityColor(supportedCoinInfo.dataQuality), "hidden md:flex")}>
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             {supportedCoinInfo.dataQuality}
                           </Badge>
@@ -135,9 +135,9 @@ const OnChainAnalysis = () => {
                   {cryptos.map(crypto => {
                     return (
                       <SelectItem key={crypto.id} value={crypto.id}>
-                        <div className="flex items-center gap-3 py-1">
+                        <div className="flex items-center gap-2 sm:gap-3 py-1">
                           <img src={crypto.image} alt={crypto.name} className="h-5 w-5 rounded-full" />
-                          <span className="font-medium">{crypto.name}</span>
+                          <span className="font-medium text-sm">{crypto.name}</span>
                           <span className="text-muted-foreground text-xs">({crypto.symbol.toUpperCase()})</span>
                         </div>
                       </SelectItem>
@@ -148,32 +148,32 @@ const OnChainAnalysis = () => {
             </CardContent>
           </Card>
 
-          {/* Quick Stats - Clean Grid */}
+          {/* Quick Stats - Mobile Optimized Grid */}
           {onChainData && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               <Card className="border-l-4 border-l-green-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    <span className="text-xs font-medium text-muted-foreground">Outflow (Bullish)</span>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate">Outflow</span>
                   </div>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-lg sm:text-2xl font-bold text-green-600 truncate">
                     {onChainDataService.formatNumber(Math.abs(onChainData.exchangeFlows.outflow24h))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">24h withdrawals</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">24h withdrawals</p>
                 </CardContent>
               </Card>
 
               <Card className="border-l-4 border-l-red-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                    <span className="text-xs font-medium text-muted-foreground">Inflow (Bearish)</span>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-600 shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate">Inflow</span>
                   </div>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-lg sm:text-2xl font-bold text-red-600 truncate">
                     {onChainDataService.formatNumber(onChainData.exchangeFlows.inflow24h)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">24h deposits</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">24h deposits</p>
                 </CardContent>
               </Card>
 
@@ -182,23 +182,23 @@ const OnChainAnalysis = () => {
                 onChainData.exchangeFlows.netFlow24h < 0 ? "border-l-green-500" :
                 onChainData.exchangeFlows.netFlow24h > 0 ? "border-l-red-500" : "border-l-blue-500"
               )}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
                     <ArrowUpFromLine className={cn(
-                      "h-4 w-4",
+                      "h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0",
                       onChainData.exchangeFlows.netFlow24h < 0 ? "text-green-600" :
                       onChainData.exchangeFlows.netFlow24h > 0 ? "text-red-600" : "text-blue-600"
                     )} />
-                    <span className="text-xs font-medium text-muted-foreground">Net Flow</span>
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate">Net Flow</span>
                   </div>
                   <div className={cn(
-                    "text-2xl font-bold",
+                    "text-lg sm:text-2xl font-bold truncate",
                     onChainData.exchangeFlows.netFlow24h < 0 ? "text-green-600" :
                     onChainData.exchangeFlows.netFlow24h > 0 ? "text-red-600" : "text-blue-600"
                   )}>
                     {onChainDataService.formatCurrency(onChainData.exchangeFlows.netFlow24h)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">
                     {onChainData.exchangeFlows.netFlow24h < 0 ? "Accumulation" :
                      onChainData.exchangeFlows.netFlow24h > 0 ? "Distribution" : "Neutral"}
                   </p>
@@ -206,31 +206,31 @@ const OnChainAnalysis = () => {
               </Card>
 
               <Card className="border-l-4 border-l-blue-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Waves className="h-4 w-4 text-blue-600" />
-                    <span className="text-xs font-medium text-muted-foreground">Whale Activity</span>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <Waves className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 shrink-0" />
+                    <span className="text-[10px] sm:text-xs font-medium text-muted-foreground truncate">Whale</span>
                   </div>
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-lg sm:text-2xl font-bold text-blue-600 truncate">
                     {onChainData.whaleActivity.topHoldersPercentage}%
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Top 100 holders</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">Top 100 holders</p>
                 </CardContent>
               </Card>
             </div>
           )}
 
-          {/* Main Content - Clean Tabs */}
+          {/* Main Content - Mobile Optimized Tabs */}
           {selectedCoinData && (
-            <Tabs defaultValue="insights" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="insights">Insights</TabsTrigger>
-                <TabsTrigger value="live-alerts">🔴 Live Alerts</TabsTrigger>
-                <TabsTrigger value="whales">Whale Activity</TabsTrigger>
-                <TabsTrigger value="flows">Exchange Flows</TabsTrigger>
+            <Tabs defaultValue="insights" className="space-y-4 sm:space-y-6">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
+                <TabsTrigger value="insights" className="text-xs sm:text-sm px-2 py-2">Insights</TabsTrigger>
+                <TabsTrigger value="live-alerts" className="text-xs sm:text-sm px-2 py-2">🔴 Live</TabsTrigger>
+                <TabsTrigger value="whales" className="text-xs sm:text-sm px-2 py-2">Whales</TabsTrigger>
+                <TabsTrigger value="flows" className="text-xs sm:text-sm px-2 py-2">Flows</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="insights" className="space-y-6">
+              <TabsContent value="insights" className="space-y-4 sm:space-y-6">
                 <ActionableInsights
                   coinSymbol={selectedCoinData.symbol}
                   autoRefresh={true}
@@ -238,11 +238,11 @@ const OnChainAnalysis = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="live-alerts" className="space-y-6">
+              <TabsContent value="live-alerts" className="space-y-4 sm:space-y-6">
                 <LiveWhaleAlerts />
               </TabsContent>
 
-              <TabsContent value="whales" className="space-y-6">
+              <TabsContent value="whales" className="space-y-4 sm:space-y-6">
                 <WhaleActivityFeed
                   coinSymbol={selectedCoinData.symbol}
                   limit={50}
@@ -251,51 +251,51 @@ const OnChainAnalysis = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="flows" className="space-y-6">
+              <TabsContent value="flows" className="space-y-4 sm:space-y-6">
                 <ExchangeFlowChart
                   coinSymbol={selectedCoinData.symbol}
                   autoRefresh={true}
                   refreshInterval={60000}
                 />
 
-                {/* Educational Info */}
+                {/* Educational Info - Mobile Optimized */}
                 <Card className="bg-muted/30">
-                  <CardHeader>
-                    <CardTitle className="text-base">Understanding Exchange Flows</CardTitle>
+                  <CardHeader className="p-3 sm:p-6">
+                    <CardTitle className="text-sm sm:text-base">Understanding Exchange Flows</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                          <ArrowUpFromLine className="h-5 w-5 text-green-600" />
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-sm">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-green-500/10 border border-green-500/20 shrink-0">
+                          <ArrowUpFromLine className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                         </div>
-                        <div>
-                          <div className="font-semibold text-green-600 mb-1">Outflows (Bullish)</div>
-                          <p className="text-xs text-muted-foreground">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-green-600 mb-1 text-xs sm:text-sm">Outflows (Bullish)</div>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             Users moving crypto to wallets = accumulation
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                          <ArrowDownToLine className="h-5 w-5 text-red-600" />
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-red-500/10 border border-red-500/20 shrink-0">
+                          <ArrowDownToLine className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                         </div>
-                        <div>
-                          <div className="font-semibold text-red-600 mb-1">Inflows (Bearish)</div>
-                          <p className="text-xs text-muted-foreground">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-red-600 mb-1 text-xs sm:text-sm">Inflows (Bearish)</div>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             Users moving crypto to exchanges = selling pressure
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                          <Activity className="h-5 w-5 text-blue-600" />
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 shrink-0">
+                          <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                         </div>
-                        <div>
-                          <div className="font-semibold text-blue-600 mb-1">Net Flow</div>
-                          <p className="text-xs text-muted-foreground">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-blue-600 mb-1 text-xs sm:text-sm">Net Flow</div>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             Negative = bullish, Positive = bearish
                           </p>
                         </div>
@@ -307,13 +307,13 @@ const OnChainAnalysis = () => {
             </Tabs>
           )}
 
-          {/* Loading State */}
+          {/* Loading State - Mobile Optimized */}
           {onChainLoading && !onChainData && (
             <Card>
-              <CardContent className="p-12">
-                <div className="flex flex-col items-center justify-center gap-4">
-                  <RefreshCw className="h-10 w-10 animate-spin text-primary" />
-                  <p className="text-muted-foreground">Loading real-time on-chain data...</p>
+              <CardContent className="p-8 sm:p-12">
+                <div className="flex flex-col items-center justify-center gap-3 sm:gap-4">
+                  <RefreshCw className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-primary" />
+                  <p className="text-sm sm:text-base text-muted-foreground text-center">Loading real-time on-chain data...</p>
                 </div>
               </CardContent>
             </Card>
