@@ -11,32 +11,37 @@ export function LiveWhaleAlerts() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
-    console.log('[LiveWhaleAlerts] Component mounted, subscribing to whale alerts...');
-    setIsLive(true);
+    try {
+      console.log('[LiveWhaleAlerts] Component mounted, subscribing to whale alerts...');
+      setIsLive(true);
 
-    // Check notification permission
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
-
-    // Subscribe to whale alerts
-    const subscription = whaleAlertService.subscribe((transaction) => {
-      console.log('[LiveWhaleAlerts] New whale transaction:', transaction);
-
-      // Add to top of list, keep only last 10
-      setAlerts((prev) => [transaction, ...prev].slice(0, 10));
-
-      // Show browser notification for significant transactions
-      if (transaction.significance === 'high' || transaction.significance === 'critical') {
-        showBrowserNotification(transaction);
+      // Check notification permission
+      if ('Notification' in window) {
+        setNotificationPermission(Notification.permission);
       }
-    });
 
-    return () => {
-      console.log('[LiveWhaleAlerts] Component unmounting, unsubscribing...');
-      subscription.unsubscribe();
+      // Subscribe to whale alerts
+      const subscription = whaleAlertService.subscribe((transaction) => {
+        console.log('[LiveWhaleAlerts] New whale transaction:', transaction);
+
+        // Add to top of list, keep only last 10
+        setAlerts((prev) => [transaction, ...prev].slice(0, 10));
+
+        // Show browser notification for significant transactions
+        if (transaction.significance === 'high' || transaction.significance === 'critical') {
+          showBrowserNotification(transaction);
+        }
+      });
+
+      return () => {
+        console.log('[LiveWhaleAlerts] Component unmounting, unsubscribing...');
+        subscription.unsubscribe();
+        setIsLive(false);
+      };
+    } catch (error) {
+      console.error('[LiveWhaleAlerts] Error initializing:', error);
       setIsLive(false);
-    };
+    }
   }, []);
 
   const showBrowserNotification = (tx: WhaleTransaction) => {
