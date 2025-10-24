@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Brain, AlertCircle, Clock, History, Trash2, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { cryptoDataService } from '@/services/cryptoDataService';
+import { enrichedCryptoDataService } from '@/services/enrichedCryptoDataService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
@@ -17,11 +18,12 @@ import { AppHeader } from '@/components/AppHeader';
 import { TechnicalAnalysisCard } from '@/components/analysis/TechnicalAnalysisCard';
 import { FundamentalAnalysisCard } from '@/components/analysis/FundamentalAnalysisCard';
 import { SentimentAnalysisCard } from '@/components/analysis/SentimentAnalysisCard';
-import { OnChainAnalysisCard } from '@/components/analysis/OnChainAnalysisCard';
-import { ETFAnalysisCard } from '@/components/analysis/ETFAnalysisCard';
+import { AnalysisSummaryCard } from '@/components/analysis/EducationalSignalCard';
+import { DisclaimerBanner } from '@/components/analysis/LegalDisclaimer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { validateAnalysis } from '@/schemas/analysis-schemas';
 import type { AnalysisResult } from '@/schemas/analysis-schemas';
+import type { EnrichedCryptoData } from '@/services/enrichedCryptoDataService';
 
 interface AnalysisLoadingState {
   type: string;
@@ -38,6 +40,8 @@ const AIAnalysis = () => {
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisResult[]>([]);
   const [viewingHistory, setViewingHistory] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [enrichedData, setEnrichedData] = useState<EnrichedCryptoData | null>(null);
+  const [isLoadingEnrichedData, setIsLoadingEnrichedData] = useState(false);
   const { toast } = useToast();
 
   // Load recent analyses from localStorage on mount
@@ -79,20 +83,6 @@ const AIAnalysis = () => {
       description: 'Market psychology',
       gradient: 'from-orange-500 to-amber-500',
       icon: '🧠'
-    },
-    {
-      id: 'onchain',
-      label: 'On-Chain',
-      description: 'Network metrics',
-      gradient: 'from-green-500 to-emerald-500',
-      icon: '⛓️'
-    },
-    {
-      id: 'etf',
-      label: 'Institutional',
-      description: 'ETF & flows',
-      gradient: 'from-indigo-500 to-violet-500',
-      icon: '🏦'
     }
   ];
 
@@ -138,6 +128,7 @@ const AIAnalysis = () => {
     setIsGenerating(true);
     setCurrentResults([]);
     setViewingHistory(false);
+    setEnrichedData(null);
 
     // Initialize loading states
     const initialLoadingStates = selectedAnalysisTypes.map(type => ({
@@ -149,6 +140,24 @@ const AIAnalysis = () => {
     try {
       const coinData = cryptos.find(c => c.id === selectedCoin);
       if (!coinData) throw new Error('Coin data not found');
+
+      // Fetch enriched data for signals and insights
+      setIsLoadingEnrichedData(true);
+      try {
+        const enrichedDataResult = await enrichedCryptoDataService.getEnrichedData(selectedCoin);
+        setEnrichedData(enrichedDataResult);
+        console.log('✅ Enriched data loaded:', {
+          hasOHLC: !!enrichedDataResult.ohlcData,
+          hasIndicators: !!enrichedDataResult.technicalIndicators,
+          hasSentiment: !!enrichedDataResult.socialSentiment,
+          signals: Object.keys(enrichedDataResult.signals)
+        });
+      } catch (enrichedError) {
+        console.error('⚠️ Failed to load enriched data:', enrichedError);
+        // Continue with analysis even if enriched data fails
+      } finally {
+        setIsLoadingEnrichedData(false);
+      }
 
       console.log('🚀 Generating analysis for:', coinData.symbol, 'Types:', selectedAnalysisTypes);
       console.log('📊 Coin data structure:', {
@@ -366,8 +375,7 @@ const AIAnalysis = () => {
       technical: <TechnicalAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
       fundamental: <FundamentalAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
       sentiment: <SentimentAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
-      onchain: <OnChainAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
-      etf: <ETFAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />
+      onchain: <OnChainAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />
     };
 
     return cards[analysisType] || null;
@@ -508,7 +516,7 @@ const AIAnalysis = () => {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
-                    <CardTitle className="text-2xl font-bold">
+                    <CardTitle className="text-2xl md:text-3xl font-bold">
                       {firstResult.coinData.name} ({firstResult.coinData.symbol.toUpperCase()})
                     </CardTitle>
                     <Badge variant={firstResult.coinData.change24h >= 0 ? "default" : "destructive"}>
@@ -521,12 +529,21 @@ const AIAnalysis = () => {
                   </CardDescription>
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold">${firstResult.coinData.price.toLocaleString()}</div>
-                  <div className="text-sm text-muted-foreground">Current Price</div>
+                  <div className="text-2xl md:text-3xl font-bold">${firstResult.coinData.price.toLocaleString()}</div>
+                  <div className="text-xs md:text-sm text-muted-foreground">Current Price</div>
                 </div>
               </div>
             </CardHeader>
           </Card>
+
+          {/* Overall Analysis Summary with Educational Signals */}
+          {enrichedData?.signals && (
+            <AnalysisSummaryCard
+              signals={enrichedData.signals}
+              coinName={firstResult.coinData.name}
+              coinSymbol={firstResult.coinData.symbol.toUpperCase()}
+            />
+          )}
 
           {/* Analysis Cards */}
           <div className="space-y-6">
@@ -556,6 +573,9 @@ const AIAnalysis = () => {
               Professional multi-dimensional analysis powered by IgniteX AI
             </p>
           </div>
+
+          {/* Legal Disclaimer Banner */}
+          <DisclaimerBanner />
 
           {/* Configuration Card */}
           <Card>
@@ -605,7 +625,7 @@ const AIAnalysis = () => {
               {/* Analysis Types - Multiple Selection */}
               <div className="space-y-3">
                 <label className="text-sm font-medium">Analysis Types (Select Multiple)</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {analysisTypes.map(type => {
                     const isSelected = selectedAnalysisTypes.includes(type.id);
                     return (

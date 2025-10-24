@@ -27,6 +27,8 @@ const AIAnalysis = lazy(() => import("./pages/AIAnalysis"));
 const ProfitGuard = lazy(() => import("./pages/ProfitGuard"));
 const Calculator = lazy(() => import("./pages/Calculator"));
 const MarketSentiment = lazy(() => import("./pages/MarketSentiment"));
+const ETFFlows = lazy(() => import("./pages/ETFFlows"));
+const OnChainAnalysis = lazy(() => import("./pages/OnChainAnalysis"));
 
 // Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
@@ -81,6 +83,8 @@ const App = () => (
               <Route path="/profit-guard" element={<ProtectedRoute><ProfitGuard /></ProtectedRoute>} />
               <Route path="/calculator" element={<ProtectedRoute><Calculator /></ProtectedRoute>} />
               <Route path="/market-sentiment" element={<ProtectedRoute><MarketSentiment /></ProtectedRoute>} />
+              <Route path="/etf-flows" element={<ProtectedRoute><ETFFlows /></ProtectedRoute>} />
+              <Route path="/onchain-analysis" element={<ProtectedRoute><OnChainAnalysis /></ProtectedRoute>} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

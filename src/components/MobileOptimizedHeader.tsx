@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { IgniteXLogo } from '@/components/ui/ignitex-logo';
-import { 
-  LogOut, 
+import {
+  LogOut,
   LayoutDashboard,
   ArrowRight,
   Calculator,
@@ -22,7 +22,9 @@ import {
   Briefcase,
   Menu,
   User,
-  TrendingUp
+  TrendingUp,
+  Building2,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -32,6 +34,8 @@ const featureLinks = [
   { href: '/titan10', label: 'Titan 10', icon: Crown, description: 'Expert portfolio' },
   { href: '/ai-analysis', label: 'AI Analysis', icon: Brain, description: 'Smart insights' },
   { href: '/market-sentiment', label: 'Market Sentiment', icon: TrendingUp, description: 'Fear & Greed' },
+  { href: '/etf-flows', label: 'ETF Flows', icon: Building2, description: 'Institutional flows' },
+  { href: '/onchain-analysis', label: 'On-Chain Analysis', icon: Activity, description: 'Blockchain metrics' },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase, description: 'Track holdings' },
   { href: '/profit-guard', label: 'ProfitGuard', icon: Shield, description: 'Protect gains' },
   { href: '/calculator', label: 'Calculator', icon: Calculator, description: 'Trading tools' },

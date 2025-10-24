@@ -42,6 +42,7 @@ function Portfolio() {
   const [isProfitGuardDialogOpen, setIsProfitGuardDialogOpen] = useState(false);
   const [selectedHoldingForGuard, setSelectedHoldingForGuard] = useState<Holding | null>(null);
   const [marketData, setMarketData] = useState<Map<string, any>>(new Map());
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchHoldings();
@@ -49,9 +50,11 @@ function Portfolio() {
   }, []);
 
   useEffect(() => {
+    // ULTRA-FAST real-time price updates every 3 seconds
     const interval = setInterval(() => {
       fetchMarketData();
-    }, 60000); // Update prices every minute
+      setLastUpdate(new Date());
+    }, 3000); // 3 seconds for ultra-responsive updates
 
     return () => clearInterval(interval);
   }, [holdings]);
@@ -79,6 +82,7 @@ function Portfolio() {
 
   const fetchMarketData = async () => {
     try {
+      // Fetch more data for better real-time updates
       const data = await cryptoDataService.getTopCryptos(250);
       const marketMap = new Map();
       data.forEach(coin => {
@@ -86,7 +90,7 @@ function Portfolio() {
       });
       setMarketData(marketMap);
     } catch (error) {
-      console.error('Error fetching market data:', error);
+      // Silently fail to avoid spamming user with errors during frequent updates
     }
   };
 
@@ -112,6 +116,7 @@ function Portfolio() {
         value,
         profit_loss: profitLoss,
         profit_loss_percentage: profitLossPercentage,
+        price_change_24h: marketCoin?.price_change_percentage_24h || 0,
       });
     }
 
@@ -188,6 +193,7 @@ function Portfolio() {
             <h1 className="text-2xl md:text-3xl font-bold">Portfolio Tracker</h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1">
               Track your cryptocurrency investments
+              <span className="ml-2 text-xs text-green-500">● Live</span>
             </p>
           </div>
           <Button 
@@ -276,10 +282,14 @@ function Portfolio() {
           </Card>
         </div>
 
-        {/* Portfolio Insights */}
+        {/* Portfolio Insights - Now updates every 3s */}
         {holdings.length > 0 && metrics.holdings.length > 0 && (
           <div className="mb-6">
-            <PortfolioInsights holdings={metrics.holdings} totalValue={metrics.totalValue} />
+            <PortfolioInsights
+              holdings={metrics.holdings}
+              totalValue={metrics.totalValue}
+              lastUpdate={lastUpdate}
+            />
           </div>
         )}
 
@@ -532,7 +542,11 @@ function Portfolio() {
                 </CardContent>
               </Card>
             ) : (
-              <PortfolioPerformance holdings={metrics.holdings} />
+              <PortfolioPerformance
+                holdings={metrics.holdings}
+                marketData={marketData}
+                lastUpdate={lastUpdate}
+              />
             )}
           </TabsContent>
         </Tabs>

@@ -14,15 +14,16 @@ interface Holding {
 interface PortfolioInsightsProps {
   holdings: Holding[];
   totalValue: number;
+  lastUpdate?: Date;
 }
 
-const PortfolioInsightsComponent = ({ holdings, totalValue }: PortfolioInsightsProps) => {
+const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: PortfolioInsightsProps) => {
   // Calculate insights
-  const topPerformer = holdings.reduce((max, h) => 
+  const topPerformer = holdings.reduce((max, h) =>
     (h.profit_loss_percentage || 0) > (max.profit_loss_percentage || 0) ? h : max
   , holdings[0]);
 
-  const worstPerformer = holdings.reduce((min, h) => 
+  const worstPerformer = holdings.reduce((min, h) =>
     (h.profit_loss_percentage || 0) < (min.profit_loss_percentage || 0) ? h : min
   , holdings[0]);
 
@@ -34,9 +35,9 @@ const PortfolioInsightsComponent = ({ holdings, totalValue }: PortfolioInsightsP
   const diversificationScore = Math.max(0, 100 - largestHolding * 2);
 
   // Risk assessment
-  const avgVolatility = holdings.reduce((sum, h) => 
+  const avgVolatility = holdings.reduce((sum, h) =>
     sum + Math.abs(h.profit_loss_percentage || 0), 0) / holdings.length;
-  
+
   const riskLevel = avgVolatility > 30 ? 'High' : avgVolatility > 15 ? 'Medium' : 'Low';
   const riskColor = avgVolatility > 30 ? 'text-red-500' : avgVolatility > 15 ? 'text-yellow-500' : 'text-green-500';
 
@@ -110,9 +111,16 @@ const PortfolioInsightsComponent = ({ holdings, totalValue }: PortfolioInsightsP
         {topPerformer && (
           <Card className="border-green-500/20 bg-green-500/5">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                Top Performer
+              <CardTitle className="text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  Top Performer
+                </div>
+                {lastUpdate && (
+                  <Badge variant="outline" className="text-xs bg-green-500/10">
+                    <span className="text-green-500 mr-1">●</span> Live
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -142,9 +150,16 @@ const PortfolioInsightsComponent = ({ holdings, totalValue }: PortfolioInsightsP
         {worstPerformer && worstPerformer.profit_loss_percentage && worstPerformer.profit_loss_percentage < 0 && (
           <Card className="border-red-500/20 bg-red-500/5">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-red-500" />
-                Needs Attention
+              <CardTitle className="text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                  Needs Attention
+                </div>
+                {lastUpdate && (
+                  <Badge variant="outline" className="text-xs bg-red-500/10">
+                    <span className="text-red-500 mr-1">●</span> Live
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
