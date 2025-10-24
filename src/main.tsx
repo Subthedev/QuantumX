@@ -1,7 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { initWebVitals } from './utils/webVitals'
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -16,9 +15,17 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   });
 }
 
-// Initialize Web Vitals monitoring
+// Initialize Web Vitals monitoring (optional)
 if (import.meta.env.PROD) {
-  initWebVitals();
+  try {
+    import('./utils/webVitals').then(({ initWebVitals }) => {
+      initWebVitals();
+    }).catch(() => {
+      // Web vitals not available, continue without it
+    });
+  } catch {
+    // Web vitals not available, continue without it
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
