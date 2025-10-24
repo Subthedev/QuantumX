@@ -184,7 +184,6 @@ export const ExchangeFlowChart = ({
                       ? "text-red-600 dark:text-red-400"
                       : "text-blue-600 dark:text-blue-400"
                   )}>
-                    {flowData.netFlow > 0 && "+"}
                     {exchangeFlowService.formatUsd(flowData.netFlow)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -258,10 +257,10 @@ export const ExchangeFlowChart = ({
                   <div className="p-4 rounded-lg border-2 border-red-500/30 bg-red-500/5">
                     <div className="text-xs text-muted-foreground mb-2">Largest Inflow</div>
                     <div className="text-xl font-bold text-red-600 dark:text-red-400">
-                      {exchangeFlowService.formatUsd(flowData.largestDeposit.amountUsd)}
+                      {exchangeFlowService.formatUsd(flowData.largestDeposit.amountUSD)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      to {flowData.largestDeposit.to.owner}
+                      to {flowData.largestDeposit.toOwner || 'Exchange'}
                     </div>
                   </div>
                 )}
@@ -269,10 +268,10 @@ export const ExchangeFlowChart = ({
                   <div className="p-4 rounded-lg border-2 border-green-500/30 bg-green-500/5">
                     <div className="text-xs text-muted-foreground mb-2">Largest Outflow</div>
                     <div className="text-xl font-bold text-green-600 dark:text-green-400">
-                      {exchangeFlowService.formatUsd(flowData.largestWithdrawal.amountUsd)}
+                      {exchangeFlowService.formatUsd(flowData.largestWithdrawal.amountUSD)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      from {flowData.largestWithdrawal.from.owner}
+                      from {flowData.largestWithdrawal.fromOwner || 'Exchange'}
                     </div>
                   </div>
                 )}

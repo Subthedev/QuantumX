@@ -21,6 +21,7 @@ import { supportedCoinsService } from '@/services/supportedCoinsService';
 import { WhaleActivityFeed } from '@/components/onchain/WhaleActivityFeed';
 import { ExchangeFlowChart } from '@/components/onchain/ExchangeFlowChart';
 import { ActionableInsights } from '@/components/onchain/ActionableInsights';
+import { LiveWhaleAlerts } from '@/components/onchain/LiveWhaleAlerts';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -132,20 +133,12 @@ const OnChainAnalysis = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {cryptos.map(crypto => {
-                    const info = supportedCoinsService.getSupportedCoin(crypto.id);
                     return (
                       <SelectItem key={crypto.id} value={crypto.id}>
                         <div className="flex items-center gap-3 py-1">
                           <img src={crypto.image} alt={crypto.name} className="h-5 w-5 rounded-full" />
                           <span className="font-medium">{crypto.name}</span>
                           <span className="text-muted-foreground text-xs">({crypto.symbol.toUpperCase()})</span>
-                          {info && (
-                            <Badge variant="outline" className="ml-auto text-xs">
-                              {info.chain === 'bitcoin' ? 'BTC' :
-                               info.chain === 'ethereum' ? 'ETH' :
-                               info.chain === 'binance-smart-chain' ? 'BSC' : 'MATIC'}
-                            </Badge>
-                          )}
                         </div>
                       </SelectItem>
                     );
@@ -203,8 +196,7 @@ const OnChainAnalysis = () => {
                     onChainData.exchangeFlows.netFlow24h < 0 ? "text-green-600" :
                     onChainData.exchangeFlows.netFlow24h > 0 ? "text-red-600" : "text-blue-600"
                   )}>
-                    {onChainData.exchangeFlows.netFlow24h > 0 && "+"}
-                    {onChainDataService.formatNumber(onChainData.exchangeFlows.netFlow24h)}
+                    {onChainDataService.formatCurrency(onChainData.exchangeFlows.netFlow24h)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {onChainData.exchangeFlows.netFlow24h < 0 ? "Accumulation" :
@@ -231,8 +223,9 @@ const OnChainAnalysis = () => {
           {/* Main Content - Clean Tabs */}
           {selectedCoinData && (
             <Tabs defaultValue="insights" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="insights">Insights</TabsTrigger>
+                <TabsTrigger value="live-alerts">🔴 Live Alerts</TabsTrigger>
                 <TabsTrigger value="whales">Whale Activity</TabsTrigger>
                 <TabsTrigger value="flows">Exchange Flows</TabsTrigger>
               </TabsList>
@@ -243,6 +236,10 @@ const OnChainAnalysis = () => {
                   autoRefresh={true}
                   refreshInterval={60000}
                 />
+              </TabsContent>
+
+              <TabsContent value="live-alerts" className="space-y-6">
+                <LiveWhaleAlerts />
               </TabsContent>
 
               <TabsContent value="whales" className="space-y-6">

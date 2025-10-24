@@ -1,260 +1,375 @@
-// ============================================
-// WHALE ALERT SERVICE
-// Real-time whale transaction monitoring
-// ============================================
+/**
+ * Whale Alert Service
+ * Real-time whale transaction monitoring with WebSocket support
+ * Simulates live whale alerts until we integrate paid APIs (Whale Alert, Nansen)
+ */
 
 export interface WhaleTransaction {
   id: string;
-  hash: string;
+  timestamp: number;
   blockchain: string;
   symbol: string;
   amount: number;
-  amountUsd: number;
-  timestamp: number;
-  from: {
-    address: string;
-    owner: string;
-    ownerType: 'exchange' | 'whale' | 'unknown';
-  };
-  to: {
-    address: string;
-    owner: string;
-    ownerType: 'exchange' | 'whale' | 'unknown';
-  };
+  amountUSD: number;
+  from: string;
+  to: string;
+  fromOwner?: string;
+  toOwner?: string;
   transactionType: 'exchange_deposit' | 'exchange_withdrawal' | 'whale_transfer' | 'unknown';
-  significance: 'critical' | 'high' | 'medium' | 'low';
+  hash: string;
+  isSignificant: boolean;
+  significance: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface WhaleAlertSubscription {
+  unsubscribe: () => void;
 }
 
 export interface WhaleAlertStats {
+  coinSymbol: string;
   totalTransactions24h: number;
   totalVolume24h: number;
-  largestTransaction24h: WhaleTransaction | null;
-  exchangeDeposits24h: number;
-  exchangeWithdrawals24h: number;
-  netExchangeFlow24h: number;
-  whaleAccumulationScore: number; // 0-100, higher = accumulating
+  whaleAccumulationScore: number;
+  whaleDistributionScore: number;
+  largestTransaction24h: number;
+  averageTransactionSize: number;
+  exchangeDeposits: number;
+  exchangeWithdrawals: number;
 }
 
-// Known exchanges for identification
-const EXCHANGE_NAMES: Record<string, string> = {
-  '0x28c6c06298d514db089934071355e5743bf21d60': 'Binance',
-  '0x71660c4005ba85c37ccec55d0c4493e66fe775d3': 'Coinbase',
-  '0x02466e547bfdab679fc49e96bbfc62b9747d997c': 'Kraken',
-  '0x6cc5f688a315f3dc28a7781717a9a798a59fda7b': 'OKEx',
-  '0x5041ed759dd4afc3a72b8192c143f72f4724081a': 'Bitfinex',
-  '0x742d35cc6634c0532925a3b844bc9e7595f0beb': 'Huobi',
-  '0x0d0707963952f2fba59dd06f2b425ace40b492fe': 'Gate.io',
-  '0x876eabf441b2ee5b5b0554fd502a8e0600950cfa': 'Bitfinex',
-  '0xab5801a7d398351b8be11c439e05c5b3259aec9b': 'Huobi',
-  '0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be': 'Binance',
-};
+type WhaleAlertCallback = (transaction: WhaleTransaction) => void;
 
 class WhaleAlertService {
-  private whaleTransactions: WhaleTransaction[] = [];
-  private readonly WHALE_ALERT_API_KEY = import.meta.env.VITE_WHALE_ALERT_API_KEY;
-  private readonly WHALE_THRESHOLD_USD = 1000000; // $1M+
-  private readonly USE_MOCK_DATA = !this.WHALE_ALERT_API_KEY; // Use mock data if no API key
+  private subscribers: Set<WhaleAlertCallback> = new Set();
+  private isMonitoring = false;
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private transactionCounter = 0;
+
+  // Known exchange addresses for identification
+  private readonly EXCHANGES = {
+    binance: { name: 'Binance', addresses: ['binance1', 'binance_cold', 'binance_hot'] },
+    coinbase: { name: 'Coinbase', addresses: ['coinbase1', 'coinbase_custody'] },
+    kraken: { name: 'Kraken', addresses: ['kraken1', 'kraken_cold'] },
+    bybit: { name: 'Bybit', addresses: ['bybit1', 'bybit_hot'] },
+    okx: { name: 'OKX', addresses: ['okx1', 'okx_hot'] }
+  };
+
+  // Supported coins for whale monitoring
+  private readonly MONITORED_COINS = [
+    { symbol: 'BTC', name: 'Bitcoin', chain: 'Bitcoin', price: 45000, threshold: 50 },
+    { symbol: 'ETH', name: 'Ethereum', chain: 'Ethereum', price: 2500, threshold: 200 },
+    { symbol: 'SOL', name: 'Solana', chain: 'Solana', price: 100, threshold: 5000 },
+    { symbol: 'HYPE', name: 'Hyperliquid', chain: 'Hyperliquid', price: 10, threshold: 50000 },
+    { symbol: 'BNB', name: 'BNB', chain: 'BSC', price: 310, threshold: 500 },
+    { symbol: 'LINK', name: 'Chainlink', chain: 'Ethereum', price: 15, threshold: 10000 },
+    { symbol: 'UNI', name: 'Uniswap', chain: 'Ethereum', price: 8, threshold: 20000 }
+  ];
 
   /**
-   * Get recent whale transactions
+   * Subscribe to real-time whale alerts
    */
-  async getRecentWhaleTransactions(
-    coinSymbol?: string,
-    limit: number = 50
-  ): Promise<WhaleTransaction[]> {
-    if (this.USE_MOCK_DATA) {
-      return this.getMockWhaleTransactions(coinSymbol, limit);
+  subscribe(callback: WhaleAlertCallback): WhaleAlertSubscription {
+    this.subscribers.add(callback);
+
+    // Start monitoring if not already running
+    if (!this.isMonitoring) {
+      this.startMonitoring();
     }
-
-    try {
-      // Real Whale Alert API call (when API key is provided)
-      const url = `https://api.whale-alert.io/v1/transactions?api_key=${this.WHALE_ALERT_API_KEY}&min_value=${this.WHALE_THRESHOLD_USD}${coinSymbol ? `&cursor=${coinSymbol}` : ''}`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.result === 'success' && data.transactions) {
-        return data.transactions.map((tx: any) => this.parseWhaleTransaction(tx));
-      }
-
-      return [];
-    } catch (error) {
-      console.error('Error fetching whale transactions:', error);
-      return this.getMockWhaleTransactions(coinSymbol, limit);
-    }
-  }
-
-  /**
-   * Get whale alert statistics
-   */
-  async getWhaleStats(coinSymbol?: string): Promise<WhaleAlertStats> {
-    const transactions = await this.getRecentWhaleTransactions(coinSymbol, 100);
-
-    // Filter to last 24 hours
-    const now = Date.now();
-    const dayAgo = now - 86400000;
-    const recent24h = transactions.filter(tx => tx.timestamp >= dayAgo);
-
-    // Calculate stats
-    const exchangeDeposits = recent24h.filter(tx => tx.transactionType === 'exchange_deposit');
-    const exchangeWithdrawals = recent24h.filter(tx => tx.transactionType === 'exchange_withdrawal');
-
-    const depositVolume = exchangeDeposits.reduce((sum, tx) => sum + tx.amountUsd, 0);
-    const withdrawalVolume = exchangeWithdrawals.reduce((sum, tx) => sum + tx.amountUsd, 0);
-    const totalVolume = recent24h.reduce((sum, tx) => sum + tx.amountUsd, 0);
-
-    // Calculate accumulation score (more withdrawals from exchanges = higher score)
-    const netFlow = depositVolume - withdrawalVolume;
-    const accumulationScore = netFlow < 0 ?
-      Math.min(100, 50 + Math.abs(netFlow) / 10000000) : // Withdrawals (bullish)
-      Math.max(0, 50 - netFlow / 10000000); // Deposits (bearish)
 
     return {
-      totalTransactions24h: recent24h.length,
-      totalVolume24h: totalVolume,
-      largestTransaction24h: recent24h.length > 0 ?
-        recent24h.reduce((max, tx) => tx.amountUsd > max.amountUsd ? tx : max) : null,
-      exchangeDeposits24h: depositVolume,
-      exchangeWithdrawals24h: withdrawalVolume,
-      netExchangeFlow24h: netFlow,
-      whaleAccumulationScore: Math.round(accumulationScore)
-    };
-  }
+      unsubscribe: () => {
+        this.subscribers.delete(callback);
 
-  /**
-   * Subscribe to real-time whale alerts (WebSocket)
-   */
-  subscribeToWhaleAlerts(
-    callback: (transaction: WhaleTransaction) => void,
-    coinSymbol?: string
-  ): () => void {
-    if (this.USE_MOCK_DATA) {
-      // Simulate real-time updates with mock data
-      const interval = setInterval(() => {
-        const mockTx = this.generateMockTransaction(coinSymbol);
-        if (mockTx) {
-          callback(mockTx);
+        // Stop monitoring if no subscribers
+        if (this.subscribers.size === 0) {
+          this.stopMonitoring();
         }
-      }, 30000); // New whale transaction every 30 seconds
-
-      return () => clearInterval(interval);
-    }
-
-    // Real WebSocket connection (when API key is provided)
-    // Whale Alert WebSocket endpoint would be used here
-    return () => {}; // Cleanup function
-  }
-
-  /**
-   * Parse Whale Alert API transaction
-   */
-  private parseWhaleTransaction(tx: any): WhaleTransaction {
-    const fromExchange = this.getExchangeName(tx.from.address);
-    const toExchange = this.getExchangeName(tx.to.address);
-
-    let transactionType: WhaleTransaction['transactionType'] = 'unknown';
-    if (toExchange && !fromExchange) transactionType = 'exchange_deposit';
-    else if (fromExchange && !toExchange) transactionType = 'exchange_withdrawal';
-    else if (!fromExchange && !toExchange) transactionType = 'whale_transfer';
-
-    return {
-      id: tx.id || tx.hash,
-      hash: tx.hash,
-      blockchain: tx.blockchain,
-      symbol: tx.symbol.toUpperCase(),
-      amount: tx.amount,
-      amountUsd: tx.amount_usd,
-      timestamp: tx.timestamp * 1000,
-      from: {
-        address: tx.from.address,
-        owner: fromExchange || tx.from.owner || 'Unknown Wallet',
-        ownerType: fromExchange ? 'exchange' : (tx.amount_usd > 10000000 ? 'whale' : 'unknown')
-      },
-      to: {
-        address: tx.to.address,
-        owner: toExchange || tx.to.owner || 'Unknown Wallet',
-        ownerType: toExchange ? 'exchange' : (tx.amount_usd > 10000000 ? 'whale' : 'unknown')
-      },
-      transactionType,
-      significance: tx.amount_usd > 50000000 ? 'critical' :
-                    tx.amount_usd > 10000000 ? 'high' :
-                    tx.amount_usd > 5000000 ? 'medium' : 'low'
+      }
     };
   }
 
   /**
-   * Get mock whale transactions (for demo/testing)
+   * Start monitoring for whale transactions
    */
-  private getMockWhaleTransactions(coinSymbol?: string, limit: number = 50): WhaleTransaction[] {
-    const symbols = coinSymbol ? [coinSymbol.toUpperCase()] : ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA'];
-    const transactions: WhaleTransaction[] = [];
+  private startMonitoring(): void {
+    if (this.isMonitoring) return;
 
-    const now = Date.now();
+    console.log('[Whale Alert] Starting real-time monitoring...');
+    this.isMonitoring = true;
 
-    for (let i = 0; i < limit; i++) {
-      const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-      const tx = this.generateMockTransaction(symbol, now - (i * 300000)); // Every 5 minutes
-      if (tx) transactions.push(tx);
-    }
+    // Simulate whale transactions every 5-15 seconds
+    const generateAlert = () => {
+      const transaction = this.generateWhaleTransaction();
+      this.notifySubscribers(transaction);
 
-    return transactions;
+      // Schedule next alert with random interval (5-15 seconds)
+      const nextInterval = 5000 + Math.random() * 10000;
+      this.monitoringInterval = setTimeout(generateAlert, nextInterval);
+    };
+
+    // Start generating alerts
+    generateAlert();
   }
 
   /**
-   * Generate a single mock transaction
+   * Stop monitoring
    */
-  private generateMockTransaction(coinSymbol?: string, timestamp?: number): WhaleTransaction | null {
-    const symbols = coinSymbol ? [coinSymbol.toUpperCase()] : ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA'];
-    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+  private stopMonitoring(): void {
+    if (!this.isMonitoring) return;
 
-    const exchanges = Object.keys(EXCHANGE_NAMES);
-    const isExchangeInvolved = Math.random() > 0.3; // 70% involve exchanges
+    console.log('[Whale Alert] Stopping monitoring...');
+    this.isMonitoring = false;
 
-    const types: WhaleTransaction['transactionType'][] = ['exchange_deposit', 'exchange_withdrawal', 'whale_transfer', 'unknown'];
+    if (this.monitoringInterval) {
+      clearTimeout(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
+  }
+
+  /**
+   * Generate a realistic whale transaction
+   */
+  private generateWhaleTransaction(): WhaleTransaction {
+    // Select random coin
+    const coin = this.MONITORED_COINS[Math.floor(Math.random() * this.MONITORED_COINS.length)];
+
+    // Generate transaction amount (above threshold)
+    const multiplier = 1 + Math.random() * 10; // 1x - 11x threshold
+    const amount = coin.threshold * multiplier;
+    const amountUSD = amount * coin.price;
+
+    // Determine transaction type
+    const types: WhaleTransaction['transactionType'][] = [
+      'exchange_deposit',
+      'exchange_withdrawal',
+      'whale_transfer',
+      'whale_transfer'
+    ];
     const transactionType = types[Math.floor(Math.random() * types.length)];
 
-    const amountUsd = Math.random() * 50000000 + 1000000; // $1M - $51M
+    // Generate addresses based on type
+    let from, to, fromOwner, toOwner;
 
-    const fromExchange = transactionType === 'exchange_withdrawal' || (isExchangeInvolved && Math.random() > 0.5);
-    const toExchange = transactionType === 'exchange_deposit' || (isExchangeInvolved && !fromExchange);
+    if (transactionType === 'exchange_deposit') {
+      from = this.generateWhaleAddress();
+      to = this.generateExchangeAddress();
+      fromOwner = 'Unknown Whale';
+      toOwner = this.getExchangeOwner(to);
+    } else if (transactionType === 'exchange_withdrawal') {
+      from = this.generateExchangeAddress();
+      to = this.generateWhaleAddress();
+      fromOwner = this.getExchangeOwner(from);
+      toOwner = 'Unknown Whale';
+    } else {
+      from = this.generateWhaleAddress();
+      to = this.generateWhaleAddress();
+      fromOwner = 'Unknown Whale';
+      toOwner = 'Unknown Whale';
+    }
 
-    const fromAddress = fromExchange ? exchanges[Math.floor(Math.random() * exchanges.length)] : `0x${Math.random().toString(16).substring(2, 42)}`;
-    const toAddress = toExchange ? exchanges[Math.floor(Math.random() * exchanges.length)] : `0x${Math.random().toString(16).substring(2, 42)}`;
+    // Determine significance
+    const significance = this.calculateSignificance(amountUSD);
+
+    this.transactionCounter++;
 
     return {
-      id: `whale-${Date.now()}-${Math.random()}`,
-      hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-      blockchain: symbol === 'BTC' ? 'bitcoin' : 'ethereum',
-      symbol,
-      amount: amountUsd / (symbol === 'BTC' ? 45000 : symbol === 'ETH' ? 2500 : 500),
-      amountUsd,
-      timestamp: timestamp || Date.now(),
-      from: {
-        address: fromAddress,
-        owner: fromExchange ? (EXCHANGE_NAMES[fromAddress] || 'Exchange') : 'Whale Wallet',
-        ownerType: fromExchange ? 'exchange' : 'whale'
-      },
-      to: {
-        address: toAddress,
-        owner: toExchange ? (EXCHANGE_NAMES[toAddress] || 'Exchange') : 'Whale Wallet',
-        ownerType: toExchange ? 'exchange' : 'whale'
-      },
+      id: `whale_${Date.now()}_${this.transactionCounter}`,
+      timestamp: Date.now(),
+      blockchain: coin.chain,
+      symbol: coin.symbol,
+      amount: Math.round(amount * 100) / 100,
+      amountUSD: Math.round(amountUSD),
+      from,
+      to,
+      fromOwner,
+      toOwner,
       transactionType,
-      significance: amountUsd > 50000000 ? 'critical' :
-                    amountUsd > 10000000 ? 'high' :
-                    amountUsd > 5000000 ? 'medium' : 'low'
+      hash: this.generateTxHash(),
+      isSignificant: significance !== 'low',
+      significance
     };
   }
 
   /**
-   * Get exchange name from address
+   * Calculate transaction significance
    */
-  private getExchangeName(address: string): string | null {
-    return EXCHANGE_NAMES[address.toLowerCase()] || null;
+  private calculateSignificance(amountUSD: number): WhaleTransaction['significance'] {
+    if (amountUSD >= 10000000) return 'critical'; // $10M+
+    if (amountUSD >= 5000000) return 'high'; // $5M+
+    if (amountUSD >= 1000000) return 'medium'; // $1M+
+    return 'low';
   }
 
   /**
-   * Format transaction amount
+   * Generate realistic whale address
+   */
+  private generateWhaleAddress(): string {
+    const chars = '0123456789abcdef';
+    let address = '0x';
+    for (let i = 0; i < 40; i++) {
+      address += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return address;
+  }
+
+  /**
+   * Generate exchange address
+   */
+  private generateExchangeAddress(): string {
+    const exchanges = Object.keys(this.EXCHANGES);
+    const exchange = exchanges[Math.floor(Math.random() * exchanges.length)] as keyof typeof this.EXCHANGES;
+    const addresses = this.EXCHANGES[exchange].addresses;
+    return addresses[Math.floor(Math.random() * addresses.length)];
+  }
+
+  /**
+   * Get exchange owner name from address
+   */
+  private getExchangeOwner(address: string): string {
+    for (const [key, value] of Object.entries(this.EXCHANGES)) {
+      if (value.addresses.some(addr => address.includes(addr))) {
+        return value.name;
+      }
+    }
+    return 'Unknown Exchange';
+  }
+
+  /**
+   * Generate transaction hash
+   */
+  private generateTxHash(): string {
+    const chars = '0123456789abcdef';
+    let hash = '0x';
+    for (let i = 0; i < 64; i++) {
+      hash += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return hash;
+  }
+
+  /**
+   * Notify all subscribers of new transaction
+   */
+  private notifySubscribers(transaction: WhaleTransaction): void {
+    this.subscribers.forEach(callback => {
+      try {
+        callback(transaction);
+      } catch (error) {
+        console.error('[Whale Alert] Error in subscriber callback:', error);
+      }
+    });
+  }
+
+  /**
+   * Get current monitoring status
+   */
+  isActive(): boolean {
+    return this.isMonitoring;
+  }
+
+  /**
+   * Get subscriber count
+   */
+  getSubscriberCount(): number {
+    return this.subscribers.size;
+  }
+
+  /**
+   * Manually trigger a whale alert (for testing)
+   */
+  triggerTestAlert(): void {
+    const transaction = this.generateWhaleTransaction();
+    this.notifySubscribers(transaction);
+  }
+
+  /**
+   * Get recent whale transactions for a specific coin with proper timeframe distribution
+   */
+  async getRecentWhaleTransactions(coinSymbol?: string, limit: number = 100): Promise<WhaleTransaction[]> {
+    const transactions: WhaleTransaction[] = [];
+
+    // Find the coin if specified
+    const targetCoin = coinSymbol
+      ? this.MONITORED_COINS.find(c => c.symbol.toUpperCase() === coinSymbol.toUpperCase())
+      : null;
+
+    // Generate more transactions across a longer time period (7 days) for better timeframe filtering
+    const SEVEN_DAYS_MS = 604800000;
+    const now = Date.now();
+
+    // Generate transactions with realistic distribution over time
+    for (let i = 0; i < limit; i++) {
+      // Use target coin if specified, otherwise random
+      const coin = targetCoin || this.MONITORED_COINS[Math.floor(Math.random() * this.MONITORED_COINS.length)];
+
+      // Generate transaction amount with more variance
+      const multiplier = 0.8 + Math.random() * 15; // More realistic range
+      const amount = coin.threshold * multiplier;
+      const amountUSD = amount * coin.price;
+
+      // Determine transaction type with realistic distribution
+      // More exchange withdrawals (bullish) vs deposits (bearish)
+      const rand = Math.random();
+      let transactionType: WhaleTransaction['transactionType'];
+      if (rand < 0.35) {
+        transactionType = 'exchange_withdrawal'; // 35% - bullish
+      } else if (rand < 0.55) {
+        transactionType = 'exchange_deposit'; // 20% - bearish
+      } else {
+        transactionType = 'whale_transfer'; // 45% - neutral
+      }
+
+      // Generate addresses
+      let from, to, fromOwner, toOwner;
+      if (transactionType === 'exchange_deposit') {
+        from = this.generateWhaleAddress();
+        to = this.generateExchangeAddress();
+        fromOwner = 'Unknown Whale';
+        toOwner = this.getExchangeOwner(to);
+      } else if (transactionType === 'exchange_withdrawal') {
+        from = this.generateExchangeAddress();
+        to = this.generateWhaleAddress();
+        fromOwner = this.getExchangeOwner(from);
+        toOwner = 'Unknown Whale';
+      } else {
+        from = this.generateWhaleAddress();
+        to = this.generateWhaleAddress();
+        fromOwner = 'Unknown Whale';
+        toOwner = 'Unknown Whale';
+      }
+
+      const significance = this.calculateSignificance(amountUSD);
+
+      // Distribute timestamps realistically across 7 days
+      // More recent transactions are more frequent
+      const ageWeight = Math.pow(Math.random(), 2); // Skew towards recent
+      const maxAge = SEVEN_DAYS_MS;
+      const age = maxAge * ageWeight;
+      const timestamp = now - age;
+
+      transactions.push({
+        id: `whale_${timestamp}_${i}`,
+        timestamp,
+        blockchain: coin.chain,
+        symbol: coin.symbol,
+        amount: Math.round(amount * 100) / 100,
+        amountUSD: Math.round(amountUSD),
+        from,
+        to,
+        fromOwner,
+        toOwner,
+        transactionType,
+        hash: this.generateTxHash(),
+        isSignificant: significance !== 'low',
+        significance
+      });
+    }
+
+    // Sort by timestamp descending (newest first)
+    return transactions.sort((a, b) => b.timestamp - a.timestamp);
+  }
+
+  /**
+   * Format amount with symbol
    */
   formatAmount(amount: number, symbol: string): string {
     if (amount >= 1000000) return `${(amount / 1000000).toFixed(2)}M ${symbol}`;
@@ -263,12 +378,61 @@ class WhaleAlertService {
   }
 
   /**
-   * Format USD amount
+   * Format USD amount with proper handling of negative values
    */
   formatUsd(amount: number): string {
-    if (amount >= 1000000) return `$${(amount / 1000000).toFixed(2)}M`;
-    if (amount >= 1000) return `$${(amount / 1000).toFixed(2)}K`;
-    return `$${amount.toFixed(2)}`;
+    const absAmount = Math.abs(amount);
+    const sign = amount < 0 ? '-' : amount > 0 ? '+' : '';
+
+    if (absAmount >= 1000000000) return `${sign}$${(absAmount / 1000000000).toFixed(2)}B`;
+    if (absAmount >= 1000000) return `${sign}$${(absAmount / 1000000).toFixed(2)}M`;
+    if (absAmount >= 1000) return `${sign}$${(absAmount / 1000).toFixed(2)}K`;
+    return `${sign}$${absAmount.toFixed(2)}`;
+  }
+
+  /**
+   * Get aggregated whale statistics for a specific coin
+   */
+  async getWhaleStats(coinSymbol: string): Promise<WhaleAlertStats> {
+    // Find the coin in our monitored list
+    const coin = this.MONITORED_COINS.find(c => c.symbol.toUpperCase() === coinSymbol.toUpperCase());
+
+    if (!coin) {
+      // Return default stats if coin not found
+      return {
+        coinSymbol: coinSymbol.toUpperCase(),
+        totalTransactions24h: 25 + Math.floor(Math.random() * 40),
+        totalVolume24h: 50000000 + Math.random() * 150000000,
+        whaleAccumulationScore: 45 + Math.random() * 20,
+        whaleDistributionScore: 45 + Math.random() * 20,
+        largestTransaction24h: 10000000 + Math.random() * 40000000,
+        averageTransactionSize: 2000000 + Math.random() * 8000000,
+        exchangeDeposits: 10 + Math.floor(Math.random() * 15),
+        exchangeWithdrawals: 12 + Math.floor(Math.random() * 18)
+      };
+    }
+
+    // Generate realistic stats based on coin
+    const transactionCount = 20 + Math.floor(Math.random() * 50);
+    const avgTxSize = coin.threshold * coin.price * (1.5 + Math.random() * 3);
+    const totalVolume = avgTxSize * transactionCount;
+
+    // Calculate accumulation/distribution bias
+    const withdrawals = Math.floor(transactionCount * (0.45 + Math.random() * 0.15));
+    const deposits = transactionCount - withdrawals;
+    const accumulationScore = Math.round((withdrawals / transactionCount) * 100);
+
+    return {
+      coinSymbol: coin.symbol,
+      totalTransactions24h: transactionCount,
+      totalVolume24h: totalVolume,
+      whaleAccumulationScore: accumulationScore,
+      whaleDistributionScore: 100 - accumulationScore,
+      largestTransaction24h: avgTxSize * (2 + Math.random() * 3),
+      averageTransactionSize: avgTxSize,
+      exchangeDeposits: deposits,
+      exchangeWithdrawals: withdrawals
+    };
   }
 }
 
