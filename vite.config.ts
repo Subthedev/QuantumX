@@ -25,8 +25,11 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#FF5F6D',
         background_color: '#0B0C10',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'portrait-primary',
         start_url: '/',
+        scope: '/',
+        categories: ['finance', 'productivity', 'business'],
+        screenshots: [],
         icons: [
           {
             src: '/favicon.webp',
@@ -40,7 +43,20 @@ export default defineConfig(({ mode }) => ({
             type: 'image/webp',
             purpose: 'any maskable'
           }
-        ]
+        ],
+        share_target: {
+          action: '/share',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url'
+          }
+        }
+      },
+      devOptions: {
+        enabled: true
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,webp,svg,woff2}'],
