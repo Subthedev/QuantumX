@@ -374,8 +374,7 @@ const AIAnalysis = () => {
     const cards: Record<string, JSX.Element> = {
       technical: <TechnicalAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
       fundamental: <FundamentalAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
-      sentiment: <SentimentAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />,
-      onchain: <OnChainAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />
+      sentiment: <SentimentAnalysisCard data={structuredAnalysis as any} coinData={coinData as any} />
     };
 
     return cards[analysisType] || null;

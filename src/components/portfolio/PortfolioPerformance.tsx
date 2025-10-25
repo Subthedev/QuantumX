@@ -125,24 +125,24 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
             </BarChart>
           </ResponsiveContainer>
 
-          {/* Performance Summary */}
+          {/* Performance Summary - Real-time Price Changes */}
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-              <div className="text-xs text-muted-foreground mb-1">Portfolio Gainers</div>
+              <div className="text-xs text-muted-foreground mb-1">Portfolio Gainers (24h)</div>
               <div className="text-xl md:text-2xl font-bold text-green-500">
-                {gainers.length}
+                {gainers.length > 0 ? `+${(gainers.reduce((sum, g) => sum + g.price_change_24h, 0) / gainers.length).toFixed(2)}%` : '0%'}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                {gainers.length > 0 ? `Avg: +${(gainers.reduce((sum, g) => sum + g.performance, 0) / gainers.length).toFixed(1)}%` : 'No gainers'}
+                {gainers.length} position{gainers.length !== 1 ? 's' : ''} • Avg 24h change
               </div>
             </div>
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <div className="text-xs text-muted-foreground mb-1">Portfolio Losers</div>
+              <div className="text-xs text-muted-foreground mb-1">Portfolio Losers (24h)</div>
               <div className="text-xl md:text-2xl font-bold text-red-500">
-                {losers.length}
+                {losers.length > 0 ? `${(losers.reduce((sum, l) => sum + l.price_change_24h, 0) / losers.length).toFixed(2)}%` : '0%'}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                {losers.length > 0 ? `Avg: ${(losers.reduce((sum, l) => sum + l.performance, 0) / losers.length).toFixed(1)}%` : 'No losers'}
+                {losers.length} position{losers.length !== 1 ? 's' : ''} • Avg 24h change
               </div>
             </div>
           </div>
