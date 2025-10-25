@@ -16,7 +16,6 @@ import { AddProfitGuardDialog } from '@/components/profit-guard/AddProfitGuardDi
 import { useRealtimePortfolio } from '@/hooks/useRealtimePortfolio';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-
 interface Holding {
   id: string;
   coin_id: string;
@@ -32,7 +31,6 @@ interface Holding {
   profit_loss?: number;
   profit_loss_percentage?: number;
 }
-
 function Portfolio() {
   const navigate = useNavigate();
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -49,20 +47,20 @@ function Portfolio() {
     marketData,
     lastUpdate,
     isLoading: realtimeLoading,
-    refresh,
+    refresh
   } = useRealtimePortfolio(holdings, 60000); // 60-second auto-refresh
 
   useEffect(() => {
     fetchHoldings();
   }, []);
-
   const fetchHoldings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('portfolio_holdings')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('portfolio_holdings').select('*').order('created_at', {
+        ascending: false
+      });
       if (error) throw error;
       setHoldings(data || []);
     } catch (error) {
@@ -70,7 +68,7 @@ function Portfolio() {
       toast({
         title: 'Error',
         description: 'Failed to load portfolio',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -83,19 +81,15 @@ function Portfolio() {
     await refresh();
     setTimeout(() => setIsRefreshing(false), 500);
   };
-
   const handleDeleteHolding = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('portfolio_holdings')
-        .delete()
-        .eq('id', id);
-
+      const {
+        error
+      } = await supabase.from('portfolio_holdings').delete().eq('id', id);
       if (error) throw error;
-
       toast({
         title: 'Success',
-        description: 'Holding deleted successfully',
+        description: 'Holding deleted successfully'
       });
       fetchHoldings();
     } catch (error) {
@@ -103,37 +97,30 @@ function Portfolio() {
       toast({
         title: 'Error',
         description: 'Failed to delete holding',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   };
-
   const handleActivateProfitGuard = (holding: Holding) => {
     setSelectedHoldingForGuard(holding);
     setIsProfitGuardDialogOpen(true);
   };
-
   const handleProfitGuardSuccess = () => {
     toast({
       title: 'Success',
-      description: 'AI ProfitGuard activated successfully',
+      description: 'AI ProfitGuard activated successfully'
     });
     setSelectedHoldingForGuard(null);
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
+    return <div className="min-h-screen bg-background">
         <MobileOptimizedHeader />
         <div className="flex items-center justify-center h-[50vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <MobileOptimizedHeader />
       
       <main className="container mx-auto px-4 py-4 md:py-8 max-w-7xl">
@@ -143,32 +130,18 @@ function Portfolio() {
             <h1 className="text-2xl md:text-3xl font-bold">Portfolio Tracker</h1>
             <p className="text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
               <span>Track your cryptocurrency investments</span>
-              <Badge variant="outline" className="text-xs bg-green-500/10">
-                <span className="text-green-500 mr-1 animate-pulse">●</span> Live • Updates every 60s
-              </Badge>
-              {lastUpdate && (
-                <span className="text-xs text-muted-foreground">
+              
+              {lastUpdate && <span className="text-xs text-muted-foreground">
                   Last update: {new Date().getTime() - lastUpdate.getTime() < 5000 ? 'just now' : `${Math.floor((new Date().getTime() - lastUpdate.getTime()) / 1000)}s ago`}
-                </span>
-              )}
+                </span>}
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button
-              onClick={handleManualRefresh}
-              variant="outline"
-              className="gap-2"
-              size="lg"
-              disabled={isRefreshing}
-            >
+            <Button onClick={handleManualRefresh} variant="outline" className="gap-2" size="lg" disabled={isRefreshing}>
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="gap-2 flex-1 sm:flex-initial"
-              size="lg"
-            >
+            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2 flex-1 sm:flex-initial" size="lg">
               <Plus className="h-4 w-4" />
               Add Holding
             </Button>
@@ -186,10 +159,10 @@ function Portfolio() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold">
-                ${metrics.totalValue.toLocaleString(undefined, { 
-                  minimumFractionDigits: 2, 
-                  maximumFractionDigits: 2 
-                })}
+                ${metrics.totalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
               </div>
             </CardContent>
           </Card>
@@ -203,10 +176,10 @@ function Portfolio() {
             </CardHeader>
             <CardContent>
               <div className="text-lg md:text-2xl font-bold">
-                ${metrics.totalCost.toLocaleString(undefined, { 
-                  minimumFractionDigits: 0, 
-                  maximumFractionDigits: 0 
-                })}
+                ${metrics.totalCost.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              })}
               </div>
             </CardContent>
           </Card>
@@ -214,27 +187,18 @@ function Portfolio() {
           <Card>
             <CardHeader className="pb-2 md:pb-3">
               <CardDescription className="flex items-center gap-2 text-xs md:text-sm">
-                {metrics.totalProfitLoss >= 0 ? (
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                )}
+                {metrics.totalProfitLoss >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
                 P&L
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className={`text-lg md:text-2xl font-bold ${
-                metrics.totalProfitLoss >= 0 ? 'text-green-500' : 'text-red-500'
-              }`}>
-                ${Math.abs(metrics.totalProfitLoss).toLocaleString(undefined, { 
-                  minimumFractionDigits: 0, 
-                  maximumFractionDigits: 0 
-                })}
+              <div className={`text-lg md:text-2xl font-bold ${metrics.totalProfitLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                ${Math.abs(metrics.totalProfitLoss).toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              })}
               </div>
-              <Badge 
-                variant={metrics.totalProfitLoss >= 0 ? 'default' : 'destructive'}
-                className="mt-1 text-xs"
-              >
+              <Badge variant={metrics.totalProfitLoss >= 0 ? 'default' : 'destructive'} className="mt-1 text-xs">
                 {metrics.totalProfitLoss >= 0 ? '+' : ''}{metrics.totalProfitLossPercentage.toFixed(1)}%
               </Badge>
             </CardContent>
@@ -252,15 +216,9 @@ function Portfolio() {
         </div>
 
         {/* Portfolio Insights - Updates every 60s */}
-        {holdings.length > 0 && metrics.holdings.length > 0 && (
-          <div className="mb-6">
-            <PortfolioInsights
-              holdings={metrics.holdings}
-              totalValue={metrics.totalValue}
-              lastUpdate={lastUpdate}
-            />
-          </div>
-        )}
+        {holdings.length > 0 && metrics.holdings.length > 0 && <div className="mb-6">
+            <PortfolioInsights holdings={metrics.holdings} totalValue={metrics.totalValue} lastUpdate={lastUpdate} />
+          </div>}
 
         <Tabs defaultValue="holdings" className="space-y-4">
           <TabsList className="grid w-full max-w-full grid-cols-3">
@@ -270,8 +228,7 @@ function Portfolio() {
           </TabsList>
 
           <TabsContent value="holdings" className="space-y-4">
-            {metrics.holdings.length === 0 ? (
-              <Card>
+            {metrics.holdings.length === 0 ? <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <PieChart className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No holdings yet</h3>
@@ -283,21 +240,14 @@ function Portfolio() {
                     Add Your First Holding
                   </Button>
                 </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
+              </Card> : <div className="space-y-3">
                 {/* Mobile View - Card Layout */}
                 <div className="lg:hidden space-y-3">
-                  {metrics.holdings.map((holding) => (
-                    <Card key={holding.id}>
+                  {metrics.holdings.map(holding => <Card key={holding.id}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={holding.coin_image} 
-                              alt={holding.coin_name}
-                              className="h-10 w-10 rounded-full"
-                            />
+                            <img src={holding.coin_image} alt={holding.coin_name} className="h-10 w-10 rounded-full" />
                             <div>
                               <div className="font-semibold">{holding.coin_name}</div>
                               <div className="text-sm text-muted-foreground uppercase">
@@ -306,18 +256,10 @@ function Portfolio() {
                             </div>
                           </div>
                           <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setEditingHolding(holding)}
-                            >
+                            <Button size="sm" variant="ghost" onClick={() => setEditingHolding(holding)}>
                               <Edit2 className="h-4 w-4" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteHolding(holding.id)}
-                            >
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteHolding(holding.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -327,27 +269,27 @@ function Portfolio() {
                           <div>
                             <p className="text-muted-foreground mb-1">Quantity</p>
                             <p className="font-medium">
-                              {holding.quantity.toLocaleString(undefined, { 
-                                maximumFractionDigits: 4 
-                              })}
+                              {holding.quantity.toLocaleString(undefined, {
+                          maximumFractionDigits: 4
+                        })}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground mb-1">Value</p>
                             <p className="font-medium">
-                              ${holding.value?.toLocaleString(undefined, { 
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2 
-                              })}
+                              ${holding.value?.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted-foreground mb-1">Avg Buy</p>
                             <p className="font-medium">
-                              ${holding.purchase_price.toLocaleString(undefined, { 
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2 
-                              })}
+                              ${holding.purchase_price.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
                             </p>
                           </div>
                           <div>
@@ -359,20 +301,12 @@ function Portfolio() {
                         </div>
                         
                         {/* Activate Guard Button - Only show for profitable positions */}
-                        {holding.profit_loss_percentage && holding.profit_loss_percentage > 5 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full mt-3 gap-2 border-primary/20 text-primary hover:bg-primary/10"
-                            onClick={() => handleActivateProfitGuard(holding)}
-                          >
+                        {holding.profit_loss_percentage && holding.profit_loss_percentage > 5 && <Button variant="outline" size="sm" className="w-full mt-3 gap-2 border-primary/20 text-primary hover:bg-primary/10" onClick={() => handleActivateProfitGuard(holding)}>
                             <Shield className="h-4 w-4" />
                             Activate AI ProfitGuard
-                          </Button>
-                        )}
+                          </Button>}
                       </CardContent>
-                    </Card>
-                  ))}
+                    </Card>)}
                 </div>
 
                 {/* Desktop View - Table Layout */}
@@ -393,15 +327,10 @@ function Portfolio() {
                           </tr>
                         </thead>
                         <tbody>
-                          {metrics.holdings.map((holding) => (
-                            <tr key={holding.id} className="border-b hover:bg-muted/50 transition-colors">
+                          {metrics.holdings.map(holding => <tr key={holding.id} className="border-b hover:bg-muted/50 transition-colors">
                               <td className="p-4">
                                 <div className="flex items-center gap-3">
-                                  <img 
-                                    src={holding.coin_image} 
-                                    alt={holding.coin_name}
-                                    className="h-8 w-8 rounded-full"
-                                  />
+                                  <img src={holding.coin_image} alt={holding.coin_name} className="h-8 w-8 rounded-full" />
                                   <div>
                                     <div className="font-medium">{holding.coin_name}</div>
                                     <div className="text-sm text-muted-foreground uppercase">
@@ -411,36 +340,36 @@ function Portfolio() {
                                 </div>
                               </td>
                               <td className="text-right p-4">
-                                {holding.quantity.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 8 
-                                })}
+                                {holding.quantity.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 8
+                          })}
                               </td>
                               <td className="text-right p-4">
-                                ${holding.purchase_price.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2 
-                                })}
+                                ${holding.purchase_price.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
                               </td>
                               <td className="text-right p-4">
-                                ${holding.current_price?.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2 
-                                })}
+                                ${holding.current_price?.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
                               </td>
                               <td className="text-right p-4 font-medium">
-                                ${holding.value?.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2 
-                                })}
+                                ${holding.value?.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
                               </td>
                               <td className="text-right p-4">
                                 <div className={holding.profit_loss! >= 0 ? 'text-green-500' : 'text-red-500'}>
                                   <div className="font-medium">
-                                    ${Math.abs(holding.profit_loss!).toLocaleString(undefined, { 
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2 
-                                    })}
+                                    ${Math.abs(holding.profit_loss!).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              })}
                                   </div>
                                   <div className="text-sm">
                                     {holding.profit_loss! >= 0 ? '+' : ''}{holding.profit_loss_percentage?.toFixed(2)}%
@@ -452,109 +381,62 @@ function Portfolio() {
                               </td>
                               <td className="text-right p-4">
                                 <div className="flex gap-2 justify-end">
-                                  {holding.profit_loss_percentage && holding.profit_loss_percentage > 5 && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="border-primary/20 text-primary hover:bg-primary/10"
-                                      onClick={() => handleActivateProfitGuard(holding)}
-                                    >
+                                  {holding.profit_loss_percentage && holding.profit_loss_percentage > 5 && <Button size="sm" variant="outline" className="border-primary/20 text-primary hover:bg-primary/10" onClick={() => handleActivateProfitGuard(holding)}>
                                       <Shield className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setEditingHolding(holding)}
-                                  >
+                                    </Button>}
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingHolding(holding)}>
                                     <Edit2 className="h-4 w-4" />
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteHolding(holding.id)}
-                                  >
+                                  <Button size="sm" variant="ghost" onClick={() => handleDeleteHolding(holding.id)}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </td>
-                            </tr>
-                          ))}
+                            </tr>)}
                         </tbody>
                       </table>
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            )}
+              </div>}
           </TabsContent>
 
           <TabsContent value="allocation" className="space-y-4">
-            {metrics.holdings.length === 0 ? (
-              <Card>
+            {metrics.holdings.length === 0 ? <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <ChartBar className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-sm text-muted-foreground">Add holdings to see allocation</p>
                 </CardContent>
-              </Card>
-            ) : (
-              <PortfolioChart holdings={metrics.holdings} />
-            )}
+              </Card> : <PortfolioChart holdings={metrics.holdings} />}
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-4">
-            {metrics.holdings.length === 0 ? (
-              <Card>
+            {metrics.holdings.length === 0 ? <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-sm text-muted-foreground">Add holdings to see performance</p>
                 </CardContent>
-              </Card>
-            ) : (
-              <PortfolioPerformance
-                holdings={metrics.holdings}
-                marketData={marketData}
-                lastUpdate={lastUpdate}
-              />
-            )}
+              </Card> : <PortfolioPerformance holdings={metrics.holdings} marketData={marketData} lastUpdate={lastUpdate} />}
           </TabsContent>
         </Tabs>
 
-        <AddHoldingDialog
-          open={isAddDialogOpen}
-          onOpenChange={setIsAddDialogOpen}
-          onSuccess={fetchHoldings}
-        />
+        <AddHoldingDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onSuccess={fetchHoldings} />
 
-        {editingHolding && (
-          <EditHoldingDialog
-            holding={editingHolding}
-            open={!!editingHolding}
-            onOpenChange={(open) => !open && setEditingHolding(null)}
-            onSuccess={() => {
-              fetchHoldings();
-              setEditingHolding(null);
-            }}
-          />
-        )}
+        {editingHolding && <EditHoldingDialog holding={editingHolding} open={!!editingHolding} onOpenChange={open => !open && setEditingHolding(null)} onSuccess={() => {
+        fetchHoldings();
+        setEditingHolding(null);
+      }} />}
 
-        <AddProfitGuardDialog
-          open={isProfitGuardDialogOpen}
-          onOpenChange={setIsProfitGuardDialogOpen}
-          onSuccess={handleProfitGuardSuccess}
-          prefilledHolding={selectedHoldingForGuard ? {
-            coin_id: selectedHoldingForGuard.coin_id,
-            coin_symbol: selectedHoldingForGuard.coin_symbol,
-            coin_name: selectedHoldingForGuard.coin_name,
-            coin_image: selectedHoldingForGuard.coin_image,
-            purchase_price: selectedHoldingForGuard.purchase_price,
-            quantity: selectedHoldingForGuard.quantity,
-            current_price: selectedHoldingForGuard.current_price,
-          } : undefined}
-        />
+        <AddProfitGuardDialog open={isProfitGuardDialogOpen} onOpenChange={setIsProfitGuardDialogOpen} onSuccess={handleProfitGuardSuccess} prefilledHolding={selectedHoldingForGuard ? {
+        coin_id: selectedHoldingForGuard.coin_id,
+        coin_symbol: selectedHoldingForGuard.coin_symbol,
+        coin_name: selectedHoldingForGuard.coin_name,
+        coin_image: selectedHoldingForGuard.coin_image,
+        purchase_price: selectedHoldingForGuard.purchase_price,
+        quantity: selectedHoldingForGuard.quantity,
+        current_price: selectedHoldingForGuard.current_price
+      } : undefined} />
       </main>
-    </div>
-  );
+    </div>;
 }
-
 export default Portfolio;
