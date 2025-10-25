@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, TrendingUp, TrendingDown, DollarSign, PieChart, Edit2, Trash2, Wallet, ChartBar, Shield } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, PieChart, Edit2, Trash2, Wallet, ChartBar, Shield, RefreshCw } from 'lucide-react';
 import { MobileOptimizedHeader } from '@/components/MobileOptimizedHeader';
 import { AddHoldingDialog } from '@/components/portfolio/AddHoldingDialog';
 import { EditHoldingDialog } from '@/components/portfolio/EditHoldingDialog';
@@ -13,7 +13,7 @@ import { PortfolioChart } from '@/components/portfolio/PortfolioChart';
 import { PortfolioPerformance } from '@/components/portfolio/PortfolioPerformance';
 import { PortfolioInsights } from '@/components/portfolio/PortfolioInsights';
 import { AddProfitGuardDialog } from '@/components/profit-guard/AddProfitGuardDialog';
-import { cryptoDataService } from '@/services/cryptoDataService';
+import { useRealtimePortfolio } from '@/hooks/useRealtimePortfolio';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -41,23 +41,20 @@ function Portfolio() {
   const [editingHolding, setEditingHolding] = useState<Holding | null>(null);
   const [isProfitGuardDialogOpen, setIsProfitGuardDialogOpen] = useState(false);
   const [selectedHoldingForGuard, setSelectedHoldingForGuard] = useState<Holding | null>(null);
-  const [marketData, setMarketData] = useState<Map<string, any>>(new Map());
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Real-time portfolio data with instant synchronization
+  const {
+    metrics,
+    marketData,
+    lastUpdate,
+    isLoading: realtimeLoading,
+    refresh,
+  } = useRealtimePortfolio(holdings, 60000); // 60-second auto-refresh
 
   useEffect(() => {
     fetchHoldings();
-    fetchMarketData();
   }, []);
-
-  useEffect(() => {
-    // Real-time price updates every 60 seconds for smooth recalibration
-    const interval = setInterval(() => {
-      fetchMarketData();
-      setLastUpdate(new Date());
-    }, 60000); // 60 seconds for optimal performance and smooth updates
-
-    return () => clearInterval(interval);
-  }, [holdings]);
 
   const fetchHoldings = async () => {
     try {
@@ -80,56 +77,11 @@ function Portfolio() {
     }
   };
 
-  const fetchMarketData = async () => {
-    try {
-      // Fetch more data for better real-time updates
-      const data = await cryptoDataService.getTopCryptos(250);
-      const marketMap = new Map();
-      data.forEach(coin => {
-        marketMap.set(coin.id, coin);
-      });
-      setMarketData(marketMap);
-    } catch (error) {
-      // Silently fail to avoid spamming user with errors during frequent updates
-    }
-  };
-
-  const calculatePortfolioMetrics = () => {
-    let totalValue = 0;
-    let totalCost = 0;
-    let holdingsWithPrices = [];
-
-    for (const holding of holdings) {
-      const marketCoin = marketData.get(holding.coin_id);
-      const currentPrice = marketCoin?.current_price || holding.purchase_price;
-      const value = holding.quantity * currentPrice;
-      const cost = holding.quantity * holding.purchase_price;
-      const profitLoss = value - cost;
-      const profitLossPercentage = cost > 0 ? (profitLoss / cost) * 100 : 0;
-
-      totalValue += value;
-      totalCost += cost;
-
-      holdingsWithPrices.push({
-        ...holding,
-        current_price: currentPrice,
-        value,
-        profit_loss: profitLoss,
-        profit_loss_percentage: profitLossPercentage,
-        price_change_24h: marketCoin?.price_change_percentage_24h || 0,
-      });
-    }
-
-    const totalProfitLoss = totalValue - totalCost;
-    const totalProfitLossPercentage = totalCost > 0 ? (totalProfitLoss / totalCost) * 100 : 0;
-
-    return {
-      totalValue,
-      totalCost,
-      totalProfitLoss,
-      totalProfitLossPercentage,
-      holdings: holdingsWithPrices,
-    };
+  // Manual refresh with visual feedback
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await refresh();
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
   const handleDeleteHolding = async (id: string) => {
@@ -169,8 +121,6 @@ function Portfolio() {
     setSelectedHoldingForGuard(null);
   };
 
-  const metrics = calculatePortfolioMetrics();
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -191,23 +141,42 @@ function Portfolio() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Portfolio Tracker</h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Track your cryptocurrency investments
-              <span className="ml-2 text-xs text-green-500">● Live</span>
+            <p className="text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+              <span>Track your cryptocurrency investments</span>
+              <Badge variant="outline" className="text-xs bg-green-500/10">
+                <span className="text-green-500 mr-1 animate-pulse">●</span> Live • Updates every 60s
+              </Badge>
+              {lastUpdate && (
+                <span className="text-xs text-muted-foreground">
+                  Last update: {new Date().getTime() - lastUpdate.getTime() < 5000 ? 'just now' : `${Math.floor((new Date().getTime() - lastUpdate.getTime()) / 1000)}s ago`}
+                </span>
+              )}
             </p>
           </div>
-          <Button 
-            onClick={() => setIsAddDialogOpen(true)}
-            className="w-full sm:w-auto gap-2"
-            size="lg"
-          >
-            <Plus className="h-4 w-4" />
-            Add Holding
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              onClick={handleManualRefresh}
+              variant="outline"
+              className="gap-2"
+              size="lg"
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="gap-2 flex-1 sm:flex-initial"
+              size="lg"
+            >
+              <Plus className="h-4 w-4" />
+              Add Holding
+            </Button>
+          </div>
         </div>
 
         {/* Portfolio Summary Cards - Mobile Optimized */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 transition-opacity duration-200 ${realtimeLoading ? 'opacity-70' : 'opacity-100'}`}>
           <Card className="col-span-2 lg:col-span-1">
             <CardHeader className="pb-2 md:pb-3">
               <CardDescription className="flex items-center gap-2 text-xs md:text-sm">
