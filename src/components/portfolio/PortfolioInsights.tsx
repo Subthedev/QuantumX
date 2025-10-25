@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, AlertTriangle, Target, Shield, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Target, Shield, PieChart, Activity } from 'lucide-react';
 
 interface Holding {
   coin_id?: string;
@@ -38,8 +38,14 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
     (h.price_change_24h || 0) < (min.price_change_24h || 0) ? h : min
   , holdings[0]);
 
-  const profitableHoldings = holdings.filter(h => (h.profit_loss_percentage || 0) > 0);
-  const losingHoldings = holdings.filter(h => (h.profit_loss_percentage || 0) < 0);
+  // Calculate average 24h performance across portfolio
+  const avg24hPerformance = holdings.length > 0
+    ? holdings.reduce((sum, h) => sum + (h.price_change_24h || 0), 0) / holdings.length
+    : 0;
+
+  // Real-time win rate based on 24h price changes
+  const profitableHoldings = holdings.filter(h => (h.price_change_24h || 0) > 0);
+  const losingHoldings = holdings.filter(h => (h.price_change_24h || 0) < 0);
 
   // Diversification score (0-100)
   const largestHolding = Math.max(...holdings.map(h => ((h.value || 0) / totalValue) * 100));
@@ -60,13 +66,13 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
           <CardContent className="p-3 md:p-4">
             <div className="flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground mb-1">
               <Target className="h-3 w-3" />
-              <span className="text-[10px] md:text-xs">Win Rate</span>
+              <span className="text-[10px] md:text-xs">Win Rate (24h)</span>
             </div>
             <div className="text-lg md:text-xl font-bold">
               {holdings.length > 0 ? ((profitableHoldings.length / holdings.length) * 100).toFixed(0) : 0}%
             </div>
             <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
-              {profitableHoldings.length} of {holdings.length}
+              {profitableHoldings.length} of {holdings.length} up today
             </div>
           </CardContent>
         </Card>
@@ -192,86 +198,40 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
         )}
       </div>
 
-      {/* Overall Top & Worst Performers */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {topPerformer && (
-          <Card className="border-blue-500/20 bg-blue-500/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-500" />
-                  Top Performer (Overall)
-                </div>
-                {lastUpdate && (
-                  <Badge variant="outline" className="text-xs bg-blue-500/10">
-                    <span className="text-blue-500 mr-1">●</span> Live
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold">{topPerformer.coin_name}</div>
-                  <div className="text-sm text-muted-foreground uppercase">
-                    {topPerformer.coin_symbol}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge className="bg-blue-500 text-white">
-                    +{topPerformer.profit_loss_percentage?.toFixed(1)}%
-                  </Badge>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    ${topPerformer.profit_loss?.toLocaleString(undefined, {
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-                  </div>
-                </div>
+      {/* Average Portfolio Performance (24h) */}
+      <Card className={`border-2 ${avg24hPerformance >= 0 ? 'border-blue-500/30 bg-blue-500/5' : 'border-purple-500/30 bg-purple-500/5'}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className={`h-4 w-4 ${avg24hPerformance >= 0 ? 'text-blue-500' : 'text-purple-500'}`} />
+              Average Portfolio Performance (24h)
+            </div>
+            {lastUpdate && (
+              <Badge variant="outline" className={`text-xs ${avg24hPerformance >= 0 ? 'bg-blue-500/10' : 'bg-purple-500/10'}`}>
+                <span className={`${avg24hPerformance >= 0 ? 'text-blue-500' : 'text-purple-500'} mr-1`}>●</span> Live
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-semibold text-lg">Portfolio Average</div>
+              <div className="text-sm text-muted-foreground">
+                Based on {holdings.length} position{holdings.length > 1 ? 's' : ''}
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {worstPerformer && worstPerformer.profit_loss_percentage && worstPerformer.profit_loss_percentage < 0 && (
-          <Card className="border-orange-500/20 bg-orange-500/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <TrendingDown className="h-4 w-4 text-orange-500" />
-                  Needs Review (Overall)
-                </div>
-                {lastUpdate && (
-                  <Badge variant="outline" className="text-xs bg-orange-500/10">
-                    <span className="text-orange-500 mr-1">●</span> Live
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold">{worstPerformer.coin_name}</div>
-                  <div className="text-sm text-muted-foreground uppercase">
-                    {worstPerformer.coin_symbol}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge className="bg-orange-600 text-white">
-                    {worstPerformer.profit_loss_percentage?.toFixed(1)}%
-                  </Badge>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    ${Math.abs(worstPerformer.profit_loss || 0).toLocaleString(undefined, {
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-                  </div>
-                </div>
+            </div>
+            <div className="text-right">
+              <div className={`text-3xl font-bold ${avg24hPerformance >= 0 ? 'text-blue-600' : 'text-purple-600'}`}>
+                {avg24hPerformance >= 0 ? '+' : ''}{avg24hPerformance.toFixed(2)}%
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                24h average price change
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Actionable Insights */}
       <Card>
@@ -291,13 +251,13 @@ const PortfolioInsightsComponent = ({ holdings, totalValue, lastUpdate }: Portfo
             </div>
           )}
 
-          {profitableHoldings.length > 0 && profitableHoldings.some(h => (h.profit_loss_percentage || 0) > 20) && (
+          {profitableHoldings.length > 0 && profitableHoldings.some(h => (h.price_change_24h || 0) > 5) && (
             <div className="flex items-start gap-2 md:gap-3 p-2.5 md:p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <Shield className="h-4 w-4 md:h-5 md:w-5 text-green-500 mt-0.5 flex-shrink-0" />
               <div className="text-xs md:text-sm">
-                <div className="font-medium">Protect Your Gains</div>
+                <div className="font-medium">Strong Momentum Today</div>
                 <div className="text-muted-foreground mt-0.5 md:mt-1">
-                  You have positions with 20%+ gains. Activate ProfitGuard to secure profits automatically.
+                  You have positions with 5%+ gains in 24h. Activate ProfitGuard to secure profits automatically.
                 </div>
               </div>
             </div>

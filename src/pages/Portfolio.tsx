@@ -50,11 +50,11 @@ function Portfolio() {
   }, []);
 
   useEffect(() => {
-    // ULTRA-FAST real-time price updates every 3 seconds
+    // Real-time price updates every 60 seconds for smooth recalibration
     const interval = setInterval(() => {
       fetchMarketData();
       setLastUpdate(new Date());
-    }, 3000); // 3 seconds for ultra-responsive updates
+    }, 60000); // 60 seconds for optimal performance and smooth updates
 
     return () => clearInterval(interval);
   }, [holdings]);
@@ -282,7 +282,7 @@ function Portfolio() {
           </Card>
         </div>
 
-        {/* Portfolio Insights - Now updates every 3s */}
+        {/* Portfolio Insights - Updates every 60s */}
         {holdings.length > 0 && metrics.holdings.length > 0 && (
           <div className="mb-6">
             <PortfolioInsights
