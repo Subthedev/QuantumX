@@ -44,9 +44,9 @@ export const SentimentAnalysisCard: React.FC<SentimentAnalysisProps> = ({ data }
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Sentiment Score - Mobile Optimized */}
-      <Card>
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('score')}
         >
           <div className="flex items-center justify-between">
@@ -94,9 +94,9 @@ export const SentimentAnalysisCard: React.FC<SentimentAnalysisProps> = ({ data }
       </Card>
 
       {/* Market Psychology - Mobile Optimized */}
-      <Card className={data.market_psychology.contrarian_opportunity ? 'border-primary/30' : ''}>
+      <Card className={`shadow-md hover:shadow-lg transition-shadow ${data.market_psychology.contrarian_opportunity ? 'border-primary/30' : ''}`}>
         <CardHeader
-          className={`cursor-pointer p-3 md:p-6 ${data.market_psychology.contrarian_opportunity ? 'bg-primary/5' : ''}`}
+          className={`cursor-pointer p-3 md:p-6 ${data.market_psychology.contrarian_opportunity ? 'bg-primary/10' : 'bg-gradient-to-r from-purple-500/10 to-pink-500/10'}`}
           onClick={() => toggleSection('psychology')}
         >
           <div className="flex items-center justify-between">

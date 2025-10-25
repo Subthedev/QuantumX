@@ -68,8 +68,9 @@ PRINCIPLES:
 ✓ Highlight risks (what could go wrong)
 ✓ Support claims with real-time data
 ✓ Focus on EDGE - what gives traders advantage
+✓ CONSISTENCY - Ensure your ${analysisType} analysis aligns with overall market conditions. If technical shows downtrend, sentiment should reflect fear/caution, not extreme greed. If fundamentals are strong but price declining, acknowledge the disconnect.
 
-STYLE: Direct, confident, no fluff. Use exact prices/percentages/timeframes.`;
+STYLE: Direct, confident, no fluff. Use exact prices/percentages/timeframes. Be coherent across all analysis dimensions.`;
 
   return basePrompt;
 }
@@ -214,15 +215,15 @@ Volume: $${(coin.total_volume / 1e9).toFixed(2)}B (${volumeToMcap}% of mcap) | M
 ATH: $${coin.ath.toLocaleString()} (${athDrawdown}% below)
 
 PROVIDE:
-1. Trend: Current trend, momentum (Accelerating/Stable/Decelerating), strength 0-100
+1. Trend: Be CONSISTENT with price action. If 24h is ${change24h > 0 ? 'positive' : 'negative'} and 7d is ${change7d > 0 ? 'positive' : 'negative'}, trend should align. Current trend, momentum (Accelerating/Stable/Decelerating), strength 0-100
 2. Price Levels: Immediate/Strong resistance and support (exact $)
 3. Volume: Rising/Falling/Stable, quality (Strong/Average/Weak), accumulation/distribution
 4. Chart Patterns: Identified patterns
 5. Trade Setup: Entry zones (2-3 exact prices), stop loss, take profit targets (2-3 with %), R:R ratio
-6. Timeframe Outlook: Short-term (1-7d) and medium-term (1-4w) with specific predictions
+6. Timeframe Outlook: Short-term (1-7d) and medium-term (1-4w) - be REALISTIC based on recent ${change7d > 0 ? 'upward' : 'downward'} momentum
 7. Key Insights: 5-7 bullets of EDGE
 
-Be precise. Traders will execute based on your analysis.`;
+Be precise and CONSISTENT with actual price movement. Traders will execute based on your analysis.`;
 }
 
 function buildFundamentalPrompt(coin: any, context: any, date: string): string {
@@ -231,23 +232,28 @@ function buildFundamentalPrompt(coin: any, context: any, date: string): string {
   const liquidityGrade = coin.total_volume > coin.market_cap * 0.1 ? 'Excellent' :
                          coin.total_volume > coin.market_cap * 0.05 ? 'Good' : 'Poor';
 
+  const change24h = coin.price_change_percentage_24h ?? 0;
+  const change7d = coin.price_change_percentage_7d_in_currency ?? 0;
+  const athDrawdown = ((1 - coin.current_price / coin.ath) * 100).toFixed(1);
+
   return `FUNDAMENTAL ANALYSIS: ${coin.name} (${coin.symbol.toUpperCase()}) - ${date}
 
 DATA:
 MCap: $${(coin.market_cap / 1e9).toFixed(2)}B (#${coin.market_cap_rank}) | FDV: ${fdvMultiple}x mcap | Volume: $${(coin.total_volume / 1e9).toFixed(2)}B (${liquidityGrade})
 Supply: ${supplyIssued}% issued | Circulating: ${coin.circulating_supply ? (coin.circulating_supply / 1e9).toFixed(2) + 'B' : 'N/A'}
 Max: ${coin.max_supply ? (coin.max_supply / 1e9).toFixed(2) + 'B' : 'Unlimited'}
+Recent Price Action: 24h ${change24h.toFixed(2)}%, 7d ${change7d.toFixed(2)}%, ${athDrawdown}% below ATH
 
 PROVIDE:
 1. Tokenomics: Supply model (Deflationary/Inflationary/Fixed/Elastic), inflation rate, token utility, health score
-2. Valuation: MCap/FDV analysis, volume/liquidity score, relative valuation vs competitors
+2. Valuation: MCap/FDV analysis, volume/liquidity score, relative valuation vs competitors. If fundamentals strong but price ${change7d < 0 ? 'falling' : 'rising'}, explain why.
 3. Market Position: Category rank, competitive advantages, market share trend
 4. Ecosystem: Developer activity (High/Medium/Low), partnerships, adoption metrics
-5. Investment Thesis: Bull case (3-5 reasons), bear case (3-5 risks), catalyst events
-6. Price Targets: Conservative/Base/Optimistic (6mo, exact $ and %)
-7. Recommendation: Rating (Strong Accumulate/Accumulate/Hold/Reduce/Avoid), score 0-100
+5. Investment Thesis: Bull case (3-5 reasons), bear case (3-5 risks), catalyst events. ACKNOWLEDGE price action - if trending ${change7d < 0 ? 'down despite strong fundamentals, explain the disconnect' : 'up, validate if justified by fundamentals'}.
+6. Price Targets: Conservative/Base/Optimistic (6mo, exact $ and %) - be REALISTIC given current ${change7d < 0 ? 'downward' : 'upward'} trend
+7. Recommendation: Rating (Strong Accumulate/Accumulate/Hold/Reduce/Avoid), score 0-100 - MUST be coherent with recent price action
 
-Focus on asymmetric risk/reward opportunities.`;
+Focus on asymmetric risk/reward. Fundamentals matter long-term, but acknowledge short-term price reality.`;
 }
 
 function buildSentimentPrompt(coin: any, context: any, date: string): string {
@@ -266,16 +272,16 @@ From ATH: -${athDrawdown}% | From ATL: +${atlGain}%
 Volume: $${(coin.total_volume / 1e9).toFixed(2)}B (${coin.total_volume / coin.market_cap > 0.1 ? 'HIGH conviction' : coin.total_volume / coin.market_cap > 0.05 ? 'MEDIUM' : 'LOW conviction'})
 
 PROVIDE:
-1. Sentiment Score: 0-100 (0=Extreme Fear, 100=Extreme Greed), label, trend (Improving/Stable/Deteriorating)
-2. Psychology: Fear vs Greed, crowd emotion, contrarian opportunity?
-3. Momentum: Price/volume momentum, divergences
+1. Sentiment Score: Be CONSISTENT - if price is ${change24h > 0 ? 'rising' : 'falling'} (${change24h.toFixed(2)}% 24h), sentiment should reflect that reality. Score 0-100 (0=Extreme Fear, 100=Extreme Greed), label, trend
+2. Psychology: ${change24h < -5 ? 'Price down significantly suggests fear dominates' : change24h > 5 ? 'Price up significantly suggests greed/FOMO' : 'Price stable suggests neutral sentiment'}. Fear vs Greed, crowd emotion, contrarian opportunity?
+3. Momentum: Price ${change7d > 0 ? 'up' : 'down'} ${Math.abs(change7d).toFixed(1)}% over 7d shows ${Math.abs(change7d) > 10 ? 'strong' : 'moderate'} momentum. Price/volume momentum, divergences
 4. Positioning: Retail (Heavy Long/Long/Neutral/Short/Heavy Short), smart money signals
 5. Drivers: 3-5 specific events driving sentiment
 6. Contrarian Signals: Opportunities against the herd
-7. Outlook: Next 7 days, key price levels, change triggers
-8. Stance: Aggressive Accumulation/Moderate Accumulation/Hold & Monitor/Reduce/Defensive
+7. Outlook: Next 7 days - be REALISTIC given ${change7d > 0 ? 'positive' : 'negative'} recent momentum, key price levels, change triggers
+8. Stance: Aggressive Accumulation/Moderate Accumulation/Hold & Monitor/Reduce/Defensive - MUST align with actual price action
 
-Be contrarian when you have edge. When greedy, be fearful. When fearful, be greedy.`;
+Be contrarian when you have edge, but don't show greed when price is clearly falling or fear when price is clearly rising.`;
 }
 
 function buildOnchainPrompt(coin: any, context: any, date: string): string {

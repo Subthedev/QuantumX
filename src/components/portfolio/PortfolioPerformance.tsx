@@ -1,8 +1,8 @@
 import React, { memo, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
 interface Holding {
   coin_id?: string;
@@ -34,8 +34,9 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
     .sort((a, b) => b.performance - a.performance)
     .slice(0, 8);
 
-  const gainers = performanceData.filter(d => d.performance > 0);
-  const losers = performanceData.filter(d => d.performance < 0);
+  // Filter gainers/losers by 24h price change for real-time tracking
+  const gainers = performanceData.filter(d => d.price_change_24h > 0);
+  const losers = performanceData.filter(d => d.price_change_24h < 0);
 
   // Extract portfolio-specific gainers and losers based on 24h price changes
   const { topPortfolioGainers, topPortfolioLosers } = useMemo(() => {
@@ -72,57 +73,94 @@ const PortfolioPerformanceComponent = ({ holdings, marketData, lastUpdate }: Por
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2 md:pb-3">
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
+        <CardHeader className="pb-2 md:pb-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base md:text-lg">Portfolio Performance</CardTitle>
+            <CardTitle className="text-base md:text-lg flex items-center gap-2">
+              <Activity className="h-4 w-4 md:h-5 md:w-5" />
+              Portfolio Performance
+            </CardTitle>
             {lastUpdate && (
-              <Badge variant="outline" className="text-xs">
-                Updated {new Date().getTime() - lastUpdate.getTime() < 5000 ? 'just now' : 'recently'}
+              <Badge variant="outline" className="text-xs bg-primary/10">
+                <span className="text-primary mr-1">●</span> Updated {new Date().getTime() - lastUpdate.getTime() < 5000 ? 'just now' : 'recently'}
               </Badge>
             )}
           </div>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart
+        <CardContent className="pt-4">
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart
               data={performanceData}
-              margin={{ top: 10, right: 10, left: 0, bottom: 50 }}
+              margin={{ top: 20, right: 10, left: 0, bottom: 60 }}
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
               <XAxis
                 dataKey="name"
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                 angle={-45}
                 textAnchor="end"
-                height={60}
+                height={70}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
+                yAxisId="left"
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                 tickFormatter={(value) => `${value}%`}
+                label={{ value: 'Overall P&L %', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(value) => `${value}%`}
+                label={{ value: '24h Change %', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: 'hsl(var(--muted-foreground))' } }}
               />
               <Tooltip
-                formatter={(value: number) => [`${value.toFixed(2)}%`, 'P&L']}
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                  fontSize: '12px'
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                        <p className="font-semibold text-sm mb-2">{data.fullName}</p>
+                        <p className="text-xs text-muted-foreground mb-1">Overall P&L: <span className={`font-medium ${data.performance >= 0 ? 'text-green-500' : 'text-red-500'}`}>{data.performance.toFixed(2)}%</span></p>
+                        <p className="text-xs text-muted-foreground">24h Change: <span className={`font-medium ${data.price_change_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>{data.price_change_24h >= 0 ? '+' : ''}{data.price_change_24h.toFixed(2)}%</span></p>
+                        <p className="text-xs text-muted-foreground mt-1">Value: ${data.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                    );
+                  }
+                  return null;
                 }}
               />
+              <Legend
+                wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                iconType="circle"
+              />
               <Bar
+                yAxisId="left"
                 dataKey="performance"
+                name="Overall P&L %"
                 fill="hsl(var(--primary))"
-                radius={[6, 6, 0, 0]}
+                radius={[8, 8, 0, 0]}
+                maxBarSize={60}
               >
                 {performanceData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={entry.performance >= 0 ? '#16DB65' : '#FF5F6D'}
+                    opacity={0.8}
                   />
                 ))}
               </Bar>
-            </BarChart>
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="price_change_24h"
+                name="24h Change %"
+                stroke="#8B5CF6"
+                strokeWidth={3}
+                dot={{ fill: '#8B5CF6', r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
 
           {/* Performance Summary - Real-time Price Changes */}

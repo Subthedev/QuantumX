@@ -37,9 +37,9 @@ export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ da
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Tokenomics - Mobile Optimized */}
-      <Card>
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('tokenomics')}
         >
           <div className="flex items-center justify-between">
@@ -87,9 +87,9 @@ export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ da
       </Card>
 
       {/* Valuation - Mobile Optimized */}
-      <Card>
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('valuation')}
         >
           <div className="flex items-center justify-between">
@@ -132,9 +132,9 @@ export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ da
       </Card>
 
       {/* Market Position - Mobile Optimized */}
-      <Card>
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('position')}
         >
           <div className="flex items-center justify-between">
@@ -172,9 +172,9 @@ export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ da
       </Card>
 
       {/* Investment Thesis - Mobile Optimized */}
-      <Card className="border-primary/20">
+      <Card className="border-primary/20 shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="bg-primary/5 cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('thesis')}
         >
           <div className="flex items-center justify-between">
@@ -224,9 +224,9 @@ export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ da
       </Card>
 
       {/* Price Targets - Mobile Optimized */}
-      <Card>
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('targets')}
         >
           <div className="flex items-center justify-between">
@@ -264,9 +264,9 @@ export const FundamentalAnalysisCard: React.FC<FundamentalAnalysisProps> = ({ da
       </Card>
 
       {/* Overall Rating - Mobile Optimized */}
-      <Card>
+      <Card className="shadow-md hover:shadow-lg transition-shadow">
         <CardHeader
-          className="cursor-pointer p-3 md:p-6"
+          className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 cursor-pointer p-3 md:p-6"
           onClick={() => toggleSection('rating')}
         >
           <div className="flex items-center justify-between">
