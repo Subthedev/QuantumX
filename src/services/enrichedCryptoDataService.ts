@@ -598,7 +598,15 @@ class EnrichedCryptoDataService {
       technical: this.calculateTechnicalSignal(coinData, ohlcData),
       fundamental: this.calculateFundamentalSignal(coinData),
       sentiment: this.calculateSentimentSignal(socialSentiment),
-      overall: { action: 'HOLD', confidence: 50, timeframe: '7d', score: 0, reasoning: [], dataQuality: 'fair' }
+      overall: { 
+        action: 'HOLD', 
+        confidence: 50, 
+        timeframe: '7d', 
+        score: 0, 
+        reasoning: [], 
+        dataQuality: 'fair',
+        disclaimer: 'This signal is for educational purposes only and is not financial advice. Always conduct your own research before making investment decisions.'
+      }
     };
 
     if (onChainMetrics) {
@@ -714,7 +722,8 @@ class EnrichedCryptoDataService {
         timeframe: '7d',
         score: 0,
         reasoning: ['Limited social sentiment data available'],
-        dataQuality: 'poor'
+        dataQuality: 'poor',
+        disclaimer: 'This signal is for educational purposes only and is not financial advice. Always conduct your own research before making investment decisions.'
       };
     }
 

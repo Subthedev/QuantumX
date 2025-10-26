@@ -102,12 +102,12 @@ export default defineConfig(({ mode }) => ({
     }),
     // Add Brotli and Gzip compression for production
     mode === 'production' && compression({
-      algorithm: 'brotliCompress',
+      algorithms: ['brotliCompress'],
       exclude: [/\.(br)$/, /\.(gz)$/],
       threshold: 1024,
     }),
     mode === 'production' && compression({
-      algorithm: 'gzip',
+      algorithms: ['gzip'],
       exclude: [/\.(br)$/, /\.(gz)$/],
       threshold: 1024,
     }),
