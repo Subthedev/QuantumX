@@ -13,6 +13,19 @@ import type {
   BlockchainComStats,
   CoinMetricsAssetMetrics
 } from '@/types/onchain.types';
+
+// Re-export types for external use
+export type {
+  OnChainData,
+  NetworkHealthMetrics,
+  WhaleMetrics,
+  ExchangeFlowMetrics,
+  SupplyMetrics,
+  TransactionMetrics,
+  DeveloperMetrics,
+  DataQualityScore,
+  DataSource
+} from '@/types/onchain.types';
 import { solanaDataService } from './solanaDataService';
 import { hyperliquidDataService } from './hyperliquidDataService';
 

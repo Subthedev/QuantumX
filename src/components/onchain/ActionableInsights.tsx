@@ -124,20 +124,20 @@ export const ActionableInsights = ({
       }
 
       // Insight 3: Large Transaction Alert
-      if (whaleStats.largestTransaction24h && whaleStats.largestTransaction24h.amountUsd > 10000000) {
-        const tx = whaleStats.largestTransaction24h;
-        const isBullish = tx.transactionType === 'exchange_withdrawal';
+      if (whaleStats.largestTransaction24h && whaleStats.largestTransaction24h > 10000000) {
+        const txValue = whaleStats.largestTransaction24h;
+        const isBullish = whaleStats.exchangeWithdrawals > whaleStats.exchangeDeposits;
 
         newInsights.push({
           id: 'large-transaction',
           signal: isBullish ? 'bullish' : 'bearish',
-          strength: tx.amountUsd > 50000000 ? 8 : 6,
-          title: `🚨 ${whaleAlertService.formatUsd(tx.amountUsd)} Transaction Detected`,
-          description: `Massive ${tx.transactionType.replace(/_/g, ' ')} observed`,
+          strength: txValue > 50000000 ? 8 : 6,
+          title: `🚨 $${(txValue / 1000000).toFixed(1)}M Transaction Detected`,
+          description: `Massive whale transaction observed`,
           evidence: [
-            `Amount: ${whaleAlertService.formatAmount(tx.amount, tx.symbol)} (${whaleAlertService.formatUsd(tx.amountUsd)})`,
-            `Type: ${tx.transactionType.replace(/_/g, ' ')}`,
-            `${isBullish ? 'Withdrawn from' : 'Deposited to'} ${isBullish ? tx.from.owner : tx.to.owner}`
+            `Transaction Value: $${(txValue / 1000000).toFixed(2)}M`,
+            `Type: ${isBullish ? 'Exchange Withdrawal' : 'Exchange Deposit'}`,
+            `24h Whale Activity: ${whaleStats.totalTransactions24h} transactions`
           ],
           recommendation: isBullish
             ? 'Major holder accumulating. Could indicate confidence in upward movement.'
