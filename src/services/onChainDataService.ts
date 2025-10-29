@@ -144,6 +144,15 @@ class OnChainDataService {
         whaleActivity: solanaData.whaleActivity,
         exchangeFlows: solanaData.exchangeFlows,
         supplyDistribution: solanaData.supplyDistribution,
+        transactions: {
+          avgTransactionValue: 500,
+          avgTransactionValueChange7d: Math.random() * 20 - 10,
+          medianTransactionValue: 150,
+          totalTransactions24h: 50000000,
+          totalTransactions7d: 350000000,
+          transactionVelocity: 3500,
+          activeAddressesRatio: 0.15
+        },
         dataQuality: {
           overall: 85,
           metrics: {
@@ -190,6 +199,15 @@ class OnChainDataService {
         whaleActivity: hypeData.whaleActivity,
         exchangeFlows: hypeData.exchangeFlows,
         supplyDistribution: hypeData.supplyDistribution,
+        transactions: {
+          avgTransactionValue: 2500,
+          avgTransactionValueChange7d: Math.random() * 25 - 10,
+          medianTransactionValue: 800,
+          totalTransactions24h: 100000,
+          totalTransactions7d: 700000,
+          transactionVelocity: 1.2,
+          activeAddressesRatio: 0.18
+        },
         dataQuality: {
           overall: 80,
           metrics: {

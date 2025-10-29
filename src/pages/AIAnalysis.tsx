@@ -148,7 +148,7 @@ const AIAnalysis = () => {
         setEnrichedData(enrichedDataResult);
         console.log('✅ Enriched data loaded:', {
           hasOHLC: !!enrichedDataResult.ohlcData,
-          hasIndicators: !!enrichedDataResult.technicalIndicators,
+          hasIndicators: !!enrichedDataResult.ohlcData?.indicators,
           hasSentiment: !!enrichedDataResult.socialSentiment,
           signals: Object.keys(enrichedDataResult.signals)
         });

@@ -166,6 +166,7 @@ class HyperliquidDataService {
     return {
       activeAddresses24h: 15000 + Math.floor(Math.random() * 10000), // 15k-25k active traders
       activeAddressesChange7d: Math.random() * 30 - 10, // -10% to +20%
+      activeAddressesChange30d: Math.random() * 40 - 15, // -15% to +25%
       transactionCount24h: 50000 + Math.floor(Math.random() * 50000), // 50k-100k txns
       transactionCountChange7d: Math.random() * 25 - 10,
       transactionVolume24h: 50000000 + Math.random() * 150000000, // $50M-$200M
@@ -198,6 +199,9 @@ class HyperliquidDataService {
         retail: 12000, // Retail traders
         retailPercentage: 25
       },
+      totalHolders: 13000,
+      holdersChange7d: Math.random() * 25 - 5, // -5% to +20%
+      concentrationScore: 42,
       concentrationIndex: 0.42
     };
   }

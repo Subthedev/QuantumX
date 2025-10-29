@@ -77,6 +77,7 @@ export interface SupplyMetrics {
   totalHolders: number;
   holdersChange7d: number;
   concentrationScore: number; // 0-100, higher = more concentrated (risky)
+  concentrationIndex?: number; // Deprecated, use concentrationScore instead
   giniCoefficient?: number; // 0-1, wealth distribution inequality
 }
 
@@ -111,7 +112,7 @@ export interface OnChainData {
   coin: string;
   coinSymbol: string;
   coinName: string;
-  type: 'bitcoin' | 'ethereum' | 'erc20' | 'bep20' | 'other';
+  type: 'bitcoin' | 'ethereum' | 'erc20' | 'bep20' | 'solana' | 'hyperliquid' | 'other';
   contractAddress?: string;
   timestamp: number;
   networkHealth: NetworkHealthMetrics;
@@ -139,7 +140,7 @@ export interface DataQualityScore {
 
 export interface DataSource {
   name: string;
-  type: 'blockchain_api' | 'exchange_api' | 'aggregator' | 'on_chain_parser';
+  type: 'blockchain_api' | 'exchange_api' | 'aggregator' | 'on_chain_parser' | 'dex_api';
   metrics: string[];
   lastUpdate: number;
 }
