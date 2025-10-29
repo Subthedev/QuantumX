@@ -15,6 +15,8 @@ interface FundingRateData {
   avg24h: number;
   avg7d: number;
   trend: 'increasing' | 'decreasing' | 'stable';
+  marketCap?: number;
+  marketCapRank?: number;
   openInterest?: number;
   longShortRatio?: number;
 }
@@ -57,7 +59,7 @@ class EnhancedFundingRateService {
   ]);
 
   /**
-   * Get all funding rates with real-time updates
+   * Get all funding rates with real-time updates - sorted by market cap
    */
   async getAllFundingRates(): Promise<FundingRateData[]> {
     const cacheKey = 'all-funding-rates';
@@ -68,14 +70,35 @@ class EnhancedFundingRateService {
     }
 
     try {
-      // Fetch premium index (includes current funding rate)
-      const response = await fetch(`${this.BINANCE_FUTURES_API}/fapi/v1/premiumIndex`);
+      // Fetch premium index (includes current funding rate) and market data
+      const [premiumResponse, marketResponse] = await Promise.all([
+        fetch(`${this.BINANCE_FUTURES_API}/fapi/v1/premiumIndex`),
+        fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&sparkline=false')
+      ]);
       
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      if (!premiumResponse.ok) {
+        throw new Error(`API error: ${premiumResponse.status}`);
       }
 
-      const allData = await response.json();
+      const allData = await premiumResponse.json();
+      let marketData: any[] = [];
+      
+      // Try to get market cap data, but continue if it fails
+      try {
+        if (marketResponse.ok) {
+          marketData = await marketResponse.json();
+        }
+      } catch (e) {
+        console.warn('Failed to fetch market cap data:', e);
+      }
+
+      // Create market cap map for fast lookup
+      const marketCapMap = new Map(
+        marketData.map(coin => [
+          coin.symbol.toUpperCase() + 'USDT',
+          { marketCap: coin.market_cap, marketCapRank: coin.market_cap_rank }
+        ])
+      );
 
       // Filter and enrich data
       const fundingRates: FundingRateData[] = await Promise.all(
@@ -85,6 +108,7 @@ class EnhancedFundingRateService {
             const history = await this.getFundingRateHistory(item.symbol, 30);
             const stats = this.calculateStats(history);
             const predicted = this.predictNextFundingRate(history, parseFloat(item.lastFundingRate) * 100);
+            const marketInfo = marketCapMap.get(item.symbol) || { marketCap: 0, marketCapRank: 9999 };
 
             return {
               symbol: item.symbol,
@@ -97,14 +121,14 @@ class EnhancedFundingRateService {
               avg24h: stats.avg24h,
               avg7d: stats.avg7d,
               trend: stats.trend,
-              openInterest: 0, // Would need separate API call
-              longShortRatio: 0 // Would need separate API call
+              marketCap: marketInfo.marketCap,
+              marketCapRank: marketInfo.marketCapRank
             };
           })
       );
 
-      // Sort by absolute funding rate (most extreme first)
-      fundingRates.sort((a, b) => Math.abs(b.fundingRate) - Math.abs(a.fundingRate));
+      // Sort by market cap rank (ascending = largest first)
+      fundingRates.sort((a, b) => (a.marketCapRank || 9999) - (b.marketCapRank || 9999));
 
       this.cache.set(cacheKey, { data: fundingRates, timestamp: Date.now() });
       return fundingRates;
