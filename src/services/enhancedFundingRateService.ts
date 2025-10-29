@@ -17,6 +17,8 @@ interface FundingRateData {
   trend: 'increasing' | 'decreasing' | 'stable';
   marketCap?: number;
   marketCapRank?: number;
+  image?: string;
+  coinId?: string;
   openInterest?: number;
   longShortRatio?: number;
 }
@@ -59,7 +61,7 @@ class EnhancedFundingRateService {
   ]);
 
   /**
-   * Get all funding rates with real-time updates - sorted by market cap
+   * Get enhanced funding rates with market cap data and coin images
    */
   async getAllFundingRates(): Promise<FundingRateData[]> {
     const cacheKey = 'all-funding-rates';
@@ -70,7 +72,7 @@ class EnhancedFundingRateService {
     }
 
     try {
-      // Fetch premium index (includes current funding rate) and market data
+      // Fetch premium index and market data
       const [premiumResponse, marketResponse] = await Promise.all([
         fetch(`${this.BINANCE_FUTURES_API}/fapi/v1/premiumIndex`),
         fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&sparkline=false')
@@ -94,10 +96,19 @@ class EnhancedFundingRateService {
 
       // Create market cap map for fast lookup
       const marketCapMap = new Map(
-        marketData.map(coin => [
-          coin.symbol.toUpperCase() + 'USDT',
-          { marketCap: coin.market_cap, marketCapRank: coin.market_cap_rank }
-        ])
+        marketData.map(coin => {
+          // Map common symbols to their perpetual contracts
+          const symbol = coin.symbol.toUpperCase();
+          return [
+            `${symbol}USDT`,
+            { 
+              marketCap: coin.market_cap, 
+              marketCapRank: coin.market_cap_rank,
+              image: coin.image,
+              coinId: coin.id
+            }
+          ];
+        })
       );
 
       // Filter and enrich data
@@ -108,7 +119,12 @@ class EnhancedFundingRateService {
             const history = await this.getFundingRateHistory(item.symbol, 30);
             const stats = this.calculateStats(history);
             const predicted = this.predictNextFundingRate(history, parseFloat(item.lastFundingRate) * 100);
-            const marketInfo = marketCapMap.get(item.symbol) || { marketCap: 0, marketCapRank: 9999 };
+            const marketInfo = marketCapMap.get(item.symbol) || { 
+              marketCap: 0, 
+              marketCapRank: 9999,
+              image: '',
+              coinId: ''
+            };
 
             return {
               symbol: item.symbol,
@@ -122,7 +138,9 @@ class EnhancedFundingRateService {
               avg7d: stats.avg7d,
               trend: stats.trend,
               marketCap: marketInfo.marketCap,
-              marketCapRank: marketInfo.marketCapRank
+              marketCapRank: marketInfo.marketCapRank,
+              image: marketInfo.image,
+              coinId: marketInfo.coinId
             };
           })
       );

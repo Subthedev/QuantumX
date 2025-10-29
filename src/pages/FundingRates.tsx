@@ -21,6 +21,8 @@ interface FundingRateData {
   trend: 'increasing' | 'decreasing' | 'stable';
   marketCap?: number;
   marketCapRank?: number;
+  image?: string;
+  coinId?: string;
 }
 
 const FundingRates = () => {
@@ -285,6 +287,15 @@ const FundingRates = () => {
                       <td className="py-3 px-4 text-sm text-muted-foreground">{index + 1}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
+                          {rate.image && (
+                            <img 
+                              src={rate.image} 
+                              alt={rate.coinName} 
+                              className="w-6 h-6 rounded-full"
+                              loading="lazy"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
                           <span className="font-semibold text-sm">{rate.coinName}</span>
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">PERP</Badge>
                         </div>
@@ -319,6 +330,15 @@ const FundingRates = () => {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground text-xs">#{index + 1}</span>
+                        {rate.image && (
+                          <img 
+                            src={rate.image} 
+                            alt={rate.coinName} 
+                            className="w-5 h-5 rounded-full"
+                            loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        )}
                         <span className="font-bold">{rate.coinName}</span>
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">PERP</Badge>
                       </div>
