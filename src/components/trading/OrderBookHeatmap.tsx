@@ -38,17 +38,25 @@ export const OrderBookHeatmap = ({
   const heatmapData = useMemo(() => {
     const cells: HeatmapCell[] = [];
 
+    // Safety check: ensure bids and asks are arrays
+    const safeBids = Array.isArray(bids) ? bids : [];
+    const safeAsks = Array.isArray(asks) ? asks : [];
+
+    if (safeBids.length === 0 || safeAsks.length === 0) {
+      return cells;
+    }
+
     // Calculate total volumes
-    const totalBidVolume = bids.reduce((sum, bid) => sum + bid.quantity, 0);
-    const totalAskVolume = asks.reduce((sum, ask) => sum + ask.quantity, 0);
+    const totalBidVolume = safeBids.reduce((sum, bid) => sum + bid.quantity, 0);
+    const totalAskVolume = safeAsks.reduce((sum, ask) => sum + ask.quantity, 0);
     const totalVolume = totalBidVolume + totalAskVolume;
 
     // Calculate average volume for liquidity zone detection
-    const avgVolume = totalVolume / (bids.length + asks.length);
+    const avgVolume = totalVolume / (safeBids.length + safeAsks.length);
     const liquidityThreshold = avgVolume * 2.5;
 
     // Process asks (reversed to show from mid price upward)
-    asks.slice(0, 30).reverse().forEach((ask, index) => {
+    safeAsks.slice(0, 30).reverse().forEach((ask, index) => {
       const intensity = Math.min((ask.quantity / totalAskVolume) * 100, 100);
       const isLiquidityZone = ask.quantity > liquidityThreshold;
 
@@ -64,7 +72,7 @@ export const OrderBookHeatmap = ({
     });
 
     // Process bids (from mid price downward)
-    bids.slice(0, 30).forEach((bid, index) => {
+    safeBids.slice(0, 30).forEach((bid, index) => {
       const intensity = Math.min((bid.quantity / totalBidVolume) * 100, 100);
       const isLiquidityZone = bid.quantity > liquidityThreshold;
 

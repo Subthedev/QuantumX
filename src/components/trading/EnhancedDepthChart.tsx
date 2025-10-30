@@ -55,7 +55,11 @@ export const EnhancedDepthChart = ({
 }: EnhancedDepthChartProps) => {
   // Prepare depth data
   const depthData = useMemo(() => {
-    const bidData = [...bids]
+    // Safety check: ensure bids and asks are arrays
+    const safeBids = Array.isArray(bids) ? bids : [];
+    const safeAsks = Array.isArray(asks) ? asks : [];
+
+    const bidData = [...safeBids]
       .reverse()
       .map((bid) => ({
         price: bid.price,
@@ -66,9 +70,9 @@ export const EnhancedDepthChart = ({
         side: 'bid'
       }));
 
-    const askData = asks.map((ask) => ({
+    const askData = safeAsks.map((ask) => ({
       price: ask.price,
-      bidVolume: bids[0]?.total || 0,
+      bidVolume: safeBids[0]?.total || 0,
       askVolume: ask.total,
       bidQuantity: 0,
       askQuantity: ask.quantity,
@@ -82,15 +86,23 @@ export const EnhancedDepthChart = ({
   const liquidityZones = useMemo((): LiquidityZone[] => {
     const zones: LiquidityZone[] = [];
 
+    // Safety check: ensure bids and asks are arrays
+    const safeBids = Array.isArray(bids) ? bids : [];
+    const safeAsks = Array.isArray(asks) ? asks : [];
+
+    if (safeBids.length === 0 || safeAsks.length === 0) {
+      return zones;
+    }
+
     // Calculate average volume for threshold
-    const avgBidVolume = bids.reduce((sum, b) => sum + b.quantity, 0) / bids.length;
-    const avgAskVolume = asks.reduce((sum, a) => sum + a.quantity, 0) / asks.length;
+    const avgBidVolume = safeBids.reduce((sum, b) => sum + b.quantity, 0) / safeBids.length;
+    const avgAskVolume = safeAsks.reduce((sum, a) => sum + a.quantity, 0) / safeAsks.length;
 
     // Detect bid zones (support)
-    for (let i = 0; i < bids.length - 2; i++) {
-      const current = bids[i];
-      const next = bids[i + 1];
-      const afterNext = bids[i + 2];
+    for (let i = 0; i < safeBids.length - 2; i++) {
+      const current = safeBids[i];
+      const next = safeBids[i + 1];
+      const afterNext = safeBids[i + 2];
 
       // Check if there's a cluster of large orders
       if (
@@ -115,10 +127,10 @@ export const EnhancedDepthChart = ({
     }
 
     // Detect ask zones (resistance)
-    for (let i = 0; i < asks.length - 2; i++) {
-      const current = asks[i];
-      const next = asks[i + 1];
-      const afterNext = asks[i + 2];
+    for (let i = 0; i < safeAsks.length - 2; i++) {
+      const current = safeAsks[i];
+      const next = safeAsks[i + 1];
+      const afterNext = safeAsks[i + 2];
 
       if (
         current.quantity > avgAskVolume * 2 &&
@@ -148,8 +160,16 @@ export const EnhancedDepthChart = ({
   const keyLevels = useMemo((): SupportResistanceLevel[] => {
     const levels: SupportResistanceLevel[] = [];
 
+    // Safety check: ensure bids and asks are arrays
+    const safeBids = Array.isArray(bids) ? bids : [];
+    const safeAsks = Array.isArray(asks) ? asks : [];
+
+    if (safeBids.length === 0 || safeAsks.length === 0) {
+      return levels;
+    }
+
     // Find strongest support levels from bids
-    const sortedBids = [...bids].sort((a, b) => b.quantity - a.quantity);
+    const sortedBids = [...safeBids].sort((a, b) => b.quantity - a.quantity);
     sortedBids.slice(0, 3).forEach((bid, index) => {
       const strength = 100 - (index * 20);
       const confidence = Math.min((bid.quantity / sortedBids[0].quantity) * 100, 100);
@@ -164,7 +184,7 @@ export const EnhancedDepthChart = ({
     });
 
     // Find strongest resistance levels from asks
-    const sortedAsks = [...asks].sort((a, b) => b.quantity - a.quantity);
+    const sortedAsks = [...safeAsks].sort((a, b) => b.quantity - a.quantity);
     sortedAsks.slice(0, 3).forEach((ask, index) => {
       const strength = 100 - (index * 20);
       const confidence = Math.min((ask.quantity / sortedAsks[0].quantity) * 100, 100);
