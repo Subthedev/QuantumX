@@ -1,13 +1,13 @@
 /**
- * Binance Order Book WebSocket Proxy
- * Provides real-time order book depth data for crypto trading pairs
- * FREE, unlimited updates from Binance WebSocket API
+ * Binance Order Book REST API Proxy
+ * Provides instant order book depth data for crypto trading pairs
+ * Uses Binance REST API for reliable, immediate data
  * 
  * Features:
- * - Real-time bid/ask data with 20 levels deep
- * - Sub-50ms latency updates
+ * - Instant bid/ask data with 20 levels deep
+ * - Reliable REST API (no WebSocket state issues)
  * - Support for 200+ trading pairs
- * - Aggregated depth data for better visualization
+ * - Real-time market depth analysis
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -31,90 +31,56 @@ interface OrderBookData {
   timestamp: number;
 }
 
-// In-memory order book cache
-const orderBookCache = new Map<string, OrderBookData>();
+/**
+ * Fetch order book from Binance REST API
+ */
+async function fetchOrderBook(symbol: string): Promise<OrderBookData> {
+  const binanceSymbol = `${symbol.toUpperCase()}USDT`;
+  const url = `https://api.binance.com/api/v3/depth?symbol=${binanceSymbol}&limit=20`;
 
-// Active WebSocket connections
-const wsConnections = new Map<string, WebSocket>();
-const reconnectTimeouts = new Map<string, number>();
+  console.log(`📊 Fetching order book for ${binanceSymbol}...`);
 
-function connectToSymbolOrderBook(symbol: string) {
-  const wsKey = symbol.toLowerCase();
+  const response = await fetch(url);
   
-  // If already connected, skip
-  if (wsConnections.has(wsKey) && wsConnections.get(wsKey)?.readyState === WebSocket.OPEN) {
-    return;
+  if (!response.ok) {
+    throw new Error(`Binance API error: ${response.status} ${response.statusText}`);
   }
 
-  const BINANCE_WS = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@depth20@100ms`;
+  const data = await response.json();
 
-  try {
-    const ws = new WebSocket(BINANCE_WS);
-    wsConnections.set(wsKey, ws);
-
-    ws.onopen = () => {
-      console.log(`✅ Connected to ${symbol} order book WebSocket`);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        // Process order book data
-        const bids: OrderBookLevel[] = [];
-        const asks: OrderBookLevel[] = [];
-        
-        let bidTotal = 0;
-        for (const [price, qty] of data.bids) {
-          const quantity = parseFloat(qty);
-          bidTotal += quantity;
-          bids.push({
-            price: parseFloat(price),
-            quantity,
-            total: bidTotal
-          });
-        }
-        
-        let askTotal = 0;
-        for (const [price, qty] of data.asks) {
-          const quantity = parseFloat(qty);
-          askTotal += quantity;
-          asks.push({
-            price: parseFloat(price),
-            quantity,
-            total: askTotal
-          });
-        }
-
-        const orderBookData: OrderBookData = {
-          symbol: symbol.replace('usdt', '').toUpperCase(),
-          bids,
-          asks,
-          lastUpdateId: data.lastUpdateId,
-          timestamp: Date.now()
-        };
-
-        orderBookCache.set(wsKey, orderBookData);
-      } catch (error) {
-        console.error(`Error parsing ${symbol} order book:`, error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error(`❌ ${symbol} order book WebSocket error:`, error);
-    };
-
-    ws.onclose = () => {
-      console.log(`🔌 ${symbol} order book WebSocket closed, reconnecting in 5s...`);
-      wsConnections.delete(wsKey);
-
-      // Reconnect after 5 seconds
-      const timeout = setTimeout(() => connectToSymbolOrderBook(symbol), 5000);
-      reconnectTimeouts.set(wsKey, timeout);
-    };
-  } catch (error) {
-    console.error(`❌ Failed to connect to ${symbol} order book:`, error);
+  // Process bids
+  const bids: OrderBookLevel[] = [];
+  let bidTotal = 0;
+  for (const [price, qty] of data.bids) {
+    const quantity = parseFloat(qty);
+    bidTotal += quantity;
+    bids.push({
+      price: parseFloat(price),
+      quantity,
+      total: bidTotal
+    });
   }
+
+  // Process asks
+  const asks: OrderBookLevel[] = [];
+  let askTotal = 0;
+  for (const [price, qty] of data.asks) {
+    const quantity = parseFloat(qty);
+    askTotal += quantity;
+    asks.push({
+      price: parseFloat(price),
+      quantity,
+      total: askTotal
+    });
+  }
+
+  return {
+    symbol: symbol.toUpperCase(),
+    bids,
+    asks,
+    lastUpdateId: data.lastUpdateId,
+    timestamp: Date.now()
+  };
 }
 
 serve(async (req) => {
@@ -137,37 +103,8 @@ serve(async (req) => {
       );
     }
 
-    // Ensure WebSocket connection exists
-    const wsKey = symbol;
-    if (!wsConnections.has(wsKey) || wsConnections.get(wsKey)?.readyState !== WebSocket.OPEN) {
-      connectToSymbolOrderBook(symbol + 'usdt');
-      
-      // Return connecting status
-      return new Response(
-        JSON.stringify({
-          symbol: symbol.toUpperCase(),
-          status: 'connecting',
-          message: 'Connecting to order book stream...',
-          timestamp: Date.now()
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Get cached order book data
-    const orderBook = orderBookCache.get(wsKey);
-    
-    if (!orderBook) {
-      return new Response(
-        JSON.stringify({
-          symbol: symbol.toUpperCase(),
-          status: 'initializing',
-          message: 'Waiting for order book data...',
-          timestamp: Date.now()
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Fetch order book from Binance REST API
+    const orderBook = await fetchOrderBook(symbol);
 
     // Calculate order book metrics
     const totalBidVolume = orderBook.bids.reduce((sum, bid) => sum + bid.quantity, 0);
@@ -179,6 +116,8 @@ serve(async (req) => {
     // Calculate buy/sell pressure
     const buyPressure = (totalBidVolume / (totalBidVolume + totalAskVolume)) * 100;
     const sellPressure = 100 - buyPressure;
+
+    console.log(`✅ Order book fetched: ${orderBook.symbol}, Bids: ${orderBook.bids.length}, Asks: ${orderBook.asks.length}`);
 
     return new Response(
       JSON.stringify({
@@ -194,7 +133,7 @@ serve(async (req) => {
           bidAskRatio: totalBidVolume / totalAskVolume
         },
         status: 'connected',
-        latency_ms: '<50ms'
+        latency_ms: '<100ms'
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -203,7 +142,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : "Unknown error",
-        status: 'error'
+        status: 'error',
+        message: 'Failed to fetch order book data. Please try again.'
       }),
       {
         status: 500,
