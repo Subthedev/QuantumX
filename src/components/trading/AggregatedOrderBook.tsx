@@ -81,7 +81,9 @@ export const AggregatedOrderBook = ({ symbol, exchanges }: AggregatedOrderBookPr
     const priceMap = new Map<number, AggregatedLevel>();
 
     orderBooks.forEach((book, exchangeId) => {
-      book.bids.slice(0, 20).forEach(bid => {
+      // Safety check: ensure bids is an array
+      const safeBids = Array.isArray(book?.bids) ? book.bids : [];
+      safeBids.slice(0, 20).forEach(bid => {
         const key = Math.round(bid.price * 100) / 100; // Group by price (2 decimal precision)
 
         if (!priceMap.has(key)) {
@@ -136,7 +138,9 @@ export const AggregatedOrderBook = ({ symbol, exchanges }: AggregatedOrderBookPr
     const priceMap = new Map<number, AggregatedLevel>();
 
     orderBooks.forEach((book, exchangeId) => {
-      book.asks.slice(0, 20).forEach(ask => {
+      // Safety check: ensure asks is an array
+      const safeAsks = Array.isArray(book?.asks) ? book.asks : [];
+      safeAsks.slice(0, 20).forEach(ask => {
         const key = Math.round(ask.price * 100) / 100; // Group by price (2 decimal precision)
 
         if (!priceMap.has(key)) {

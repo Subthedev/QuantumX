@@ -139,7 +139,7 @@ export const ExchangeComparison = ({
             </TabsList>
 
             <TabsContent value="orderbook" className="space-y-3 mt-4">
-              {orderBookComparison && (
+              {orderBookComparison && orderBookComparison.exchanges && Array.isArray(orderBookComparison.exchanges) && (
                 <>
                   {orderBookComparison.exchanges.map((ex, idx) => (
                     <Card key={idx} className={ex.available ? 'border-green-500/20' : 'border-red-500/20'}>
@@ -199,7 +199,7 @@ export const ExchangeComparison = ({
             </TabsContent>
 
             <TabsContent value="funding" className="space-y-3 mt-4">
-              {fundingComparison && (
+              {fundingComparison && fundingComparison.exchanges && Array.isArray(fundingComparison.exchanges) && (
                 <>
                   {fundingComparison.exchanges.map((ex, idx) => (
                     <Card key={idx} className={ex.available ? 'border-green-500/20' : 'border-red-500/20'}>
@@ -262,7 +262,7 @@ export const ExchangeComparison = ({
           // Single type view (no tabs)
           <div className="space-y-3">
             {/* Render based on type */}
-            {type === 'orderbook' && orderBookComparison && (
+            {type === 'orderbook' && orderBookComparison && orderBookComparison.exchanges && Array.isArray(orderBookComparison.exchanges) && (
               <>
                 {orderBookComparison.exchanges.map((ex, idx) => (
                   <Card key={idx} className={ex.available ? 'border-green-500/20' : 'border-red-500/20'}>
@@ -319,7 +319,7 @@ export const ExchangeComparison = ({
                 ))}
               </>
             )}
-            {type === 'funding' && fundingComparison && (
+            {type === 'funding' && fundingComparison && fundingComparison.exchanges && Array.isArray(fundingComparison.exchanges) && (
               <>
                 {fundingComparison.exchanges.map((ex, idx) => (
                   <Card key={idx} className={ex.available ? 'border-green-500/20' : 'border-red-500/20'}>
