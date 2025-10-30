@@ -4,6 +4,7 @@
  */
 
 import type { OrderBookData, OrderBookLevel, OrderBookMetrics } from './orderBookService';
+import { dataHealthMonitor } from './dataHealthMonitor';
 
 type OrderBookCallback = (data: OrderBookData) => void;
 type ErrorCallback = (error: Error) => void;
@@ -120,6 +121,10 @@ class OrderBookWebSocketManager {
         const data: BinanceDepthUpdate = JSON.parse(event.data);
         const orderBookData = this.processDepthUpdate(data);
 
+        // Record latency for health monitoring
+        const latency = Date.now() - data.E;
+        dataHealthMonitor.recordLatency(symbol, latency);
+
         // Cache the data
         this.orderBookCache.set(symbol, orderBookData);
 
@@ -127,12 +132,14 @@ class OrderBookWebSocketManager {
         this.notifySubscribers(symbol, orderBookData);
       } catch (error) {
         console.error(`Error processing WebSocket message for ${symbol}:`, error);
+        dataHealthMonitor.recordError(symbol);
         this.notifyErrors(symbol, error as Error);
       }
     };
 
     ws.onerror = (error) => {
       console.error(`❌ WebSocket error for ${symbol}:`, error);
+      dataHealthMonitor.recordError(symbol);
       this.notifyErrors(symbol, new Error(`WebSocket error for ${symbol}`));
     };
 
@@ -360,6 +367,20 @@ class OrderBookWebSocketManager {
    */
   getCachedData(symbol: string): OrderBookData | undefined {
     return this.orderBookCache.get(symbol.toLowerCase());
+  }
+
+  /**
+   * Get health metrics for a symbol
+   */
+  getHealthMetrics(symbol: string) {
+    return dataHealthMonitor.getHealth(symbol.toLowerCase());
+  }
+
+  /**
+   * Get overall system health
+   */
+  getOverallHealth() {
+    return dataHealthMonitor.getOverallHealth();
   }
 }
 
