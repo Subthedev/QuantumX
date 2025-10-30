@@ -19,8 +19,12 @@ interface DepthChartProps {
 
 export const DepthChart = ({ bids, asks, midPrice, symbol, height = 400 }: DepthChartProps) => {
   const depthData = useMemo(() => {
+    // Safety check: ensure bids and asks are arrays
+    const safeBids = Array.isArray(bids) ? bids : [];
+    const safeAsks = Array.isArray(asks) ? asks : [];
+
     // Prepare bid data (reverse order for left-to-right display)
-    const bidData = [...bids]
+    const bidData = [...safeBids]
       .reverse()
       .map((bid, index) => ({
         price: bid.price,
@@ -30,9 +34,9 @@ export const DepthChart = ({ bids, asks, midPrice, symbol, height = 400 }: Depth
       }));
 
     // Prepare ask data
-    const askData = asks.map((ask) => ({
+    const askData = safeAsks.map((ask) => ({
       price: ask.price,
-      bidVolume: bids[0]?.total || 0, // Keep bid volume at last level
+      bidVolume: safeBids[0]?.total || 0, // Keep bid volume at last level
       askVolume: ask.total,
       side: 'ask'
     }));
