@@ -17,9 +17,9 @@ const POPULAR_PAIRS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX',
 
 export default function OrderBook() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
-  const { orderBook, isLoading, isConnecting, isConnected } = useOrderBook({
+  const { orderBook, isLoading, isConnecting, isConnected, hasError, error } = useOrderBook({
     symbol: selectedSymbol,
-    refetchInterval: 1000
+    refetchInterval: 3000
   });
 
   const sentiment = useMemo(() => {
@@ -79,12 +79,31 @@ export default function OrderBook() {
           ))}
         </div>
 
-        {/* Connection Status */}
-        {isConnecting && (
-          <Badge variant="outline" className="gap-2">
-            <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-            Connecting to order book stream...
-          </Badge>
+        {/* Connection Status & Error Handling */}
+        {hasError && (
+          <Card className="border-destructive/50 bg-destructive/10">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Activity className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-destructive">Unable to Load Order Book</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {error?.message || orderBook?.message || 'Failed to fetch order book data. Please check your connection and try again.'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isConnecting && !orderBook && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Activity className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+              <p className="text-lg font-medium">Loading Order Book...</p>
+              <p className="text-sm text-muted-foreground mt-2">Fetching real-time market depth data</p>
+            </CardContent>
+          </Card>
         )}
 
         {isConnected && orderBook && (
@@ -301,7 +320,7 @@ export default function OrderBook() {
         )}
 
         {/* Loading State */}
-        {isLoading && !orderBook && (
+        {isLoading && !orderBook && !hasError && (
           <div className="space-y-4">
             <Skeleton className="h-32 w-full" />
             <div className="grid lg:grid-cols-2 gap-4">

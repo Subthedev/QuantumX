@@ -13,23 +13,24 @@ interface UseOrderBookOptions {
 }
 
 export function useOrderBook(options: UseOrderBookOptions) {
-  const { symbol, refetchInterval = 1000, enabled = true } = options;
+  const { symbol, refetchInterval = 3000, enabled = true } = options;
 
   const query = useQuery({
     queryKey: ['orderbook', symbol.toLowerCase()],
     queryFn: () => getOrderBook(symbol),
     refetchInterval,
-    staleTime: 500,
-    gcTime: 5000,
-    refetchOnWindowFocus: false,
+    staleTime: 2000,
+    gcTime: 10000,
+    refetchOnWindowFocus: true,
     enabled: enabled && !!symbol,
-    retry: 2
+    retry: 3,
+    retryDelay: 1000
   });
 
   return {
     ...query,
     orderBook: query.data,
-    isConnecting: query.data?.status === 'connecting' || query.data?.status === 'initializing',
+    isConnecting: query.isLoading && !query.data,
     isConnected: query.data?.status === 'connected',
     hasError: query.data?.status === 'error' || query.isError
   };
