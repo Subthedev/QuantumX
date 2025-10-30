@@ -10,8 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Activity, BarChart3 } from 'lucide-react';
 import { aggregateOrderBook, getOrderBookSentiment } from '@/services/orderBookService';
+import { DepthChart } from '@/components/trading/DepthChart';
+import { ExchangeComparison } from '@/components/trading/ExchangeComparison';
 
 const POPULAR_PAIRS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC'];
 
@@ -253,6 +256,37 @@ export default function OrderBook() {
               </Card>
             </div>
 
+            {/* Depth Chart and Exchange Comparison */}
+            <Tabs defaultValue="depth" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="depth" className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  Depth Chart
+                </TabsTrigger>
+                <TabsTrigger value="comparison" className="flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  Multi-Exchange
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="depth" className="mt-4">
+                <DepthChart
+                  bids={orderBook.bids}
+                  asks={orderBook.asks}
+                  midPrice={orderBook.metrics.midPrice}
+                  symbol={selectedSymbol}
+                  height={450}
+                />
+              </TabsContent>
+
+              <TabsContent value="comparison" className="mt-4">
+                <ExchangeComparison
+                  symbol={selectedSymbol}
+                  type="orderbook"
+                />
+              </TabsContent>
+            </Tabs>
+
             {/* Actionable Insights */}
             <Card className="border-primary/20">
               <CardHeader>
@@ -277,11 +311,11 @@ export default function OrderBook() {
                       {sentiment?.sentiment === 'neutral' && 'Balanced Market Conditions'}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {sentiment?.sentiment === 'bullish' && 
+                      {sentiment?.sentiment === 'bullish' &&
                         `Buy orders dominate with ${orderBook.metrics.buyPressure.toFixed(1)}% pressure. Market showing bullish momentum.`}
-                      {sentiment?.sentiment === 'bearish' && 
+                      {sentiment?.sentiment === 'bearish' &&
                         `Sell orders dominate with ${orderBook.metrics.sellPressure.toFixed(1)}% pressure. Market showing bearish momentum.`}
-                      {sentiment?.sentiment === 'neutral' && 
+                      {sentiment?.sentiment === 'neutral' &&
                         'Order book is balanced between buyers and sellers. Market in equilibrium.'}
                     </p>
                   </div>
@@ -292,7 +326,7 @@ export default function OrderBook() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">Spread Analysis</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {orderBook.metrics.spreadPercent < 0.01 ? 
+                      {orderBook.metrics.spreadPercent < 0.01 ?
                         `Tight spread of ${orderBook.metrics.spreadPercent.toFixed(3)}% indicates high liquidity and efficient market.` :
                         `Wide spread of ${orderBook.metrics.spreadPercent.toFixed(3)}% suggests lower liquidity. Consider limit orders.`
                       }
@@ -305,7 +339,7 @@ export default function OrderBook() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">Bid/Ask Ratio: {orderBook.metrics.bidAskRatio.toFixed(2)}</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {orderBook.metrics.bidAskRatio > 1.2 ? 
+                      {orderBook.metrics.bidAskRatio > 1.2 ?
                         'Higher bid volume suggests potential upward price movement.' :
                         orderBook.metrics.bidAskRatio < 0.8 ?
                         'Higher ask volume suggests potential downward price pressure.' :

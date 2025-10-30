@@ -4,9 +4,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { enhancedFundingRateService } from "@/services/enhancedFundingRateService";
-import { TrendingUp, TrendingDown, Search, Timer, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Timer, Info, LineChart, DollarSign } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArbitrageDashboard } from "@/components/trading/ArbitrageDashboard";
+import { FundingRateChart } from "@/components/trading/FundingRateChart";
+import { ExchangeComparison } from "@/components/trading/ExchangeComparison";
+import { historicalDataService } from "@/services/historicalDataService";
 
 interface FundingRateData {
   symbol: string;
@@ -30,6 +35,9 @@ const FundingRates = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [selectedSymbol, setSelectedSymbol] = useState<string>("BTC");
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
+  const [loadingHistorical, setLoadingHistorical] = useState(false);
 
   const fetchFundingRates = async () => {
     try {
@@ -39,6 +47,23 @@ const FundingRates = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistoricalData = async (symbol: string) => {
+    try {
+      setLoadingHistorical(true);
+      const history = await historicalDataService.getFundingRateHistory(
+        symbol,
+        'binance',
+        24 // Last 24 hours
+      );
+      setHistoricalData(history);
+    } catch (err) {
+      console.error('Failed to fetch historical data:', err);
+      setHistoricalData([]);
+    } finally {
+      setLoadingHistorical(false);
     }
   };
 
@@ -58,6 +83,13 @@ const FundingRates = () => {
       clearInterval(secondInterval);
     };
   }, []);
+
+  // Fetch historical data when selected symbol changes
+  useEffect(() => {
+    if (selectedSymbol) {
+      fetchHistoricalData(selectedSymbol);
+    }
+  }, [selectedSymbol]);
 
   // Filter funding rates based on search
   const filteredRates = useMemo(() => {
@@ -398,6 +430,114 @@ const FundingRates = () => {
             </div>
           )}
         </Card>
+
+        {/* Advanced Analysis Sections */}
+        <div className="mt-8 space-y-6">
+          <Tabs defaultValue="arbitrage" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="arbitrage" className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Arbitrage
+              </TabsTrigger>
+              <TabsTrigger value="chart" className="flex items-center gap-2">
+                <LineChart className="w-4 h-4" />
+                Historical
+              </TabsTrigger>
+              <TabsTrigger value="comparison" className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Multi-Exchange
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="arbitrage" className="mt-4">
+              <ArbitrageDashboard
+                symbols={['BTC', 'ETH', 'SOL', 'BNB', 'XRP']}
+                autoRefresh={true}
+              />
+            </TabsContent>
+
+            <TabsContent value="chart" className="mt-4">
+              <Card>
+                <div className="p-4 border-b border-border">
+                  <h3 className="text-lg font-semibold mb-2">Historical Funding Rate Analysis</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    View 24-hour funding rate trends and patterns
+                  </p>
+
+                  {/* Symbol Selector */}
+                  <div className="flex flex-wrap gap-2">
+                    {['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX'].map(symbol => (
+                      <button
+                        key={symbol}
+                        onClick={() => setSelectedSymbol(symbol)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          selectedSymbol === symbol
+                            ? 'bg-primary text-primary-foreground shadow-lg'
+                            : 'bg-card text-foreground hover:bg-accent border border-border'
+                        }`}
+                      >
+                        {symbol}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {loadingHistorical ? (
+                  <div className="p-8">
+                    <Skeleton className="h-[350px] w-full" />
+                  </div>
+                ) : historicalData.length > 0 ? (
+                  <FundingRateChart
+                    fundingRateData={historicalData}
+                    symbol={selectedSymbol}
+                    showPrice={false}
+                  />
+                ) : (
+                  <div className="p-12 text-center text-muted-foreground">
+                    <LineChart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">No historical data available for {selectedSymbol}</p>
+                    <p className="text-xs mt-2">Data will be available once the system starts collecting funding rate history</p>
+                  </div>
+                )}
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="comparison" className="mt-4">
+              <Card>
+                <div className="p-4 border-b border-border">
+                  <h3 className="text-lg font-semibold mb-2">Multi-Exchange Comparison</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Compare funding rates across Binance, Bybit, and Coinbase
+                  </p>
+
+                  {/* Symbol Selector */}
+                  <div className="flex flex-wrap gap-2">
+                    {['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX'].map(symbol => (
+                      <button
+                        key={symbol}
+                        onClick={() => setSelectedSymbol(symbol)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          selectedSymbol === symbol
+                            ? 'bg-primary text-primary-foreground shadow-lg'
+                            : 'bg-card text-foreground hover:bg-accent border border-border'
+                        }`}
+                      >
+                        {symbol}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <ExchangeComparison
+                    symbol={selectedSymbol}
+                    type="funding"
+                  />
+                </div>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-muted-foreground">
