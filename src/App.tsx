@@ -31,6 +31,7 @@ const MarketSentiment = lazy(() => import("./pages/MarketSentiment"));
 const ETFFlows = lazy(() => import("./pages/ETFFlows"));
 const OnChainAnalysis = lazy(() => import("./pages/OnChainAnalysis"));
 const FundingRates = lazy(() => import("./pages/FundingRates"));
+const OrderBook = lazy(() => import("./pages/OrderBook"));
 
 // Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/etf-flows" element={<ProtectedRoute><ETFFlows /></ProtectedRoute>} />
               <Route path="/onchain-analysis" element={<ProtectedRoute><OnChainAnalysis /></ProtectedRoute>} />
               <Route path="/funding-rates" element={<ProtectedRoute><FundingRates /></ProtectedRoute>} />
+              <Route path="/orderbook" element={<ProtectedRoute><OrderBook /></ProtectedRoute>} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
