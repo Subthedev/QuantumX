@@ -168,8 +168,8 @@ export default function OrderBook() {
   const {
     imbalance,
     metrics: ofiMetrics,
-    signals,
-    criticalSignals,
+    signals = [],
+    criticalSignals = [],
     levels,
     tradingAction
   } = useOrderFlowImbalance({
@@ -178,7 +178,7 @@ export default function OrderBook() {
     midPrice: orderBook?.metrics.midPrice || 0,
     symbol: selectedSymbol,
     enabled: !!orderBook
-  });
+  }) || {};
 
   // Health monitoring
   const [healthMetrics, setHealthMetrics] = useState(dataHealthMonitor.getHealth(selectedSymbol.toLowerCase()));
@@ -233,7 +233,7 @@ export default function OrderBook() {
   };
 
   const getImbalanceColor = () => {
-    if (!ofiMetrics.hasData) return 'text-muted-foreground';
+    if (!ofiMetrics || !ofiMetrics.hasData) return 'text-muted-foreground';
     if (ofiMetrics.overallImbalance > 30) return 'text-green-500';
     if (ofiMetrics.overallImbalance < -30) return 'text-red-500';
     return 'text-yellow-500';
@@ -385,7 +385,7 @@ export default function OrderBook() {
         {isConnected && orderBook && (
           <>
             {/* Order Flow Imbalance Dashboard - HERO SECTION */}
-            {ofiMetrics.hasData && (
+            {ofiMetrics && ofiMetrics.hasData && (
               <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background shadow-lg">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -393,14 +393,14 @@ export default function OrderBook() {
                       <Eye className="w-5 h-5 text-primary" />
                       Order Flow Imbalance Analysis
                       <Badge variant="outline" className="ml-2 text-xs">
-                        {ofiMetrics.confidence}% Confidence
+                        {ofiMetrics?.confidence || 0}% Confidence
                       </Badge>
                     </CardTitle>
                     <Badge
-                      variant={ofiMetrics.strength.includes('buy') ? 'default' : ofiMetrics.strength.includes('sell') ? 'destructive' : 'secondary'}
+                      variant={ofiMetrics?.strength?.includes('buy') ? 'default' : ofiMetrics?.strength?.includes('sell') ? 'destructive' : 'secondary'}
                       className="text-xs"
                     >
-                      {ofiMetrics.strength.replace('_', ' ').toUpperCase()}
+                      {(ofiMetrics?.strength || 'neutral').replace('_', ' ').toUpperCase()}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -411,23 +411,23 @@ export default function OrderBook() {
                       <CardContent className="p-3">
                         <div className="text-[10px] text-muted-foreground mb-1">Overall Imbalance</div>
                         <div className={`text-xl font-bold ${getImbalanceColor()}`}>
-                          {ofiMetrics.overallImbalance > 0 ? '+' : ''}{ofiMetrics.overallImbalance.toFixed(1)}
+                          {(ofiMetrics?.overallImbalance || 0) > 0 ? '+' : ''}{(ofiMetrics?.overallImbalance || 0).toFixed(1)}
                         </div>
                       </CardContent>
                     </Card>
                     <Card className="bg-background/50">
                       <CardContent className="p-3">
                         <div className="text-[10px] text-muted-foreground mb-1">Top of Book</div>
-                        <div className={`text-xl font-bold ${ofiMetrics.topOfBookImbalance > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {ofiMetrics.topOfBookImbalance > 0 ? '+' : ''}{ofiMetrics.topOfBookImbalance.toFixed(1)}
+                        <div className={`text-xl font-bold ${(ofiMetrics?.topOfBookImbalance || 0) > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {(ofiMetrics?.topOfBookImbalance || 0) > 0 ? '+' : ''}{(ofiMetrics?.topOfBookImbalance || 0).toFixed(1)}
                         </div>
                       </CardContent>
                     </Card>
                     <Card className="bg-background/50">
                       <CardContent className="p-3">
                         <div className="text-[10px] text-muted-foreground mb-1">Deep Book</div>
-                        <div className={`text-xl font-bold ${ofiMetrics.deepBookImbalance > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {ofiMetrics.deepBookImbalance > 0 ? '+' : ''}{ofiMetrics.deepBookImbalance.toFixed(1)}
+                        <div className={`text-xl font-bold ${(ofiMetrics?.deepBookImbalance || 0) > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {(ofiMetrics?.deepBookImbalance || 0) > 0 ? '+' : ''}{(ofiMetrics?.deepBookImbalance || 0).toFixed(1)}
                         </div>
                       </CardContent>
                     </Card>
@@ -435,15 +435,15 @@ export default function OrderBook() {
                       <CardContent className="p-3">
                         <div className="text-[10px] text-muted-foreground mb-1">Trend</div>
                         <div className="text-base font-bold text-foreground">
-                          {ofiMetrics.trend.toUpperCase()}
+                          {(ofiMetrics?.trend || 'stable').toUpperCase()}
                         </div>
                       </CardContent>
                     </Card>
                     <Card className="bg-background/50">
                       <CardContent className="p-3">
                         <div className="text-[10px] text-muted-foreground mb-1">Velocity</div>
-                        <div className={`text-base font-bold ${ofiMetrics.velocity > 0 ? 'text-green-500' : ofiMetrics.velocity < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                          {ofiMetrics.velocity > 0 ? '+' : ''}{ofiMetrics.velocity.toFixed(1)}
+                        <div className={`text-base font-bold ${(ofiMetrics?.velocity || 0) > 0 ? 'text-green-500' : (ofiMetrics?.velocity || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                          {(ofiMetrics?.velocity || 0) > 0 ? '+' : ''}{(ofiMetrics?.velocity || 0).toFixed(1)}
                         </div>
                       </CardContent>
                     </Card>
@@ -451,9 +451,9 @@ export default function OrderBook() {
                       <CardContent className="p-3">
                         <div className="text-[10px] text-muted-foreground mb-1">Signals</div>
                         <div className="text-xl font-bold text-primary">
-                          {ofiMetrics.signalCount}
-                          {ofiMetrics.criticalSignals > 0 && (
-                            <span className="text-sm text-red-500 ml-1">({ofiMetrics.criticalSignals}!)</span>
+                          {ofiMetrics?.signalCount || 0}
+                          {(ofiMetrics?.criticalSignals || 0) > 0 && (
+                            <span className="text-sm text-red-500 ml-1">({ofiMetrics?.criticalSignals}!)</span>
                           )}
                         </div>
                       </CardContent>
@@ -470,19 +470,19 @@ export default function OrderBook() {
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="font-bold text-base">Trading Recommendation</h3>
                               <Badge variant={
-                                tradingAction.action.includes('buy') ? 'default' :
-                                tradingAction.action.includes('sell') ? 'destructive' : 'secondary'
+                                tradingAction.action?.includes('buy') ? 'default' :
+                                tradingAction.action?.includes('sell') ? 'destructive' : 'secondary'
                               }>
-                                {tradingAction.action.replace('_', ' ').toUpperCase()}
+                                {(tradingAction.action || 'hold').replace('_', ' ').toUpperCase()}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {tradingAction.risk.toUpperCase()} Risk
+                                {(tradingAction.risk || 'low').toUpperCase()} Risk
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {tradingAction.timeframe.replace('_', ' ').toUpperCase()}
+                                {(tradingAction.timeframe || 'short_term').replace('_', ' ').toUpperCase()}
                               </Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground mb-3">{tradingAction.reasoning}</p>
+                            <p className="text-sm text-muted-foreground mb-3">{tradingAction.reasoning || ''}</p>
                             {tradingAction.entry && (
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                                 <div>
@@ -518,7 +518,7 @@ export default function OrderBook() {
                   )}
 
                   {/* Critical Signals */}
-                  {criticalSignals.length > 0 && (
+                  {criticalSignals && criticalSignals.length > 0 && (
                     <div className="space-y-2">
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                         <Flame className="w-4 h-4 text-orange-500" />
@@ -533,7 +533,7 @@ export default function OrderBook() {
                   )}
 
                   {/* All Signals */}
-                  {signals.length > criticalSignals.length && (
+                  {signals && signals.length > (criticalSignals?.length || 0) && (
                     <div className="space-y-2">
                       <h3 className="text-sm font-semibold text-muted-foreground">All Signals ({signals.length})</h3>
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
