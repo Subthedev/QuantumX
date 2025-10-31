@@ -119,11 +119,23 @@ class OrderBookWebSocketManager {
     ws.onmessage = (event) => {
       try {
         const data: BinanceDepthUpdate = JSON.parse(event.data);
+
+        // Log for debugging
+        console.log(`📊 Received data for ${symbol}:`, {
+          hasBids: Array.isArray(data?.b),
+          hasAsks: Array.isArray(data?.a),
+          bidsCount: data?.b?.length || 0,
+          asksCount: data?.a?.length || 0,
+          symbol: data?.s
+        });
+
         const orderBookData = this.processDepthUpdate(data);
 
-        // Record latency for health monitoring
-        const latency = Date.now() - data.E;
-        dataHealthMonitor.recordLatency(symbol, latency);
+        // Record latency for health monitoring (with safety check)
+        if (data?.E) {
+          const latency = Date.now() - data.E;
+          dataHealthMonitor.recordLatency(symbol, latency);
+        }
 
         // Cache the data
         this.orderBookCache.set(symbol, orderBookData);
