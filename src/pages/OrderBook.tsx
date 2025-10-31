@@ -1,17 +1,13 @@
 /**
- * Order Book Page - Complete Redesign
- * World-class real-time order book with advanced analytics and visual insights
- * Production-grade REST API with 2-second polling for reliable real-time data
+ * Order Book Page - Production Optimized
+ * Clean, minimal UI with time frame selection and stabilized data visualization
  */
 
-import { useState, useMemo, useEffect, memo } from 'react';
+import { useState, useMemo, memo, useCallback } from 'react';
 import { useOrderBookREST } from '@/hooks/useOrderBookREST';
-import { useOrderFlowImbalance } from '@/hooks/useOrderFlowImbalance';
-import { usePlatformMetrics } from '@/hooks/usePlatformMetrics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ArrowDown,
@@ -20,739 +16,419 @@ import {
   TrendingDown,
   Activity,
   BarChart3,
-  Zap,
-  DollarSign,
-  Users,
-  AlertCircle,
-  Target,
-  ShieldCheck,
-  AlertTriangle,
-  Info,
-  Flame,
-  Eye,
-  LayoutGrid,
-  LineChart
+  Clock,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { EnhancedDepthChart } from '@/components/trading/EnhancedDepthChart';
 import { OrderBookHeatmap } from '@/components/trading/OrderBookHeatmap';
-import { AggregatedOrderBook } from '@/components/trading/AggregatedOrderBook';
-import { dataHealthMonitor } from '@/services/dataHealthMonitor';
 
-const POPULAR_PAIRS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC'];
+const POPULAR_PAIRS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA'];
+const TIME_FRAMES = [
+  { value: '1000', label: '1s', description: 'Real-time' },
+  { value: '5000', label: '5s', description: 'Fast' },
+  { value: '10000', label: '10s', description: 'Balanced' },
+  { value: '30000', label: '30s', description: 'Smooth' }
+];
 
-// Memoized compact order book table for performance
-const CompactOrderBookTable = memo(({
-  orders,
-  side,
+// Memoized Order Book Table - Stabilized with key-based rendering
+const OrderBookTable = memo(({
+  bids,
+  asks,
+  midPrice,
   formatPrice,
-  formatVolume,
-  totalVolume
+  formatVolume
 }: {
-  orders: any[];
-  side: 'bid' | 'ask';
+  bids: any[];
+  asks: any[];
+  midPrice: number;
   formatPrice: (n: number) => string;
   formatVolume: (n: number) => string;
-  totalVolume: number;
 }) => {
+  const maxBidVolume = useMemo(() =>
+    Math.max(...bids.map(b => b.quantity), 1),
+    [bids]
+  );
+  const maxAskVolume = useMemo(() =>
+    Math.max(...asks.map(a => a.quantity), 1),
+    [asks]
+  );
+
   return (
-    <div className="h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-      <table className="w-full">
-        <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
-          <tr className="border-b border-border">
-            <th className="text-left py-2 px-2 text-[10px] font-medium text-muted-foreground">Price</th>
-            <th className="text-right py-2 px-2 text-[10px] font-medium text-muted-foreground">Amount</th>
-            <th className="text-right py-2 px-2 text-[10px] font-medium text-muted-foreground">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.slice(0, 20).map((order, i) => {
-            const volumePercent = (order.quantity / totalVolume) * 100;
-            return (
-              <tr key={i} className="hover:bg-accent/50 transition-colors group">
-                <td className="relative py-1 px-2">
-                  <div
-                    className={`absolute inset-0 ${side === 'bid' ? 'bg-green-500/10' : 'bg-red-500/10'} transition-all group-hover:${side === 'bid' ? 'bg-green-500/20' : 'bg-red-500/20'}`}
-                    style={{ width: `${Math.min(volumePercent * 2, 100)}%` }}
-                  />
-                  <span className={`relative ${side === 'bid' ? 'text-green-500' : 'text-red-500'} font-mono text-xs font-medium`}>
-                    {formatPrice(order.price)}
-                  </span>
-                </td>
-                <td className="relative text-right py-1 px-2 font-mono text-xs">
-                  {formatVolume(order.quantity)}
-                </td>
-                <td className="relative text-right py-1 px-2 font-mono text-xs text-muted-foreground">
-                  {formatVolume(order.total)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="space-y-2">
+      {/* Asks - Reversed to show lowest first */}
+      <div className="space-y-px">
+        {asks.slice(0, 10).reverse().map((ask, i) => {
+          const volumePercent = (ask.quantity / maxAskVolume) * 100;
+          return (
+            <div key={`ask-${ask.price}`} className="relative flex items-center justify-between py-1 px-3 hover:bg-red-500/5 transition-colors group">
+              <div
+                className="absolute inset-0 bg-red-500/10 transition-all"
+                style={{ width: `${volumePercent}%` }}
+              />
+              <span className="relative text-red-500 font-mono text-sm font-medium">
+                {formatPrice(ask.price)}
+              </span>
+              <span className="relative font-mono text-sm text-muted-foreground">
+                {formatVolume(ask.quantity)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Spread */}
+      <div className="flex items-center justify-center gap-3 py-3 bg-muted/30 rounded-lg border border-border">
+        <div className="text-center">
+          <div className="text-lg font-bold font-mono">{formatPrice(midPrice)}</div>
+          <div className="text-xs text-muted-foreground">Mid Price</div>
+        </div>
+        {bids[0] && asks[0] && (
+          <>
+            <div className="h-8 w-px bg-border" />
+            <div className="text-center">
+              <div className="text-sm font-mono text-muted-foreground">
+                {formatPrice(asks[0].price - bids[0].price)}
+              </div>
+              <div className="text-xs text-muted-foreground">Spread</div>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div className="text-center">
+              <div className="text-sm font-mono text-muted-foreground">
+                {(((asks[0].price - bids[0].price) / midPrice) * 100).toFixed(3)}%
+              </div>
+              <div className="text-xs text-muted-foreground">%</div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Bids */}
+      <div className="space-y-px">
+        {bids.slice(0, 10).map((bid, i) => {
+          const volumePercent = (bid.quantity / maxBidVolume) * 100;
+          return (
+            <div key={`bid-${bid.price}`} className="relative flex items-center justify-between py-1 px-3 hover:bg-green-500/5 transition-colors group">
+              <div
+                className="absolute inset-0 bg-green-500/10 transition-all"
+                style={{ width: `${volumePercent}%` }}
+              />
+              <span className="relative text-green-500 font-mono text-sm font-medium">
+                {formatPrice(bid.price)}
+              </span>
+              <span className="relative font-mono text-sm text-muted-foreground">
+                {formatVolume(bid.quantity)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 });
-CompactOrderBookTable.displayName = 'CompactOrderBookTable';
+OrderBookTable.displayName = 'OrderBookTable';
 
-// Memoized Order Flow Signal Card
-const OrderFlowSignalCard = memo(({ signal }: { signal: any }) => {
-  const getSignalIcon = () => {
-    switch (signal.type) {
-      case 'whale_buy':
-      case 'whale_sell':
-        return Flame;
-      case 'absorption':
-        return ShieldCheck;
-      case 'breakout_imminent':
-        return Zap;
-      case 'reversal_signal':
-        return AlertTriangle;
-      default:
-        return Info;
-    }
-  };
-
-  const getSeverityColor = () => {
-    switch (signal.severity) {
-      case 'critical':
-        return 'border-l-red-600 bg-red-600/5';
-      case 'high':
-        return 'border-l-orange-500 bg-orange-500/5';
-      case 'medium':
-        return 'border-l-yellow-500 bg-yellow-500/5';
-      default:
-        return 'border-l-blue-500 bg-blue-500/5';
-    }
-  };
-
-  const Icon = getSignalIcon();
-
-  return (
-    <Card className={`border-l-4 ${getSeverityColor()} hover:shadow-md transition-shadow`}>
-      <CardContent className="p-3">
-        <div className="flex items-start gap-2">
-          <Icon className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-semibold text-sm truncate">{signal.title}</h4>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
-                {signal.severity}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-1">
-              {signal.description}
-            </p>
-            <div className="flex items-center gap-1 text-xs font-medium text-primary">
-              <Target className="w-3 h-3" />
-              <span>{signal.action}</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-});
-OrderFlowSignalCard.displayName = 'OrderFlowSignalCard';
+// Metrics Card Component
+const MetricCard = memo(({
+  label,
+  value,
+  change,
+  icon: Icon,
+  trend
+}: {
+  label: string;
+  value: string;
+  change?: string;
+  icon: any;
+  trend?: 'up' | 'down' | 'neutral';
+}) => (
+  <Card className="border-muted/50">
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between mb-2">
+        <Icon className="w-4 h-4 text-muted-foreground" />
+        {trend && (
+          <Badge variant="outline" className={`
+            ${trend === 'up' ? 'text-green-500 border-green-500/30' : ''}
+            ${trend === 'down' ? 'text-red-500 border-red-500/30' : ''}
+            ${trend === 'neutral' ? 'text-yellow-500 border-yellow-500/30' : ''}
+            text-xs px-2 py-0 h-5
+          `}>
+            {trend === 'up' && <TrendingUp className="w-3 h-3 mr-1" />}
+            {trend === 'down' && <TrendingDown className="w-3 h-3 mr-1" />}
+            {change}
+          </Badge>
+        )}
+      </div>
+      <div className="text-2xl font-bold font-mono mb-1">{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </CardContent>
+  </Card>
+));
+MetricCard.displayName = 'MetricCard';
 
 export default function OrderBook() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
-  const [activeView, setActiveView] = useState<'heatmap' | 'depth' | 'aggregated' | 'traditional'>('depth');
+  const [timeFrame, setTimeFrame] = useState('5000');
+  const [activeTab, setActiveTab] = useState('depth');
 
-  // Use REST API with 2-second polling for reliable data
-  const { data: orderBook, isLoading, error } = useOrderBookREST({
+  // Fetch order book data with selected time frame
+  const { data: orderBook, isLoading } = useOrderBookREST({
     symbol: selectedSymbol,
     limit: 20,
-    pollInterval: 2000
+    pollInterval: parseInt(timeFrame)
   });
 
-  // Derived states for backward compatibility
-  const isConnecting = isLoading && !orderBook;
-  const isConnected = !isLoading && !!orderBook && orderBook.status === 'connected';
-  const hasError = !!error || orderBook?.status === 'error';
-
-  // Temporarily disable platform metrics to avoid WebSocket connection overload
-  const { metrics: platformMetrics } = usePlatformMetrics({ startTracking: false });
-
-  // Order Flow Imbalance Analysis
-  const {
-    imbalance,
-    metrics: ofiMetrics,
-    signals = [],
-    criticalSignals = [],
-    levels,
-    tradingAction
-  } = useOrderFlowImbalance({
-    bids: orderBook?.bids || [],
-    asks: orderBook?.asks || [],
-    midPrice: orderBook?.metrics.midPrice || 0,
-    symbol: selectedSymbol,
-    enabled: !!orderBook
-  }) || {};
-
-  // Health monitoring
-  const [healthMetrics, setHealthMetrics] = useState(dataHealthMonitor.getHealth(selectedSymbol.toLowerCase()));
-
-  useEffect(() => {
-    if (!orderBook) return;
-
-    const interval = setInterval(() => {
-      setHealthMetrics(dataHealthMonitor.getHealth(selectedSymbol.toLowerCase()));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [selectedSymbol, orderBook]);
-
-  const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
-  const [prevMidPrice, setPrevMidPrice] = useState<number | null>(null);
-
-  // Flash animation on price change
-  useEffect(() => {
-    if (orderBook?.metrics.midPrice && prevMidPrice !== null) {
-      if (orderBook.metrics.midPrice > prevMidPrice) {
-        setPriceFlash('up');
-      } else if (orderBook.metrics.midPrice < prevMidPrice) {
-        setPriceFlash('down');
-      }
-
-      const timeout = setTimeout(() => setPriceFlash(null), 500);
-      return () => clearTimeout(timeout);
-    }
-    if (orderBook?.metrics.midPrice) {
-      setPrevMidPrice(orderBook.metrics.midPrice);
-    }
-  }, [orderBook?.metrics.midPrice, prevMidPrice]);
-
-  const formatPrice = (price: number) => {
-    if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Format helpers - memoized to prevent unnecessary recalculations
+  const formatPrice = useCallback((price: number) => {
+    if (price >= 1000) return price.toFixed(2);
     if (price >= 1) return price.toFixed(4);
     return price.toFixed(6);
-  };
+  }, []);
 
-  const formatVolume = (volume: number) => {
-    if (volume >= 1000) return volume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (volume >= 1) return volume.toFixed(4);
-    return volume.toFixed(6);
-  };
+  const formatVolume = useCallback((volume: number) => {
+    if (volume >= 1000) return volume.toFixed(2);
+    if (volume >= 1) return volume.toFixed(3);
+    return volume.toFixed(4);
+  }, []);
 
-  const formatUSD = (value: number) => {
-    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
-  };
+  // Derived metrics
+  const metrics = useMemo(() => {
+    if (!orderBook?.metrics) return null;
 
-  const getImbalanceColor = () => {
-    if (!ofiMetrics || !ofiMetrics.hasData) return 'text-muted-foreground';
-    if (ofiMetrics.overallImbalance > 30) return 'text-green-500';
-    if (ofiMetrics.overallImbalance < -30) return 'text-red-500';
-    return 'text-yellow-500';
-  };
-
-  const getHealthStatusColor = () => {
-    switch (healthMetrics.websocketStatus) {
-      case 'healthy': return 'text-green-500';
-      case 'degraded': return 'text-yellow-500';
-      case 'critical': return 'text-red-500';
-      default: return 'text-muted-foreground';
-    }
-  };
+    const { metrics } = orderBook;
+    return {
+      spread: formatPrice(metrics.spread),
+      spreadPercent: metrics.spreadPercent.toFixed(3),
+      bidVolume: formatVolume(metrics.totalBidVolume),
+      askVolume: formatVolume(metrics.totalAskVolume),
+      buyPressure: metrics.buyPressure.toFixed(1),
+      sellPressure: metrics.sellPressure.toFixed(1),
+      trend: metrics.buyPressure > 55 ? 'up' : metrics.sellPressure > 55 ? 'down' : 'neutral'
+    };
+  }, [orderBook?.metrics, formatPrice, formatVolume]);
 
   return (
-    <div className="min-h-screen bg-background py-6 pt-16 sm:pt-20 px-3 sm:px-4 lg:px-6">
-      <div className="max-w-[2000px] mx-auto space-y-4">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
-              <Activity className="w-7 h-7 text-primary animate-pulse" />
-              Advanced Order Book Analytics
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Real-time 100ms updates • Order Flow Imbalance • Liquidity Zones • Multi-Exchange Aggregation
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant={isConnected ? 'default' : 'secondary'} className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                {isConnected && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-              </span>
-              <span className="text-xs font-medium">{isConnected ? 'Live' : isConnecting ? 'Connecting...' : 'Offline'}</span>
-            </Badge>
-            {healthMetrics && (
-              <>
-                <Badge variant="outline" className="text-xs">
-                  {healthMetrics.averageLatency}ms latency
-                </Badge>
-                <Badge variant="outline" className={`text-xs ${getHealthStatusColor()}`}>
-                  {healthMetrics.dataQuality.toUpperCase()}
-                </Badge>
-              </>
-            )}
-          </div>
+    <div className="min-h-screen bg-background p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">Order Book</h1>
+          <p className="text-sm text-muted-foreground">Real-time market depth analysis</p>
         </div>
 
-        {/* Platform-Wide Metrics - Compact */}
-        {platformMetrics && (
-          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardContent className="p-3">
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs">
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
-                    <Users className="w-3 h-3" />
-                    Tracked
-                  </div>
-                  <div className="text-base font-bold">{platformMetrics.totalCoins}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
-                    <DollarSign className="w-3 h-3" />
-                    Volume
-                  </div>
-                  <div className="text-base font-bold">{formatUSD(platformMetrics.totalVolume)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5">Bids</div>
-                  <div className="text-base font-bold text-green-500">{formatUSD(platformMetrics.totalBidVolume)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5">Asks</div>
-                  <div className="text-base font-bold text-red-500">{formatUSD(platformMetrics.totalAskVolume)}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5">Spread</div>
-                  <div className="text-base font-bold text-yellow-500">{platformMetrics.averageSpread.toFixed(3)}%</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3 text-green-500" />
-                    Bullish
-                  </div>
-                  <div className="text-base font-bold text-green-500">{platformMetrics.bullishCoins}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
-                    <TrendingDown className="w-3 h-3 text-red-500" />
-                    Bearish
-                  </div>
-                  <div className="text-base font-bold text-red-500">{platformMetrics.bearishCoins}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Coin Selector - Compact Pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {POPULAR_PAIRS.map(symbol => (
-            <button
-              key={symbol}
-              onClick={() => setSelectedSymbol(symbol)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                selectedSymbol === symbol
-                  ? 'bg-primary text-primary-foreground shadow-lg scale-105'
-                  : 'bg-card text-foreground hover:bg-accent border border-border hover:scale-105'
-              }`}
-            >
-              {symbol}
-            </button>
-          ))}
+        {/* Time Frame Selector */}
+        <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border border-border">
+          <Clock className="w-4 h-4 text-muted-foreground ml-2" />
+          <div className="flex gap-1">
+            {TIME_FRAMES.map(tf => (
+              <Button
+                key={tf.value}
+                variant={timeFrame === tf.value ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTimeFrame(tf.value)}
+                className="h-8 px-3 text-xs"
+              >
+                {tf.label}
+              </Button>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {/* Error Handling */}
-        {hasError && (
-          <Card className="border-destructive/50 bg-destructive/10">
-            <CardContent className="p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm text-destructive">Connection Error</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {error?.message || 'Failed to connect. Retrying...'}
-                  </p>
-                </div>
+      {/* Symbol Selector */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        {POPULAR_PAIRS.map(symbol => (
+          <Button
+            key={symbol}
+            variant={selectedSymbol === symbol ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedSymbol(symbol)}
+            className="flex-shrink-0"
+          >
+            {symbol}/USDT
+          </Button>
+        ))}
+      </div>
+
+      {/* Loading State */}
+      {isLoading && !orderBook && (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center space-y-3">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground">Loading order book...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {orderBook?.status === 'error' && (
+        <Card className="border-red-500/50 bg-red-500/5">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              <div>
+                <h3 className="font-semibold text-red-500">Connection Error</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {orderBook.message || 'Failed to fetch order book data'}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Loading State */}
-        {isConnecting && !orderBook && (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Activity className="w-10 h-10 text-primary animate-spin mx-auto mb-3" />
-              <p className="text-base font-medium">Connecting to Real-Time Stream...</p>
-              <p className="text-xs text-muted-foreground mt-1">Establishing WebSocket connection</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Content */}
-        {isConnected && orderBook && (
-          <>
-            {/* Order Flow Imbalance Dashboard - HERO SECTION */}
-            {ofiMetrics && ofiMetrics.hasData && (
-              <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background shadow-lg">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Eye className="w-5 h-5 text-primary" />
-                      Order Flow Imbalance Analysis
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {ofiMetrics?.confidence || 0}% Confidence
-                      </Badge>
-                    </CardTitle>
-                    <Badge
-                      variant={ofiMetrics?.strength?.includes('buy') ? 'default' : ofiMetrics?.strength?.includes('sell') ? 'destructive' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {(ofiMetrics?.strength || 'neutral').replace('_', ' ').toUpperCase()}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* OFI Metrics Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                    <Card className="bg-background/50">
-                      <CardContent className="p-3">
-                        <div className="text-[10px] text-muted-foreground mb-1">Overall Imbalance</div>
-                        <div className={`text-xl font-bold ${getImbalanceColor()}`}>
-                          {(ofiMetrics?.overallImbalance || 0) > 0 ? '+' : ''}{(ofiMetrics?.overallImbalance || 0).toFixed(1)}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-background/50">
-                      <CardContent className="p-3">
-                        <div className="text-[10px] text-muted-foreground mb-1">Top of Book</div>
-                        <div className={`text-xl font-bold ${(ofiMetrics?.topOfBookImbalance || 0) > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {(ofiMetrics?.topOfBookImbalance || 0) > 0 ? '+' : ''}{(ofiMetrics?.topOfBookImbalance || 0).toFixed(1)}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-background/50">
-                      <CardContent className="p-3">
-                        <div className="text-[10px] text-muted-foreground mb-1">Deep Book</div>
-                        <div className={`text-xl font-bold ${(ofiMetrics?.deepBookImbalance || 0) > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {(ofiMetrics?.deepBookImbalance || 0) > 0 ? '+' : ''}{(ofiMetrics?.deepBookImbalance || 0).toFixed(1)}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-background/50">
-                      <CardContent className="p-3">
-                        <div className="text-[10px] text-muted-foreground mb-1">Trend</div>
-                        <div className="text-base font-bold text-foreground">
-                          {(ofiMetrics?.trend || 'stable').toUpperCase()}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-background/50">
-                      <CardContent className="p-3">
-                        <div className="text-[10px] text-muted-foreground mb-1">Velocity</div>
-                        <div className={`text-base font-bold ${(ofiMetrics?.velocity || 0) > 0 ? 'text-green-500' : (ofiMetrics?.velocity || 0) < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                          {(ofiMetrics?.velocity || 0) > 0 ? '+' : ''}{(ofiMetrics?.velocity || 0).toFixed(1)}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-background/50">
-                      <CardContent className="p-3">
-                        <div className="text-[10px] text-muted-foreground mb-1">Signals</div>
-                        <div className="text-xl font-bold text-primary">
-                          {ofiMetrics?.signalCount || 0}
-                          {(ofiMetrics?.criticalSignals || 0) > 0 && (
-                            <span className="text-sm text-red-500 ml-1">({ofiMetrics?.criticalSignals}!)</span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Trading Recommendation */}
-                  {tradingAction && (
-                    <Card className="border-primary/40 bg-primary/5">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <Target className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-bold text-base">Trading Recommendation</h3>
-                              <Badge variant={
-                                tradingAction.action?.includes('buy') ? 'default' :
-                                tradingAction.action?.includes('sell') ? 'destructive' : 'secondary'
-                              }>
-                                {(tradingAction.action || 'hold').replace('_', ' ').toUpperCase()}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {(tradingAction.risk || 'low').toUpperCase()} Risk
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {(tradingAction.timeframe || 'short_term').replace('_', ' ').toUpperCase()}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-3">{tradingAction.reasoning || ''}</p>
-                            {tradingAction.entry && (
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                                <div>
-                                  <span className="text-muted-foreground">Entry:</span>
-                                  <span className="ml-1 font-mono font-semibold">${formatPrice(tradingAction.entry)}</span>
-                                </div>
-                                {tradingAction.target && (
-                                  <div>
-                                    <span className="text-muted-foreground">Target:</span>
-                                    <span className="ml-1 font-mono font-semibold text-green-500">${formatPrice(tradingAction.target)}</span>
-                                  </div>
-                                )}
-                                {tradingAction.stopLoss && (
-                                  <div>
-                                    <span className="text-muted-foreground">Stop Loss:</span>
-                                    <span className="ml-1 font-mono font-semibold text-red-500">${formatPrice(tradingAction.stopLoss)}</span>
-                                  </div>
-                                )}
-                                {tradingAction.target && tradingAction.entry && (
-                                  <div>
-                                    <span className="text-muted-foreground">R/R:</span>
-                                    <span className="ml-1 font-mono font-semibold">
-                                      {((tradingAction.target - tradingAction.entry) / (tradingAction.entry - (tradingAction.stopLoss || tradingAction.entry * 0.95))).toFixed(2)}:1
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Critical Signals */}
-                  {criticalSignals && criticalSignals.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Flame className="w-4 h-4 text-orange-500" />
-                        Critical Signals ({criticalSignals.length})
-                      </h3>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {criticalSignals.slice(0, 4).map((signal, idx) => (
-                          <OrderFlowSignalCard key={idx} signal={signal} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* All Signals */}
-                  {signals && signals.length > (criticalSignals?.length || 0) && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground">All Signals ({signals.length})</h3>
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {signals.slice(0, 6).map((signal, idx) => (
-                          <OrderFlowSignalCard key={idx} signal={signal} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Key Metrics - Compact Row */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground mb-0.5">Mid Price</div>
-                  <div className={`text-lg font-bold transition-all duration-300 ${
-                    priceFlash === 'up' ? 'text-green-500 scale-110' :
-                    priceFlash === 'down' ? 'text-red-500 scale-110' :
-                    'text-foreground'
-                  }`}>
-                    ${formatPrice(orderBook.metrics.midPrice)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground mb-0.5">Spread</div>
-                  <div className="text-lg font-bold text-yellow-500">
-                    {orderBook.metrics.spreadPercent.toFixed(4)}%
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    Buy
-                  </div>
-                  <div className="text-lg font-bold text-green-500">
-                    {orderBook.metrics.buyPressure.toFixed(1)}%
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-1">
-                    <TrendingDown className="w-3 h-3" />
-                    Sell
-                  </div>
-                  <div className="text-lg font-bold text-red-500">
-                    {orderBook.metrics.sellPressure.toFixed(1)}%
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground mb-0.5">B/A Ratio</div>
-                  <div className="text-lg font-bold">
-                    {orderBook.metrics.bidAskRatio.toFixed(2)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground mb-0.5">24h Volume</div>
-                  <div className="text-base font-bold text-primary">
-                    {formatUSD((orderBook.metrics.totalBidVolume + orderBook.metrics.totalAskVolume) * orderBook.metrics.midPrice)}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {/* Visualization Selector */}
-            <Card>
+      {/* Main Content */}
+      {orderBook && orderBook.status === 'connected' && metrics && (
+        <>
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              label="Mid Price"
+              value={formatPrice(orderBook.metrics.midPrice)}
+              icon={Activity}
+              trend={metrics.trend as any}
+            />
+            <MetricCard
+              label="Spread"
+              value={`${metrics.spreadPercent}%`}
+              change={metrics.spread}
+              icon={BarChart3}
+            />
+            <MetricCard
+              label="Buy Pressure"
+              value={`${metrics.buyPressure}%`}
+              icon={TrendingUp}
+              trend={parseFloat(metrics.buyPressure) > 55 ? 'up' : 'neutral'}
+            />
+            <MetricCard
+              label="Sell Pressure"
+              value={`${metrics.sellPressure}%`}
+              icon={TrendingDown}
+              trend={parseFloat(metrics.sellPressure) > 55 ? 'down' : 'neutral'}
+            />
+          </div>
+
+          {/* Order Book Visualization */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Traditional Order Book */}
+            <Card className="lg:col-span-1">
               <CardHeader className="pb-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                  <Button
-                    variant={activeView === 'depth' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveView('depth')}
-                    className="flex items-center gap-1.5 text-xs whitespace-nowrap"
-                  >
-                    <LineChart className="w-3 h-3" />
-                    Enhanced Depth
-                  </Button>
-                  <Button
-                    variant={activeView === 'heatmap' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveView('heatmap')}
-                    className="flex items-center gap-1.5 text-xs whitespace-nowrap"
-                  >
-                    <LayoutGrid className="w-3 h-3" />
-                    Heatmap
-                  </Button>
-                  <Button
-                    variant={activeView === 'aggregated' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveView('aggregated')}
-                    className="flex items-center gap-1.5 text-xs whitespace-nowrap"
-                  >
-                    <BarChart3 className="w-3 h-3" />
-                    Multi-Exchange
-                  </Button>
-                  <Button
-                    variant={activeView === 'traditional' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveView('traditional')}
-                    className="flex items-center gap-1.5 text-xs whitespace-nowrap"
-                  >
-                    <Activity className="w-3 h-3" />
-                    Traditional
-                  </Button>
-                </div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Order Book
+                </CardTitle>
               </CardHeader>
-              <CardContent className="p-2 sm:p-4">
-                {activeView === 'depth' && (
-                  <EnhancedDepthChart
-                    bids={orderBook.bids}
-                    asks={orderBook.asks}
-                    midPrice={orderBook.metrics.midPrice}
-                    symbol={selectedSymbol}
-                    height={500}
-                  />
-                )}
-                {activeView === 'heatmap' && (
-                  <OrderBookHeatmap
-                    bids={orderBook.bids}
-                    asks={orderBook.asks}
-                    midPrice={orderBook.metrics.midPrice}
-                    symbol={selectedSymbol}
-                    height={600}
-                  />
-                )}
-                {activeView === 'aggregated' && (
-                  <AggregatedOrderBook
-                    symbol={selectedSymbol}
-                  />
-                )}
-                {activeView === 'traditional' && (
-                  <div className="grid lg:grid-cols-2 gap-4">
-                    {/* Asks */}
-                    <Card>
-                      <div className="p-3 border-b border-border bg-red-500/5">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-sm flex items-center gap-2 text-red-500">
-                            <ArrowDown className="w-4 h-4" />
-                            Asks (Sell)
-                          </h3>
-                          <span className="text-xs text-muted-foreground">
-                            {formatVolume(orderBook.metrics.totalAskVolume)} {selectedSymbol}
-                          </span>
-                        </div>
-                      </div>
-                      <CompactOrderBookTable
-                        orders={[...orderBook.asks].slice(0, 20).reverse()}
-                        side="ask"
-                        formatPrice={formatPrice}
-                        formatVolume={formatVolume}
-                        totalVolume={orderBook.metrics.totalAskVolume}
-                      />
-                    </Card>
-
-                    {/* Bids */}
-                    <Card>
-                      <div className="p-3 border-b border-border bg-green-500/5">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-sm flex items-center gap-2 text-green-500">
-                            <ArrowUp className="w-4 h-4" />
-                            Bids (Buy)
-                          </h3>
-                          <span className="text-xs text-muted-foreground">
-                            {formatVolume(orderBook.metrics.totalBidVolume)} {selectedSymbol}
-                          </span>
-                        </div>
-                      </div>
-                      <CompactOrderBookTable
-                        orders={orderBook.bids}
-                        side="bid"
-                        formatPrice={formatPrice}
-                        formatVolume={formatVolume}
-                        totalVolume={orderBook.metrics.totalBidVolume}
-                      />
-                    </Card>
-                  </div>
-                )}
+              <CardContent className="p-0">
+                <OrderBookTable
+                  bids={orderBook.bids}
+                  asks={orderBook.asks}
+                  midPrice={orderBook.metrics.midPrice}
+                  formatPrice={formatPrice}
+                  formatVolume={formatVolume}
+                />
               </CardContent>
             </Card>
-          </>
-        )}
 
-        {/* Loading Skeleton */}
-        {isConnecting && !orderBook && !hasError && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              {[...Array(6)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-            <Skeleton className="h-96 w-full" />
+            {/* Visualization Tabs */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="depth">Depth Chart</TabsTrigger>
+                    <TabsTrigger value="heatmap">Heatmap</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={activeTab} className="w-full">
+                  <TabsContent value="depth" className="mt-0">
+                    <div className="h-[400px]">
+                      <EnhancedDepthChart
+                        bids={orderBook.bids}
+                        asks={orderBook.asks}
+                        midPrice={orderBook.metrics.midPrice}
+                      />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="heatmap" className="mt-0">
+                    <div className="h-[400px]">
+                      <OrderBookHeatmap
+                        bids={orderBook.bids}
+                        asks={orderBook.asks}
+                        midPrice={orderBook.metrics.midPrice}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
           </div>
-        )}
-      </div>
+
+          {/* Volume Analysis */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Volume Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total Bid Volume</span>
+                    <span className="font-mono font-medium text-green-500">{metrics.bidVolume}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-green-500 transition-all duration-500"
+                      style={{ width: `${orderBook.metrics.buyPressure}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total Ask Volume</span>
+                    <span className="font-mono font-medium text-red-500">{metrics.askVolume}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-red-500 transition-all duration-500"
+                      style={{ width: `${orderBook.metrics.sellPressure}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Bid/Ask Ratio</span>
+                    <span className="font-mono font-medium">{orderBook.metrics.bidAskRatio.toFixed(2)}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${
+                        orderBook.metrics.bidAskRatio > 1 ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(orderBook.metrics.bidAskRatio * 50, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Info Footer */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>Live data from Binance</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span>Update interval: {TIME_FRAMES.find(tf => tf.value === timeFrame)?.description}</span>
+              <span>•</span>
+              <span>Latency: {orderBook.latency_ms}ms</span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
