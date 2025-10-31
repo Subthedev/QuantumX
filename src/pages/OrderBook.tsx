@@ -1,11 +1,11 @@
 /**
  * Order Book Page - Complete Redesign
  * World-class real-time order book with advanced analytics and visual insights
- * 100ms WebSocket updates with production-grade performance
+ * Production-grade REST API with 2-second polling for reliable real-time data
  */
 
 import { useState, useMemo, useEffect, memo } from 'react';
-import { useOrderBookWebSocket } from '@/hooks/useOrderBookWebSocket';
+import { useOrderBookREST } from '@/hooks/useOrderBookREST';
 import { useOrderFlowImbalance } from '@/hooks/useOrderFlowImbalance';
 import { usePlatformMetrics } from '@/hooks/usePlatformMetrics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -158,11 +158,20 @@ export default function OrderBook() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
   const [activeView, setActiveView] = useState<'heatmap' | 'depth' | 'aggregated' | 'traditional'>('depth');
 
-  const { orderBook, isConnecting, isConnected, hasError, error } = useOrderBookWebSocket({
-    symbol: selectedSymbol
+  // Use REST API with 2-second polling for reliable data
+  const { data: orderBook, isLoading, error } = useOrderBookREST({
+    symbol: selectedSymbol,
+    limit: 20,
+    pollInterval: 2000
   });
 
-  const { metrics: platformMetrics } = usePlatformMetrics({ startTracking: true });
+  // Derived states for backward compatibility
+  const isConnecting = isLoading && !orderBook;
+  const isConnected = !isLoading && !!orderBook && orderBook.status === 'connected';
+  const hasError = !!error || orderBook?.status === 'error';
+
+  // Temporarily disable platform metrics to avoid WebSocket connection overload
+  const { metrics: platformMetrics } = usePlatformMetrics({ startTracking: false });
 
   // Order Flow Imbalance Analysis
   const {
