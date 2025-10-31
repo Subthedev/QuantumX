@@ -214,20 +214,24 @@ class OrderBookWebSocketManager {
    * Process Binance depth update into OrderBookData
    */
   private processDepthUpdate(data: BinanceDepthUpdate): OrderBookData {
-    const bids: OrderBookLevel[] = data.b.map((bid, index) => {
+    // Safety check: ensure data.b and data.a are arrays
+    const safeBids = Array.isArray(data?.b) ? data.b : [];
+    const safeAsks = Array.isArray(data?.a) ? data.a : [];
+
+    const bids: OrderBookLevel[] = safeBids.map((bid, index) => {
       const price = parseFloat(bid[0]);
       const quantity = parseFloat(bid[1]);
-      const total = data.b
+      const total = safeBids
         .slice(0, index + 1)
         .reduce((sum, b) => sum + parseFloat(b[1]), 0);
 
       return { price, quantity, total };
     });
 
-    const asks: OrderBookLevel[] = data.a.map((ask, index) => {
+    const asks: OrderBookLevel[] = safeAsks.map((ask, index) => {
       const price = parseFloat(ask[0]);
       const quantity = parseFloat(ask[1]);
-      const total = data.a
+      const total = safeAsks
         .slice(0, index + 1)
         .reduce((sum, a) => sum + parseFloat(a[1]), 0);
 
