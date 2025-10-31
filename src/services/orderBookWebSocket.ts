@@ -9,14 +9,11 @@ import { dataHealthMonitor } from './dataHealthMonitor';
 type OrderBookCallback = (data: OrderBookData) => void;
 type ErrorCallback = (error: Error) => void;
 
+// Binance Partial Book Depth Stream format
 interface BinanceDepthUpdate {
-  e: string; // event type
-  E: number; // event time
-  s: string; // symbol
-  U: number; // first update ID
-  u: number; // final update ID
-  b: [string, string][]; // bids
-  a: [string, string][]; // asks
+  lastUpdateId: number;
+  bids: [string, string][];
+  asks: [string, string][];
 }
 
 class OrderBookWebSocketManager {
@@ -120,22 +117,11 @@ class OrderBookWebSocketManager {
       try {
         const data: BinanceDepthUpdate = JSON.parse(event.data);
 
-        // Log for debugging
-        console.log(`📊 Received data for ${symbol}:`, {
-          hasBids: Array.isArray(data?.b),
-          hasAsks: Array.isArray(data?.a),
-          bidsCount: data?.b?.length || 0,
-          asksCount: data?.a?.length || 0,
-          symbol: data?.s
-        });
+        const orderBookData = this.processDepthUpdate(data, symbol);
 
-        const orderBookData = this.processDepthUpdate(data);
-
-        // Record latency for health monitoring (with safety check)
-        if (data?.E) {
-          const latency = Date.now() - data.E;
-          dataHealthMonitor.recordLatency(symbol, latency);
-        }
+        // Note: Partial depth stream doesn't include timestamp, so we can't calculate latency
+        // Just record that we received data
+        dataHealthMonitor.recordLatency(symbol, 0);
 
         // Cache the data
         this.orderBookCache.set(symbol, orderBookData);
@@ -225,10 +211,10 @@ class OrderBookWebSocketManager {
   /**
    * Process Binance depth update into OrderBookData
    */
-  private processDepthUpdate(data: BinanceDepthUpdate): OrderBookData {
-    // Safety check: ensure data.b and data.a are arrays
-    const safeBids = Array.isArray(data?.b) ? data.b : [];
-    const safeAsks = Array.isArray(data?.a) ? data.a : [];
+  private processDepthUpdate(data: BinanceDepthUpdate, symbol: string): OrderBookData {
+    // Safety check: ensure data.bids and data.asks are arrays (using correct field names from Binance API)
+    const safeBids = Array.isArray(data?.bids) ? data.bids : [];
+    const safeAsks = Array.isArray(data?.asks) ? data.asks : [];
 
     const bids: OrderBookLevel[] = safeBids.map((bid, index) => {
       const price = parseFloat(bid[0]);
@@ -252,20 +238,19 @@ class OrderBookWebSocketManager {
 
     const metrics = this.calculateMetrics(bids, asks);
 
-    // Safety check: ensure data.s, data.u, and data.E exist
-    const symbol = (data?.s || 'UNKNOWN').replace('USDT', '');
-    const lastUpdateId = data?.u || 0;
-    const timestamp = data?.E || Date.now();
+    // Use symbol from parameter and current timestamp
+    // Partial depth stream provides lastUpdateId but not event timestamp
+    const timestamp = Date.now();
 
     return {
-      symbol,
+      symbol: symbol.toUpperCase(),
       bids,
       asks,
-      lastUpdateId,
+      lastUpdateId: data?.lastUpdateId || 0,
       timestamp,
       metrics,
       status: 'connected',
-      latency_ms: `${Date.now() - timestamp}`
+      latency_ms: '0' // Can't calculate latency without event timestamp from API
     };
   }
 
