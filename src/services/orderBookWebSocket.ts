@@ -23,7 +23,7 @@ class OrderBookWebSocketManager {
   private orderBookCache: Map<string, OrderBookData> = new Map();
   private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
-  private maxReconnectAttempts = 10;
+  private maxReconnectAttempts = 3; // Reduced for faster fallback to demo data
   private baseReconnectDelay = 1000;
 
   /**
@@ -94,7 +94,11 @@ class OrderBookWebSocketManager {
   private connect(symbol: string) {
     console.log(`🔌 Connecting WebSocket for ${symbol}...`);
 
-    const wsUrl = `wss://stream.binance.com:9443/ws/${symbol}usdt@depth20@100ms`;
+    // Use combined streams endpoint (more reliable for browser connections)
+    const stream = `${symbol}usdt@depth20@100ms`;
+    const wsUrl = `wss://stream.binance.com:443/ws/${stream}`;
+
+    console.log(`📡 WebSocket URL: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -161,10 +165,14 @@ class OrderBookWebSocketManager {
     const attempts = this.reconnectAttempts.get(symbol) ?? 0;
 
     if (attempts >= this.maxReconnectAttempts) {
-      console.error(`❌ Max reconnection attempts reached for ${symbol}`);
+      console.warn(`⚠️ Max reconnection attempts reached for ${symbol}, falling back to demo data`);
+
+      // Instead of failing completely, use demo data as fallback
+      this.startDemoDataStream(symbol);
+
       this.notifyErrors(
         symbol,
-        new Error(`Failed to reconnect after ${this.maxReconnectAttempts} attempts`)
+        new Error(`WebSocket unavailable - using demo data for ${symbol}`)
       );
       return;
     }
@@ -373,6 +381,88 @@ class OrderBookWebSocketManager {
    */
   getCachedData(symbol: string): OrderBookData | undefined {
     return this.orderBookCache.get(symbol.toLowerCase());
+  }
+
+  /**
+   * Generate realistic demo order book data for development/fallback
+   */
+  private generateDemoOrderBook(symbol: string): OrderBookData {
+    // Base prices for different cryptocurrencies
+    const basePrices: Record<string, number> = {
+      btc: 109000,
+      eth: 3400,
+      bnb: 620,
+      sol: 215,
+      xrp: 2.45,
+      ada: 0.95,
+      doge: 0.35,
+      avax: 38,
+      dot: 7.2,
+      matic: 0.85,
+      link: 18.5,
+      uni: 13.2,
+      atom: 9.8,
+      ltc: 105,
+      etc: 28,
+      fil: 5.6,
+      near: 6.3,
+      apt: 11.2,
+      arb: 1.15,
+      op: 2.35
+    };
+
+    const basePrice = basePrices[symbol] || 100;
+    const midPrice = basePrice + (Math.random() - 0.5) * (basePrice * 0.002); // ±0.2% variation
+
+    // Generate bids (buy orders) - decreasing prices
+    const bids: OrderBookLevel[] = [];
+    for (let i = 0; i < 20; i++) {
+      const priceOffset = (i + 1) * (midPrice * 0.0001); // 0.01% steps
+      const price = midPrice - priceOffset;
+      const quantity = (Math.random() * 10 + 1) * (1 + i * 0.1); // Increasing quantity at lower prices
+      const total = bids.reduce((sum, b) => sum + b.quantity, 0) + quantity;
+      bids.push({ price, quantity, total });
+    }
+
+    // Generate asks (sell orders) - increasing prices
+    const asks: OrderBookLevel[] = [];
+    for (let i = 0; i < 20; i++) {
+      const priceOffset = (i + 1) * (midPrice * 0.0001); // 0.01% steps
+      const price = midPrice + priceOffset;
+      const quantity = (Math.random() * 10 + 1) * (1 + i * 0.1); // Increasing quantity at higher prices
+      const total = asks.reduce((sum, a) => sum + a.quantity, 0) + quantity;
+      asks.push({ price, quantity, total });
+    }
+
+    const metrics = this.calculateMetrics(bids, asks);
+
+    return {
+      symbol: symbol.toUpperCase(),
+      bids,
+      asks,
+      lastUpdateId: Date.now(),
+      timestamp: Date.now(),
+      metrics,
+      status: 'demo', // Mark as demo data
+      latency_ms: '0'
+    };
+  }
+
+  /**
+   * Start demo data stream (fallback when WebSocket fails)
+   */
+  private startDemoDataStream(symbol: string) {
+    console.log(`🎭 Starting demo data stream for ${symbol}...`);
+
+    // Generate and emit demo data every 500ms
+    const interval = setInterval(() => {
+      const demoData = this.generateDemoOrderBook(symbol);
+      this.orderBookCache.set(symbol, demoData);
+      this.notifySubscribers(symbol, demoData);
+    }, 500);
+
+    // Store interval for cleanup
+    this.reconnectTimeouts.set(symbol, interval as any);
   }
 
   /**
