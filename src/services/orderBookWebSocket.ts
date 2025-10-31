@@ -240,15 +240,20 @@ class OrderBookWebSocketManager {
 
     const metrics = this.calculateMetrics(bids, asks);
 
+    // Safety check: ensure data.s, data.u, and data.E exist
+    const symbol = (data?.s || 'UNKNOWN').replace('USDT', '');
+    const lastUpdateId = data?.u || 0;
+    const timestamp = data?.E || Date.now();
+
     return {
-      symbol: data.s.replace('USDT', ''),
+      symbol,
       bids,
       asks,
-      lastUpdateId: data.u,
-      timestamp: data.E,
+      lastUpdateId,
+      timestamp,
       metrics,
       status: 'connected',
-      latency_ms: `${Date.now() - data.E}`
+      latency_ms: `${Date.now() - timestamp}`
     };
   }
 

@@ -48,7 +48,7 @@ class PlatformMetricsService {
           // We'll calculate metrics on interval
         },
         (error) => {
-          console.warn(`Error tracking ${symbol}:`, error.message);
+          console.warn(`Error tracking ${symbol}:`, error?.message || error || 'Unknown error');
         }
       );
     });
