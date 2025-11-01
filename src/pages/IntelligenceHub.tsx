@@ -14,12 +14,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AppHeader } from '@/components/AppHeader';
 import { aiIntelligenceEngine } from '@/services/aiIntelligenceEngine';
 import type { IntelligenceReport, CategoryAnalysis, DataScore } from '@/services/aiIntelligenceEngine';
-import { BtcLogo } from '@/components/ui/btc-logo';
-import { EthLogo } from '@/components/ui/eth-logo';
-import { BnbLogo } from '@/components/ui/bnb-logo';
-import { SolLogo } from '@/components/ui/sol-logo';
-import { XrpLogo } from '@/components/ui/xrp-logo';
-import { AdaLogo } from '@/components/ui/ada-logo';
+import { BTCLogo } from '@/components/ui/btc-logo';
+import { ETHLogo } from '@/components/ui/eth-logo';
+import { BNBLogo } from '@/components/ui/bnb-logo';
+import { SOLLogo } from '@/components/ui/sol-logo';
+import { XRPLogo } from '@/components/ui/xrp-logo';
+import { ADALogo } from '@/components/ui/ada-logo';
 
 const CRYPTO_OPTIONS = {
   'Major Assets': [
@@ -39,12 +39,12 @@ const CRYPTO_OPTIONS = {
 // Coin logo mapping
 const getCoinLogo = (symbol: string) => {
   const logos: Record<string, any> = {
-    BTC: BtcLogo,
-    ETH: EthLogo,
-    BNB: BnbLogo,
-    SOL: SolLogo,
-    XRP: XrpLogo,
-    ADA: AdaLogo
+    BTC: BTCLogo,
+    ETH: ETHLogo,
+    BNB: BNBLogo,
+    SOL: SOLLogo,
+    XRP: XRPLogo,
+    ADA: ADALogo
   };
   return logos[symbol] || null;
 };
