@@ -204,6 +204,125 @@ class BinanceOrderBookService {
       symbols: Array.from(this.cache.keys()).map(key => key.split('-')[0])
     };
   }
+
+  // ============================================
+  // ADVANCED ORDER BOOK ANALYSIS
+  // ============================================
+
+  /**
+   * Detect hidden whale orders (large orders appearing suddenly)
+   * This detects institutional activity
+   */
+  async detectWhaleBuyWalls(symbol: string): Promise<{ detected: boolean; strength: number; price: number | null }> {
+    const orderBook = await this.fetchOrderBook(symbol, 50);
+
+    if (orderBook.bids.length === 0) {
+      return { detected: false, strength: 0, price: null };
+    }
+
+    // Find abnormally large bid orders
+    const avgBidSize = orderBook.bids.reduce((sum, bid) => sum + bid.quantity, 0) / orderBook.bids.length;
+
+    // Look for bids 3x larger than average
+    const whaleBids = orderBook.bids.filter(bid => bid.quantity > avgBidSize * 3);
+
+    if (whaleBids.length > 0) {
+      const largestBid = whaleBids.reduce((max, bid) => bid.quantity > max.quantity ? bid : max);
+      const strength = Math.min(100, (largestBid.quantity / avgBidSize) * 20);
+
+      return {
+        detected: true,
+        strength: Math.round(strength),
+        price: largestBid.price
+      };
+    }
+
+    return { detected: false, strength: 0, price: null };
+  }
+
+  /**
+   * Calculate order book imbalance for smart money detection
+   * > 1.5 = Strong buying pressure
+   * < 0.7 = Strong selling pressure
+   */
+  async getOrderBookImbalance(symbol: string): Promise<number> {
+    const orderBook = await this.fetchOrderBook(symbol, 20);
+
+    if (!orderBook.metrics) return 1.0; // Neutral
+
+    return orderBook.metrics.bidAskRatio;
+  }
+
+  /**
+   * Detect absorption pattern (whales absorbing sells)
+   * This requires comparing order book over time
+   */
+  private previousOrderBooks: Map<string, OrderBookData> = new Map();
+
+  async detectAbsorptionPattern(symbol: string): Promise<{ detected: boolean; strength: number; interpretation: string }> {
+    const current = await this.fetchOrderBook(symbol, 20);
+    const previous = this.previousOrderBooks.get(symbol);
+
+    // Store current for next comparison
+    this.previousOrderBooks.set(symbol, current);
+
+    if (!previous || !current.metrics || !previous.metrics) {
+      return { detected: false, strength: 0, interpretation: 'Insufficient data' };
+    }
+
+    // Check if bid volume is increasing while price is stable or decreasing
+    const bidVolumeIncrease = current.metrics.totalBidVolume > previous.metrics.totalBidVolume * 1.1;
+    const priceStable = Math.abs(current.metrics.midPrice - previous.metrics.midPrice) / previous.metrics.midPrice < 0.005; // < 0.5% change
+
+    if (bidVolumeIncrease && priceStable) {
+      const strength = ((current.metrics.totalBidVolume / previous.metrics.totalBidVolume) - 1) * 100;
+
+      return {
+        detected: true,
+        strength: Math.min(100, Math.round(strength * 5)),
+        interpretation: 'Whale absorption detected - bids building while price stable. Bullish accumulation.'
+      };
+    }
+
+    // Check if ask volume is increasing (distribution)
+    const askVolumeIncrease = current.metrics.totalAskVolume > previous.metrics.totalAskVolume * 1.1;
+
+    if (askVolumeIncrease && priceStable) {
+      const strength = ((current.metrics.totalAskVolume / previous.metrics.totalAskVolume) - 1) * 100;
+
+      return {
+        detected: true,
+        strength: Math.min(100, Math.round(strength * 5)),
+        interpretation: 'Distribution detected - asks building while price stable. Bearish selling pressure.'
+      };
+    }
+
+    return { detected: false, strength: 0, interpretation: 'No clear pattern' };
+  }
+
+  /**
+   * Get volume-weighted average price from order book
+   * This shows where the "real" support/resistance is
+   */
+  async getVWAP(symbol: string): Promise<{ bidVWAP: number; askVWAP: number }> {
+    const orderBook = await this.fetchOrderBook(symbol, 20);
+
+    if (orderBook.bids.length === 0 || orderBook.asks.length === 0) {
+      return { bidVWAP: 0, askVWAP: 0 };
+    }
+
+    // Calculate VWAP for bids
+    const bidTotalValue = orderBook.bids.reduce((sum, bid) => sum + (bid.price * bid.quantity), 0);
+    const bidTotalVolume = orderBook.bids.reduce((sum, bid) => sum + bid.quantity, 0);
+    const bidVWAP = bidTotalVolume > 0 ? bidTotalValue / bidTotalVolume : 0;
+
+    // Calculate VWAP for asks
+    const askTotalValue = orderBook.asks.reduce((sum, ask) => sum + (ask.price * ask.quantity), 0);
+    const askTotalVolume = orderBook.asks.reduce((sum, ask) => sum + ask.quantity, 0);
+    const askVWAP = askTotalVolume > 0 ? askTotalValue / askTotalVolume : 0;
+
+    return { bidVWAP, askVWAP };
+  }
 }
 
 // Export singleton instance

@@ -576,71 +576,160 @@ class AIIntelligenceEngine {
   }
 
   /**
-   * CALCULATE FINAL SIGNAL - Complete transparency
+   * CALCULATE FINAL SIGNAL - Professional Grade Analysis
+   *
+   * CRITICAL: Only generates signals when we have HIGH QUALITY data
+   * This protects users from trading on insufficient information
    */
   private calculateSignal(analysis: any) {
-    // Weight each category based on confidence
+    // STEP 1: Check data quality - we need RELIABLE data to make predictions
     const categories = [
-      { name: 'Market Data', score: analysis.marketData.overallScore, confidence: analysis.marketData.confidence, weight: 10 },
-      { name: 'Order Book', score: analysis.orderBook.overallScore, confidence: analysis.orderBook.confidence, weight: 9 },
-      { name: 'Funding', score: analysis.fundingRates.overallScore, confidence: analysis.fundingRates.confidence, weight: 8 },
-      { name: 'Sentiment', score: analysis.sentiment.overallScore, confidence: analysis.sentiment.confidence, weight: 7 },
-      { name: 'On-Chain', score: analysis.onChain.overallScore, confidence: analysis.onChain.confidence, weight: 6 },
-      { name: 'Technical', score: analysis.technical.overallScore, confidence: analysis.technical.confidence, weight: 4 }
+      { name: 'Market Data', score: analysis.marketData.overallScore, confidence: analysis.marketData.confidence, weight: 10, critical: true },
+      { name: 'Order Book', score: analysis.orderBook.overallScore, confidence: analysis.orderBook.confidence, weight: 9, critical: false },
+      { name: 'Funding', score: analysis.fundingRates.overallScore, confidence: analysis.fundingRates.confidence, weight: 8, critical: false },
+      { name: 'Sentiment', score: analysis.sentiment.overallScore, confidence: analysis.sentiment.confidence, weight: 7, critical: false },
+      { name: 'On-Chain', score: analysis.onChain.overallScore, confidence: analysis.onChain.confidence, weight: 6, critical: false },
+      { name: 'Technical', score: analysis.technical.overallScore, confidence: analysis.technical.confidence, weight: 4, critical: false }
     ];
 
-    // Calculate weighted scores
+    // Count available data sources
+    const availableCategories = categories.filter(c => c.confidence > 0);
+    const criticalDataAvailable = categories.filter(c => c.critical && c.confidence > 0).length;
+
+    console.log(`[SignalCalculation] Available data sources: ${availableCategories.length}/6`);
+    console.log(`[SignalCalculation] Critical data available: ${criticalDataAvailable > 0 ? 'YES' : 'NO'}`);
+
+    // STEP 2: DATA QUALITY GATE - Require minimum data
+    // CRITICAL: Must have Market Data (the most reliable source)
+    // For now, we accept Market Data alone but reduce confidence accordingly
+    if (criticalDataAvailable === 0) {
+      console.warn('[SignalCalculation] CRITICAL DATA MISSING - No market data available');
+      return {
+        totalBullishScore: 0,
+        totalBearishScore: 0,
+        netScore: 0,
+        confidenceScore: 0,
+        explanation: `Critical data unavailable. Market data is required for signal generation.`,
+        dataQualityFailed: true
+      };
+    }
+
+    // Log data availability
+    console.log(`[SignalCalculation] Working with ${availableCategories.length} data source(s):`,
+      availableCategories.map(c => c.name).join(', '));
+
+    // STEP 3: Calculate weighted scores with STRICT quality standards
     let totalBullishScore = 0;
     let totalBearishScore = 0;
     let totalWeight = 0;
+    let signalStrength = 0;
 
     categories.forEach(cat => {
       if (cat.confidence > 0) {
+        // Effective weight considers both category weight AND data confidence
         const effectiveWeight = cat.weight * (cat.confidence / 100);
         totalWeight += effectiveWeight;
 
+        // Calculate directional score
         if (cat.score > 50) {
-          totalBullishScore += (cat.score - 50) * effectiveWeight;
+          const bullishContribution = (cat.score - 50) * effectiveWeight;
+          totalBullishScore += bullishContribution;
+          signalStrength += Math.abs(cat.score - 50) * effectiveWeight;
         } else {
-          totalBearishScore += (50 - cat.score) * effectiveWeight;
+          const bearishContribution = (50 - cat.score) * effectiveWeight;
+          totalBearishScore += bearishContribution;
+          signalStrength += Math.abs(cat.score - 50) * effectiveWeight;
         }
+
+        console.log(`[SignalCalculation] ${cat.name}: Score=${cat.score}, Confidence=${cat.confidence}%, Weight=${effectiveWeight.toFixed(2)}`);
       }
     });
 
+    // STEP 4: Calculate NET signal direction
     const netScore = totalBullishScore - totalBearishScore;
-    const maxPossibleScore = 50 * totalWeight; // Maximum deviation from neutral
-    const confidenceScore = Math.min(95, Math.abs(netScore) / maxPossibleScore * 100);
 
-    const explanation = `Analyzed ${categories.filter(c => c.confidence > 0).length} data categories. ` +
+    // STEP 5: PROFESSIONAL CONFIDENCE CALCULATION
+    // Confidence = (Signal Strength / Max Possible) * Data Quality Multiplier
+    const maxPossibleScore = 50 * totalWeight;
+    const signalStrengthPercent = (signalStrength / maxPossibleScore) * 100;
+
+    // Data quality multiplier: Balanced approach
+    // 1 source (Market Data only) = 50% quality → Need VERY strong signal (130%+ raw) to hit 65%
+    // 2 sources = 70% quality → Need strong signal (93%+ raw) to hit 65%
+    // 3+ sources = 90-100% quality → Normal signal (65%+ raw) passes
+    let dataQualityMultiplier;
+    if (availableCategories.length >= 3) {
+      dataQualityMultiplier = Math.min(1.0, availableCategories.length / 4); // 4 sources = 100%
+    } else if (availableCategories.length === 2) {
+      dataQualityMultiplier = 0.70; // 70% quality with 2 sources
+    } else {
+      dataQualityMultiplier = 0.50; // 50% quality with only Market Data
+    }
+
+    // Final confidence combines signal strength with data quality
+    let confidenceScore = signalStrengthPercent * dataQualityMultiplier;
+
+    // CRITICAL: Cap at 95% - never claim 100% certainty in markets
+    confidenceScore = Math.min(95, confidenceScore);
+
+    console.log(`[SignalCalculation] Raw signal strength: ${signalStrengthPercent.toFixed(1)}%`);
+    console.log(`[SignalCalculation] Data quality multiplier: ${(dataQualityMultiplier * 100).toFixed(1)}%`);
+    console.log(`[SignalCalculation] Final confidence: ${confidenceScore.toFixed(1)}%`);
+
+    const explanation = `Professional Analysis: ${availableCategories.length} reliable data sources analyzed. ` +
       `Bullish Score: ${totalBullishScore.toFixed(0)}, Bearish Score: ${totalBearishScore.toFixed(0)}. ` +
-      `Net Score: ${netScore.toFixed(0)} (${netScore > 0 ? 'Bullish' : 'Bearish'}). ` +
-      `Confidence: ${confidenceScore.toFixed(0)}% based on signal strength.`;
+      `Net Direction: ${netScore.toFixed(0)} (${netScore > 0 ? 'Bullish' : 'Bearish'}). ` +
+      `Confidence: ${confidenceScore.toFixed(1)}% based on signal strength (${signalStrengthPercent.toFixed(1)}%) and data quality (${(dataQualityMultiplier * 100).toFixed(1)}%).`;
 
     return {
       totalBullishScore: Math.round(totalBullishScore),
       totalBearishScore: Math.round(totalBearishScore),
       netScore: Math.round(netScore),
       confidenceScore: Math.round(confidenceScore),
-      explanation
+      explanation,
+      dataQualityFailed: false
     };
   }
 
   /**
-   * GENERATE FINAL SIGNAL
+   * GENERATE FINAL SIGNAL - PROFESSIONAL STANDARDS
+   *
+   * MINIMUM CONFIDENCE: 65% - We don't trade on weak signals
+   * Real money requires real conviction
    */
   private generateFinalSignal(calculation: any) {
-    const type: SignalType = calculation.netScore > 0 ? 'BUY' : 'SELL';
     const confidence = calculation.confidenceScore;
 
+    // CRITICAL QUALITY GATE: Refuse to generate low-confidence signals
+    const MINIMUM_CONFIDENCE = 65;
+
+    if (confidence < MINIMUM_CONFIDENCE) {
+      console.warn(`[SignalGeneration] Confidence ${confidence}% below minimum ${MINIMUM_CONFIDENCE}% - REJECTING SIGNAL`);
+      return {
+        type: null,
+        confidence: 0,
+        strength: 'INSUFFICIENT',
+        timeframe: 'N/A',
+        rejected: true,
+        reason: `Signal confidence ${confidence.toFixed(1)}% is below our professional standard of ${MINIMUM_CONFIDENCE}%. We do not recommend trading on low-confidence signals.`
+      };
+    }
+
+    const type: SignalType = calculation.netScore > 0 ? 'BUY' : 'SELL';
+
+    // Professional strength classification
     const strength: 'STRONG' | 'MODERATE' | 'WEAK' =
-      confidence > 70 ? 'STRONG' :
-      confidence > 50 ? 'MODERATE' : 'WEAK';
+      confidence >= 80 ? 'STRONG' :    // 80%+ = STRONG conviction
+      confidence >= 65 ? 'MODERATE' :  // 65-79% = MODERATE conviction
+      'WEAK';                          // <65% = Don't generate (caught above)
 
     const timeframe: 'Short-Term (1-7d)' | 'Medium-Term (1-4w)' | 'Long-Term (1-3m)' =
-      confidence > 70 ? 'Short-Term (1-7d)' :
-      confidence > 50 ? 'Medium-Term (1-4w)' : 'Long-Term (1-3m)';
+      confidence >= 80 ? 'Short-Term (1-7d)' :
+      'Medium-Term (1-4w)';
 
-    return { type, confidence, strength, timeframe };
+    console.log(`[SignalGeneration] ✅ SIGNAL APPROVED: ${type} with ${confidence}% confidence (${strength})`);
+
+    return { type, confidence, strength, timeframe, rejected: false };
   }
 
   /**

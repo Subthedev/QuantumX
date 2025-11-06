@@ -731,6 +731,122 @@ class OnChainDataService {
     if (!hash || hash.length < 16) return hash;
     return `${hash.substring(0, 8)}...${hash.substring(hash.length - 8)}`;
   }
+
+  // ============================================
+  // SMART MONEY DETECTION METHODS
+  // ============================================
+
+  /**
+   * Calculate exchange flow ratio for smart money detection
+   * Negative = Outflows (accumulation), Positive = Inflows (distribution)
+   * Returns: -3.0 to +3.0 scale
+   */
+  async getExchangeFlowRatio(coinId: string): Promise<number> {
+    const data = await this.getOnChainData(coinId);
+
+    if (!data.exchangeFlows || data.exchangeFlows.netFlow24h === 0) {
+      return 0; // Neutral
+    }
+
+    const { netFlow24h, inflow24h, outflow24h } = data.exchangeFlows;
+
+    // Calculate average flow for normalization
+    const avgFlow = (inflow24h + outflow24h) / 2;
+
+    if (avgFlow === 0) return 0;
+
+    // Normalize to -3.0 to +3.0 range
+    // -3.0 = Extreme outflows (strong accumulation)
+    // +3.0 = Extreme inflows (strong distribution)
+    const ratio = (netFlow24h / avgFlow) * 3;
+
+    return Math.max(-3.0, Math.min(3.0, ratio));
+  }
+
+  /**
+   * Detect if whales are accumulating or distributing
+   * Returns: 'ACCUMULATION' | 'DISTRIBUTION' | 'NEUTRAL'
+   */
+  async detectWhaleActivity(coinId: string): Promise<'ACCUMULATION' | 'DISTRIBUTION' | 'NEUTRAL'> {
+    const data = await this.getOnChainData(coinId);
+
+    if (!data.whaleActivity) return 'NEUTRAL';
+
+    const { whaleAccumulationScore, whaleDistributionScore } = data.whaleActivity;
+
+    // Strong accumulation: score > 60
+    if (whaleAccumulationScore > 60 && whaleAccumulationScore > whaleDistributionScore + 15) {
+      return 'ACCUMULATION';
+    }
+
+    // Strong distribution: score > 60
+    if (whaleDistributionScore > 60 && whaleDistributionScore > whaleAccumulationScore + 15) {
+      return 'DISTRIBUTION';
+    }
+
+    return 'NEUTRAL';
+  }
+
+  /**
+   * Get smart money divergence signal
+   * Returns confidence score 0-100 for divergence detection
+   */
+  async getSmartMoneyDivergence(
+    coinId: string,
+    fearGreedIndex: number
+  ): Promise<{ detected: boolean; confidence: number; type: 'BULLISH' | 'BEARISH' | null; reason: string }> {
+
+    const flowRatio = await this.getExchangeFlowRatio(coinId);
+    const whaleActivity = await this.detectWhaleActivity(coinId);
+
+    // BULLISH DIVERGENCE: Fear + Accumulation
+    if (fearGreedIndex < 30 && flowRatio < -1.0) {
+      const confidence = Math.min(100,
+        ((30 - fearGreedIndex) * 2) + // Fear contribution
+        (Math.abs(flowRatio) * 15)     // Outflow contribution
+      );
+
+      return {
+        detected: true,
+        confidence: Math.round(confidence),
+        type: 'BULLISH',
+        reason: `Extreme fear (${fearGreedIndex}) + Large exchange outflows (${flowRatio.toFixed(2)}). Smart money accumulating during retail panic.`
+      };
+    }
+
+    // BEARISH DIVERGENCE: Greed + Distribution
+    if (fearGreedIndex > 70 && flowRatio > 1.0) {
+      const confidence = Math.min(100,
+        ((fearGreedIndex - 70) * 2) + // Greed contribution
+        (Math.abs(flowRatio) * 15)     // Inflow contribution
+      );
+
+      return {
+        detected: true,
+        confidence: Math.round(confidence),
+        type: 'BEARISH',
+        reason: `Extreme greed (${fearGreedIndex}) + Large exchange inflows (${flowRatio.toFixed(2)}). Institutions distributing to euphoric retail.`
+      };
+    }
+
+    return {
+      detected: false,
+      confidence: 0,
+      type: null,
+      reason: 'No smart money divergence detected'
+    };
+  }
+
+  /**
+   * Get dormancy flow (old coins moving = strong signal)
+   * High dormancy flow = conviction (both bullish and bearish)
+   */
+  async getDormancySignal(coinId: string): Promise<number> {
+    // This would require blockchain analysis APIs (Glassnode, etc.)
+    // For now, return neutral
+    // TODO: Implement when API access available
+    return 50; // Neutral score
+  }
 }
 
 export const onChainDataService = new OnChainDataService();

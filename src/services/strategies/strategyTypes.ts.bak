@@ -1,0 +1,192 @@
+/**
+ * IGX STRATEGY TYPES
+ * 10 specialized trading strategies for different market conditions
+ */
+
+export type StrategyName =
+  | 'WHALE_SHADOW'
+  | 'SPRING_TRAP'
+  | 'MOMENTUM_SURGE'
+  | 'FUNDING_SQUEEZE'
+  | 'ORDER_FLOW_TSUNAMI'
+  | 'FEAR_GREED_CONTRARIAN'
+  | 'GOLDEN_CROSS_MOMENTUM'
+  | 'MARKET_PHASE_SNIPER'
+  | 'LIQUIDITY_HUNTER'
+  | 'VOLATILITY_BREAKOUT';
+
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface StrategyMetadata {
+  name: StrategyName;
+  displayName: string;
+  description: string;
+  riskLevel: RiskLevel;
+  minTimeframe: string; // e.g., "1 day"
+  maxTimeframe: string; // e.g., "7 days"
+  bestFor: string;
+  requiredDataSources: string[];
+  minConfidenceThreshold: number; // Minimum confidence to generate signal
+}
+
+export interface StrategySignal {
+  strategyName: StrategyName;
+  symbol: string;
+  type: 'BUY' | 'SELL' | null;
+  confidence: number; // 0-100
+  strength: 'WEAK' | 'MODERATE' | 'STRONG' | 'VERY_STRONG';
+  reasoning: string[];
+  entryMin: number;
+  entryMax: number;
+  targets: {
+    target1: number;
+    target2: number;
+    target3: number;
+  };
+  stopLoss: number;
+  riskRewardRatio: number;
+  timeframe: string;
+  indicators: {
+    [key: string]: any;
+  };
+  rejected: boolean;
+  rejectionReason?: string;
+}
+
+export interface StrategyPerformance {
+  strategyName: StrategyName;
+  totalSignals: number;
+  successfulSignals: number;
+  failedSignals: number;
+  successRate: number; // Percentage
+  averageProfit: number; // Percentage
+  averageLoss: number; // Percentage
+  profitFactor: number; // Total profit / Total loss
+  sharpeRatio: number; // Risk-adjusted returns
+  maxDrawdown: number; // Maximum drawdown percentage
+  winStreak: number;
+  lossStreak: number;
+  lastUpdated: Date;
+}
+
+export const STRATEGY_METADATA: Record<StrategyName, StrategyMetadata> = {
+  WHALE_SHADOW: {
+    name: 'WHALE_SHADOW',
+    displayName: 'Whale Shadow',
+    description: 'Detects smart money divergence - when whales accumulate during fear or distribute during greed',
+    riskLevel: 'MEDIUM',
+    minTimeframe: '1 day',
+    maxTimeframe: '7 days',
+    bestFor: 'Catching major market reversals',
+    requiredDataSources: ['onChain', 'sentiment', 'marketPhase'],
+    minConfidenceThreshold: 60  // Lowered from 68 for crypto noise
+  },
+
+  SPRING_TRAP: {
+    name: 'SPRING_TRAP',
+    displayName: 'Spring Trap',
+    description: 'Wyckoff accumulation pattern - identifies Spring patterns that trap sellers before major upside',
+    riskLevel: 'LOW',
+    minTimeframe: '2 days',
+    maxTimeframe: '14 days',
+    bestFor: 'High-confidence reversal entries',
+    requiredDataSources: ['ohlc', 'volume', 'orderBook'],
+    minConfidenceThreshold: 58  // Lowered from 70 for crypto volatility
+  },
+
+  MOMENTUM_SURGE: {
+    name: 'MOMENTUM_SURGE',
+    displayName: 'Momentum Surge',
+    description: 'Combines bullish volume divergence with technical breakouts for trend continuation',
+    riskLevel: 'MEDIUM',
+    minTimeframe: '1 day',
+    maxTimeframe: '5 days',
+    bestFor: 'Trend continuation trades',
+    requiredDataSources: ['ohlc', 'volume', 'technical'],
+    minConfidenceThreshold: 55  // Lowered from 66 for crypto momentum
+  },
+
+  FUNDING_SQUEEZE: {
+    name: 'FUNDING_SQUEEZE',
+    displayName: 'Funding Squeeze',
+    description: 'Targets extreme negative funding rates indicating overleveraged shorts (squeeze potential)',
+    riskLevel: 'HIGH',
+    minTimeframe: '4 hours',
+    maxTimeframe: '48 hours',
+    bestFor: 'Quick scalps during overleveraged markets',
+    requiredDataSources: ['fundingRates', 'orderBook', 'volume'],
+    minConfidenceThreshold: 58  // Lowered from 65 for funding volatility
+  },
+
+  ORDER_FLOW_TSUNAMI: {
+    name: 'ORDER_FLOW_TSUNAMI',
+    displayName: 'Order Flow Tsunami',
+    description: 'Detects massive buy-side order book imbalances (>70%) indicating imminent price surge',
+    riskLevel: 'MEDIUM',
+    minTimeframe: '1 day',
+    maxTimeframe: '3 days',
+    bestFor: 'Imminent price explosions',
+    requiredDataSources: ['orderBook', 'volume', 'technical'],
+    minConfidenceThreshold: 59  // Lowered from 67 for on-chain lag
+  },
+
+  FEAR_GREED_CONTRARIAN: {
+    name: 'FEAR_GREED_CONTRARIAN',
+    displayName: 'Fear & Greed Contrarian',
+    description: 'Pure contrarian strategy at extreme fear (<20) or greed (>80) levels',
+    riskLevel: 'HIGH',
+    minTimeframe: '7 days',
+    maxTimeframe: '30 days',
+    bestFor: 'Market cycle turning points',
+    requiredDataSources: ['sentiment', 'technical', 'onChain'],
+    minConfidenceThreshold: 64
+  },
+
+  GOLDEN_CROSS_MOMENTUM: {
+    name: 'GOLDEN_CROSS_MOMENTUM',
+    displayName: 'Golden Cross Momentum',
+    description: 'Golden cross (50/200 EMA) + RSI momentum + volume confirmation for strong trends',
+    riskLevel: 'LOW',
+    minTimeframe: '5 days',
+    maxTimeframe: '21 days',
+    bestFor: 'Strong trending markets',
+    requiredDataSources: ['ohlc', 'technical', 'volume'],
+    minConfidenceThreshold: 56  // Lowered from 69 for clean technical signals
+  },
+
+  MARKET_PHASE_SNIPER: {
+    name: 'MARKET_PHASE_SNIPER',
+    displayName: 'Market Phase Sniper',
+    description: 'Adaptive strategy that changes tactics based on market phase (Accumulation/Distribution/Markup/Markdown)',
+    riskLevel: 'MEDIUM',
+    minTimeframe: '3 days',
+    maxTimeframe: '14 days',
+    bestFor: 'All market conditions',
+    requiredDataSources: ['marketPhase', 'onChain', 'technical', 'orderBook'],
+    minConfidenceThreshold: 60  // Lowered from 68 for crypto noise
+  },
+
+  LIQUIDITY_HUNTER: {
+    name: 'LIQUIDITY_HUNTER',
+    displayName: 'Liquidity Hunter',
+    description: 'Targets large exchange outflows + volume spikes to capture smart money moves early',
+    riskLevel: 'MEDIUM',
+    minTimeframe: '2 days',
+    maxTimeframe: '10 days',
+    bestFor: 'Capturing smart money moves early',
+    requiredDataSources: ['onChain', 'volume', 'orderBook'],
+    minConfidenceThreshold: 59  // Lowered from 67 for on-chain lag
+  },
+
+  VOLATILITY_BREAKOUT: {
+    name: 'VOLATILITY_BREAKOUT',
+    displayName: 'Volatility Breakout',
+    description: 'Bollinger squeeze + ATR expansion + directional confirmation for range breakouts',
+    riskLevel: 'HIGH',
+    minTimeframe: '1 day',
+    maxTimeframe: '7 days',
+    bestFor: 'Range breakouts and volatility expansions',
+    requiredDataSources: ['ohlc', 'technical', 'volume'],
+    minConfidenceThreshold: 55  // Lowered from 66 for crypto momentum
+  }
+};

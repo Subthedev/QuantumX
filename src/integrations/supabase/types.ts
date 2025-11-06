@@ -77,6 +77,87 @@ export type Database = {
         }
         Relationships: []
       }
+      intelligence_signals: {
+        Row: {
+          id: string
+          symbol: string
+          signal_type: string
+          timeframe: string
+          entry_min: number
+          entry_max: number
+          current_price: number
+          stop_loss: number | null
+          target_1: number | null
+          target_2: number | null
+          target_3: number | null
+          confidence: number
+          strength: string
+          risk_level: string
+          status: string
+          hit_target: number | null
+          hit_stop_loss: boolean
+          entry_price: number | null
+          exit_price: number | null
+          profit_loss_percent: number | null
+          created_at: string
+          expires_at: string
+          completed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          symbol: string
+          signal_type: string
+          timeframe?: string
+          entry_min: number
+          entry_max: number
+          current_price: number
+          stop_loss?: number | null
+          target_1?: number | null
+          target_2?: number | null
+          target_3?: number | null
+          confidence: number
+          strength: string
+          risk_level: string
+          status?: string
+          hit_target?: number | null
+          hit_stop_loss?: boolean
+          entry_price?: number | null
+          exit_price?: number | null
+          profit_loss_percent?: number | null
+          created_at?: string
+          expires_at: string
+          completed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          symbol?: string
+          signal_type?: string
+          timeframe?: string
+          entry_min?: number
+          entry_max?: number
+          current_price?: number
+          stop_loss?: number | null
+          target_1?: number | null
+          target_2?: number | null
+          target_3?: number | null
+          confidence?: number
+          strength?: string
+          risk_level?: string
+          status?: string
+          hit_target?: number | null
+          hit_stop_loss?: boolean
+          entry_price?: number | null
+          exit_price?: number | null
+          profit_loss_percent?: number | null
+          created_at?: string
+          expires_at?: string
+          completed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       portfolio_holdings: {
         Row: {
           coin_id: string
