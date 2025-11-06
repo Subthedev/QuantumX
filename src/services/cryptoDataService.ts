@@ -156,9 +156,7 @@ class CryptoDataService {
 
   async getCryptoDetails(coinId: string): Promise<any> {
     try {
-      console.log('🔍 Fetching details for:', coinId, 'via Supabase proxy');
-
-      // Use Supabase proxy to avoid CORS issues
+      // Silently fetch via Supabase proxy (reduced verbosity)
       const { data: proxyData, error } = await supabase.functions.invoke('crypto-proxy', {
         body: {
           endpoint: 'details',
@@ -173,14 +171,13 @@ class CryptoDataService {
       });
 
       if (error) {
-        console.error('❌ Proxy error for coin details:', error);
+        // Silently handle proxy errors (reduced verbosity)
         throw new Error(`Failed to fetch ${coinId} details via proxy`);
       }
 
-      console.log('✅ Received details for:', coinId, proxyData.source);
       return proxyData.data;
     } catch (error) {
-      console.error('Error fetching crypto details:', error);
+      // Silently handle errors (reduced verbosity)
       throw error;
     }
   }

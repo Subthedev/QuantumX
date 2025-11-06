@@ -214,6 +214,152 @@ class FundingRateService {
   calculateAnnualizedRate(dailyRate: number): number {
     return dailyRate * 365 * 3; // 3 funding periods per day (8 hours each)
   }
+
+  // ============================================
+  // SMART MONEY DETECTION - FUNDING EXTREMES
+  // ============================================
+
+  /**
+   * Fetch single symbol funding rate (for Intelligence Hub)
+   */
+  async fetchFundingRate(symbol: string): Promise<FundingRateData | null> {
+    try {
+      const binanceSymbol = `${symbol.toUpperCase()}USDT`;
+      const response = await fetch(`${this.BINANCE_FUTURES_API}/fapi/v1/premiumIndex?symbol=${binanceSymbol}`);
+
+      if (!response.ok) {
+        throw new Error(`Binance API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        symbol: data.symbol,
+        fundingRate: parseFloat(data.lastFundingRate),
+        fundingTime: data.time,
+        markPrice: parseFloat(data.markPrice),
+        indexPrice: parseFloat(data.indexPrice),
+        nextFundingTime: data.nextFundingTime,
+        interestRate: parseFloat(data.interestRate)
+      };
+    } catch (error) {
+      console.error(`Error fetching funding rate for ${symbol}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Detect funding rate extremes (contrarian signal)
+   * Extreme negative = Short squeeze potential → BULLISH
+   * Extreme positive = Long liquidation risk → BEARISH
+   */
+  async detectFundingExtreme(symbol: string): Promise<{
+    isExtreme: boolean;
+    type: 'SHORT_SQUEEZE' | 'LONG_LIQUIDATION' | 'NEUTRAL';
+    confidence: number;
+    interpretation: string;
+    rate: number;
+  }> {
+    const fundingData = await this.fetchFundingRate(symbol);
+
+    if (!fundingData) {
+      return {
+        isExtreme: false,
+        type: 'NEUTRAL',
+        confidence: 0,
+        interpretation: 'Funding rate data unavailable',
+        rate: 0
+      };
+    }
+
+    const rate = fundingData.fundingRate;
+
+    // Get historical context
+    const history = await this.getFundingRateHistory(`${symbol.toUpperCase()}USDT`, 30);
+    const stats = this.calculateFundingStats(history);
+
+    // Extreme Negative (Shorts Dominating → Squeeze Potential)
+    if (rate < -0.0010) { // -0.10% or more negative
+      const confidence = Math.min(100, Math.abs(rate) * 10000); // Scale to 0-100
+
+      return {
+        isExtreme: true,
+        type: 'SHORT_SQUEEZE',
+        confidence: Math.round(confidence),
+        interpretation: `Extremely negative funding rate (${(rate * 100).toFixed(4)}%). ` +
+                       `Shorts are paying longs heavily. High probability of short squeeze. ` +
+                       `Contrarian BULLISH signal - whales may be accumulating while shorts pile in.`,
+        rate
+      };
+    }
+
+    // Extreme Positive (Longs Overleveraged → Liquidation Risk)
+    if (rate > 0.0010) { // +0.10% or more positive
+      const confidence = Math.min(100, Math.abs(rate) * 10000);
+
+      return {
+        isExtreme: true,
+        type: 'LONG_LIQUIDATION',
+        confidence: Math.round(confidence),
+        interpretation: `Extremely positive funding rate (${(rate * 100).toFixed(4)}%). ` +
+                       `Longs are overleveraged and paying shorts. High liquidation risk. ` +
+                       `Contrarian BEARISH signal - cascade liquidations likely.`,
+        rate
+      };
+    }
+
+    // Moderately Negative (Slight Bullish Lean)
+    if (rate < -0.0003) {
+      return {
+        isExtreme: false,
+        type: 'SHORT_SQUEEZE',
+        confidence: 40,
+        interpretation: `Moderately negative funding (${(rate * 100).toFixed(4)}%). Minor bullish signal.`,
+        rate
+      };
+    }
+
+    // Moderately Positive (Slight Bearish Lean)
+    if (rate > 0.0003) {
+      return {
+        isExtreme: false,
+        type: 'LONG_LIQUIDATION',
+        confidence: 40,
+        interpretation: `Moderately positive funding (${(rate * 100).toFixed(4)}%). Minor bearish signal.`,
+        rate
+      };
+    }
+
+    return {
+      isExtreme: false,
+      type: 'NEUTRAL',
+      confidence: 0,
+      interpretation: `Neutral funding rate (${(rate * 100).toFixed(4)}%). Balanced market.`,
+      rate
+    };
+  }
+
+  /**
+   * Get funding rate sentiment score (0-100 scale)
+   * 0-30 = Bearish (extreme positive funding)
+   * 30-45 = Slightly Bearish
+   * 45-55 = Neutral
+   * 55-70 = Slightly Bullish
+   * 70-100 = Bullish (extreme negative funding)
+   */
+  async getFundingSentimentScore(symbol: string): Promise<number> {
+    const extreme = await this.detectFundingExtreme(symbol);
+
+    if (extreme.type === 'SHORT_SQUEEZE') {
+      // Negative funding = Bullish (70-100 range)
+      return 70 + extreme.confidence * 0.3;
+    } else if (extreme.type === 'LONG_LIQUIDATION') {
+      // Positive funding = Bearish (0-30 range)
+      return 30 - extreme.confidence * 0.3;
+    }
+
+    return 50; // Neutral
+  }
 }
 
 export const fundingRateService = new FundingRateService();
