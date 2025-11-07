@@ -42,6 +42,7 @@ import { GoldenCrossMomentumStrategy } from '../strategies/goldenCrossMomentumSt
 import { MarketPhaseSniperStrategy } from '../strategies/marketPhaseSniperStrategy';
 import { LiquidityHunterStrategy } from '../strategies/liquidityHunterStrategy';
 import { VolatilityBreakoutStrategy } from '../strategies/volatilityBreakoutStrategy';
+import { rejectionLogger } from '../RejectionLoggerService';
 
 export class IGXBetaV5 {
   // Configuration
@@ -202,6 +203,21 @@ export class IGXBetaV5 {
       // ✅ CHECK: Return null if no consensus reached (direction === null)
       if (!consensus.direction) {
         console.log(`[IGX Beta V5] ⚠️ No consensus reached - insufficient agreement (direction: ${consensus.direction}, confidence: ${consensus.confidence}%)`);
+        
+        // ✅ LOG REJECTION
+        await rejectionLogger.logRejection({
+          symbol: ticker.symbol,
+          direction: 'NEUTRAL',
+          rejectionStage: 'BETA',
+          rejectionReason: `No consensus - insufficient agreement (confidence: ${consensus.confidence}%)`,
+          qualityScore: ticker.dataQuality,
+          confidenceScore: consensus.confidence,
+          dataQuality: ticker.dataQuality,
+          strategyVotes: strategyResults,
+          marketRegime: consensus.marketRegime || undefined,
+          volatility: ticker.volatility
+        });
+        
         this.failedAnalyses++;
         return null;
       }

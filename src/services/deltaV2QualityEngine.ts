@@ -13,6 +13,8 @@
  * Version 2: Enhanced with real outcome tracking integration
  */
 
+import { rejectionLogger } from './RejectionLoggerService';
+
 // ===== TYPES =====
 
 export type MarketRegime = 'BULLISH_TREND' | 'BEARISH_TREND' | 'SIDEWAYS' | 'HIGH_VOLATILITY' | 'LOW_VOLATILITY';
@@ -560,6 +562,19 @@ class DeltaQualityEngine {
       `Quality: ${qualityScore.toFixed(1)} | ML: ${(mlProbability * 100).toFixed(1)}% | ` +
       `Regime: ${regime} | Strategy: ${signal.strategy} (${strategyWinRate.toFixed(1)}% WR)`
     );
+    
+    // ✅ LOG REJECTION
+    if (!passed && rejectionReason) {
+      rejectionLogger.logRejection({
+        symbol: signal.symbol,
+        direction: signal.direction as 'LONG' | 'SHORT' | 'NEUTRAL',
+        rejectionStage: 'DELTA',
+        rejectionReason,
+        qualityScore,
+        confidenceScore: signal.confidence,
+        dataQuality: signal.dataQuality
+      });
+    }
 
     return filteredSignal;
   }

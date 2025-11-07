@@ -41,6 +41,22 @@ interface RejectedSignal {
   created_at: string;
 }
 
+// ML-based priority classification
+function classifyRejectionPriority(signal: RejectedSignal): 'CRITICAL' | 'IMPORTANT' | 'NOISE' {
+  const quality = signal.quality_score || 0;
+  const confidence = signal.confidence_score || 0;
+  
+  // CRITICAL: High quality but rejected
+  if (quality >= 70 && confidence >= 65) return 'CRITICAL';
+  if (signal.rejection_stage === 'DELTA' && quality >= 60) return 'CRITICAL';
+  
+  // NOISE: Low quality, expected
+  if (quality < 40 && confidence < 50) return 'NOISE';
+  if (signal.rejection_stage === 'ALPHA' && quality < 30) return 'NOISE';
+  
+  return 'IMPORTANT';
+}
+
 const CRYPTO_SYMBOLS = ['₿', 'Ξ', '◎', '♦', '●', '◆', '○', '▲'];
 
 interface FlowingParticle {
@@ -1217,6 +1233,7 @@ export default function IntelligenceHub() {
                   .filter(sig => rejectedFilter === 'ALL' || sig.rejection_stage === rejectedFilter)
                   .slice(0, 50)
                   .map(sig => {
+                    const priority = classifyRejectionPriority(sig);
                     // Stage color mapping
                     const stageColors = {
                       'ALPHA': { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
@@ -1238,7 +1255,7 @@ export default function IntelligenceHub() {
                           </div>
 
                           <div className="flex-1">
-                            {/* Symbol + Direction */}
+                            {/* Symbol + Direction + Priority */}
                             <div className="flex items-center gap-2 mb-1">
                               <div className="text-base font-semibold text-slate-800">{sig.symbol}</div>
                               <div className={`px-2 py-0.5 rounded text-xs font-semibold ${
@@ -1247,6 +1264,14 @@ export default function IntelligenceHub() {
                                 'bg-slate-50 text-slate-600'
                               }`}>
                                 {sig.direction}
+                              </div>
+                              {/* ML Priority Badge */}
+                              <div className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                priority === 'CRITICAL' ? 'bg-red-100 text-red-700 border border-red-300' :
+                                priority === 'IMPORTANT' ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
+                                'bg-gray-100 text-gray-600 border border-gray-300'
+                              }`}>
+                                {priority === 'CRITICAL' ? '🔴' : priority === 'IMPORTANT' ? '🟡' : '⚪'} {priority}
                               </div>
                             </div>
 
