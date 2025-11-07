@@ -28,6 +28,7 @@
  */
 
 import type { StrategyConsensus } from './interfaces/StrategyConsensus';
+import { rejectionLogger } from '../RejectionLoggerService';
 
 /**
  * Market condition data from Alpha V3
@@ -198,6 +199,19 @@ export class IGXGammaV2 {
       this.emitFilteredSignal(decision);
     } else {
       console.log(`[IGX Gamma V2] ❌ Signal rejected - will NOT emit to queue`);
+      
+      // ✅ LOG REJECTION
+      rejectionLogger.logRejection({
+        symbol: consensus.symbol,
+        direction: consensus.direction || 'NEUTRAL',
+        rejectionStage: 'GAMMA',
+        rejectionReason: decision.reason || 'Failed market condition matching',
+        qualityScore: consensus.dataQuality,
+        confidenceScore: consensus.confidence,
+        dataQuality: consensus.dataQuality,
+        strategyVotes: Array.from(consensus.individualRecommendations || []),
+        marketRegime: consensus.marketRegime || undefined
+      });
     }
   }
 
