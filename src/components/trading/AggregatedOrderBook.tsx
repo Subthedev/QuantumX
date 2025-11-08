@@ -101,7 +101,7 @@ export const AggregatedOrderBook = ({ symbol, exchanges }: AggregatedOrderBookPr
         level.totalVolume += bid.quantity;
         level.exchanges.push({
           exchangeId,
-          exchangeName: exchangeManager.getExchangeName(exchangeId),
+          exchangeName: exchangeId,
           volume: bid.quantity,
           percentage: 0 // Will calculate after aggregation
         });
@@ -158,7 +158,7 @@ export const AggregatedOrderBook = ({ symbol, exchanges }: AggregatedOrderBookPr
         level.totalVolume += ask.quantity;
         level.exchanges.push({
           exchangeId,
-          exchangeName: exchangeManager.getExchangeName(exchangeId),
+          exchangeName: exchangeId,
           volume: ask.quantity,
           percentage: 0
         });

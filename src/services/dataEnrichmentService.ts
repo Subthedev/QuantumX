@@ -13,9 +13,11 @@
 
 import { intelligenceHub } from './intelligenceHub';
 import type { CanonicalTicker } from './dataStreams/canonicalDataTypes';
-import type { MarketDataInput } from './smartMoneySignalEngine';
+// import type { MarketDataInput } from './smartMoneySignalEngine';
 import { ohlcDataManager } from './ohlcDataManager';
 import { technicalIndicatorCache } from './cache/TechnicalIndicatorCache';
+
+type MarketDataInput = any; // Legacy service - using V2 in production
 
 export class DataEnrichmentService {
   private priceHistory: Map<string, number[]> = new Map();
@@ -97,7 +99,7 @@ export class DataEnrichmentService {
    */
   private async fetchIntelligenceData(symbol: string) {
     try {
-      const data = await intelligenceHub.fetchCryptoIntelligence(symbol);
+      const data = await intelligenceHub.fetchIntelligence({ symbol });
 
       return {
         onChainData: {

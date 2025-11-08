@@ -17,7 +17,7 @@
  */
 
 import { technicalIndicatorCache } from './TechnicalIndicatorCache';
-import { adaptiveTierManager } from '../adaptive/AdaptiveTierManager';
+import { adaptiveTierManager, type ScanningTier } from '../adaptive/AdaptiveTierManager';
 import { ohlcDataManager } from '../ohlcDataManager';
 import { cryptoDataService } from '../cryptoDataService';
 
@@ -250,11 +250,12 @@ export class PreComputationPipeline {
     for (const [symbol, coin] of this.hotCoins) {
       // Get current tier from AdaptiveTierManager
       const tier = adaptiveTierManager.getTier(symbol);
-      coin.tier = tier;
+      const tierName = this.getTierName(tier);
+      coin.tier = tierName;
 
       // Adjust priority based on tier
       let tierBoost = 0;
-      switch (tier) {
+      switch (tierName) {
         case 'OPPORTUNITY':
           tierBoost = 50; // Highest priority
           break;
@@ -289,7 +290,7 @@ export class PreComputationPipeline {
         priority,
         lastComputed: 0,
         computeCount: 0,
-        tier: adaptiveTierManager.getTier(upperSymbol)
+        tier: this.getTierName(adaptiveTierManager.getTier(upperSymbol))
       });
 
       // Remove lowest priority coin if over limit
@@ -327,7 +328,7 @@ export class PreComputationPipeline {
         priority: 90,
         lastComputed: 0,
         computeCount: 0,
-        tier: adaptiveTierManager.getTier(upperSymbol)
+        tier: this.getTierName(adaptiveTierManager.getTier(upperSymbol))
       };
       this.hotCoins.set(upperSymbol, coin);
     }
@@ -356,6 +357,15 @@ export class PreComputationPipeline {
 
     this.stats.lastRunTime = Date.now();
     this.stats.hotCoinsTracked = this.hotCoins.size;
+  }
+
+  /**
+   * Convert numeric tier to string name
+   */
+  private getTierName(tier: ScanningTier): 'OPPORTUNITY' | 'ALERT' | 'CALM' {
+    if (tier === 3) return 'OPPORTUNITY';
+    if (tier === 2) return 'ALERT';
+    return 'CALM';
   }
 
   /**

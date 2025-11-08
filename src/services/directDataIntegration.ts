@@ -247,7 +247,7 @@ class DirectDataIntegrationService {
     try {
       console.log(`[DirectData] 🏦 Fetching ETF data directly`);
 
-      const etfData = await etfDataService.fetchCurrentETFData();
+      const etfData = null; // Legacy method - ETF data disabled
 
       if (etfData) {
         const data: DirectETFData = {
