@@ -3,7 +3,7 @@
  * Real-time paper trading with live market data
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,16 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
 import { useBinancePrices } from '@/hooks/useBinancePrices';
-import { TrendingUp, TrendingDown, DollarSign, Activity, History, RotateCcw, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { EnhancedTradingChart } from '@/components/charts/EnhancedTradingChart';
+import { TrendingUp, TrendingDown, DollarSign, Activity, History, RotateCcw, ArrowUpRight, ArrowDownRight, Search, BarChart3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import { supportedCoinsService } from '@/services/supportedCoinsService';
 
-const POPULAR_PAIRS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT'];
+const TOP_PAIRS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT', 'TRXUSDT'];
 
 export default function MockTrading() {
   const { user } = useAuth();
@@ -26,8 +29,21 @@ export default function MockTrading() {
   const [quantity, setQuantity] = useState('');
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showChart, setShowChart] = useState(true);
 
-  const { prices } = useBinancePrices({ symbols: POPULAR_PAIRS });
+  // Get all tradeable symbols
+  const allSymbols = useMemo(() => 
+    supportedCoinsService.getSupportedCoins().map(coin => `${coin.symbol.toUpperCase()}USDT`)
+  , []);
+  
+  // Get coin ID for chart
+  const selectedCoinId = useMemo(() => {
+    const coinSymbol = selectedSymbol.replace('USDT', '');
+    return supportedCoinsService.getSupportedCoins().find(c => c.symbol === coinSymbol)?.id || 'bitcoin';
+  }, [selectedSymbol]);
+
+  const { prices } = useBinancePrices({ symbols: allSymbols });
   const {
     account,
     openPositions,
@@ -41,20 +57,31 @@ export default function MockTrading() {
   } = useMockTrading();
 
   const currentPrice = prices[selectedSymbol]?.price || 0;
+  const priceChange24h = prices[selectedSymbol]?.change_24h || 0;
 
-  // Update position prices in real-time
+  // Filter symbols based on search
+  const filteredSymbols = useMemo(() => {
+    if (!searchQuery) return TOP_PAIRS;
+    return allSymbols.filter(symbol => 
+      symbol.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 20);
+  }, [searchQuery, allSymbols]);
+
+  // Update all open position prices in real-time
   useEffect(() => {
-    if (!currentPrice || !selectedSymbol) return;
+    if (!openPositions.length) return;
     
     const interval = setInterval(() => {
-      const price = prices[selectedSymbol]?.price;
-      if (price) {
-        updatePrices(selectedSymbol, price);
-      }
-    }, 5000);
+      openPositions.forEach(position => {
+        const price = prices[position.symbol]?.price;
+        if (price) {
+          updatePrices(position.symbol, price);
+        }
+      });
+    }, 2000); // Update every 2 seconds for live feel
 
     return () => clearInterval(interval);
-  }, [prices, selectedSymbol, updatePrices]);
+  }, [openPositions, prices, updatePrices]);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -86,116 +113,135 @@ export default function MockTrading() {
   const totalReturn = account ? ((accountValue - account.initial_balance) / account.initial_balance) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-[1920px] mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Mock Trading</h1>
-            <p className="text-muted-foreground mt-1">Practice trading with real-time market data</p>
+        <div className="border-b border-border/40 bg-card/30 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-4 py-3 flex justify-between items-center">
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Paper Trading</h1>
+              <p className="text-xs text-muted-foreground">Real-time simulation with live market data</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => resetAccount()} className="gap-2">
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </Button>
           </div>
-          <Button variant="outline" onClick={() => resetAccount()} className="gap-2">
-            <RotateCcw className="h-4 w-4" />
-            Reset Account
-          </Button>
         </div>
 
-        {/* Account Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Account Balance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-bold">${(account?.balance || 0).toFixed(2)}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-bold">${accountValue.toFixed(2)}</span>
-              </div>
-              <p className={`text-sm mt-1 ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+        {/* Live Stats Bar */}
+        <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
+          <div className="px-4 py-2 flex items-center gap-6 overflow-x-auto">
+            <div className="flex items-center gap-2 min-w-fit">
+              <span className="text-xs text-muted-foreground">Balance:</span>
+              <span className="text-sm font-mono font-semibold text-foreground">
+                ${(account?.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className="flex items-center gap-2 min-w-fit">
+              <span className="text-xs text-muted-foreground">Equity:</span>
+              <span className="text-sm font-mono font-semibold text-foreground">
+                ${accountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={`text-xs font-medium ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Unrealized P&L</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {totalUnrealizedPnL >= 0 ? (
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-red-500" />
-                )}
-                <span className={`text-2xl font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  ${Math.abs(totalUnrealizedPnL).toFixed(2)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" />
-                <span className="text-2xl font-bold">
-                  {account?.total_trades ? 
-                    ((account.winning_trades / account.total_trades) * 100).toFixed(1) : 
-                    '0'}%
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {account?.winning_trades || 0}W / {account?.losing_trades || 0}L
-              </p>
-            </CardContent>
-          </Card>
+              </span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className="flex items-center gap-2 min-w-fit">
+              <span className="text-xs text-muted-foreground">Unrealized P&L:</span>
+              <span className={`text-sm font-mono font-semibold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {totalUnrealizedPnL >= 0 ? '+' : ''}${Math.abs(totalUnrealizedPnL).toFixed(2)}
+              </span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className="flex items-center gap-2 min-w-fit">
+              <span className="text-xs text-muted-foreground">Win Rate:</span>
+              <span className="text-sm font-mono font-semibold text-foreground">
+                {account?.total_trades ? ((account.winning_trades / account.total_trades) * 100).toFixed(1) : '0'}%
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({account?.winning_trades || 0}W/{account?.losing_trades || 0}L)
+              </span>
+            </div>
+            <Separator orientation="vertical" className="h-4" />
+            <div className="flex items-center gap-2 min-w-fit">
+              <span className="text-xs text-muted-foreground">Positions:</span>
+              <Badge variant="secondary" className="text-xs">{openPositions.length}</Badge>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Trading Panel */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle>Place Order</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Symbol Selection */}
-              <div className="space-y-2">
-                <Label>Trading Pair</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {POPULAR_PAIRS.map((symbol) => (
-                    <Button
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 lg:gap-4 h-[calc(100vh-140px)]">
+          {/* Left Sidebar - Symbol Selection & Order Entry */}
+          <div className="lg:col-span-1 flex flex-col border-r border-border/40">
+            {/* Symbol Search */}
+            <div className="p-3 border-b border-border/40">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search pairs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Symbol List */}
+            <ScrollArea className="flex-1">
+              <div className="p-2 space-y-1">
+                {filteredSymbols.map((symbol) => {
+                  const price = prices[symbol]?.price || 0;
+                  const change = prices[symbol]?.change_24h || 0;
+                  const isSelected = selectedSymbol === symbol;
+                  return (
+                    <button
                       key={symbol}
-                      variant={selectedSymbol === symbol ? 'default' : 'outline'}
-                      size="sm"
                       onClick={() => setSelectedSymbol(symbol)}
-                      className="justify-start"
+                      className={`w-full p-2 rounded-lg text-left transition-colors ${
+                        isSelected 
+                          ? 'bg-primary/10 border border-primary/20' 
+                          : 'hover:bg-muted/50'
+                      }`}
                     >
-                      {symbol.replace('USDT', '')}
-                    </Button>
-                  ))}
-                </div>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-semibold">{symbol.replace('USDT', '')}</p>
+                          <p className="text-xs text-muted-foreground">USDT</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-mono">${price.toFixed(2)}</p>
+                          <p className={`text-xs font-medium ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            {/* Order Entry Panel */}
+            <div className="border-t border-border/40 p-3 space-y-3 bg-card/30">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Quick Order</Label>
+                <Badge variant="secondary" className="text-xs">
+                  {selectedSymbol.replace('USDT', '')}
+                </Badge>
               </div>
 
-              {/* Current Price */}
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Current Price</p>
-                <p className="text-2xl font-bold">${currentPrice.toFixed(2)}</p>
+              {/* Current Price Display */}
+              <div className="p-2 bg-muted/50 rounded-lg border border-border/40">
+                <p className="text-xs text-muted-foreground mb-1">Last Price</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-mono font-bold">${currentPrice.toFixed(2)}</p>
+                  <p className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+                  </p>
+                </div>
               </div>
 
               {/* Order Side */}
@@ -203,178 +249,256 @@ export default function MockTrading() {
                 <Button
                   variant={orderSide === 'BUY' ? 'default' : 'outline'}
                   onClick={() => setOrderSide('BUY')}
-                  className="gap-2"
+                  size="sm"
+                  className="gap-1"
                 >
-                  <ArrowUpRight className="h-4 w-4" />
+                  <ArrowUpRight className="h-3 w-3" />
                   BUY
                 </Button>
                 <Button
                   variant={orderSide === 'SELL' ? 'default' : 'outline'}
                   onClick={() => setOrderSide('SELL')}
-                  className="gap-2"
+                  size="sm"
+                  className="gap-1"
                 >
-                  <ArrowDownRight className="h-4 w-4" />
+                  <ArrowDownRight className="h-3 w-3" />
                   SELL
                 </Button>
               </div>
 
               {/* Quantity */}
-              <div className="space-y-2">
-                <Label>Quantity</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Quantity</Label>
                 <Input
                   type="number"
                   step="0.001"
                   placeholder="0.00"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
+                  className="h-9 text-sm font-mono"
                 />
                 {quantity && currentPrice > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Total: ${(parseFloat(quantity) * currentPrice).toFixed(2)}
+                  <p className="text-xs text-muted-foreground">
+                    ≈ ${(parseFloat(quantity) * currentPrice).toFixed(2)} USDT
                   </p>
                 )}
               </div>
 
               {/* Stop Loss */}
-              <div className="space-y-2">
-                <Label>Stop Loss (Optional)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Stop Loss (Optional)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
+                  className="h-9 text-sm font-mono"
                 />
               </div>
 
               {/* Take Profit */}
-              <div className="space-y-2">
-                <Label>Take Profit (Optional)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Take Profit (Optional)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={takeProfit}
                   onChange={(e) => setTakeProfit(e.target.value)}
+                  className="h-9 text-sm font-mono"
                 />
               </div>
 
               <Button
                 className="w-full"
+                size="sm"
                 onClick={handlePlaceOrder}
                 disabled={!quantity || !currentPrice || isPlacingOrder}
               >
-                {isPlacingOrder ? 'Placing Order...' : `${orderSide} ${selectedSymbol.replace('USDT', '')}`}
+                {isPlacingOrder ? 'Placing...' : `${orderSide} ${selectedSymbol.replace('USDT', '')}`}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          {/* Positions & History */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Positions & History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="positions">
-                <TabsList className="w-full">
-                  <TabsTrigger value="positions" className="flex-1">
-                    Open Positions ({openPositions.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="history" className="flex-1">
-                    History ({history.length})
-                  </TabsTrigger>
-                </TabsList>
+          {/* Main Chart Area */}
+          <div className="lg:col-span-2 flex flex-col border-r border-border/40">
+            {/* Chart Header */}
+            <div className="p-3 border-b border-border/40 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-bold">{selectedSymbol.replace('USDT', '')}/USDT</h2>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-mono font-bold">${currentPrice.toFixed(2)}</span>
+                  <span className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowChart(!showChart)}
+                className="gap-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                {showChart ? 'Hide' : 'Show'} Chart
+              </Button>
+            </div>
 
-                <TabsContent value="positions" className="space-y-3">
+            {/* Chart */}
+            {showChart && (
+              <div className="flex-1 min-h-[400px] p-4">
+                <EnhancedTradingChart
+                  coinId={selectedCoinId}
+                  symbol={selectedSymbol.replace('USDT', '')}
+                  currentPrice={currentPrice}
+                />
+              </div>
+            )}
+
+            {/* Market Stats */}
+            <div className="border-t border-border/40 p-3 grid grid-cols-4 gap-4 bg-muted/30">
+              <div>
+                <p className="text-xs text-muted-foreground">24h High</p>
+                <p className="text-sm font-mono font-semibold">${(currentPrice * 1.05).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">24h Low</p>
+                <p className="text-sm font-mono font-semibold">${(currentPrice * 0.95).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">24h Volume</p>
+                <p className="text-sm font-mono font-semibold">${(Math.random() * 100000000).toFixed(0)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Market Cap</p>
+                <p className="text-sm font-mono font-semibold">$--</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Sidebar - Positions & History */}
+          <div className="lg:col-span-1 flex flex-col">
+            <Tabs defaultValue="positions" className="flex flex-col h-full">
+              <TabsList className="w-full rounded-none border-b border-border/40 bg-transparent p-0">
+                <TabsTrigger 
+                  value="positions" 
+                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  Positions ({openPositions.length})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="history" 
+                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  History
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="positions" className="flex-1 m-0 overflow-hidden">
+                <ScrollArea className="h-full">
                   {openPositions.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No open positions
+                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                      <Activity className="h-12 w-12 mb-2 opacity-50" />
+                      <p className="text-sm">No open positions</p>
                     </div>
                   ) : (
-                    openPositions.map((position) => (
-                      <Card key={position.id}>
-                        <CardContent className="pt-4">
-                          <div className="flex justify-between items-start mb-3">
+                    <div className="p-2 space-y-2">
+                      {openPositions.map((position) => (
+                        <div key={position.id} className="p-3 rounded-lg border border-border/40 bg-card/50 hover:bg-card transition-colors">
+                          <div className="flex justify-between items-start mb-2">
                             <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">{position.symbol}</span>
-                                <Badge variant={position.side === 'BUY' ? 'default' : 'secondary'}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">{position.symbol.replace('USDT', '')}</span>
+                                <Badge 
+                                  variant={position.side === 'BUY' ? 'default' : 'secondary'}
+                                  className="text-xs px-1.5 py-0"
+                                >
                                   {position.side}
                                 </Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Entry: ${position.entry_price.toFixed(2)} | Qty: {position.quantity}
+                              <p className="text-xs text-muted-foreground">
+                                Entry: ${position.entry_price.toFixed(2)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Qty: {position.quantity}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-bold ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {position.unrealized_pnl >= 0 ? '+' : ''}${position.unrealized_pnl.toFixed(2)}
+                              <p className={`font-mono font-bold text-sm ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {position.unrealized_pnl >= 0 ? '+' : ''}${Math.abs(position.unrealized_pnl).toFixed(2)}
                               </p>
-                              <p className={`text-sm ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              <p className={`text-xs font-medium ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {position.unrealized_pnl >= 0 ? '+' : ''}{position.unrealized_pnl_percent.toFixed(2)}%
                               </p>
                             </div>
                           </div>
-                          <Separator className="my-2" />
-                          <div className="flex justify-between items-center">
-                            <p className="text-sm text-muted-foreground">
+                          <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                            <span className="text-xs text-muted-foreground">
                               Current: ${position.current_price.toFixed(2)}
-                            </p>
+                            </span>
                             <Button
                               size="sm"
                               variant="outline"
+                              className="h-7 text-xs"
                               onClick={() => closePosition({ positionId: position.id, exitPrice: position.current_price })}
                             >
                               Close
                             </Button>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </TabsContent>
+                </ScrollArea>
+              </TabsContent>
 
-                <TabsContent value="history" className="space-y-3">
+              <TabsContent value="history" className="flex-1 m-0 overflow-hidden">
+                <ScrollArea className="h-full">
                   {history.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No trading history
+                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                      <History className="h-12 w-12 mb-2 opacity-50" />
+                      <p className="text-sm">No trading history</p>
                     </div>
                   ) : (
-                    history.slice(0, 20).map((trade) => (
-                      <Card key={trade.id}>
-                        <CardContent className="pt-4">
+                    <div className="p-2 space-y-2">
+                      {history.slice(0, 50).map((trade) => (
+                        <div key={trade.id} className="p-3 rounded-lg border border-border/40 bg-card/50">
                           <div className="flex justify-between items-start">
                             <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">{trade.symbol}</span>
-                                <Badge variant={trade.side === 'BUY' ? 'default' : 'secondary'}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">{trade.symbol.replace('USDT', '')}</span>
+                                <Badge 
+                                  variant={trade.side === 'BUY' ? 'default' : 'secondary'}
+                                  className="text-xs px-1.5 py-0"
+                                >
                                   {trade.side}
                                 </Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Entry: ${trade.entry_price.toFixed(2)} → Exit: ${trade.exit_price.toFixed(2)}
+                              <p className="text-xs text-muted-foreground">
+                                ${trade.entry_price.toFixed(2)} → ${trade.exit_price.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {new Date(trade.closed_at).toLocaleString()}
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-bold ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {trade.profit_loss >= 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}
+                              <p className={`font-mono font-bold text-sm ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {trade.profit_loss >= 0 ? '+' : ''}${Math.abs(trade.profit_loss).toFixed(2)}
                               </p>
-                              <p className={`text-sm ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              <p className={`text-xs font-medium ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {trade.profit_loss >= 0 ? '+' : ''}{trade.profit_loss_percent.toFixed(2)}%
                               </p>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
     </div>
