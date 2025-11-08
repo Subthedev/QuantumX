@@ -344,17 +344,16 @@ export class MultiExchangeAggregatorV4 {
           exchange: 'COINGECKO',
           price: crypto.current_price,
           volume24h: crypto.total_volume,
+          volumeQuote: crypto.total_volume,
           high24h: crypto.high_24h,
           low24h: crypto.low_24h,
-          open24h: crypto.current_price - (crypto.price_change_24h || 0),
           priceChange24h: crypto.price_change_24h || 0,
           priceChangePercent24h: crypto.price_change_percentage_24h || 0,
-          marketCap: crypto.market_cap,
-          circulatingSupply: crypto.circulating_supply,
           bid: crypto.current_price * 0.999,
           ask: crypto.current_price * 1.001,
           timestamp: Date.now(),
-          quality: 'DELAYED'
+          receivedAt: Date.now(),
+          quality: 'LOW'
         };
 
         this.stats.fallbackData++;
