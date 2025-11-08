@@ -432,15 +432,23 @@ export default function IntelligenceHub() {
           </div>
         </div>
 
-        {/* PIPELINE - Clean flow without overlapping pipes */}
-        <Card className="mb-6 border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-slate-800">Real-Time Pipeline</h2>
-                <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-xs font-semibold text-emerald-700">
-                  <Activity className="w-3 h-3 animate-pulse" />
-                  <span>Active</span>
+        {/* PIPELINE - Smooth flowing visualization with animated gradients */}
+        <Card className="mb-6 border-none bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl overflow-hidden relative">
+          {/* Animated background grid */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0" style={{
+              backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
+              backgroundSize: '50px 50px'
+            }}></div>
+          </div>
+          
+          <div className="p-8 relative z-10">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white">Real-Time Intelligence Pipeline</h2>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30 rounded-lg backdrop-blur">
+                  <Circle className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-500/50" />
+                  <span className="text-xs font-bold text-emerald-300">LIVE 24/7</span>
                 </div>
               </div>
               <div className="text-sm text-slate-600 font-medium">{fmt(metrics.totalSignals)} Total Signals</div>
