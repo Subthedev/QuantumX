@@ -79,82 +79,235 @@ export type Database = {
       }
       intelligence_signals: {
         Row: {
-          id: string
-          symbol: string
-          signal_type: string
-          timeframe: string
-          entry_min: number
-          entry_max: number
+          completed_at: string | null
+          confidence: number
+          created_at: string
           current_price: number
+          entry_max: number
+          entry_min: number
+          entry_price: number | null
+          exit_price: number | null
+          expires_at: string
+          hit_stop_loss: boolean | null
+          hit_target: number | null
+          id: string
+          profit_loss_percent: number | null
+          risk_level: string
+          signal_type: string
+          status: string
           stop_loss: number | null
+          strength: string
+          symbol: string
           target_1: number | null
           target_2: number | null
           target_3: number | null
-          confidence: number
-          strength: string
-          risk_level: string
-          status: string
-          hit_target: number | null
-          hit_stop_loss: boolean
-          entry_price: number | null
-          exit_price: number | null
-          profit_loss_percent: number | null
-          created_at: string
-          expires_at: string
-          completed_at: string | null
+          timeframe: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          symbol: string
-          signal_type: string
-          timeframe?: string
-          entry_min: number
-          entry_max: number
+          completed_at?: string | null
+          confidence: number
+          created_at?: string
           current_price: number
+          entry_max: number
+          entry_min: number
+          entry_price?: number | null
+          exit_price?: number | null
+          expires_at: string
+          hit_stop_loss?: boolean | null
+          hit_target?: number | null
+          id?: string
+          profit_loss_percent?: number | null
+          risk_level: string
+          signal_type: string
+          status?: string
           stop_loss?: number | null
+          strength: string
+          symbol: string
           target_1?: number | null
           target_2?: number | null
           target_3?: number | null
-          confidence: number
-          strength: string
-          risk_level: string
-          status?: string
-          hit_target?: number | null
-          hit_stop_loss?: boolean
-          entry_price?: number | null
-          exit_price?: number | null
-          profit_loss_percent?: number | null
-          created_at?: string
-          expires_at: string
-          completed_at?: string | null
+          timeframe?: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          symbol?: string
-          signal_type?: string
-          timeframe?: string
-          entry_min?: number
-          entry_max?: number
+          completed_at?: string | null
+          confidence?: number
+          created_at?: string
           current_price?: number
+          entry_max?: number
+          entry_min?: number
+          entry_price?: number | null
+          exit_price?: number | null
+          expires_at?: string
+          hit_stop_loss?: boolean | null
+          hit_target?: number | null
+          id?: string
+          profit_loss_percent?: number | null
+          risk_level?: string
+          signal_type?: string
+          status?: string
           stop_loss?: number | null
+          strength?: string
+          symbol?: string
           target_1?: number | null
           target_2?: number | null
           target_3?: number | null
-          confidence?: number
-          strength?: string
-          risk_level?: string
-          status?: string
-          hit_target?: number | null
-          hit_stop_loss?: boolean
-          entry_price?: number | null
-          exit_price?: number | null
-          profit_loss_percent?: number | null
-          created_at?: string
-          expires_at?: string
-          completed_at?: string | null
+          timeframe?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      mock_trading_accounts: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          initial_balance: number
+          losing_trades: number
+          total_profit_loss: number
+          total_trades: number
+          updated_at: string
+          user_id: string
+          winning_trades: number
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          losing_trades?: number
+          total_profit_loss?: number
+          total_trades?: number
+          updated_at?: string
+          user_id: string
+          winning_trades?: number
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          initial_balance?: number
+          losing_trades?: number
+          total_profit_loss?: number
+          total_trades?: number
+          updated_at?: string
+          user_id?: string
+          winning_trades?: number
+        }
+        Relationships: []
+      }
+      mock_trading_history: {
+        Row: {
+          closed_at: string
+          created_at: string
+          duration_minutes: number | null
+          entry_price: number
+          exit_price: number
+          fees: number
+          id: string
+          leverage: number
+          opened_at: string
+          profit_loss: number
+          profit_loss_percent: number
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string
+          created_at?: string
+          duration_minutes?: number | null
+          entry_price: number
+          exit_price: number
+          fees?: number
+          id?: string
+          leverage?: number
+          opened_at: string
+          profit_loss: number
+          profit_loss_percent: number
+          quantity: number
+          side: string
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string
+          created_at?: string
+          duration_minutes?: number | null
+          entry_price?: number
+          exit_price?: number
+          fees?: number
+          id?: string
+          leverage?: number
+          opened_at?: string
+          profit_loss?: number
+          profit_loss_percent?: number
+          quantity?: number
+          side?: string
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mock_trading_positions: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          current_price: number
+          entry_price: number
+          id: string
+          leverage: number
+          opened_at: string
+          quantity: number
+          side: string
+          status: string
+          stop_loss: number | null
+          symbol: string
+          take_profit: number | null
+          unrealized_pnl: number
+          unrealized_pnl_percent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          current_price: number
+          entry_price: number
+          id?: string
+          leverage?: number
+          opened_at?: string
+          quantity: number
+          side: string
+          status?: string
+          stop_loss?: number | null
+          symbol: string
+          take_profit?: number | null
+          unrealized_pnl?: number
+          unrealized_pnl_percent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          current_price?: number
+          entry_price?: number
+          id?: string
+          leverage?: number
+          opened_at?: string
+          quantity?: number
+          side?: string
+          status?: string
+          stop_loss?: number | null
+          symbol?: string
+          take_profit?: number | null
+          unrealized_pnl?: number
+          unrealized_pnl_percent?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -296,6 +449,48 @@ export type Database = {
         }
         Relationships: []
       }
+      rejected_signals: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          data_quality: number | null
+          direction: string | null
+          id: string
+          quality_score: number | null
+          rejection_reason: string
+          rejection_stage: string
+          strategy_votes: Json | null
+          symbol: string
+          zeta_learning_value: number | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          data_quality?: number | null
+          direction?: string | null
+          id?: string
+          quality_score?: number | null
+          rejection_reason: string
+          rejection_stage: string
+          strategy_votes?: Json | null
+          symbol: string
+          zeta_learning_value?: number | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          data_quality?: number | null
+          direction?: string | null
+          id?: string
+          quality_score?: number | null
+          rejection_reason?: string
+          rejection_stage?: string
+          strategy_votes?: Json | null
+          symbol?: string
+          zeta_learning_value?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -330,18 +525,13 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
-      consume_credit: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      cleanup_old_rejected_signals: { Args: never; Returns: undefined }
+      consume_credit: { Args: { _user_id: string }; Returns: boolean }
       grant_feedback_credits: {
         Args: { _credits: number; _user_id: string }
         Returns: undefined
       }
-      has_credits: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      has_credits: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

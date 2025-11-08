@@ -41,6 +41,7 @@ const featureLinks = [
   { href: '/onchain-analysis', label: 'On-Chain Analysis', icon: Activity, description: 'Blockchain metrics' },
   { href: '/funding-rates', label: 'Funding Rates', icon: DollarSign, description: 'Perpetual futures funding' },
   { href: '/orderbook', label: 'Order Book', icon: BookOpen, description: 'Real-time market depth' },
+  { href: '/mock-trading', label: 'Mock Trading', icon: TrendingUp, description: 'Practice trading' },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase, description: 'Track holdings' },
   { href: '/profit-guard', label: 'ProfitGuard', icon: Shield, description: 'Protect gains' },
   { href: '/calculator', label: 'Calculator', icon: Calculator, description: 'Trading tools' },

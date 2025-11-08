@@ -38,6 +38,7 @@ const ETFFlows = lazy(() => import("./pages/ETFFlows"));
 const OnChainAnalysis = lazy(() => import("./pages/OnChainAnalysis"));
 const FundingRates = lazy(() => import("./pages/FundingRates"));
 const OrderBook = lazy(() => import("./pages/OrderBook"));
+const MockTrading = lazy(() => import("./pages/MockTrading"));
 const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
 const IntelligenceHubV3 = lazy(() => import("./pages/IntelligenceHubV3"));
 const IntelligenceHubAuto = lazy(() => import("./pages/IntelligenceHubAuto"));
@@ -108,6 +109,7 @@ const App = () => {
               <Route path="/onchain-analysis" element={<ProtectedRoute><OnChainAnalysis /></ProtectedRoute>} />
               <Route path="/funding-rates" element={<ProtectedRoute><FundingRates /></ProtectedRoute>} />
               <Route path="/orderbook" element={<ProtectedRoute><OrderBook /></ProtectedRoute>} />
+              <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
               <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
               <Route path="/intelligence-hub-v3" element={<ProtectedRoute><IntelligenceHubV3 /></ProtectedRoute>} />
               <Route path="/intelligence-hub-auto" element={<ProtectedRoute><IntelligenceHubAuto /></ProtectedRoute>} />
