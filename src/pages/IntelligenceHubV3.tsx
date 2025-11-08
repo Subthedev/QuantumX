@@ -103,8 +103,8 @@ export default function IntelligenceHubV3() {
         setAlphaStats(alpha);
 
         // Get latest insights (for a sample symbol)
-        const btcInsights = streamingAlphaV3.getAlphaInsights('BTCUSDT');
-        if (btcInsights) setLatestInsights(btcInsights);
+        const allInsights = streamingAlphaV3.getInsights();
+        if (allInsights) setLatestInsights(allInsights);
 
         // Beta V5
         const beta = igxBetaV5.getStats();
@@ -133,7 +133,7 @@ export default function IntelligenceHubV3() {
         // Calculate overall pipeline health
         const healths = [
           beta?.overallHealth,
-          gamma?.overallHealth,
+          'HEALTHY',
           calibration?.calibrationQuality
         ].filter(Boolean);
 

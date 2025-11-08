@@ -351,7 +351,7 @@ export default function IntelligenceHub() {
       }
 
       if (data) {
-        setRejectedSignals(data);
+        setRejectedSignals(data as RejectedSignal[]);
       }
     } catch (err) {
       console.error('[Hub UI] Error fetching rejected signals:', err);

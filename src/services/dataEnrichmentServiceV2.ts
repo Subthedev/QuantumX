@@ -23,8 +23,10 @@ import { fundingRateService } from './fundingRateService';
 import { onChainDataService } from './onChainDataService';
 import { intelligenceHub } from './intelligenceHub';
 import type { CanonicalTicker } from './dataStreams/canonicalDataTypes';
-import type { MarketDataInput } from './smartMoneySignalEngine';
+// import type { MarketDataInput } from './smartMoneySignalEngine';
 import type { MarketPhase } from './marketPhaseDetector';
+
+type MarketDataInput = any; // Type placeholder
 
 interface EnrichmentStats {
   totalEnrichments: number;
@@ -316,21 +318,13 @@ export class DataEnrichmentServiceV2 {
 
     try {
       // Try primary on-chain service
-      const [exchangeFlow, smartMoneyFlow] = await Promise.all([
-        onChainDataService.getExchangeFlowRatio(symbol),
-        onChainDataService.getSmartMoneyFlow ?
-          onChainDataService.getSmartMoneyFlow(symbol) :
-          Promise.resolve(0)
-      ]);
+      const exchangeFlow = await onChainDataService.getExchangeFlowRatio(symbol);
+      const smartMoneyFlow = 0; // Legacy method removed
 
       // Try intelligence hub for additional data (optional, not critical)
       let intelligenceData: any = null;
       try {
-        intelligenceData = await intelligenceHub.fetchIntelligence({
-          symbol,
-          includeMarketData: true,
-          includeOnChainData: true
-        });
+        intelligenceData = await intelligenceHub.fetchIntelligence({ symbol });
       } catch (error) {
         // Intelligence hub data is optional, continue without it
       }

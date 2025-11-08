@@ -606,6 +606,7 @@ export default function OrderBook() {
                           bids={orderBook.bids}
                           asks={orderBook.asks}
                           midPrice={orderBook.metrics.midPrice}
+                          symbol={selectedSymbol}
                         />
                       </div>
                     </div>
