@@ -356,17 +356,20 @@ export class MultiExchangeAggregatorV2 {
       case 'BINANCE_WS':
         if (message.e === '24hrTicker') {
           return {
-            exchange: 'binance',
+            exchange: 'BINANCE',
             symbol: this.normalizeSymbol(message.s),
             price: parseFloat(message.c),
             volume24h: parseFloat(message.v),
+            volumeQuote: parseFloat(message.q),
             bid: parseFloat(message.b),
             ask: parseFloat(message.a),
             high24h: parseFloat(message.h),
             low24h: parseFloat(message.l),
             priceChange24h: parseFloat(message.p),
             priceChangePercent24h: parseFloat(message.P),
-            timestamp: message.E || Date.now()
+            timestamp: message.E || Date.now(),
+            receivedAt: Date.now(),
+            quality: 'HIGH' as const
           };
         }
         break;
@@ -375,17 +378,20 @@ export class MultiExchangeAggregatorV2 {
         if (message[2] === 'ticker') {
           const data = message[1];
           return {
-            exchange: 'kraken',
+            exchange: 'BINANCE',
             symbol: this.normalizeKrakenPair(message[3]),
             price: parseFloat(data.c[0]),
             volume24h: parseFloat(data.v[1]),
+            volumeQuote: parseFloat(data.v[1]),
             bid: parseFloat(data.b[0]),
             ask: parseFloat(data.a[0]),
             high24h: parseFloat(data.h[1]),
             low24h: parseFloat(data.l[1]),
-            priceChange24h: 0, // Calculate from open
+            priceChange24h: 0,
             priceChangePercent24h: 0,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            receivedAt: Date.now(),
+            quality: 'HIGH' as const
           };
         }
         break;
@@ -393,17 +399,20 @@ export class MultiExchangeAggregatorV2 {
       case 'COINBASE_WS':
         if (message.type === 'ticker') {
           return {
-            exchange: 'coinbase',
+            exchange: 'COINBASE',
             symbol: this.normalizeCoinbasePair(message.product_id),
             price: parseFloat(message.price),
             volume24h: parseFloat(message.volume_24h),
+            volumeQuote: parseFloat(message.volume_24h),
             bid: parseFloat(message.best_bid),
             ask: parseFloat(message.best_ask),
             high24h: parseFloat(message.high_24h),
             low24h: parseFloat(message.low_24h),
-            priceChange24h: 0, // Calculate from open
+            priceChange24h: 0,
             priceChangePercent24h: 0,
-            timestamp: Date.parse(message.time)
+            timestamp: Date.parse(message.time),
+            receivedAt: Date.now(),
+            quality: 'HIGH' as const
           };
         }
         break;

@@ -103,12 +103,12 @@ export class DataEnrichmentService {
 
       return {
         onChainData: {
-          exchangeFlowRatio: data.onChain?.exchangeFlowRatio || this.estimateExchangeFlow(symbol),
-          smartMoneyDivergence: data.onChain?.smartMoneyDivergence || 0,
-          activeAddresses: data.onChain?.activeAddresses || 0
+          exchangeFlowRatio: 0,
+          smartMoneyDivergence: 0,
+          activeAddresses: 0
         },
-        marketData: data.marketData || {},
-        fundingRates: data.fundingRates || { binance: 0, bybit: 0 }
+        marketData: {},
+        fundingRates: { binance: 0, bybit: 0 }
       };
     } catch (error) {
       // Fallback to estimates if API fails

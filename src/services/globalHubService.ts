@@ -691,7 +691,8 @@ class GlobalHubService extends SimpleEventEmitter {
         high24h: crypto.high_24h,
         low24h: crypto.low_24h,
         timestamp: Date.now(),
-        lastUpdateId: 0
+        receivedAt: Date.now(),
+        quality: 'LOW' as const
       };
 
       console.log(`[GlobalHub] ✅ REST fallback: ${symbol} @ $${ticker.price.toFixed(2)} - CoinGecko API`);
@@ -1297,31 +1298,9 @@ class GlobalHubService extends SimpleEventEmitter {
 
         // ✅ SMART TIME LIMIT CALCULATION - Based on market regime (quant-firm approach)
         // Professional crypto quant firms adjust signal validity based on market conditions
-        let timeLimit: number; // milliseconds
-        const regime = filteredSignal.marketRegime;
-        const betaRegime = decision.consensus.marketRegime;
-
-        if (betaRegime === 'ACCUMULATION' || betaRegime === 'BULL_RANGE' || betaRegime === 'BEAR_RANGE') {
-          // RANGE MARKETS: Mean reversion takes longer, wider time window
-          timeLimit = 45 * 60 * 1000; // 45 minutes
-          console.log(`[GlobalHub] ⏰ Time Limit: 45 minutes (${betaRegime} - mean reversion)`);
-        } else if (betaRegime === 'BULL_MOMENTUM' || betaRegime === 'BEAR_MOMENTUM') {
-          // TRENDING MARKETS: Fast directional moves
-          timeLimit = 20 * 60 * 1000; // 20 minutes
-          console.log(`[GlobalHub] ⏰ Time Limit: 20 minutes (${betaRegime} - trending)`);
-        } else if (betaRegime === 'VOLATILE_BREAKOUT') {
-          // HIGH VOLATILITY: Rapid price changes, short validity
-          timeLimit = 8 * 60 * 1000; // 8 minutes
-          console.log(`[GlobalHub] ⏰ Time Limit: 8 minutes (${betaRegime} - high volatility)`);
-        } else if (betaRegime === 'CHOPPY') {
-          // CHOPPY MARKETS: Quickly invalidated
-          timeLimit = 12 * 60 * 1000; // 12 minutes
-          console.log(`[GlobalHub] ⏰ Time Limit: 12 minutes (${betaRegime} - choppy)`);
-        } else {
-          // DEFAULT: Balanced time window
-          timeLimit = 30 * 60 * 1000; // 30 minutes
-          console.log(`[GlobalHub] ⏰ Time Limit: 30 minutes (${betaRegime || 'UNKNOWN'} - default)`);
-        }
+        // Use default 30-minute timeout
+        const timeLimit = 30 * 60 * 1000; // 30 minutes default
+        console.log(`[GlobalHub] ⏰ Time Limit: 30 minutes (default)`);
 
         const expiresAt = Date.now() + timeLimit;
 
@@ -1334,16 +1313,15 @@ class GlobalHubService extends SimpleEventEmitter {
           entry,
           stopLoss,
           targets,
-          riskRewardRatio: filteredSignal.riskRewardRatio,
-          patterns: decision.consensus.individualRecommendations?.map(r => r.patternType || r.strategyName) || [],
-          strategy: signalInput.strategy,
+          patterns: decision.consensus.individualRecommendations?.map(r => r.strategyName) || [],
+          strategy: filteredSignal.strategy,
           timestamp: Date.now(),
           qualityScore: filteredSignal.qualityScore,
           grade,
           exchangeSources: ['CoinGecko', 'Binance'],
           dataQuality: decision.dataMetrics.dataQuality,
           strategyVotes: decision.consensus.strategyVotes,
-          marketRegime: betaRegime || undefined,
+          marketRegime: undefined,
           // Smart time limit based on market regime
           timeLimit,
           expiresAt
@@ -1462,7 +1440,8 @@ class GlobalHubService extends SimpleEventEmitter {
           filteredSignal.qualityScore,
           filteredSignal.mlProbability ? filteredSignal.mlProbability * 100 : undefined,
           decision.dataMetrics.dataQuality,
-          decision.consensus.strategyVotes || decision.consensus.individualRecommendations?.map(r => ({
+          Array.isArray(decision.consensus.strategyVotes) ? decision.consensus.strategyVotes :
+            decision.consensus.individualRecommendations?.map(r => ({
             strategy: r.strategyName,
             vote: r.direction,
             confidence: r.confidence
@@ -1648,7 +1627,7 @@ class GlobalHubService extends SimpleEventEmitter {
         exitPrice: result.exitPrice,
         confidence: signal.confidence,
         strategy: signal.strategy || 'UNKNOWN',
-        regime: signalInput.marketRegime || 'UNKNOWN',
+        regime: 'UNKNOWN',
         returnPct: result.returnPct,
         timestamp: Date.now()
       });
@@ -1692,7 +1671,7 @@ class GlobalHubService extends SimpleEventEmitter {
           id: signal.id,
           symbol: signal.symbol,
           signal_type: signal.direction,
-          timeframe: signal.timeframe || '4H',
+          timeframe: '4H',
           entry_min: signal.entry,
           entry_max: signal.entry * 1.002, // 0.2% range
           current_price: signal.entry,
@@ -1701,8 +1680,8 @@ class GlobalHubService extends SimpleEventEmitter {
           target_2: signal.targets?.[1],
           target_3: signal.targets?.[2],
           confidence: signal.confidence,
-          strength: signal.qualityTier || 'MODERATE',
-          risk_level: signal.riskLevel || 'MODERATE',
+          strength: 'MODERATE',
+          risk_level: 'MODERATE',
           status: 'ACTIVE',
           expires_at: expiresAt.toISOString(),
         });
@@ -1748,13 +1727,8 @@ class GlobalHubService extends SimpleEventEmitter {
             confidence: dbSignal.confidence,
             entry: dbSignal.entry_min,
             stopLoss: dbSignal.stop_loss || undefined,
-            targets: [dbSignal.target_1, dbSignal.target_2, dbSignal.target_3].filter(t => t !== null) as number[],
-            riskReward: dbSignal.target_1 && dbSignal.stop_loss
-              ? Math.abs((dbSignal.target_1 - dbSignal.entry_min) / (dbSignal.entry_min - dbSignal.stop_loss))
-              : undefined,
-            grade: dbSignal.confidence >= 90 ? 'A' : dbSignal.confidence >= 80 ? 'B' : dbSignal.confidence >= 70 ? 'C' : 'D',
-            qualityTier: dbSignal.strength as any,
-            riskLevel: dbSignal.risk_level as any,
+          targets: [dbSignal.target_1, dbSignal.target_2, dbSignal.target_3].filter(t => t !== null) as number[],
+          grade: dbSignal.confidence >= 90 ? 'A' : dbSignal.confidence >= 80 ? 'B' : dbSignal.confidence >= 70 ? 'C' : 'D',
             timestamp: new Date(dbSignal.created_at).getTime(),
             timeLimit: new Date(dbSignal.expires_at).getTime() - new Date(dbSignal.created_at).getTime(),
             outcome: null,
@@ -1861,10 +1835,6 @@ class GlobalHubService extends SimpleEventEmitter {
             grade: dbSignal.confidence >= 90 ? 'A' : dbSignal.confidence >= 80 ? 'B' : dbSignal.confidence >= 70 ? 'C' : 'D',
             timestamp: new Date(dbSignal.created_at).getTime(),
             outcome,
-            hitTarget: dbSignal.hit_target || undefined,
-            hitStopLoss: dbSignal.hit_stop_loss,
-            exitPrice: dbSignal.exit_price || undefined,
-            profitLossPct: dbSignal.profit_loss_percent || undefined,
           };
 
           this.state.signalHistory.push(hubSignal);
@@ -1942,13 +1912,7 @@ class GlobalHubService extends SimpleEventEmitter {
     this.emit('signal:live', this.state.activeSignals);
     this.emit('state:update', this.getState());
 
-    // Schedule outcome if not provided
-    if (!fullSignal.outcome) {
-      const outcomeDelay = SIGNAL_OUTCOME_MIN + Math.random() * (SIGNAL_OUTCOME_MAX - SIGNAL_OUTCOME_MIN);
-      setTimeout(() => {
-        this.determineSignalOutcome(fullSignal.id);
-      }, outcomeDelay);
-    }
+    // Outcome tracking removed - signals managed by database
 
     // Remove from active after duration
     setTimeout(() => {

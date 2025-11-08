@@ -195,11 +195,8 @@ class DirectDataIntegrationService {
     try {
       console.log(`[DirectData] ⛓️ Fetching on-chain data directly for ${symbol}`);
 
-      const [exchangeFlow, smartMoneyFlow] = await Promise.all([
-        onChainDataService.getExchangeFlowRatio(symbol),
-        onChainDataService.getSmartMoneyFlow ?
-          onChainDataService.getSmartMoneyFlow(symbol) :
-          Promise.resolve(0)
+      const [exchangeFlow] = await Promise.all([
+        onChainDataService.getExchangeFlowRatio(symbol)
       ]);
 
       // Estimate whale accumulation from exchange flow
@@ -207,7 +204,7 @@ class DirectDataIntegrationService {
 
       const data: DirectOnChainData = {
         exchangeFlowRatio: exchangeFlow,
-        smartMoneyFlow: smartMoneyFlow || 0,
+        smartMoneyFlow: 0, // Not yet implemented
         activeAddresses: 0, // Not available from direct service
         largeTransactions: 0, // Not available from direct service
         whaleAccumulation,

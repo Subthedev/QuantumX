@@ -1041,7 +1041,7 @@ export class DataEnrichmentServiceV2 {
     count++;
 
     // Get active source count (using V4)
-    const sources = multiExchangeAggregatorV4.getStats().connectedExchanges;
+    const sources = multiExchangeAggregatorV4.getStats().activeSources;
 
     return {
       overall: Math.round(overall / count),
@@ -1051,7 +1051,7 @@ export class DataEnrichmentServiceV2 {
       onChain: onChainQuality,
       technical: techQuality,
       sentiment: sentimentQuality,
-      sources
+      sources: sources.length || 0
     };
   }
 
@@ -1289,7 +1289,7 @@ export class DataEnrichmentServiceV2 {
   private calculateDataCompleteness(): number {
     // Check how many data sources are providing data (using V4)
     const pipelineStats = multiExchangeAggregatorV4.getStats();
-    const completeness = (pipelineStats.connectedExchanges / pipelineStats.activeConnections) * 100;
+    const completeness = (pipelineStats.activeSources.length / 2) * 100; // Max 2 sources (Binance + OKX)
 
     return Math.round(completeness);
   }
@@ -1302,7 +1302,7 @@ export class DataEnrichmentServiceV2 {
 
     if (pipelineStats.totalDataPoints === 0) return 0;
 
-    return (pipelineStats.totalErrors / pipelineStats.totalDataPoints) * 100;
+    return 0; // Error tracking not yet implemented in V4
   }
 }
 

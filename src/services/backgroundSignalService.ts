@@ -183,8 +183,8 @@ class BackgroundSignalService {
       const { error } = await supabase
         .from('intelligence_signals')
         .insert({
-          symbol: signal.symbol,
-          signal: signal.signal,
+          symbol: signal.symbol || 'BTC',
+          signal_type: signal.signal || 'LONG',
           entry: signal.entry,
           stop_loss: signal.stopLoss,
           take_profit_1: signal.takeProfit1,
