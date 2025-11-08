@@ -21,6 +21,7 @@ import {
   XCircle,
   AlertTriangle
 } from 'lucide-react';
+import SignalFlowVisualization3D from '@/components/intelligence/SignalFlowVisualization3D';
 
 // Global Hub Service (runs in background)
 import { globalHubService, HubMetrics, HubSignal } from '@/services/globalHubService';
@@ -430,6 +431,11 @@ export default function IntelligenceHub() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 3D SIGNAL FLOW VISUALIZATION */}
+        <div className="mb-6">
+          <SignalFlowVisualization3D />
         </div>
 
         {/* PIPELINE - Smooth flowing visualization with animated gradients */}
