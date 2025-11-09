@@ -14,13 +14,20 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
-import { useBinancePrices } from '@/hooks/useBinancePrices';
 import { EnhancedTradingChart } from '@/components/charts/EnhancedTradingChart';
 import { TrendingUp, TrendingDown, DollarSign, Activity, History, RotateCcw, ArrowUpRight, ArrowDownRight, Search, BarChart3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { supportedCoinsService } from '@/services/supportedCoinsService';
+import { getStrategicCoins } from '@/services/strategicCoinSelection';
+import { supabase } from '@/integrations/supabase/client';
 
-const TOP_PAIRS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'ADAUSDT', 'XRPUSDT', 'DOGEUSDT', 'TRXUSDT'];
+interface CoinData {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+}
 
 export default function MockTrading() {
   const { user } = useAuth();
@@ -31,19 +38,52 @@ export default function MockTrading() {
   const [takeProfit, setTakeProfit] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showChart, setShowChart] = useState(true);
+  const [coins, setCoins] = useState<CoinData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Get all tradeable symbols
-  const allSymbols = useMemo(() => 
-    supportedCoinsService.getSupportedCoins().map(coin => `${coin.symbol.toUpperCase()}USDT`)
-  , []);
-  
-  // Get coin ID for chart
-  const selectedCoinId = useMemo(() => {
-    const coinSymbol = selectedSymbol.replace('USDT', '');
-    return supportedCoinsService.getSupportedCoins().find(c => c.symbol === coinSymbol)?.id || 'bitcoin';
-  }, [selectedSymbol]);
+  // Fetch all strategic coins with real-time data
+  useEffect(() => {
+    const fetchCoins = async () => {
+      try {
+        // Fetch all 100 strategic coins
+        const { data, error } = await supabase.functions.invoke('crypto-proxy', {
+          body: {
+            endpoint: 'list',
+            vs_currency: 'usd',
+            order: 'market_cap_desc',
+            per_page: 170,
+            page: 1,
+            sparkline: true
+          }
+        });
 
-  const { prices } = useBinancePrices({ symbols: allSymbols });
+        if (error) throw error;
+
+        // Filter to only strategic coins
+        const strategicCoinIds = getStrategicCoins();
+        const filteredCoins = data.data.filter((coin: CoinData) => 
+          strategicCoinIds.includes(coin.id)
+        );
+
+        setCoins(filteredCoins);
+      } catch (error) {
+        console.error('Failed to fetch coins:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCoins();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchCoins, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Get selected coin data
+  const selectedCoin = useMemo(() => {
+    const symbol = selectedSymbol.replace('USDT', '').toLowerCase();
+    return coins.find(c => c.symbol.toLowerCase() === symbol);
+  }, [selectedSymbol, coins]);
   const {
     account,
     openPositions,
@@ -56,32 +96,38 @@ export default function MockTrading() {
     isPlacingOrder
   } = useMockTrading();
 
-  const currentPrice = prices[selectedSymbol]?.price || 0;
-  const priceChange24h = prices[selectedSymbol]?.change_24h || 0;
+  const currentPrice = selectedCoin?.current_price || 0;
+  const priceChange24h = selectedCoin?.price_change_percentage_24h || 0;
 
-  // Filter symbols based on search
-  const filteredSymbols = useMemo(() => {
-    if (!searchQuery) return TOP_PAIRS;
-    return allSymbols.filter(symbol => 
-      symbol.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 20);
-  }, [searchQuery, allSymbols]);
+  // Filter coins based on search
+  const filteredCoins = useMemo(() => {
+    if (!searchQuery) {
+      // Default top coins
+      const topSymbols = ['btc', 'eth', 'bnb', 'sol', 'xrp', 'ada', 'doge', 'avax'];
+      return coins.filter(c => topSymbols.includes(c.symbol.toLowerCase())).slice(0, 10);
+    }
+    return coins.filter(coin => 
+      coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      coin.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, coins]);
 
   // Update all open position prices in real-time
   useEffect(() => {
-    if (!openPositions.length) return;
+    if (!openPositions.length || !coins.length) return;
     
     const interval = setInterval(() => {
       openPositions.forEach(position => {
-        const price = prices[position.symbol]?.price;
-        if (price) {
-          updatePrices(position.symbol, price);
+        const symbol = position.symbol.replace('USDT', '').toLowerCase();
+        const coin = coins.find(c => c.symbol.toLowerCase() === symbol);
+        if (coin?.current_price) {
+          updatePrices(position.symbol, coin.current_price);
         }
       });
-    }, 2000); // Update every 2 seconds for live feel
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [openPositions, prices, updatePrices]);
+  }, [openPositions, coins, updatePrices]);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -191,37 +237,60 @@ export default function MockTrading() {
 
             {/* Symbol List */}
             <ScrollArea className="flex-1">
-              <div className="p-2 space-y-1">
-                {filteredSymbols.map((symbol) => {
-                  const price = prices[symbol]?.price || 0;
-                  const change = prices[symbol]?.change_24h || 0;
-                  const isSelected = selectedSymbol === symbol;
-                  return (
-                    <button
-                      key={symbol}
-                      onClick={() => setSelectedSymbol(symbol)}
-                      className={`w-full p-2 rounded-lg text-left transition-colors ${
-                        isSelected 
-                          ? 'bg-primary/10 border border-primary/20' 
-                          : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-sm font-semibold">{symbol.replace('USDT', '')}</p>
-                          <p className="text-xs text-muted-foreground">USDT</p>
+              {loading ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Loading coins...
+                </div>
+              ) : (
+                <div className="p-2 space-y-1">
+                  {filteredCoins.map((coin) => {
+                    const symbol = `${coin.symbol.toUpperCase()}USDT`;
+                    const isSelected = selectedSymbol === symbol;
+                    return (
+                      <button
+                        key={coin.id}
+                        onClick={() => setSelectedSymbol(symbol)}
+                        className={`w-full p-2 rounded-lg text-left transition-colors ${
+                          isSelected 
+                            ? 'bg-primary/10 border border-primary/20' 
+                            : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <img 
+                            src={coin.image} 
+                            alt={coin.name}
+                            className="w-8 h-8 rounded-full flex-shrink-0"
+                            loading="lazy"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{coin.name}</p>
+                            <p className="text-xs text-muted-foreground uppercase">{coin.symbol}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-mono">
+                              ${coin.current_price >= 1 
+                                ? coin.current_price.toFixed(2) 
+                                : coin.current_price.toFixed(6)}
+                            </p>
+                            <p className={`text-xs font-medium ${
+                              coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'
+                            }`}>
+                              {coin.price_change_percentage_24h >= 0 ? '+' : ''}
+                              {coin.price_change_percentage_24h.toFixed(2)}%
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-mono">${price.toFixed(2)}</p>
-                          <p className={`text-xs font-medium ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      </button>
+                    );
+                  })}
+                  {filteredCoins.length === 0 && (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No coins found
+                    </div>
+                  )}
+                </div>
+              )}
             </ScrollArea>
 
             {/* Order Entry Panel */}
@@ -235,9 +304,20 @@ export default function MockTrading() {
 
               {/* Current Price Display */}
               <div className="p-2 bg-muted/50 rounded-lg border border-border/40">
-                <p className="text-xs text-muted-foreground mb-1">Last Price</p>
+                <div className="flex items-center gap-2 mb-1">
+                  {selectedCoin && (
+                    <img 
+                      src={selectedCoin.image} 
+                      alt={selectedCoin.name}
+                      className="w-5 h-5 rounded-full"
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">Last Price</p>
+                </div>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-xl font-mono font-bold">${currentPrice.toFixed(2)}</p>
+                  <p className="text-xl font-mono font-bold">
+                    ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
+                  </p>
                   <p className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                   </p>
@@ -326,9 +406,20 @@ export default function MockTrading() {
             {/* Chart Header */}
             <div className="p-3 border-b border-border/40 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <h2 className="text-lg font-bold">{selectedSymbol.replace('USDT', '')}/USDT</h2>
+                <div className="flex items-center gap-2">
+                  {selectedCoin && (
+                    <img 
+                      src={selectedCoin.image} 
+                      alt={selectedCoin.name}
+                      className="w-8 h-8 rounded-full"
+                    />
+                  )}
+                  <h2 className="text-lg font-bold">{selectedCoin?.name || selectedSymbol.replace('USDT', '')}</h2>
+                </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-mono font-bold">${currentPrice.toFixed(2)}</span>
+                  <span className="text-2xl font-mono font-bold">
+                    ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
+                  </span>
                   <span className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                   </span>
@@ -349,8 +440,8 @@ export default function MockTrading() {
             {showChart && (
               <div className="flex-1 min-h-[400px] p-4">
                 <EnhancedTradingChart
-                  coinId={selectedCoinId}
-                  symbol={selectedSymbol.replace('USDT', '')}
+                  coinId={selectedCoin?.id || 'bitcoin'}
+                  symbol={selectedCoin?.symbol || 'BTC'}
                   currentPrice={currentPrice}
                 />
               </div>
