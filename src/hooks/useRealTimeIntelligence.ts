@@ -66,7 +66,7 @@ export function useRealTimeIntelligence(
 
       if (includeFullReport) {
         // Generate full AI report (slower but comprehensive)
-        const intelligenceReport = await aiIntelligenceEngine.generateIntelligenceReport(symbol);
+        const intelligenceReport = await aiIntelligenceEngine.generateIntelligenceReport();
 
         if (mountedRef.current) {
           setReport(intelligenceReport);

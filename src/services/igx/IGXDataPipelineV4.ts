@@ -42,6 +42,7 @@ export interface IGXTicker extends EnrichedCanonicalTicker {
     liquidityScore: number;
   };
   ohlcData?: any[]; // OHLC candles for market regime detection
+  change24h?: number; // Alias for priceChangePercent24h for compatibility
 }
 
 export class IGXDataPipelineV4 {
