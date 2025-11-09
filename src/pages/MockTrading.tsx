@@ -21,8 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 export default function MockTrading() {
   const { user } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT');
-  const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT'>('MARKET');
+  const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT' | 'STOP_LOSS' | 'STOP_LIMIT' | 'TRAILING_STOP'>('MARKET');
   const [orderSide, setOrderSide] = useState<'BUY' | 'SELL'>('BUY');
+  const [stopPrice, setStopPrice] = useState('');
+  const [trailingPercent, setTrailingPercent] = useState('2');
   const [quantity, setQuantity] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [leverage, setLeverage] = useState(1);
@@ -58,7 +60,7 @@ export default function MockTrading() {
 
   useEffect(() => {
     loadCryptoData();
-    const interval = setInterval(loadCryptoData, 120000);
+    const interval = setInterval(loadCryptoData, 30000); // Update every 30s for real-time feel
     return () => clearInterval(interval);
   }, [loadCryptoData]);
 
@@ -88,7 +90,7 @@ export default function MockTrading() {
           updatePrices(position.symbol, coin.current_price);
         }
       });
-    }, 2000);
+    }, 1000); // Real-time updates every second
     return () => clearInterval(interval);
   }, [openPositions, coins, updatePrices]);
 
@@ -116,6 +118,7 @@ export default function MockTrading() {
 
     setQuantity('');
     setLimitPrice('');
+    setStopPrice('');
     setStopLoss('');
     setTakeProfit('');
   };
@@ -241,17 +244,19 @@ export default function MockTrading() {
         <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
           <div className="flex gap-3 text-xs">
             <div className="flex flex-col">
-              <span className="text-[9px] uppercase text-muted-foreground">Balance</span>
-              <span className="text-sm font-semibold">${(account?.balance || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex flex-col border-l border-border/40 pl-3">
               <span className="text-[9px] uppercase text-muted-foreground">Equity</span>
-              <span className="text-sm font-semibold">${accountValue.toFixed(2)}</span>
+              <span className="text-sm font-semibold font-mono">${accountValue.toFixed(2)}</span>
             </div>
             <div className="flex flex-col border-l border-border/40 pl-3">
               <span className="text-[9px] uppercase text-muted-foreground">Total PnL</span>
-              <span className={`text-sm font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              <span className={`text-sm font-semibold font-mono ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+              </span>
+            </div>
+            <div className="flex flex-col border-l border-border/40 pl-3">
+              <span className="text-[9px] uppercase text-muted-foreground">Unrealized</span>
+              <span className={`text-sm font-semibold font-mono ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
               </span>
             </div>
           </div>
@@ -300,13 +305,16 @@ export default function MockTrading() {
               {/* Order Type Selector */}
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Order Type</label>
-                <Select value={orderType} onValueChange={(val) => setOrderType(val as 'MARKET' | 'LIMIT')}>
+                <Select value={orderType} onValueChange={(val) => setOrderType(val as any)}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="MARKET">Market</SelectItem>
                     <SelectItem value="LIMIT">Limit</SelectItem>
+                    <SelectItem value="STOP_LOSS">Stop Loss</SelectItem>
+                    <SelectItem value="STOP_LIMIT">Stop Limit</SelectItem>
+                    <SelectItem value="TRAILING_STOP">Trailing Stop</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -335,16 +343,48 @@ export default function MockTrading() {
                 </button>
               </div>
 
-              {/* Limit Price (only for LIMIT orders) */}
-              {orderType === 'LIMIT' && (
+              {/* Limit Price (for LIMIT and STOP_LIMIT orders) */}
+              {(orderType === 'LIMIT' || orderType === 'STOP_LIMIT') && (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Limit Price</label>
+                  <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">
+                    {orderType === 'STOP_LIMIT' ? 'Limit Price' : 'Limit Price'}
+                  </label>
                   <Input
                     type="number"
                     step="0.01"
                     placeholder={currentPrice.toFixed(2)}
                     value={limitPrice}
                     onChange={(e) => setLimitPrice(e.target.value)}
+                    className="h-9 text-sm font-mono"
+                  />
+                </div>
+              )}
+
+              {/* Stop Price (for STOP orders) */}
+              {(orderType === 'STOP_LOSS' || orderType === 'STOP_LIMIT') && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Stop Price</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={currentPrice.toFixed(2)}
+                    value={stopPrice}
+                    onChange={(e) => setStopPrice(e.target.value)}
+                    className="h-9 text-sm font-mono"
+                  />
+                </div>
+              )}
+
+              {/* Trailing Percent (for TRAILING_STOP) */}
+              {orderType === 'TRAILING_STOP' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Trailing %</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="2.0"
+                    value={trailingPercent}
+                    onChange={(e) => setTrailingPercent(e.target.value)}
                     className="h-9 text-sm font-mono"
                   />
                 </div>
@@ -454,7 +494,7 @@ export default function MockTrading() {
         </div>
 
         {/* Bottom Panel - Hyperliquid Style */}
-        <div className="h-48 border-t border-border/40 bg-background">
+        <div className="h-60 border-t border-border/40 bg-background">
           <Tabs defaultValue="positions" className="h-full flex flex-col">
             <div className="flex items-center px-3 py-1.5 border-b border-border/40">
               <TabsList className="h-8 bg-transparent p-0">

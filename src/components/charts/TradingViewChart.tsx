@@ -15,19 +15,13 @@ interface TradingViewChartProps {
 }
 
 const TIMEFRAMES: { label: string; value: ChartTimeframe; days: number }[] = [
-  { label: '1H', value: '1H', days: 1 },
-  { label: '4H', value: '4H', days: 1 },
-  { label: '1D', value: '1D', days: 1 },
-  { label: '7D', value: '7D', days: 7 },
-  { label: '30D', value: '30D', days: 30 },
-  { label: '90D', value: '90D', days: 90 },
-  { label: '1Y', value: '1Y', days: 365 },
-  { label: 'ALL', value: 'ALL', days: 9999 },
-];
-
-const CHART_TYPES: { label: string; value: ChartType; icon: React.ReactNode }[] = [
-  { label: 'Candlestick', value: 'candlestick', icon: <BarChart3 className="w-3 h-3" /> },
-  { label: 'Line + Area', value: 'line', icon: <Activity className="w-3 h-3" /> },
+  { label: '1m', value: '1H', days: 1 },
+  { label: '5m', value: '4H', days: 1 },
+  { label: '15m', value: '1D', days: 1 },
+  { label: '1H', value: '7D', days: 7 },
+  { label: '4H', value: '30D', days: 30 },
+  { label: '1D', value: '90D', days: 90 },
+  { label: '1W', value: '1Y', days: 365 },
 ];
 
 const TradingViewChart: React.FC<TradingViewChartProps> = ({
@@ -45,7 +39,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const { theme: appTheme } = useTheme();
 
   const [chartType, setChartType] = useState<ChartType>('candlestick');
-  const [timeframe] = useState<ChartTimeframe>('ALL'); // Fixed to ALL time
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>('90D');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataPointsCount, setDataPointsCount] = useState<number>(0);
@@ -411,15 +405,15 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       <div className="flex items-center justify-between gap-2">
         {/* Price Info */}
         <div className="flex-1 min-w-0">
-          <div className={isMobile ? "text-lg font-semibold" : "text-2xl font-semibold"}>
+          <div className={isMobile ? "text-lg font-semibold font-mono" : "text-2xl font-semibold font-mono"}>
             ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
           </div>
-          <div className={`text-xs ${getChangeColor(priceInfo.changePercent)}`}>
+          <div className={`text-xs font-mono ${getChangeColor(priceInfo.changePercent)}`}>
             {priceInfo.changePercent >= 0 ? '+' : ''}
             {priceInfo.changePercent.toFixed(2)}% ({timeframe})
           </div>
           {!isMobile && (
-            <div className="flex gap-3 text-xs mt-1">
+            <div className="flex gap-3 text-xs mt-1 font-mono">
               <div>
                 <span className="text-muted-foreground">H:</span>{' '}
                 <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
@@ -432,22 +426,35 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           )}
         </div>
 
-        {/* Compact controls for mobile */}
+        {/* Compact controls */}
         <div className="flex items-center gap-1">
-          {/* Chart Type Selector - Compact for mobile */}
-          {CHART_TYPES.map((type) => (
-            <Button
-              key={type.value}
-              onClick={() => setChartType(type.value)}
-              variant={chartType === type.value ? 'default' : 'outline'}
-              size={isMobile ? 'icon' : 'sm'}
-              className={isMobile ? "h-7 w-7" : "h-8"}
-              title={type.label}
-            >
-              {type.icon}
-              {!isMobile && <span className="ml-1.5 text-xs">{type.label}</span>}
-            </Button>
-          ))}
+          {/* Timeframe Selector */}
+          <div className="flex items-center gap-0.5 bg-muted/50 rounded p-0.5">
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf.value}
+                onClick={() => setTimeframe(tf.value)}
+                className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                  timeframe === tf.value 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tf.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Chart Type Toggle */}
+          <Button
+            onClick={() => setChartType(chartType === 'candlestick' ? 'line' : 'candlestick')}
+            variant="ghost"
+            size={isMobile ? 'icon' : 'sm'}
+            className={isMobile ? "h-7 w-7" : "h-7 px-2"}
+            title={chartType === 'candlestick' ? 'Line Chart' : 'Candlestick'}
+          >
+            {chartType === 'candlestick' ? <Activity className="w-3.5 h-3.5" /> : <BarChart3 className="w-3.5 h-3.5" />}
+          </Button>
 
           {/* Refresh Button */}
           <Button
@@ -455,17 +462,17 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
             variant="ghost"
             size={isMobile ? 'icon' : 'sm'}
             disabled={loading}
-            className={isMobile ? "h-7 w-7" : "h-8"}
+            className={isMobile ? "h-7 w-7" : "h-7 w-7"}
             title="Refresh"
           >
-            <RefreshCw className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
       {/* High/Low for mobile - shown below price */}
       {isMobile && (
-        <div className="flex gap-4 text-[10px] px-1">
+        <div className="flex gap-4 text-[10px] px-1 font-mono">
           <div>
             <span className="text-muted-foreground">High:</span>{' '}
             <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
