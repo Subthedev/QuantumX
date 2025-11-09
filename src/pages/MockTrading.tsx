@@ -40,11 +40,13 @@ export default function MockTrading() {
   const [showChart, setShowChart] = useState(true);
   const [coins, setCoins] = useState<CoinData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch all strategic coins with real-time data
   useEffect(() => {
     const fetchCoins = async () => {
       try {
+        setError(null);
         // Fetch all 100 strategic coins
         const { data, error } = await supabase.functions.invoke('crypto-proxy', {
           body: {
@@ -57,7 +59,14 @@ export default function MockTrading() {
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Edge function error:', error);
+          throw new Error(error.message || 'Failed to fetch coin data');
+        }
+
+        if (!data || !data.data) {
+          throw new Error('No data returned from crypto proxy');
+        }
 
         // Filter to only strategic coins
         const strategicCoinIds = getStrategicCoins();
@@ -65,9 +74,11 @@ export default function MockTrading() {
           strategicCoinIds.includes(coin.id)
         );
 
+        console.log(`Loaded ${filteredCoins.length} strategic coins`);
         setCoins(filteredCoins);
       } catch (error) {
         console.error('Failed to fetch coins:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load coin data');
       } finally {
         setLoading(false);
       }
@@ -238,8 +249,30 @@ export default function MockTrading() {
             {/* Symbol List */}
             <ScrollArea className="flex-1">
               {loading ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  Loading coins...
+                <div className="p-4 text-center">
+                  <div className="animate-pulse space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center gap-2 p-2">
+                        <div className="w-8 h-8 bg-muted rounded-full" />
+                        <div className="flex-1 space-y-1">
+                          <div className="h-4 bg-muted rounded w-20" />
+                          <div className="h-3 bg-muted rounded w-12" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="h-4 bg-muted rounded w-16" />
+                          <div className="h-3 bg-muted rounded w-12" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="p-4 text-center">
+                  <p className="text-sm text-destructive mb-2">Failed to load coins</p>
+                  <p className="text-xs text-muted-foreground mb-3">{error}</p>
+                  <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+                    Retry
+                  </Button>
                 </div>
               ) : (
                 <div className="p-2 space-y-1">
