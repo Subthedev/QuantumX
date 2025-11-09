@@ -16,10 +16,14 @@ import { Slider } from '@/components/ui/slider';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
 import TradingViewChart from '@/components/charts/TradingViewChart';
-import { TrendingUp, TrendingDown, DollarSign, Activity, History, RotateCcw, ArrowUpRight, ArrowDownRight, Search, Zap } from 'lucide-react';
+import { RiskManagementPanel } from '@/components/trading/RiskManagementPanel';
+import { TradingAnalytics } from '@/components/trading/TradingAnalytics';
+import { CustomBalanceDialog } from '@/components/trading/CustomBalanceDialog';
+import { TrendingUp, TrendingDown, DollarSign, Activity, History, RotateCcw, ArrowUpRight, ArrowDownRight, Search, Zap, Settings, BarChart3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function MockTrading() {
   const { user } = useAuth();
@@ -34,6 +38,8 @@ export default function MockTrading() {
   const [searchQuery, setSearchQuery] = useState('');
   const [coins, setCoins] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
+  const [calculatedPositionSize, setCalculatedPositionSize] = useState(0);
 
   // Use the exact same service as dashboard
   const loadCryptoData = useCallback(async () => {
@@ -148,6 +154,38 @@ export default function MockTrading() {
   const accountValue = (account?.balance || 0) + totalUnrealizedPnL;
   const totalReturn = account ? ((accountValue - account.initial_balance) / account.initial_balance) * 100 : 0;
 
+  // Custom balance setter
+  const handleSetCustomBalance = async (newBalance: number) => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('mock_trading_accounts')
+        .update({
+          balance: newBalance,
+          initial_balance: newBalance,
+          total_profit_loss: 0,
+          total_trades: 0,
+          winning_trades: 0,
+          losing_trades: 0
+        })
+        .eq('user_id', user.id);
+      
+      // Refresh account data
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to set custom balance:', error);
+    }
+  };
+
+  // Apply calculated position size to quantity
+  const handleApplyPositionSize = () => {
+    if (calculatedPositionSize > 0 && currentPrice > 0) {
+      const qty = calculatedPositionSize / currentPrice;
+      setQuantity(qty.toFixed(6));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1920px] mx-auto">
@@ -156,12 +194,23 @@ export default function MockTrading() {
           <div className="px-4 py-3 flex justify-between items-center">
             <div>
               <h1 className="text-xl font-bold text-foreground">Paper Trading</h1>
-              <p className="text-xs text-muted-foreground">Real-time simulation with live market data</p>
+              <p className="text-xs text-muted-foreground">Real-time simulation • All 100 coins</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => resetAccount()} className="gap-2">
-              <RotateCcw className="h-3 w-3" />
-              Reset
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setBalanceDialogOpen(true)} 
+                className="gap-2"
+              >
+                <Settings className="h-3 w-3" />
+                Set Balance
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => resetAccount()} className="gap-2">
+                <RotateCcw className="h-3 w-3" />
+                Reset
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -209,9 +258,9 @@ export default function MockTrading() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-0 lg:gap-4 h-[calc(100vh-140px)]">
-          {/* Left Sidebar - Compact Symbol List */}
-          <div className="lg:col-span-1 flex flex-col border-r border-border/40">
+        <div className="grid grid-cols-12 gap-0 h-[calc(100vh-140px)]">
+          {/* Left - Compact Coin List */}
+          <div className="col-span-2 flex flex-col border-r border-border/40 bg-card/20">
             {/* Symbol Search */}
             <div className="p-2 border-b border-border/40 bg-card/30">
               <div className="relative">
@@ -227,7 +276,7 @@ export default function MockTrading() {
 
             {/* Compact Symbol List with Scroll */}
             <div className="flex-1 overflow-hidden">
-              <ScrollArea className="h-[280px] border-b border-border/40">
+              <ScrollArea className="h-full">
                 {loading ? (
                   <div className="p-2 space-y-1">
                     {[1, 2, 3, 4].map((i) => (
@@ -289,8 +338,10 @@ export default function MockTrading() {
                 )}
               </ScrollArea>
             </div>
+          </div>
 
-            {/* Futures Order Entry Panel */}
+          {/* Center-Left - Order Entry */}
+          <div className="col-span-2 flex flex-col border-r border-border/40 bg-card/10">
             <div className="flex-1 overflow-y-auto">
               <div className="p-3 space-y-3 bg-card/30">
                 {/* Header */}
@@ -507,8 +558,8 @@ export default function MockTrading() {
             </div>
           </div>
 
-          {/* Main Chart Area */}
-          <div className="lg:col-span-2 flex flex-col border-r border-border/40">
+          {/* Center - Chart */}
+          <div className="col-span-5 flex flex-col border-r border-border/40">
             {/* Chart Header */}
             <div className="p-3 border-b border-border/40 bg-card/20">
               <div className="flex items-center gap-4">
@@ -549,19 +600,32 @@ export default function MockTrading() {
             </div>
           </div>
 
-          {/* Right Sidebar - Positions & History */}
-          <div className="lg:col-span-1 flex flex-col">
+          {/* Right - Risk & Analytics */}
+          <div className="col-span-3 flex flex-col bg-card/20">
             <Tabs defaultValue="positions" className="flex flex-col h-full">
               <TabsList className="w-full rounded-none border-b border-border/40 bg-transparent p-0">
                 <TabsTrigger 
                   value="positions" 
-                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs"
                 >
                   Positions ({openPositions.length})
                 </TabsTrigger>
                 <TabsTrigger 
+                  value="risk" 
+                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs"
+                >
+                  Risk Mgmt
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="analytics" 
+                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs"
+                >
+                  <BarChart3 className="h-3 w-3 mr-1" />
+                  Analytics
+                </TabsTrigger>
+                <TabsTrigger 
                   value="history" 
-                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                  className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs"
                 >
                   History
                 </TabsTrigger>
@@ -625,6 +689,37 @@ export default function MockTrading() {
                 </ScrollArea>
               </TabsContent>
 
+              <TabsContent value="risk" className="flex-1 m-0 overflow-hidden">
+                <ScrollArea className="h-full">
+                  <div className="p-3">
+                    <RiskManagementPanel
+                      accountBalance={account?.balance || 0}
+                      currentPrice={currentPrice}
+                      symbol={selectedSymbol}
+                      openPositionsCount={openPositions.length}
+                      onPositionSizeCalculated={setCalculatedPositionSize}
+                    />
+                    {calculatedPositionSize > 0 && (
+                      <Button
+                        className="w-full mt-3"
+                        variant="outline"
+                        onClick={handleApplyPositionSize}
+                      >
+                        Apply Position Size to Order
+                      </Button>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="analytics" className="flex-1 m-0 overflow-hidden">
+                <ScrollArea className="h-full">
+                  <div className="p-3">
+                    <TradingAnalytics account={account} history={history} />
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
               <TabsContent value="history" className="flex-1 m-0 overflow-hidden">
                 <ScrollArea className="h-full">
                   {history.length === 0 ? (
@@ -672,6 +767,14 @@ export default function MockTrading() {
             </Tabs>
           </div>
         </div>
+
+        {/* Custom Balance Dialog */}
+        <CustomBalanceDialog
+          open={balanceDialogOpen}
+          onOpenChange={setBalanceDialogOpen}
+          currentBalance={account?.balance || 10000}
+          onSetBalance={handleSetCustomBalance}
+        />
       </div>
     </div>
   );
