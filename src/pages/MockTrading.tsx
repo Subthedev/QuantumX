@@ -65,7 +65,7 @@ export default function MockTrading() {
 
   useEffect(() => {
     loadCryptoData();
-    const interval = setInterval(loadCryptoData, 30000); // Update every 30s for real-time feel
+    const interval = setInterval(loadCryptoData, 30000);
     return () => clearInterval(interval);
   }, [loadCryptoData]);
 
@@ -101,8 +101,10 @@ export default function MockTrading() {
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  // Show loading state while initial data loads
-  if (loading || (tradingDataLoading && !account)) {
+  // Show loading state only on initial load
+  const isInitialLoad = loading && coins.length === 0;
+  
+  if (isInitialLoad) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -219,16 +221,16 @@ export default function MockTrading() {
                       <div className="flex-1 text-left">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-semibold">{coin.symbol.toUpperCase()}</span>
-                          <span className={`text-sm font-mono ${
-                            (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                          }`}>
-                            {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
-                            {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
-                          </span>
-                        </div>
-                        <div className="text-sm font-mono text-muted-foreground">
-                          ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
-                        </div>
+                           <span className={`text-sm ${
+                             (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                           }`}>
+                             {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
+                             {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+                           </span>
+                         </div>
+                         <div className="text-sm text-muted-foreground">
+                           ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
+                         </div>
                       </div>
                     </button>
                   );
@@ -263,25 +265,25 @@ export default function MockTrading() {
         </div>
 
         {/* Account Info */}
-        <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
-          <div className="flex gap-3 text-xs">
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase text-muted-foreground">Equity</span>
-              <span className="text-sm font-semibold font-mono">${accountValue.toFixed(2)}</span>
+          <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
+            <div className="flex gap-3 text-xs">
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase text-muted-foreground">Equity</span>
+                <span className="text-sm font-semibold">${accountValue.toFixed(2)}</span>
+              </div>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">Total PnL</span>
+                <span className={`text-sm font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+                </span>
+              </div>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">Unrealized</span>
+                <span className={`text-sm font-semibold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col border-l border-border/40 pl-3">
-              <span className="text-[9px] uppercase text-muted-foreground">Total PnL</span>
-              <span className={`text-sm font-semibold font-mono ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-              </span>
-            </div>
-            <div className="flex flex-col border-l border-border/40 pl-3">
-              <span className="text-[9px] uppercase text-muted-foreground">Unrealized</span>
-              <span className={`text-sm font-semibold font-mono ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
-              </span>
-            </div>
-          </div>
 
           <div className="flex items-center gap-0.5 border-l border-border/40 pl-3">
             <Sheet>
@@ -321,12 +323,12 @@ export default function MockTrading() {
         </div>
       </header>
 
-      {/* Main Trading Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main Trading Area - Fixed height layout */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Chart + Order Panel */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Chart Area */}
-          <div className="flex-1 bg-background border-r border-border/40">
+          <div className="flex-1 bg-background border-r border-border/40 min-h-0">
             <TradingViewChart
               coinId={selectedCoin?.id || 'bitcoin'}
               symbol={selectedCoin?.symbol || 'BTC'}
@@ -391,7 +393,7 @@ export default function MockTrading() {
                     placeholder={currentPrice.toFixed(2)}
                     value={limitPrice}
                     onChange={(e) => setLimitPrice(e.target.value)}
-                    className="h-9 text-sm font-mono"
+                    className="h-9 text-sm"
                   />
                 </div>
               )}
@@ -462,7 +464,7 @@ export default function MockTrading() {
                   step={1}
                   className="py-1"
                 />
-                <div className="flex justify-between text-[9px] text-muted-foreground font-mono">
+                <div className="flex justify-between text-[9px] text-muted-foreground">
                   <span>1x</span>
                   <span>50x</span>
                   <span>125x</span>
@@ -496,7 +498,7 @@ export default function MockTrading() {
                   placeholder="Price"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
-                  className="h-9 text-sm font-mono"
+                  className="h-9 text-sm"
                 />
               </div>
 
@@ -509,7 +511,7 @@ export default function MockTrading() {
                   placeholder="Price"
                   value={takeProfit}
                   onChange={(e) => setTakeProfit(e.target.value)}
-                  className="h-9 text-sm font-mono"
+                  className="h-9 text-sm"
                 />
               </div>
 
@@ -529,10 +531,10 @@ export default function MockTrading() {
           </div>
         </div>
 
-        {/* Bottom Panel - Hyperliquid Style */}
-        <div className="h-60 border-t border-border/40 bg-background shrink-0">
+        {/* Bottom Panel - Fixed height */}
+        <div className="h-60 border-t border-border/40 bg-background flex-shrink-0">
           <Tabs defaultValue="positions" className="h-full flex flex-col">
-            <div className="flex items-center px-3 py-1.5 border-b border-border/40">
+            <div className="flex items-center px-3 py-1.5 border-b border-border/40 flex-shrink-0">
               <TabsList className="h-8 bg-transparent p-0">
                 <TabsTrigger value="positions" className="text-xs h-7 data-[state=active]:bg-accent">
                   Positions ({openPositions.length})
@@ -546,7 +548,7 @@ export default function MockTrading() {
               </TabsList>
             </div>
 
-            <TabsContent value="positions" className="flex-1 m-0 overflow-hidden">
+            <TabsContent value="positions" className="flex-1 m-0 overflow-hidden min-h-0">
               <ScrollArea className="h-full">
                 {openPositions.length === 0 ? (
                   <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
@@ -573,11 +575,11 @@ export default function MockTrading() {
                               {pos.side}
                             </Badge>
                           </div>
-                          <div className="text-right font-mono">{pos.quantity.toFixed(4)}</div>
-                          <div className="text-right font-mono">${pos.entry_price.toFixed(2)}</div>
-                          <div className="text-right font-mono">${pos.current_price.toFixed(2)}</div>
-                          <div className="text-right font-mono text-muted-foreground">-</div>
-                          <div className={`text-right font-mono font-medium ${pos.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          <div className="text-right">{pos.quantity.toFixed(4)}</div>
+                          <div className="text-right">${pos.entry_price.toFixed(2)}</div>
+                          <div className="text-right">${pos.current_price.toFixed(2)}</div>
+                          <div className="text-right text-muted-foreground">-</div>
+                          <div className={`text-right font-medium ${pos.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             ${pos.unrealized_pnl.toFixed(2)} ({pos.unrealized_pnl_percent >= 0 ? '+' : ''}{pos.unrealized_pnl_percent.toFixed(2)}%)
                           </div>
                           <div className="text-right">
@@ -604,7 +606,7 @@ export default function MockTrading() {
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="flex-1 m-0 overflow-hidden">
+            <TabsContent value="history" className="flex-1 m-0 overflow-hidden min-h-0">
               <ScrollArea className="h-full">
                 {history.length === 0 ? (
                   <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
@@ -624,7 +626,7 @@ export default function MockTrading() {
                     </div>
                     {history.map((trade) => (
                       <div key={trade.id} className="grid grid-cols-8 gap-2 text-xs py-2 px-2 hover:bg-accent/50 rounded items-center">
-                        <div className="text-muted-foreground font-mono text-[10px]">
+                        <div className="text-muted-foreground text-[10px]">
                           {new Date(trade.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div className="font-medium">{trade.symbol.replace('USDT', '')}</div>
@@ -633,10 +635,10 @@ export default function MockTrading() {
                             {trade.side}
                           </Badge>
                         </div>
-                        <div className="text-right font-mono">{trade.quantity.toFixed(4)}</div>
-                        <div className="text-right font-mono">${trade.entry_price.toFixed(2)}</div>
-                        <div className="text-right font-mono">${trade.exit_price?.toFixed(2) || '-'}</div>
-                        <div className={`text-right font-mono font-medium ${(trade.profit_loss || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className="text-right">{trade.quantity.toFixed(4)}</div>
+                        <div className="text-right">${trade.entry_price.toFixed(2)}</div>
+                        <div className="text-right">${trade.exit_price?.toFixed(2) || '-'}</div>
+                        <div className={`text-right font-medium ${(trade.profit_loss || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                           ${trade.profit_loss?.toFixed(2) || '-'}
                         </div>
                         <div className="text-right">
