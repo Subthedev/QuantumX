@@ -6,12 +6,13 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
 import TradingViewChart from '@/components/charts/TradingViewChart';
 import { TradingAnalytics } from '@/components/trading/TradingAnalytics';
 import { CustomBalanceDialog } from '@/components/trading/CustomBalanceDialog';
-import { Search, ChevronDown, BarChart3, History, Settings, RotateCcw, X } from 'lucide-react';
+import { Search, ChevronDown, BarChart3, Settings } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
@@ -20,8 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 export default function MockTrading() {
   const { user } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT');
+  const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT'>('MARKET');
   const [orderSide, setOrderSide] = useState<'BUY' | 'SELL'>('BUY');
   const [quantity, setQuantity] = useState('');
+  const [limitPrice, setLimitPrice] = useState('');
   const [leverage, setLeverage] = useState(1);
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
@@ -92,20 +95,27 @@ export default function MockTrading() {
   if (!user) return <Navigate to="/auth" replace />;
 
   const handlePlaceOrder = () => {
-    if (!quantity || !currentPrice) return;
+    if (!quantity) return;
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) return;
+
+    const orderPrice = orderType === 'LIMIT' 
+      ? (limitPrice ? parseFloat(limitPrice) : currentPrice)
+      : currentPrice;
+
+    if (!orderPrice) return;
 
     placeOrder({
       symbol: selectedSymbol,
       side: orderSide,
       quantity: qty * leverage,
-      price: currentPrice,
+      price: orderPrice,
       stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
       takeProfit: takeProfit ? parseFloat(takeProfit) : undefined
     });
 
     setQuantity('');
+    setLimitPrice('');
     setStopLoss('');
     setTakeProfit('');
   };
@@ -136,15 +146,15 @@ export default function MockTrading() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Compact Header - Hyperliquid Style */}
-      <header className="h-12 border-b border-border/40 flex items-center px-3 bg-background">
-        <div className="flex items-center flex-1 gap-4">
+      {/* Ultra-Compact Header - Hyperliquid Style */}
+      <header className="h-11 border-b border-border/40 flex items-center px-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center flex-1 gap-3">
           {/* Market Selector */}
           <Sheet open={marketsOpen} onOpenChange={setMarketsOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" className="h-8 gap-1.5 hover:bg-accent text-sm">
-                {selectedCoin && <img src={selectedCoin.image} alt="" className="w-4 h-4 rounded-full" />}
-                <span className="font-medium">
+              <Button variant="ghost" className="h-7 gap-1.5 hover:bg-accent text-xs font-medium px-2">
+                {selectedCoin && <img src={selectedCoin.image} alt="" className="w-3.5 h-3.5 rounded-full" />}
+                <span className="font-semibold">
                   {selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT
                 </span>
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -203,48 +213,57 @@ export default function MockTrading() {
           </Sheet>
 
           {/* Price Display */}
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-baseline gap-2">
-              <span className={`text-lg font-mono ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          <div className="flex items-center gap-2.5 text-xs border-l border-border/40 pl-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className={`text-base font-mono font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
               </span>
-              <span className={`text-xs ${priceChange24h >= 0 ? 'text-green-500/70' : 'text-red-500/70'}`}>
+              <Badge variant={priceChange24h >= 0 ? 'default' : 'destructive'} className="h-4 px-1 text-[10px] font-mono">
                 {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
-              </span>
+              </Badge>
             </div>
             
-            <div className="flex gap-3 text-xs text-muted-foreground">
-              <span>H ${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
-              <span>L ${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
-              <span>Vol ${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
+            <div className="flex gap-2.5 text-[11px] text-muted-foreground font-mono border-l border-border/40 pl-2.5">
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase opacity-70">High</span>
+                <span className="font-medium">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase opacity-70">Low</span>
+                <span className="font-medium">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase opacity-70">Volume</span>
+                <span className="font-medium">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Account Info */}
-        <div className="flex items-center gap-3">
-          <div className="flex gap-3 text-xs">
-            <div className="flex items-baseline gap-1">
-              <span className="text-muted-foreground">Balance:</span>
-              <span className="font-mono">${(account?.balance || 0).toFixed(2)}</span>
+        <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
+          <div className="flex gap-2.5 text-[11px] font-mono">
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase text-muted-foreground opacity-70">Balance</span>
+              <span className="font-semibold">${(account?.balance || 0).toFixed(2)}</span>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-muted-foreground">Equity:</span>
-              <span className="font-mono">${accountValue.toFixed(2)}</span>
+            <div className="flex flex-col border-l border-border/40 pl-2.5">
+              <span className="text-[9px] uppercase text-muted-foreground opacity-70">Equity</span>
+              <span className="font-semibold">${accountValue.toFixed(2)}</span>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-muted-foreground">PnL:</span>
-              <span className={`font-mono ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div className="flex flex-col border-l border-border/40 pl-2.5">
+              <span className="text-[9px] uppercase text-muted-foreground opacity-70">Total PnL</span>
+              <span className={`font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 border-l border-border/40 pl-2.5">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <BarChart3 className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="icon" className="h-6 w-6" title="Analytics">
+                  <BarChart3 className="h-3 w-3" />
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-[600px] sm:max-w-[600px]">
@@ -257,8 +276,8 @@ export default function MockTrading() {
               </SheetContent>
             </Sheet>
 
-            <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-7 w-7">
-              <Settings className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-6 w-6" title="Settings">
+              <Settings className="h-3 w-3" />
             </Button>
           </div>
         </div>
@@ -280,56 +299,63 @@ export default function MockTrading() {
 
           {/* Order Panel - Right Side */}
           <div className="w-72 border-l border-border/40 bg-background flex flex-col">
-            <div className="p-2 space-y-2.5">
+            <div className="p-3 space-y-3">
+              {/* Order Type Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Order Type</label>
+                <Select value={orderType} onValueChange={(val) => setOrderType(val as 'MARKET' | 'LIMIT')}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MARKET">Market</SelectItem>
+                    <SelectItem value="LIMIT">Limit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Buy/Sell Toggle */}
               <div className="grid grid-cols-2 gap-1 p-0.5 bg-muted rounded">
                 <button
                   onClick={() => setOrderSide('BUY')}
-                  className={`py-1.5 text-xs font-medium rounded transition-all ${
+                  className={`py-1.5 text-xs font-semibold rounded transition-all ${
                     orderSide === 'BUY' 
-                      ? 'bg-green-600 text-white' 
+                      ? 'bg-green-600 text-white shadow-sm' 
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  Buy
+                  Buy / Long
                 </button>
                 <button
                   onClick={() => setOrderSide('SELL')}
-                  className={`py-1.5 text-xs font-medium rounded transition-all ${
+                  className={`py-1.5 text-xs font-semibold rounded transition-all ${
                     orderSide === 'SELL' 
-                      ? 'bg-red-600 text-white' 
+                      ? 'bg-red-600 text-white shadow-sm' 
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  Sell
+                  Sell / Short
                 </button>
               </div>
 
-              {/* Leverage */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Leverage</span>
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-accent rounded">
-                    <span className="text-xs font-mono font-medium">{leverage}x</span>
-                  </div>
+              {/* Limit Price (only for LIMIT orders) */}
+              {orderType === 'LIMIT' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Limit Price</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={currentPrice.toFixed(2)}
+                    value={limitPrice}
+                    onChange={(e) => setLimitPrice(e.target.value)}
+                    className="h-9 text-sm font-mono"
+                  />
                 </div>
-                <Slider
-                  value={[leverage]}
-                  onValueChange={(val) => setLeverage(val[0])}
-                  min={1}
-                  max={125}
-                  step={1}
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>1x</span>
-                  <span>50x</span>
-                  <span>125x</span>
-                </div>
-              </div>
+              )}
 
               {/* Amount */}
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
+                <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">
                   Amount ({selectedSymbol.replace('USDT', '')})
                 </label>
                 <Input
@@ -341,23 +367,47 @@ export default function MockTrading() {
                   className="h-9 text-sm font-mono"
                 />
                 {quantity && currentPrice > 0 && (
-                  <div className="text-xs text-muted-foreground font-mono">
-                    ≈ ${(parseFloat(quantity) * currentPrice * leverage).toFixed(2)}
+                  <div className="text-[10px] text-muted-foreground font-mono">
+                    ≈ ${(parseFloat(quantity) * (orderType === 'LIMIT' && limitPrice ? parseFloat(limitPrice) : currentPrice) * leverage).toFixed(2)}
                   </div>
                 )}
               </div>
 
+              {/* Leverage */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Leverage</label>
+                  <Badge variant="outline" className="h-5 px-2 text-xs font-mono font-semibold">
+                    {leverage}x
+                  </Badge>
+                </div>
+                <Slider
+                  value={[leverage]}
+                  onValueChange={(val) => setLeverage(val[0])}
+                  min={1}
+                  max={125}
+                  step={1}
+                  className="py-1"
+                />
+                <div className="flex justify-between text-[9px] text-muted-foreground font-mono">
+                  <span>1x</span>
+                  <span>50x</span>
+                  <span>125x</span>
+                </div>
+              </div>
+
               {/* Quick % Buttons */}
-              <div className="grid grid-cols-4 gap-1">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[25, 50, 75, 100].map((pct) => (
                   <button
                     key={pct}
                     onClick={() => {
                       const balance = account?.balance || 0;
-                      const amt = (balance * (pct / 100)) / currentPrice / leverage;
+                      const price = orderType === 'LIMIT' && limitPrice ? parseFloat(limitPrice) : currentPrice;
+                      const amt = (balance * (pct / 100)) / price / leverage;
                       setQuantity(amt.toFixed(6));
                     }}
-                    className="py-1 text-xs font-medium bg-muted hover:bg-accent rounded transition-colors"
+                    className="py-1 text-[10px] font-semibold bg-muted hover:bg-accent rounded transition-colors"
                   >
                     {pct}%
                   </button>
@@ -366,11 +416,11 @@ export default function MockTrading() {
 
               {/* Stop Loss */}
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Stop Loss</label>
+                <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Stop Loss (Optional)</label>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="Optional"
+                  placeholder="Price"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
                   className="h-9 text-sm font-mono"
@@ -379,11 +429,11 @@ export default function MockTrading() {
 
               {/* Take Profit */}
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Take Profit</label>
+                <label className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Take Profit (Optional)</label>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="Optional"
+                  placeholder="Price"
                   value={takeProfit}
                   onChange={(e) => setTakeProfit(e.target.value)}
                   className="h-9 text-sm font-mono"
@@ -393,14 +443,14 @@ export default function MockTrading() {
               {/* Place Order Button */}
               <Button
                 onClick={handlePlaceOrder}
-                disabled={!quantity || !currentPrice || isPlacingOrder}
-                className={`w-full h-10 text-sm font-medium ${
+                disabled={!quantity || (orderType === 'LIMIT' && !limitPrice) || isPlacingOrder}
+                className={`w-full h-10 text-sm font-semibold shadow-lg transition-all ${
                   orderSide === 'BUY' 
-                    ? 'bg-green-600 hover:bg-green-700 text-white' 
-                    : 'bg-red-600 hover:bg-red-700 text-white'
+                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-500/20' 
+                    : 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
                 }`}
               >
-                {isPlacingOrder ? 'Placing...' : orderSide === 'BUY' ? 'Buy' : 'Sell'}
+                {isPlacingOrder ? 'Placing...' : `${orderType === 'LIMIT' ? 'Place Limit' : 'Place Market'} ${orderSide === 'BUY' ? 'Buy' : 'Sell'}`}
               </Button>
             </div>
           </div>
