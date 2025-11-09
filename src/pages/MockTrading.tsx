@@ -171,22 +171,20 @@ export default function MockTrading() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Enhanced Trading Header */}
-      <header className="h-16 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="h-full px-4 flex items-center justify-between gap-6">
-          {/* Left Section: Market Selector & Stats */}
-          <div className="flex items-center gap-6">
-            {/* Market Selector */}
-            <Sheet open={marketsOpen} onOpenChange={setMarketsOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" className="h-10 gap-2 hover:bg-accent text-sm font-medium px-3">
-                  {selectedCoin && <img src={selectedCoin.image} alt="" className="w-5 h-5 rounded-full" />}
-                  <span className="font-bold text-base">
-                    {selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT
-                  </span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </SheetTrigger>
+      {/* Ultra-Compact Header - Hyperliquid Style */}
+      <header className="h-11 border-b border-border/40 flex items-center px-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center flex-1 gap-3">
+          {/* Market Selector */}
+          <Sheet open={marketsOpen} onOpenChange={setMarketsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" className="h-7 gap-1.5 hover:bg-accent text-xs font-medium px-2">
+                {selectedCoin && <img src={selectedCoin.image} alt="" className="w-3.5 h-3.5 rounded-full" />}
+                <span className="font-semibold">
+                  {selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT
+                </span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              </Button>
+            </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">
               <SheetHeader className="p-4 border-b">
                 <SheetTitle>Markets</SheetTitle>
@@ -239,59 +237,59 @@ export default function MockTrading() {
             </SheetContent>
           </Sheet>
 
-            {/* Market Stats */}
-            <div className="flex items-center gap-5 border-l border-border/40 pl-6">
-              <div className="flex flex-col min-w-[90px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">24h Change</span>
-                <span className={`text-base font-bold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {/* Market Stats */}
+          <div className="flex items-center gap-3 text-xs border-l border-border/40 pl-3">
+            <div className="flex gap-3">
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase text-muted-foreground">24h Change</span>
+                <span className={`text-sm font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                 </span>
               </div>
-              <div className="flex flex-col min-w-[90px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">24h High</span>
-                <span className="text-base font-bold">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">24h High</span>
+                <span className="text-sm font-semibold">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
               </div>
-              <div className="flex flex-col min-w-[90px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">24h Low</span>
-                <span className="text-base font-bold">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">24h Low</span>
+                <span className="text-sm font-semibold">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
               </div>
-              <div className="flex flex-col min-w-[100px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">24h Volume</span>
-                <span className="text-base font-bold">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">24h Volume</span>
+                <span className="text-sm font-semibold">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Right Section: Account Info & Settings */}
-          <div className="flex items-center gap-5">
-            {/* Account Info */}
-            <div className="flex items-center gap-5 border-l border-border/40 pl-6">
-              <div className="flex flex-col min-w-[85px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">Equity</span>
-                <span className="text-base font-bold">${accountValue.toFixed(2)}</span>
+        {/* Account Info */}
+          <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
+            <div className="flex gap-3 text-xs">
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase text-muted-foreground">Equity</span>
+                <span className="text-sm font-semibold">${accountValue.toFixed(2)}</span>
               </div>
-              <div className="flex flex-col min-w-[85px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">Total PnL</span>
-                <span className={`text-base font-bold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">Total PnL</span>
+                <span className={`text-sm font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
                 </span>
               </div>
-              <div className="flex flex-col min-w-[95px]">
-                <span className="text-xs uppercase text-muted-foreground font-medium mb-1">Unrealized</span>
-                <span className={`text-base font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">Unrealized</span>
+                <span className={`text-sm font-semibold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
                 </span>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-1 border-l border-border/40 pl-5">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Analytics">
-                    <BarChart3 className="h-4 w-4" />
-                  </Button>
-                </SheetTrigger>
+          <div className="flex items-center gap-0.5 border-l border-border/40 pl-3">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" title="Analytics">
+                  <BarChart3 className="h-3 w-3" />
+                </Button>
+              </SheetTrigger>
               <SheetContent className="w-[600px] sm:max-w-[600px]">
                 <SheetHeader>
                   <SheetTitle>Trading Analytics</SheetTitle>
@@ -302,24 +300,23 @@ export default function MockTrading() {
               </SheetContent>
             </Sheet>
 
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Sound & Haptics">
-                    <Volume2 className="h-4 w-4" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent className="w-[400px] sm:max-w-[400px]">
-                  <SheetHeader>
-                    <SheetTitle>Sound & Haptic Settings</SheetTitle>
-                  </SheetHeader>
-                  <SoundHapticSettings />
-                </SheetContent>
-              </Sheet>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" title="Sound & Haptics">
+                  <Volume2 className="h-3 w-3" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-[400px] sm:max-w-[400px]">
+                <SheetHeader>
+                  <SheetTitle>Sound & Haptic Settings</SheetTitle>
+                </SheetHeader>
+                <SoundHapticSettings />
+              </SheetContent>
+            </Sheet>
 
-              <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-8 w-8" title="Account Settings">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-6 w-6" title="Account Settings">
+              <Settings className="h-3 w-3" />
+            </Button>
           </div>
         </div>
       </header>
