@@ -12,7 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import TradingViewChart from '@/components/charts/TradingViewChart';
 import { TradingAnalytics } from '@/components/trading/TradingAnalytics';
 import { CustomBalanceDialog } from '@/components/trading/CustomBalanceDialog';
-import { Search, ChevronDown, BarChart3, Settings } from 'lucide-react';
+import { SoundHapticSettings } from '@/components/trading/SoundHapticSettings';
+import { Search, ChevronDown, BarChart3, Settings, Volume2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
@@ -278,7 +279,21 @@ export default function MockTrading() {
               </SheetContent>
             </Sheet>
 
-            <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-6 w-6" title="Settings">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6" title="Sound & Haptics">
+                  <Volume2 className="h-3 w-3" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-[400px] sm:max-w-[400px]">
+                <SheetHeader>
+                  <SheetTitle>Sound & Haptic Settings</SheetTitle>
+                </SheetHeader>
+                <SoundHapticSettings />
+              </SheetContent>
+            </Sheet>
+
+            <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-6 w-6" title="Account Settings">
               <Settings className="h-3 w-3" />
             </Button>
           </div>
