@@ -517,7 +517,7 @@ export default function MockTrading() {
         </div>
 
         {/* Bottom Panel - Hyperliquid Style */}
-        <div className="h-60 border-t border-border/40 bg-background">
+        <div className="h-60 border-t border-border/40 bg-background shrink-0">
           <Tabs defaultValue="positions" className="h-full flex flex-col">
             <div className="flex items-center px-3 py-1.5 border-b border-border/40">
               <TabsList className="h-8 bg-transparent p-0">

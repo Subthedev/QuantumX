@@ -157,13 +157,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         points: sortedOHLC.length
       });
 
-      // Remove old series
+      // Remove old series - with safety checks
       if (seriesRef.current && chartRef.current) {
-        chartRef.current.removeSeries(seriesRef.current);
+        try {
+          chartRef.current.removeSeries(seriesRef.current);
+        } catch (e) {
+          console.warn('Failed to remove main series (already removed):', e);
+        }
         seriesRef.current = null;
       }
       if (volumeSeriesRef.current && chartRef.current) {
-        chartRef.current.removeSeries(volumeSeriesRef.current);
+        try {
+          chartRef.current.removeSeries(volumeSeriesRef.current);
+        } catch (e) {
+          console.warn('Failed to remove volume series (already removed):', e);
+        }
         volumeSeriesRef.current = null;
       }
 
@@ -431,15 +439,15 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       <div className="flex items-center justify-between gap-2">
         {/* Price Info */}
         <div className="flex-1 min-w-0">
-          <div className={isMobile ? "text-lg font-semibold font-mono" : "text-2xl font-semibold font-mono"}>
+          <div className={isMobile ? "text-lg font-semibold" : "text-2xl font-semibold"}>
             ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
           </div>
-          <div className={`text-xs font-mono ${getChangeColor(priceInfo.changePercent)}`}>
+          <div className={`text-xs ${getChangeColor(priceInfo.changePercent)}`}>
             {priceInfo.changePercent >= 0 ? '+' : ''}
             {priceInfo.changePercent.toFixed(2)}% ({timeframe})
           </div>
           {!isMobile && (
-            <div className="flex gap-3 text-xs mt-1 font-mono">
+            <div className="flex gap-3 text-xs mt-1">
               <div>
                 <span className="text-muted-foreground">H:</span>{' '}
                 <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
@@ -498,7 +506,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
       {/* High/Low for mobile - shown below price */}
       {isMobile && (
-        <div className="flex gap-4 text-[10px] px-1 font-mono">
+        <div className="flex gap-4 text-[10px] px-1">
           <div>
             <span className="text-muted-foreground">High:</span>{' '}
             <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
