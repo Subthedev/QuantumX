@@ -21,7 +21,7 @@
  */
 
 export const STRATEGIC_COIN_SELECTION = {
-  // Top 50 coins by liquidity, volatility, and profit potential
+  // Top 100 coins by liquidity, volatility, and profit potential
   coinGeckoIds: [
     // === TIER 1: BLUE CHIPS (Highest Liquidity) ===
     'bitcoin',           // BTC - King of crypto, massive liquidity
@@ -34,6 +34,11 @@ export const STRATEGIC_COIN_SELECTION = {
     'polkadot',          // DOT - Interoperability
     'matic-network',     // MATIC/POL - Polygon L2
     'chainlink',         // LINK - Oracle leader
+    'litecoin',          // LTC - Digital silver
+    'bitcoin-cash',      // BCH - Bitcoin fork
+    'stellar',           // XLM - Payment network
+    'monero',            // XMR - Privacy coin
+    'ethereum-classic',  // ETC - Original ETH chain
 
     // === TIER 2: DEFI POWERHOUSES ===
     'uniswap',           // UNI - DEX leader
@@ -44,6 +49,10 @@ export const STRATEGIC_COIN_SELECTION = {
     'compound-governance-token', // COMP - Lending
     'sushi',             // SUSHI - DEX alternative
     '1inch',             // 1INCH - DEX aggregator
+    'pancakeswap-token', // CAKE - BSC DEX
+    'thorchain',         // RUNE - Cross-chain DEX
+    'balancer',          // BAL - AMM protocol
+    'yearn-finance',     // YFI - Yield aggregator
 
     // === TIER 3: LAYER 2 / SCALING ===
     'arbitrum',          // ARB - Optimistic rollup
@@ -52,6 +61,8 @@ export const STRATEGIC_COIN_SELECTION = {
     'loopring',          // LRC - zkRollup DEX
     'metis-token',       // METIS - Optimistic rollup
     'starknet',          // STRK - ZK rollup
+    'polygon-ecosystem-token', // POL - Polygon token
+    'skale',             // SKL - Elastic blockchain
 
     // === TIER 4: GAMING & METAVERSE ===
     'the-sandbox',       // SAND - Metaverse
@@ -60,13 +71,18 @@ export const STRATEGIC_COIN_SELECTION = {
     'gala',              // GALA - Gaming platform
     'enjincoin',         // ENJ - Gaming NFTs
     'flow',              // FLOW - NFT blockchain
+    'illuvium',          // ILV - AAA gaming
+    'immutable-x',       // IMX - Gaming L2
 
     // === TIER 5: AI & COMPUTE ===
     'render-token',      // RNDR - GPU rendering
     'fetch-ai',          // FET - AI agents
     'ocean-protocol',    // OCEAN - Data marketplace
     'the-graph',         // GRT - Indexing protocol
-    'theta-network',     // THETA - Video streaming
+    'theta-token',       // THETA - Video streaming
+    'artificial-superintelligence-alliance', // FET - AI alliance
+    'singularitynet',    // AGIX - AI marketplace
+    'numeraire',         // NMR - AI hedge fund
 
     // === TIER 6: HIGH VOLATILITY PLAYS ===
     'apecoin',           // APE - BAYC ecosystem
@@ -77,6 +93,10 @@ export const STRATEGIC_COIN_SELECTION = {
     'cosmos',            // ATOM - Internet of blockchains
     'algorand',          // ALGO - Pure PoS
     'tezos',             // XTZ - Self-amending
+    'hedera-hashgraph',  // HBAR - Enterprise DLT
+    'vechain',           // VET - Supply chain
+    'elrond-erd-2',      // EGLD - High throughput
+    'zilliqa',           // ZIL - Sharded blockchain
 
     // === TIER 7: EMERGING TECHNOLOGIES ===
     'aptos',             // APT - Move language L1
@@ -85,6 +105,32 @@ export const STRATEGIC_COIN_SELECTION = {
     'injective-protocol', // INJ - DeFi L1
     'celestia',          // TIA - Modular blockchain
     'blur',              // BLUR - NFT marketplace
+    'pendle',            // PENDLE - Yield trading
+    'lido-dao',          // LDO - Liquid staking
+
+    // === TIER 8: INFRASTRUCTURE & STORAGE ===
+    'filecoin',          // FIL - Decentralized storage
+    'arweave',           // AR - Permanent storage
+    'internet-computer',  // ICP - Decentralized cloud
+    'helium',            // HNT - IoT network
+    'storj',             // STORJ - Cloud storage
+
+    // === TIER 9: PRIVACY & SECURITY ===
+    'zcash',             // ZEC - Privacy coin
+    'dash',              // DASH - Digital cash
+    'secret',            // SCRT - Privacy smart contracts
+
+    // === TIER 10: CROSS-CHAIN & INTEROPERABILITY ===
+    'the-open-network',  // TON - Telegram blockchain
+    'kava',              // KAVA - Cross-chain DeFi
+    'kusama',            // KSM - Polkadot canary
+    'osmosis',           // OSMO - Cosmos DEX
+    'thorchain',         // RUNE - Cross-chain swaps
+
+    // === TIER 11: ENTERPRISE & REAL WORLD ===
+    'quant-network',     // QNT - Enterprise interop
+    'vechain',           // VET - Supply chain
+    'origin-protocol',   // OGN - NFT commerce
   ],
 
   // Strategy optimization notes for each coin type

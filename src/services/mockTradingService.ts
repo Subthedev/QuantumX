@@ -148,7 +148,7 @@ class MockTradingService {
       })
       .eq('user_id', userId);
 
-    return position;
+    return position as MockTradingPosition;
   }
 
   /**
@@ -307,7 +307,7 @@ class MockTradingService {
       throw error;
     }
 
-    return data || [];
+    return (data || []) as MockTradingPosition[];
   }
 
   /**
@@ -325,7 +325,7 @@ class MockTradingService {
       throw error;
     }
 
-    return data || [];
+    return (data || []) as MockTradingHistory[];
   }
 
   /**
