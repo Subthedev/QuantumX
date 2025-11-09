@@ -346,7 +346,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         handleScale: {
           axisPressedMouseMove: true,
           mouseWheel: true,
-          pinch: true, // ✅ Enable pinch-to-zoom on mobile
+          pinch: true,
         },
       timeScale: {
         ...chartTheme.timeScale,
@@ -373,6 +373,13 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
     chartRef.current = chart;
     console.log('Chart instance created successfully');
+
+    // Load data immediately after chart is created
+    if (coinId) {
+      console.log('Triggering initial data load');
+      isInitializedRef.current = true;
+      loadChartData();
+    }
 
     // Handle resize - preserve visible range
     const handleResize = () => {
@@ -417,24 +424,13 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   return () => {
     // Cleanup handled by initChart
   };
-}, [coinId, chartTheme]);
+}, [coinId, chartTheme, loadChartData]);
 
-  // Load initial data when chart is ready and coinId is available
+  // Data is now loaded directly in the chart initialization effect above
+  // This effect is kept for backwards compatibility but shouldn't run
   useEffect(() => {
-    if (!chartRef.current || !coinId) {
-      console.log('Skipping initial data load - chart or coinId not ready');
-      return;
-    }
-
-    if (isInitializedRef.current) {
-      console.log('Already initialized, skipping duplicate initial load');
-      return;
-    }
-
-    console.log('Chart ready, loading initial data for', coinId);
-    isInitializedRef.current = true;
-    loadChartData();
-  }, [coinId, loadChartData]);
+    // Data loading is now handled in the chart initialization effect
+  }, []);
 
   // Load data when timeframe or chart type changes (skip initial mount)
   useEffect(() => {
