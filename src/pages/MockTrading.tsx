@@ -13,7 +13,8 @@ import TradingViewChart from '@/components/charts/TradingViewChart';
 import { TradingAnalytics } from '@/components/trading/TradingAnalytics';
 import { CustomBalanceDialog } from '@/components/trading/CustomBalanceDialog';
 import { SoundHapticSettings } from '@/components/trading/SoundHapticSettings';
-import { Search, ChevronDown, BarChart3, Settings, Volume2 } from 'lucide-react';
+import { TradeReplayDialog } from '@/components/trading/TradeReplayDialog';
+import { Search, ChevronDown, BarChart3, Settings, Volume2, Play } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
@@ -36,6 +37,8 @@ export default function MockTrading() {
   const [loading, setLoading] = useState(true);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [marketsOpen, setMarketsOpen] = useState(false);
+  const [replayDialogOpen, setReplayDialogOpen] = useState(false);
+  const [selectedReplayTrade, setSelectedReplayTrade] = useState<typeof history[0] | null>(null);
 
   const {
     account,
@@ -146,6 +149,11 @@ export default function MockTrading() {
     } catch (error) {
       console.error('Failed to set custom balance:', error);
     }
+  };
+
+  const handleReplayTrade = (trade: typeof history[0]) => {
+    setSelectedReplayTrade(trade);
+    setReplayDialogOpen(true);
   };
 
   return (
@@ -591,7 +599,7 @@ export default function MockTrading() {
                   </div>
                 ) : (
                   <div className="px-3 py-2">
-                    <div className="grid grid-cols-7 gap-2 text-xs text-muted-foreground mb-2 px-2">
+                     <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2">
                       <div>Time</div>
                       <div>Symbol</div>
                       <div>Side</div>
@@ -599,11 +607,12 @@ export default function MockTrading() {
                       <div className="text-right">Entry</div>
                       <div className="text-right">Exit</div>
                       <div className="text-right">PnL</div>
+                      <div className="text-right">Replay</div>
                     </div>
                     {history.map((trade) => (
-                      <div key={trade.id} className="grid grid-cols-7 gap-2 text-xs py-2 px-2 hover:bg-accent/50 rounded items-center">
-                        <div className="text-muted-foreground">
-                          {new Date(trade.closed_at).toLocaleTimeString()}
+                      <div key={trade.id} className="grid grid-cols-8 gap-2 text-xs py-2 px-2 hover:bg-accent/50 rounded items-center">
+                        <div className="text-muted-foreground font-mono text-[10px]">
+                          {new Date(trade.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div className="font-medium">{trade.symbol.replace('USDT', '')}</div>
                         <div>
@@ -616,6 +625,17 @@ export default function MockTrading() {
                         <div className="text-right font-mono">${trade.exit_price?.toFixed(2) || '-'}</div>
                         <div className={`text-right font-mono font-medium ${(trade.profit_loss || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                           ${trade.profit_loss?.toFixed(2) || '-'}
+                        </div>
+                        <div className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleReplayTrade(trade)}
+                            title="Replay Trade"
+                          >
+                            <Play className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -632,6 +652,14 @@ export default function MockTrading() {
         onOpenChange={setBalanceDialogOpen}
         currentBalance={account?.balance || 10000}
         onSetBalance={handleSetCustomBalance}
+      />
+
+      <TradeReplayDialog
+        trade={selectedReplayTrade}
+        open={replayDialogOpen}
+        onOpenChange={setReplayDialogOpen}
+        coinId={selectedReplayTrade ? selectedReplayTrade.symbol.replace('USDT', '').toLowerCase() : 'bitcoin'}
+        symbol={selectedReplayTrade ? selectedReplayTrade.symbol.replace('USDT', '') : 'BTC'}
       />
     </div>
   );

@@ -12,6 +12,15 @@ interface TradingViewChartProps {
   symbol: string;
   currentPrice?: number;
   height?: number;
+  tradeMarkers?: TradeMarker[];
+}
+
+interface TradeMarker {
+  time: number; // Unix timestamp in seconds
+  position: 'belowBar' | 'aboveBar';
+  color: string;
+  shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown';
+  text: string;
 }
 
 const TIMEFRAMES: { label: string; value: ChartTimeframe; days: number }[] = [
@@ -29,6 +38,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   symbol,
   currentPrice,
   height = 450,
+  tradeMarkers = [],
 }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -185,6 +195,22 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       }
 
       seriesRef.current = series;
+
+      // Add trade markers if provided (for trade replay)
+      if (tradeMarkers.length > 0 && chartType === 'candlestick') {
+        try {
+          const markers = tradeMarkers.map(marker => ({
+            time: marker.time,
+            position: marker.position,
+            color: marker.color,
+            shape: marker.shape,
+            text: marker.text,
+          }));
+          (series as any).setMarkers(markers);
+        } catch (e) {
+          console.warn('Failed to set markers:', e);
+        }
+      }
 
       // Add Volume indicator if data exists and enabled
       if (showVolume && data.volume && data.volume.length > 0) {
@@ -386,7 +412,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
     console.log('Timeframe/ChartType changed, reloading data');
     loadChartData();
-  }, [timeframe, chartType, loadChartData]);
+  }, [timeframe, chartType, tradeMarkers, loadChartData]);
 
   const handleRefresh = () => {
     ohlcDataService.clearCache(coinId);
