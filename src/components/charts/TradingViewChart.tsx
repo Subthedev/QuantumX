@@ -28,8 +28,7 @@ const TIMEFRAMES: { label: string; value: ChartTimeframe; days: number }[] = [
 
 const CHART_TYPES: { label: string; value: ChartType; icon: React.ReactNode }[] = [
   { label: 'Candlestick', value: 'candlestick', icon: <BarChart3 className="w-3 h-3" /> },
-  { label: 'Line', value: 'line', icon: <TrendingUp className="w-3 h-3" /> },
-  { label: 'Area', value: 'area', icon: <Activity className="w-3 h-3" /> },
+  { label: 'Line + Area', value: 'line', icon: <Activity className="w-3 h-3" /> },
 ];
 
 const TradingViewChart: React.FC<TradingViewChartProps> = ({
@@ -178,21 +177,14 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           wickDownColor: '#ef4444',
         });
         series.setData(sortedOHLC);
-      } else if (chartType === 'line') {
-        series = chartRef.current.addSeries(LineSeries, {
-          color: '#3b82f6',
-          lineWidth: 2,
-        });
-        // Convert OHLC to line data (using close price)
-        const lineData = sortedOHLC.map(d => ({ time: d.time, value: d.close }));
-        series.setData(lineData);
       } else {
-        // area
+        // Line chart with area fill (combined)
         series = chartRef.current.addSeries(AreaSeries, {
-          topColor: 'rgba(59, 130, 246, 0.4)',
+          topColor: 'rgba(59, 130, 246, 0.3)',
           bottomColor: 'rgba(59, 130, 246, 0.0)',
           lineColor: '#3b82f6',
           lineWidth: 2,
+          lineType: 2, // Smooth line
         });
         // Convert OHLC to area data (using close price)
         const areaData = sortedOHLC.map(d => ({ time: d.time, value: d.close }));
