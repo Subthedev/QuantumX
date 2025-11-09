@@ -17,6 +17,136 @@ const corsHeaders = {
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 60000; // 60 seconds
 
+// Symbol to CoinGecko ID mapping
+const SYMBOL_TO_COINGECKO_ID: Record<string, string> = {
+  // Major coins
+  'btc': 'bitcoin',
+  'btcusdt': 'bitcoin',
+  'eth': 'ethereum',
+  'ethusdt': 'ethereum',
+  'bnb': 'binancecoin',
+  'bnbusdt': 'binancecoin',
+  'xrp': 'ripple',
+  'xrpusdt': 'ripple',
+  'ada': 'cardano',
+  'adausdt': 'cardano',
+  'doge': 'dogecoin',
+  'dogeusdt': 'dogecoin',
+  'sol': 'solana',
+  'solusdt': 'solana',
+  'dot': 'polkadot',
+  'dotusdt': 'polkadot',
+  'trx': 'tron',
+  'trxusdt': 'tron',
+  'matic': 'polygon',
+  'maticusdt': 'polygon',
+  'ltc': 'litecoin',
+  'ltcusdt': 'litecoin',
+  'shib': 'shiba-inu',
+  'shibusdt': 'shiba-inu',
+  'avax': 'avalanche-2',
+  'avaxusdt': 'avalanche-2',
+  'link': 'chainlink',
+  'linkusdt': 'chainlink',
+  'atom': 'cosmos',
+  'atomusdt': 'cosmos',
+  'uni': 'uniswap',
+  'uniusdt': 'uniswap',
+  'etc': 'ethereum-classic',
+  'etcusdt': 'ethereum-classic',
+  'xmr': 'monero',
+  'xmrusdt': 'monero',
+  'xlm': 'stellar',
+  'xlmusdt': 'stellar',
+  'bch': 'bitcoin-cash',
+  'bchusdt': 'bitcoin-cash',
+  'algo': 'algorand',
+  'algousdt': 'algorand',
+  'vet': 'vechain',
+  'vetusdt': 'vechain',
+  'icp': 'internet-computer',
+  'icpusdt': 'internet-computer',
+  'fil': 'filecoin',
+  'filusdt': 'filecoin',
+  'hbar': 'hedera-hashgraph',
+  'hbarusdt': 'hedera-hashgraph',
+  'apt': 'aptos',
+  'aptusdt': 'aptos',
+  'near': 'near',
+  'nearusdt': 'near',
+  'arb': 'arbitrum',
+  'arbusdt': 'arbitrum',
+  'op': 'optimism',
+  'opusdt': 'optimism',
+  'sui': 'sui',
+  'suiusdt': 'sui',
+  'inj': 'injective-protocol',
+  'injusdt': 'injective-protocol',
+  'ton': 'the-open-network',
+  'tonusdt': 'the-open-network',
+  'stx': 'blockstack',
+  'stxusdt': 'blockstack',
+  'rune': 'thorchain',
+  'runeusdt': 'thorchain',
+  'imx': 'immutable-x',
+  'imxusdt': 'immutable-x',
+  'grt': 'the-graph',
+  'grtusdt': 'the-graph',
+  'mana': 'decentraland',
+  'manausdt': 'decentraland',
+  'sand': 'the-sandbox',
+  'sandusdt': 'the-sandbox',
+  'axs': 'axie-infinity',
+  'axsusdt': 'axie-infinity',
+  'theta': 'theta-token',
+  'thetausdt': 'theta-token',
+  'ftm': 'fantom',
+  'ftmusdt': 'fantom',
+  'egld': 'elrond-erd-2',
+  'egldusdt': 'elrond-erd-2',
+  'kava': 'kava',
+  'kavausdt': 'kava',
+  'flow': 'flow',
+  'flowusdt': 'flow',
+  'hnt': 'helium',
+  'hntusdt': 'helium',
+  'ksm': 'kusama',
+  'ksmusdt': 'kusama',
+  'xtz': 'tezos',
+  'xtzusdt': 'tezos',
+  'zec': 'zcash',
+  'zecusdt': 'zcash',
+  'dash': 'dash',
+  'dashusdt': 'dash',
+  'waves': 'waves',
+  'wavesusdt': 'waves',
+  'neo': 'neo',
+  'neousdt': 'neo',
+  'qtum': 'qtum',
+  'qtumusdt': 'qtum'
+};
+
+function normalizeCoinId(coinId: string): string {
+  const normalized = coinId.toLowerCase().trim();
+  
+  // If it's already a valid CoinGecko ID (no USDT suffix), return it
+  if (!normalized.includes('usdt') && !SYMBOL_TO_COINGECKO_ID[normalized]) {
+    return normalized;
+  }
+  
+  // Try to find mapping
+  const mapped = SYMBOL_TO_COINGECKO_ID[normalized];
+  if (mapped) {
+    console.log(`🔄 Mapped ${coinId} -> ${mapped}`);
+    return mapped;
+  }
+  
+  // If no mapping found, remove 'usdt' suffix and return
+  const withoutUsdt = normalized.replace(/usdt$/, '');
+  console.log(`⚠️ No mapping for ${coinId}, trying: ${withoutUsdt}`);
+  return withoutUsdt;
+}
+
 interface CryptoListParams {
   vs_currency?: string;
   order?: string;
@@ -173,6 +303,9 @@ async function handleCryptoList(body: any): Promise<Response> {
 }
 
 async function handleCoinDetails(coinId: string, body: any): Promise<Response> {
+  // Normalize the coin ID to CoinGecko format
+  const normalizedCoinId = normalizeCoinId(coinId);
+  
   const params: CryptoDetailsParams = {
     localization: body.localization !== false,
     tickers: body.tickers !== false,
@@ -182,7 +315,7 @@ async function handleCoinDetails(coinId: string, body: any): Promise<Response> {
     sparkline: body.sparkline !== false
   };
 
-  const cacheKey = `details-${coinId}-${JSON.stringify(params)}`;
+  const cacheKey = `details-${normalizedCoinId}-${JSON.stringify(params)}`;
 
   // Check cache
   const cached = cache.get(cacheKey);
@@ -209,7 +342,7 @@ async function handleCoinDetails(coinId: string, body: any): Promise<Response> {
       sparkline: params.sparkline.toString()
     });
 
-    const apiUrl = `https://api.coingecko.com/api/v3/coins/${coinId}?${queryParams}`;
+    const apiUrl = `https://api.coingecko.com/api/v3/coins/${normalizedCoinId}?${queryParams}`;
     console.log('🔍 Fetching coin details:', apiUrl);
 
     const response = await fetch(apiUrl, {
@@ -226,7 +359,7 @@ async function handleCoinDetails(coinId: string, body: any): Promise<Response> {
 
     // Cache the result
     cache.set(cacheKey, { data, timestamp: Date.now() });
-    console.log('💾 Cached details:', coinId);
+    console.log('💾 Cached details:', normalizedCoinId);
 
     return new Response(
       JSON.stringify({
