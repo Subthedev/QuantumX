@@ -68,8 +68,8 @@ export default function MockTrading() {
     isPlacingOrder
   } = useMockTrading();
 
-  const currentPrice = selectedCoin?.current_price || 0;
-  const priceChange24h = selectedCoin?.price_change_percentage_24h || 0;
+  const currentPrice = selectedCoin?.current_price ?? 0;
+  const priceChange24h = selectedCoin?.price_change_percentage_24h ?? 0;
 
   // Filter coins based on search - show all 100 coins by default like dashboard
   const filteredCoins = useMemo(() => {
@@ -258,10 +258,10 @@ export default function MockTrading() {
                                 : coin.current_price.toFixed(6)}
                             </p>
                             <p className={`text-xs font-semibold ${
-                              coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'
+                              (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
-                              {coin.price_change_percentage_24h >= 0 ? '+' : ''}
-                              {coin.price_change_percentage_24h.toFixed(2)}%
+                              {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
+                              {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
                             </p>
                           </div>
                         </div>
@@ -341,7 +341,7 @@ export default function MockTrading() {
                   onChange={(e) => setQuantity(e.target.value)}
                   className="h-9 text-sm"
                 />
-                {quantity && currentPrice > 0 && (
+                 {quantity && currentPrice > 0 && (
                   <p className="text-xs text-muted-foreground">
                     ≈ ${(parseFloat(quantity) * currentPrice).toFixed(2)} USDT
                   </p>
@@ -378,7 +378,7 @@ export default function MockTrading() {
                 className="w-full"
                 size="sm"
                 onClick={handlePlaceOrder}
-                disabled={!quantity || !currentPrice || isPlacingOrder}
+                disabled={!quantity || !currentPrice || currentPrice === 0 || isPlacingOrder}
               >
                 {isPlacingOrder ? 'Placing...' : `${orderSide} ${selectedSymbol.replace('USDT', '')}`}
               </Button>
