@@ -436,7 +436,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   return (
     <div className={isMobile ? "p-2 space-y-2 h-full flex flex-col" : "p-3 space-y-3 h-full flex flex-col"}>
       {/* Header Controls */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-shrink-0">
         {/* Price Info */}
         <div className="flex-1 min-w-0">
           <div className={isMobile ? "text-lg font-semibold" : "text-2xl font-semibold"}>
@@ -519,7 +519,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       )}
 
       {/* Chart Container */}
-      <div className="relative flex-1">
+      <div className="relative flex-1 min-h-0">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -550,9 +550,8 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         )}
         <div
           ref={chartContainerRef}
-          className="w-full rounded-lg overflow-hidden border border-border"
+          className="w-full h-full rounded-lg overflow-hidden border border-border"
           style={{
-            height: `${isMobile ? Math.min(height, 300) : height}px`,
             touchAction: 'none' // Allow pinch-to-zoom and pan gestures
           }}
         />
