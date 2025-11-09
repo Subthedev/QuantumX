@@ -101,10 +101,8 @@ export default function MockTrading() {
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  // Show loading state only on initial load
-  const isInitialLoad = loading && coins.length === 0;
-  
-  if (isInitialLoad) {
+  // Show loading state only when data is not ready
+  if (loading || !account || coins.length === 0) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -324,11 +322,11 @@ export default function MockTrading() {
       </header>
 
       {/* Main Trading Area - Fixed height layout */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Chart + Order Panel */}
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex overflow-hidden">
           {/* Chart Area */}
-          <div className="flex-1 bg-background border-r border-border/40 overflow-hidden">
+          <div className="flex-1 bg-background border-r border-border/40 flex flex-col overflow-hidden">
             <TradingViewChart
               coinId={selectedCoin?.id || 'bitcoin'}
               symbol={selectedCoin?.symbol || 'BTC'}
@@ -532,8 +530,8 @@ export default function MockTrading() {
         </div>
 
         {/* Bottom Panel - Fixed height */}
-        <div className="h-60 border-t border-border/40 bg-background flex-shrink-0">
-          <Tabs defaultValue="positions" className="h-full flex flex-col">
+        <div className="h-64 border-t border-border/40 bg-background flex-shrink-0 flex flex-col">
+          <Tabs defaultValue="positions" className="flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center px-3 py-1.5 border-b border-border/40 flex-shrink-0">
               <TabsList className="h-8 bg-transparent p-0">
                 <TabsTrigger value="positions" className="text-xs h-7 data-[state=active]:bg-accent">
@@ -548,8 +546,8 @@ export default function MockTrading() {
               </TabsList>
             </div>
 
-            <TabsContent value="positions" className="flex-1 m-0 overflow-hidden min-h-0">
-              <ScrollArea className="h-full">
+            <TabsContent value="positions" className="flex-1 m-0 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
+              <ScrollArea className="flex-1">
                 {openPositions.length === 0 ? (
                   <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
                     No open positions
@@ -600,14 +598,14 @@ export default function MockTrading() {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="orders" className="flex-1 m-0 overflow-hidden">
+            <TabsContent value="orders" className="flex-1 m-0 data-[state=active]:flex overflow-hidden">
               <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
                 No open orders
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="flex-1 m-0 overflow-hidden min-h-0">
-              <ScrollArea className="h-full">
+            <TabsContent value="history" className="flex-1 m-0 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
+              <ScrollArea className="flex-1">
                 {history.length === 0 ? (
                   <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
                     No trade history
