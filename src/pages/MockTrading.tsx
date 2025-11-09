@@ -212,29 +212,26 @@ export default function MockTrading() {
             </SheetContent>
           </Sheet>
 
-          {/* Price Display */}
-          <div className="flex items-center gap-2.5 text-xs border-l border-border/40 pl-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className={`text-base font-mono font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
-              </span>
-              <Badge variant={priceChange24h >= 0 ? 'default' : 'destructive'} className="h-4 px-1 text-[10px] font-mono">
-                {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
-              </Badge>
-            </div>
-            
-            <div className="flex gap-2.5 text-[11px] text-muted-foreground font-mono border-l border-border/40 pl-2.5">
+          {/* Market Stats */}
+          <div className="flex items-center gap-3 text-xs border-l border-border/40 pl-3">
+            <div className="flex gap-3">
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase opacity-70">High</span>
-                <span className="font-medium">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
+                <span className="text-[9px] uppercase text-muted-foreground">24h Change</span>
+                <span className={`text-sm font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+                </span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase opacity-70">Low</span>
-                <span className="font-medium">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">24h High</span>
+                <span className="text-sm font-semibold">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase opacity-70">Volume</span>
-                <span className="font-medium">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">24h Low</span>
+                <span className="text-sm font-semibold">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
+              </div>
+              <div className="flex flex-col border-l border-border/40 pl-3">
+                <span className="text-[9px] uppercase text-muted-foreground">24h Volume</span>
+                <span className="text-sm font-semibold">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
               </div>
             </div>
           </div>
@@ -242,24 +239,24 @@ export default function MockTrading() {
 
         {/* Account Info */}
         <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
-          <div className="flex gap-2.5 text-[11px] font-mono">
+          <div className="flex gap-3 text-xs">
             <div className="flex flex-col">
-              <span className="text-[9px] uppercase text-muted-foreground opacity-70">Balance</span>
-              <span className="font-semibold">${(account?.balance || 0).toFixed(2)}</span>
+              <span className="text-[9px] uppercase text-muted-foreground">Balance</span>
+              <span className="text-sm font-semibold">${(account?.balance || 0).toFixed(2)}</span>
             </div>
-            <div className="flex flex-col border-l border-border/40 pl-2.5">
-              <span className="text-[9px] uppercase text-muted-foreground opacity-70">Equity</span>
-              <span className="font-semibold">${accountValue.toFixed(2)}</span>
+            <div className="flex flex-col border-l border-border/40 pl-3">
+              <span className="text-[9px] uppercase text-muted-foreground">Equity</span>
+              <span className="text-sm font-semibold">${accountValue.toFixed(2)}</span>
             </div>
-            <div className="flex flex-col border-l border-border/40 pl-2.5">
-              <span className="text-[9px] uppercase text-muted-foreground opacity-70">Total PnL</span>
-              <span className={`font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div className="flex flex-col border-l border-border/40 pl-3">
+              <span className="text-[9px] uppercase text-muted-foreground">Total PnL</span>
+              <span className={`text-sm font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-0.5 border-l border-border/40 pl-2.5">
+          <div className="flex items-center gap-0.5 border-l border-border/40 pl-3">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6" title="Analytics">
@@ -288,7 +285,7 @@ export default function MockTrading() {
         {/* Chart + Order Panel */}
         <div className="flex-1 flex overflow-hidden">
           {/* Chart Area */}
-          <div className="flex-1 bg-card">
+          <div className="flex-1 bg-background border-r border-border/40">
             <TradingViewChart
               coinId={selectedCoin?.id || 'bitcoin'}
               symbol={selectedCoin?.symbol || 'BTC'}
