@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createChart, IChartApi, ISeriesApi, ColorType, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Loader2, BarChart3, TrendingUp, Activity, RefreshCw } from 'lucide-react';
+import { Loader2, BarChart3, Activity, RefreshCw } from 'lucide-react';
 import { ohlcDataService } from '@/services/ohlcDataService';
 import type { ChartType, ChartTimeframe, OHLCData, PriceInfo } from '@/types/chart';
 import { useTheme } from 'next-themes';
@@ -407,12 +406,12 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   return (
-    <Card className={isMobile ? "p-2 space-y-2" : "p-4 space-y-4"}>
+    <div className={isMobile ? "p-2 space-y-2 h-full flex flex-col" : "p-3 space-y-3 h-full flex flex-col"}>
       {/* Header Controls */}
       <div className="flex items-center justify-between gap-2">
         {/* Price Info */}
         <div className="flex-1 min-w-0">
-          <div className={isMobile ? "text-lg font-bold" : "text-2xl font-bold"}>
+          <div className={isMobile ? "text-lg font-semibold" : "text-2xl font-semibold"}>
             ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
           </div>
           <div className={`text-xs ${getChangeColor(priceInfo.changePercent)}`}>
@@ -479,15 +478,15 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       )}
 
       {/* Chart Container */}
-      <div className="relative">
+      <div className="relative flex-1">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/95 backdrop-blur-sm z-10">
-            <Card className="max-w-md mx-4 p-6">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+            <div className="max-w-md mx-4 p-6 bg-card border border-border rounded-lg shadow-lg">
               <div className="text-center space-y-4">
                 <div className="w-12 h-12 rounded-full bg-destructive/10 mx-auto flex items-center justify-center">
                   <svg className="w-6 h-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -505,7 +504,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         )}
         <div
@@ -517,7 +516,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
           }}
         />
       </div>
-    </Card>
+    </div>
   );
 };
 
