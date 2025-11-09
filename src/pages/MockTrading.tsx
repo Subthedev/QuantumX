@@ -134,20 +134,20 @@ export default function MockTrading() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Top Header - Ultra Minimal */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-            <Sheet open={marketsOpen} onOpenChange={setMarketsOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  {selectedCoin && <img src={selectedCoin.image} alt="" className="w-5 h-5 rounded-full" />}
-                  <span className="text-sm font-semibold">
-                    {selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
+      {/* Top Header - Professional Layout */}
+      <header className="h-14 bg-card border-b border-border flex items-center px-4">
+        <div className="flex items-center flex-1 gap-6">
+          {/* Market Selector */}
+          <Sheet open={marketsOpen} onOpenChange={setMarketsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" className="h-10 gap-2 hover:bg-accent">
+                {selectedCoin && <img src={selectedCoin.image} alt="" className="w-5 h-5 rounded-full" />}
+                <span className="text-sm font-semibold">
+                  {selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            </SheetTrigger>
               <SheetContent side="left" className="w-80 p-0">
                 <SheetHeader className="p-4 border-b">
                   <SheetTitle>Markets</SheetTitle>
@@ -200,38 +200,60 @@ export default function MockTrading() {
               </SheetContent>
             </Sheet>
 
+          {/* Price Display */}
+          <div className="flex items-center gap-1">
+            <span className="text-xl font-mono font-bold">
+              ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
+            </span>
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-semibold ${
+              priceChange24h >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
+            }`}>
+              {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+            </div>
+          </div>
+
+          {/* 24h Stats */}
+          <div className="flex items-center gap-4 text-xs border-l border-border pl-6">
             <div className="flex flex-col">
-              <span className="text-2xl font-mono font-bold">
-                ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
-              </span>
-              <span className={`text-sm font-mono ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}% 24h
-              </span>
+              <span className="text-muted-foreground">24h High</span>
+              <span className="font-mono font-medium">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-muted-foreground">24h Low</span>
+              <span className="font-mono font-medium">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-muted-foreground">24h Vol</span>
+              <span className="font-mono font-medium">${((selectedCoin?.total_volume || 0) / 1000000).toFixed(2)}M</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground mr-2">Balance:</span>
+        {/* Right Side - Account & Actions */}
+        <div className="flex items-center gap-4 ml-auto pl-6 border-l border-border">
+          {/* Account Stats */}
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-col">
+              <span className="text-muted-foreground">Balance</span>
               <span className="font-mono font-semibold">${(account?.balance || 0).toFixed(2)}</span>
             </div>
-            <div>
-              <span className="text-muted-foreground mr-2">Total:</span>
-              <span className="font-mono font-semibold">${accountValue.toFixed(2)}</span>
-              <span className={`ml-2 font-mono font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-              </span>
+            <div className="flex flex-col">
+              <span className="text-muted-foreground">Equity</span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono font-semibold">${accountValue.toFixed(2)}</span>
+                <span className={`font-mono font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ({totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%)
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Analytics
+                <Button variant="ghost" size="sm" className="h-9">
+                  <BarChart3 className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-[600px] sm:max-w-[600px]">
@@ -246,9 +268,8 @@ export default function MockTrading() {
 
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <History className="h-4 w-4 mr-2" />
-                  History
+                <Button variant="ghost" size="sm" className="h-9">
+                  <History className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-[800px] sm:max-w-[800px]">
@@ -309,9 +330,8 @@ export default function MockTrading() {
               </SheetContent>
             </Sheet>
 
-            <Button variant="ghost" size="sm" onClick={() => setBalanceDialogOpen(true)}>
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <Button variant="ghost" size="sm" onClick={() => setBalanceDialogOpen(true)} className="h-9">
+              <Settings className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -330,49 +350,64 @@ export default function MockTrading() {
             />
           </div>
 
-          {/* Positions Bar - Compact */}
+          {/* Positions Bar - Sleek */}
           {openPositions.length > 0 && (
-            <div className="h-20 bg-card border-t border-border p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold">Open Positions ({openPositions.length})</span>
-                <span className={`text-sm font-mono font-semibold ${
-                  totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
-                </span>
+            <div className="h-24 bg-card border-t border-border">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold text-muted-foreground">OPEN POSITIONS</span>
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10">
+                    <span className="text-xs font-bold text-primary">{openPositions.length}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Total P&L:</span>
+                  <span className={`text-sm font-mono font-bold ${
+                    totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'
+                  }`}>
+                    {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
+                  </span>
+                </div>
               </div>
-              <ScrollArea className="w-full">
-                <div className="flex gap-3">
+              <ScrollArea className="w-full h-[60px]">
+                <div className="flex gap-2 px-4 py-2">
                   {openPositions.map((pos) => (
                     <div
                       key={pos.id}
-                      className="flex-shrink-0 p-3 bg-muted/50 rounded-lg border border-border min-w-[200px]"
+                      className="flex-shrink-0 p-2.5 bg-muted/30 hover:bg-muted/50 rounded-lg border border-border transition-colors min-w-[220px]"
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold">{pos.symbol.replace('USDT', '')}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                          pos.side === 'BUY' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-                        }`}>
-                          {pos.side}
-                        </span>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold">{pos.symbol.replace('USDT', '')}</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            pos.side === 'BUY' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                          }`}>
+                            {pos.side}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => closePosition({ positionId: pos.id, exitPrice: pos.current_price })}
+                          className="h-6 px-2 text-[10px] bg-red-500/80 hover:bg-red-500"
+                        >
+                          Close
+                        </Button>
                       </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          {pos.quantity.toFixed(4)} @ ${pos.entry_price.toFixed(2)}
-                        </span>
-                        <span className={`font-mono font-bold ${
+                      <div className="flex items-center justify-between text-[11px]">
+                        <div className="text-muted-foreground">
+                          <span className="font-mono">{pos.quantity.toFixed(4)}</span>
+                          <span className="mx-1">@</span>
+                          <span className="font-mono">${pos.entry_price.toFixed(2)}</span>
+                        </div>
+                        <div className={`font-mono font-bold ${
                           pos.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
                           {pos.unrealized_pnl >= 0 ? '+' : ''}${pos.unrealized_pnl.toFixed(2)}
-                        </span>
+                          <span className="ml-1 text-[10px]">
+                            ({pos.unrealized_pnl_percent >= 0 ? '+' : ''}{pos.unrealized_pnl_percent.toFixed(1)}%)
+                          </span>
+                        </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => closePosition({ positionId: pos.id, exitPrice: pos.current_price })}
-                        className="w-full mt-2 h-7 text-xs bg-red-500 hover:bg-red-600"
-                      >
-                        Close
-                      </Button>
                     </div>
                   ))}
                 </div>
@@ -383,41 +418,42 @@ export default function MockTrading() {
 
         {/* Order Panel - Right Side */}
         <aside className="w-80 bg-card border-l border-border flex flex-col">
-          <div className="p-4 border-b border-border">
-            <h3 className="text-sm font-semibold mb-3">Place Order</h3>
-            
-            {/* Buy/Sell Toggle */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <button
-                onClick={() => setOrderSide('BUY')}
-                className={`py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  orderSide === 'BUY' 
-                    ? 'bg-green-500 text-white shadow-lg' 
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                Buy
-              </button>
-              <button
-                onClick={() => setOrderSide('SELL')}
-                className={`py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  orderSide === 'SELL' 
-                    ? 'bg-red-500 text-white shadow-lg' 
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                Sell
-              </button>
-            </div>
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trade</h3>
           </div>
 
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-4">
+              {/* Buy/Sell Toggle */}
+              <div className="grid grid-cols-2 gap-1 p-1 bg-muted/50 rounded-lg">
+                <button
+                  onClick={() => setOrderSide('BUY')}
+                  className={`py-2 text-sm font-bold rounded-md transition-all ${
+                    orderSide === 'BUY' 
+                      ? 'bg-green-500 text-white shadow-md' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Buy / Long
+                </button>
+                <button
+                  onClick={() => setOrderSide('SELL')}
+                  className={`py-2 text-sm font-bold rounded-md transition-all ${
+                    orderSide === 'SELL' 
+                      ? 'bg-red-500 text-white shadow-md' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Sell / Short
+                </button>
+              </div>
               {/* Leverage */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Leverage</span>
-                  <span className="text-sm font-mono font-semibold">{leverage}x</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Leverage</span>
+                  <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 rounded-md">
+                    <span className="text-sm font-mono font-bold text-primary">{leverage}x</span>
+                  </div>
                 </div>
                 <Slider
                   value={[leverage]}
@@ -425,39 +461,48 @@ export default function MockTrading() {
                   min={1}
                   max={125}
                   step={1}
-                  className="py-2"
+                  className="py-1"
                 />
+                <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                  <span>1x</span>
+                  <span>25x</span>
+                  <span>50x</span>
+                  <span>100x</span>
+                  <span>125x</span>
+                </div>
               </div>
 
               {/* Amount */}
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Amount ({selectedSymbol.replace('USDT', '')})</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Amount ({selectedSymbol.replace('USDT', '')})
+                </label>
                 <Input
                   type="number"
                   step="0.001"
                   placeholder="0.00"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="h-11 text-sm font-mono"
+                  className="h-11 text-base font-mono bg-background border-border focus-visible:ring-primary"
                 />
                 {quantity && currentPrice > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    ≈ ${(parseFloat(quantity) * currentPrice).toFixed(2)} USDT
+                  <div className="text-xs text-muted-foreground font-mono">
+                    ≈ ${(parseFloat(quantity) * currentPrice * leverage).toFixed(2)} USDT
                   </div>
                 )}
               </div>
 
               {/* Quick % Buttons */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[25, 50, 75, 100].map((pct) => (
                   <button
                     key={pct}
                     onClick={() => {
                       const balance = account?.balance || 0;
-                      const amt = (balance * (pct / 100)) / currentPrice;
+                      const amt = (balance * (pct / 100)) / currentPrice / leverage;
                       setQuantity(amt.toFixed(6));
                     }}
-                    className="py-2 text-xs font-medium bg-muted hover:bg-accent rounded transition-colors"
+                    className="py-1.5 text-xs font-semibold bg-muted hover:bg-accent rounded-md transition-colors"
                   >
                     {pct}%
                   </button>
@@ -466,27 +511,31 @@ export default function MockTrading() {
 
               {/* Stop Loss */}
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Stop Loss (Optional)</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Stop Loss
+                </label>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="0.00"
+                  placeholder="Optional"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
-                  className="h-10 text-sm font-mono"
+                  className="h-10 text-sm font-mono bg-background border-border"
                 />
               </div>
 
               {/* Take Profit */}
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Take Profit (Optional)</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Take Profit
+                </label>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="0.00"
+                  placeholder="Optional"
                   value={takeProfit}
                   onChange={(e) => setTakeProfit(e.target.value)}
-                  className="h-10 text-sm font-mono"
+                  className="h-10 text-sm font-mono bg-background border-border"
                 />
               </div>
 
@@ -494,13 +543,13 @@ export default function MockTrading() {
               <Button
                 onClick={handlePlaceOrder}
                 disabled={!quantity || !currentPrice || isPlacingOrder}
-                className={`w-full h-12 text-sm font-semibold ${
+                className={`w-full h-12 text-sm font-bold tracking-wide ${
                   orderSide === 'BUY' 
-                    ? 'bg-green-500 hover:bg-green-600 text-white' 
-                    : 'bg-red-500 hover:bg-red-600 text-white'
+                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20' 
+                    : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20'
                 }`}
               >
-                {isPlacingOrder ? 'Placing...' : orderSide === 'BUY' ? 'Buy / Long' : 'Sell / Short'}
+                {isPlacingOrder ? 'Placing Order...' : orderSide === 'BUY' ? 'Place Buy Order' : 'Place Sell Order'}
               </Button>
             </div>
           </ScrollArea>
