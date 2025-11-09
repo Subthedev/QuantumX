@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
+import { Sidebar, SidebarContent, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
 import TradingViewChart from '@/components/charts/TradingViewChart';
@@ -15,7 +16,9 @@ import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
 import { supabase } from '@/integrations/supabase/client';
 
-export default function MockTrading() {
+function MockTradingContent() {
+  const { state } = useSidebar();
+  const collapsed = state === 'collapsed';
   const { user } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT');
   const [orderSide, setOrderSide] = useState<'BUY' | 'SELL'>('BUY');
@@ -132,10 +135,11 @@ export default function MockTrading() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <>
       {/* Header */}
-      <header className="h-12 bg-card border-b border-border flex items-center justify-between px-4">
-        <div className="flex items-center gap-6">
+      <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4 shrink-0">
+        <div className="flex items-center gap-4">
+          <SidebarTrigger />
           <h1 className="text-sm font-semibold">Paper Trading</h1>
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-2">
@@ -169,66 +173,80 @@ export default function MockTrading() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Markets */}
-        <aside className="w-60 bg-card border-r border-border flex flex-col">
-          <div className="h-10 px-3 flex items-center border-b border-border">
-            <div className="relative w-full">
-              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-7 pl-8 text-xs"
-              />
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Markets Sidebar */}
+        <Sidebar collapsible="icon" className={collapsed ? "w-16" : "w-64"}>
+          <SidebarContent>
+            <div className="p-3 border-b border-border">
+              {!collapsed && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-8 pl-8 text-xs"
+                  />
+                </div>
+              )}
+              {collapsed && (
+                <div className="flex justify-center">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </div>
+              )}
             </div>
-          </div>
-          
-          <ScrollArea className="flex-1">
-            {loading ? (
-              <div className="p-2 space-y-1">
-                {[1,2,3,4,5].map((i) => (
-                  <div key={i} className="h-12 bg-muted/50 rounded animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div>
-                {filteredCoins.map((coin) => {
-                  const symbol = `${coin.symbol.toUpperCase()}USDT`;
-                  const isSelected = selectedSymbol === symbol;
-                  return (
-                    <button
-                      key={coin.id}
-                      onClick={() => setSelectedSymbol(symbol)}
-                      className={`w-full px-3 py-2 flex items-center justify-between hover:bg-accent transition-colors border-b border-border ${
-                        isSelected ? 'bg-accent' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <img src={coin.image} alt="" className="w-5 h-5 rounded-full" />
-                        <span className="text-xs font-medium">{coin.symbol.toUpperCase()}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs font-mono">
-                          ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
-                        </div>
-                        <div className={`text-[10px] font-mono ${
-                          (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
-                          {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </ScrollArea>
-        </aside>
+            
+            <ScrollArea className="flex-1">
+              {loading ? (
+                <div className="p-2 space-y-1">
+                  {[1,2,3,4,5].map((i) => (
+                    <div key={i} className="h-12 bg-muted/50 rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  {filteredCoins.map((coin) => {
+                    const symbol = `${coin.symbol.toUpperCase()}USDT`;
+                    const isSelected = selectedSymbol === symbol;
+                    return (
+                      <button
+                        key={coin.id}
+                        onClick={() => setSelectedSymbol(symbol)}
+                        className={`w-full px-3 py-2.5 flex items-center gap-3 hover:bg-accent transition-colors border-b border-border ${
+                          isSelected ? 'bg-accent' : ''
+                        }`}
+                        title={collapsed ? `${coin.name} - $${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}` : ''}
+                      >
+                        <img src={coin.image} alt="" className="w-6 h-6 rounded-full shrink-0" />
+                        {!collapsed && (
+                          <>
+                            <div className="flex-1 min-w-0 text-left">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs font-medium">{coin.symbol.toUpperCase()}</span>
+                                <span className={`text-[10px] font-mono ${
+                                  (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                                }`}>
+                                  {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
+                                  {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+                                </span>
+                              </div>
+                              <div className="text-xs font-mono text-muted-foreground">
+                                ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </SidebarContent>
+        </Sidebar>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col min-w-0">
           {/* Chart Header */}
           <div className="h-11 bg-card border-b border-border px-4 flex items-center gap-4">
             {selectedCoin && (
@@ -538,6 +556,16 @@ export default function MockTrading() {
         currentBalance={account?.balance || 10000}
         onSetBalance={handleSetCustomBalance}
       />
-    </div>
+    </>
+  );
+}
+
+export default function MockTrading() {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <div className="h-screen flex flex-col w-full bg-background">
+        <MockTradingContent />
+      </div>
+    </SidebarProvider>
   );
 }
