@@ -39,12 +39,6 @@ const OnChainAnalysis = lazy(() => import("./pages/OnChainAnalysis"));
 const FundingRates = lazy(() => import("./pages/FundingRates"));
 const OrderBook = lazy(() => import("./pages/OrderBook"));
 const MockTrading = lazy(() => import("./pages/MockTrading"));
-const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
-const IntelligenceHubV3 = lazy(() => import("./pages/IntelligenceHubV3"));
-const IntelligenceHubAuto = lazy(() => import("./pages/IntelligenceHubAuto"));
-const PipelineMonitor = lazy(() => import("./pages/PipelineMonitor"));
-const IGXTestRunner = lazy(() => import("./pages/IGXTestRunner"));
-const BetaV5Test = lazy(() => import("./pages/BetaV5Test"));
 
 // Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
@@ -110,12 +104,6 @@ const App = () => {
               <Route path="/funding-rates" element={<ProtectedRoute><FundingRates /></ProtectedRoute>} />
               <Route path="/orderbook" element={<ProtectedRoute><OrderBook /></ProtectedRoute>} />
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
-              <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
-              <Route path="/intelligence-hub-v3" element={<ProtectedRoute><IntelligenceHubV3 /></ProtectedRoute>} />
-              <Route path="/intelligence-hub-auto" element={<ProtectedRoute><IntelligenceHubAuto /></ProtectedRoute>} />
-              <Route path="/pipeline-monitor" element={<ProtectedRoute><PipelineMonitor /></ProtectedRoute>} />
-              <Route path="/igx-test-runner" element={<IGXTestRunner />} />
-              <Route path="/beta-v5-test" element={<BetaV5Test />} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
