@@ -3,7 +3,7 @@
  * Real-time paper trading with live market data
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,20 +14,11 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
-import { EnhancedTradingChart } from '@/components/charts/EnhancedTradingChart';
+import TradingViewChart from '@/components/charts/TradingViewChart';
 import { TrendingUp, TrendingDown, DollarSign, Activity, History, RotateCcw, ArrowUpRight, ArrowDownRight, Search, BarChart3 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
-import { getStrategicCoins } from '@/services/strategicCoinSelection';
-import { supabase } from '@/integrations/supabase/client';
-
-interface CoinData {
-  id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-}
+import { cryptoDataService } from '@/services/cryptoDataService';
+import type { CryptoData } from '@/services/cryptoDataService';
 
 export default function MockTrading() {
   const { user } = useAuth();
@@ -38,57 +29,27 @@ export default function MockTrading() {
   const [takeProfit, setTakeProfit] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showChart, setShowChart] = useState(true);
-  const [coins, setCoins] = useState<CoinData[]>([]);
+  const [coins, setCoins] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch all strategic coins with real-time data
-  useEffect(() => {
-    const fetchCoins = async () => {
-      try {
-        setError(null);
-        // Fetch all 100 strategic coins
-        const { data, error } = await supabase.functions.invoke('crypto-proxy', {
-          body: {
-            endpoint: 'list',
-            vs_currency: 'usd',
-            order: 'market_cap_desc',
-            per_page: 170,
-            page: 1,
-            sparkline: true
-          }
-        });
-
-        if (error) {
-          console.error('Edge function error:', error);
-          throw new Error(error.message || 'Failed to fetch coin data');
-        }
-
-        if (!data || !data.data) {
-          throw new Error('No data returned from crypto proxy');
-        }
-
-        // Filter to only strategic coins
-        const strategicCoinIds = getStrategicCoins();
-        const filteredCoins = data.data.filter((coin: CoinData) => 
-          strategicCoinIds.includes(coin.id)
-        );
-
-        console.log(`Loaded ${filteredCoins.length} strategic coins`);
-        setCoins(filteredCoins);
-      } catch (error) {
-        console.error('Failed to fetch coins:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load coin data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCoins();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchCoins, 30000);
-    return () => clearInterval(interval);
+  // Use the exact same service as dashboard
+  const loadCryptoData = useCallback(async () => {
+    try {
+      const data = await cryptoDataService.getTopCryptos(100);
+      setCoins(data);
+    } catch (error) {
+      console.error('Failed to load coins:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadCryptoData();
+    // Refresh every 2 minutes like dashboard
+    const interval = setInterval(loadCryptoData, 120000);
+    return () => clearInterval(interval);
+  }, [loadCryptoData]);
 
   // Get selected coin data
   const selectedCoin = useMemo(() => {
@@ -113,7 +74,7 @@ export default function MockTrading() {
   // Filter coins based on search - show all 100 coins by default like dashboard
   const filteredCoins = useMemo(() => {
     if (!searchQuery) {
-      return coins; // Show all strategic coins by default
+      return coins; // Show all 100 coins by default
     }
     return coins.filter(coin => 
       coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -189,31 +150,31 @@ export default function MockTrading() {
           <div className="px-4 py-2 flex items-center gap-6 overflow-x-auto">
             <div className="flex items-center gap-2 min-w-fit">
               <span className="text-xs text-muted-foreground">Balance:</span>
-              <span className="text-sm font-mono font-semibold text-foreground">
+              <span className="text-sm font-semibold text-foreground">
                 ${(account?.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
             <Separator orientation="vertical" className="h-4" />
             <div className="flex items-center gap-2 min-w-fit">
               <span className="text-xs text-muted-foreground">Equity:</span>
-              <span className="text-sm font-mono font-semibold text-foreground">
+              <span className="text-sm font-semibold text-foreground">
                 ${accountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span className={`text-xs font-medium ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              <span className={`text-xs font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
               </span>
             </div>
             <Separator orientation="vertical" className="h-4" />
             <div className="flex items-center gap-2 min-w-fit">
               <span className="text-xs text-muted-foreground">Unrealized P&L:</span>
-              <span className={`text-sm font-mono font-semibold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              <span className={`text-sm font-semibold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {totalUnrealizedPnL >= 0 ? '+' : ''}${Math.abs(totalUnrealizedPnL).toFixed(2)}
               </span>
             </div>
             <Separator orientation="vertical" className="h-4" />
             <div className="flex items-center gap-2 min-w-fit">
               <span className="text-xs text-muted-foreground">Win Rate:</span>
-              <span className="text-sm font-mono font-semibold text-foreground">
+              <span className="text-sm font-semibold text-foreground">
                 {account?.total_trades ? ((account.winning_trades / account.total_trades) * 100).toFixed(1) : '0'}%
               </span>
               <span className="text-xs text-muted-foreground">
@@ -264,14 +225,6 @@ export default function MockTrading() {
                     ))}
                   </div>
                 </div>
-              ) : error ? (
-                <div className="p-4 text-center">
-                  <p className="text-sm text-destructive mb-2">Failed to load coins</p>
-                  <p className="text-xs text-muted-foreground mb-3">{error}</p>
-                  <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
-                    Retry
-                  </Button>
-                </div>
               ) : (
                 <div className="p-2 space-y-1">
                   {filteredCoins.map((coin) => {
@@ -298,13 +251,13 @@ export default function MockTrading() {
                             <p className="text-sm font-semibold truncate">{coin.name}</p>
                             <p className="text-xs text-muted-foreground uppercase">{coin.symbol}</p>
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-mono">
+                           <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-semibold">
                               ${coin.current_price >= 1 
                                 ? coin.current_price.toFixed(2) 
                                 : coin.current_price.toFixed(6)}
                             </p>
-                            <p className={`text-xs font-medium ${
+                            <p className={`text-xs font-semibold ${
                               coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
                               {coin.price_change_percentage_24h >= 0 ? '+' : ''}
@@ -345,11 +298,11 @@ export default function MockTrading() {
                   )}
                   <p className="text-xs text-muted-foreground">Last Price</p>
                 </div>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-xl font-mono font-bold">
+                 <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-semibold">
                     ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
                   </p>
-                  <p className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <p className={`text-sm font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                   </p>
                 </div>
@@ -386,7 +339,7 @@ export default function MockTrading() {
                   placeholder="0.00"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="h-9 text-sm font-mono"
+                  className="h-9 text-sm"
                 />
                 {quantity && currentPrice > 0 && (
                   <p className="text-xs text-muted-foreground">
@@ -404,7 +357,7 @@ export default function MockTrading() {
                   placeholder="0.00"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
-                  className="h-9 text-sm font-mono"
+                  className="h-9 text-sm"
                 />
               </div>
 
@@ -417,7 +370,7 @@ export default function MockTrading() {
                   placeholder="0.00"
                   value={takeProfit}
                   onChange={(e) => setTakeProfit(e.target.value)}
-                  className="h-9 text-sm font-mono"
+                  className="h-9 text-sm"
                 />
               </div>
 
@@ -447,11 +400,11 @@ export default function MockTrading() {
                   )}
                   <h2 className="text-lg font-bold">{selectedCoin?.name || selectedSymbol.replace('USDT', '')}</h2>
                 </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-mono font-bold">
+                 <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-semibold">
                     ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
                   </span>
-                  <span className={`text-sm font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <span className={`text-sm font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                   </span>
                 </div>
@@ -470,10 +423,11 @@ export default function MockTrading() {
             {/* Chart */}
             {showChart && (
               <div className="flex-1 min-h-[400px] p-4">
-                <EnhancedTradingChart
+                <TradingViewChart
                   coinId={selectedCoin?.id || 'bitcoin'}
                   symbol={selectedCoin?.symbol || 'BTC'}
                   currentPrice={currentPrice}
+                  height={500}
                 />
               </div>
             )}
@@ -482,19 +436,19 @@ export default function MockTrading() {
             <div className="border-t border-border/40 p-3 grid grid-cols-4 gap-4 bg-muted/30">
               <div>
                 <p className="text-xs text-muted-foreground">24h High</p>
-                <p className="text-sm font-mono font-semibold">${(currentPrice * 1.05).toFixed(2)}</p>
+                <p className="text-sm font-semibold">${(currentPrice * 1.05).toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">24h Low</p>
-                <p className="text-sm font-mono font-semibold">${(currentPrice * 0.95).toFixed(2)}</p>
+                <p className="text-sm font-semibold">${(currentPrice * 0.95).toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">24h Volume</p>
-                <p className="text-sm font-mono font-semibold">${(Math.random() * 100000000).toFixed(0)}</p>
+                <p className="text-sm font-semibold">${(Math.random() * 100000000).toFixed(0)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Market Cap</p>
-                <p className="text-sm font-mono font-semibold">$--</p>
+                <p className="text-sm font-semibold">$--</p>
               </div>
             </div>
           </div>
@@ -547,10 +501,10 @@ export default function MockTrading() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-mono font-bold text-sm ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              <p className={`font-semibold text-sm ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {position.unrealized_pnl >= 0 ? '+' : ''}${Math.abs(position.unrealized_pnl).toFixed(2)}
                               </p>
-                              <p className={`text-xs font-medium ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              <p className={`text-xs font-semibold ${position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {position.unrealized_pnl >= 0 ? '+' : ''}{position.unrealized_pnl_percent.toFixed(2)}%
                               </p>
                             </div>
@@ -605,10 +559,10 @@ export default function MockTrading() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className={`font-mono font-bold text-sm ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              <p className={`font-semibold text-sm ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {trade.profit_loss >= 0 ? '+' : ''}${Math.abs(trade.profit_loss).toFixed(2)}
                               </p>
-                              <p className={`text-xs font-medium ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              <p className={`text-xs font-semibold ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {trade.profit_loss >= 0 ? '+' : ''}{trade.profit_loss_percent.toFixed(2)}%
                               </p>
                             </div>
