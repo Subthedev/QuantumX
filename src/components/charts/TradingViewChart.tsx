@@ -434,9 +434,9 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   return (
-    <div className={isMobile ? "p-2 space-y-2 h-full flex flex-col" : "p-3 space-y-3 h-full flex flex-col"}>
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header Controls */}
-      <div className="flex items-center justify-between gap-2 flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 flex-shrink-0 p-3 border-b border-border">
         {/* Price Info */}
         <div className="flex-1 min-w-0">
           <div className={isMobile ? "text-lg font-semibold" : "text-2xl font-semibold"}>
