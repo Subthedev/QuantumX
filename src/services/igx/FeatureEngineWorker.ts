@@ -252,7 +252,7 @@ export class FeatureEngineWorker {
       const marketContext = {
         volatility24h: ((ticker.high24h - ticker.low24h) / ticker.price) * 100,
         volume24h: ticker.volume24h,
-        priceChange24h: ticker.change24h,
+        priceChange24h: ticker.priceChangePercent24h || ticker.change24h || 0,
         highLow24hRange: ticker.high24h - ticker.low24h,
         averageSpread: orderbook?.spread || 0
       };
@@ -338,7 +338,7 @@ export class FeatureEngineWorker {
    */
   private calculateSimpleRSI(ticker: any): number {
     // Simplified RSI calculation based on 24h change
-    const change = ticker.change24h;
+    const change = ticker.priceChangePercent24h || ticker.change24h || 0;
     return 50 + (change / 2); // Mock RSI
   }
 

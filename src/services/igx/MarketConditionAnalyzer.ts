@@ -87,7 +87,7 @@ export class MarketConditionAnalyzer {
     // Calculate price velocity (% change per second)
     const now = Date.now();
     const timeDelta = (now - ticker.timestamp) / 1000; // seconds
-    const priceVelocity = Math.abs(ticker.change24h / timeDelta);
+    const priceVelocity = Math.abs((ticker.priceChangePercent24h || ticker.change24h || 0) / timeDelta);
 
     // Calculate 24h range as % of price
     const range24h = ((ticker.high24h - ticker.low24h) / ticker.price) * 100;
