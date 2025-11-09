@@ -110,12 +110,10 @@ export default function MockTrading() {
   const currentPrice = selectedCoin?.current_price || 0;
   const priceChange24h = selectedCoin?.price_change_percentage_24h || 0;
 
-  // Filter coins based on search
+  // Filter coins based on search - show all 100 coins by default like dashboard
   const filteredCoins = useMemo(() => {
     if (!searchQuery) {
-      // Default top coins
-      const topSymbols = ['btc', 'eth', 'bnb', 'sol', 'xrp', 'ada', 'doge', 'avax'];
-      return coins.filter(c => topSymbols.includes(c.symbol.toLowerCase())).slice(0, 10);
+      return coins; // Show all strategic coins by default
     }
     return coins.filter(coin => 
       coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
