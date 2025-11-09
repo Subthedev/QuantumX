@@ -30,6 +30,7 @@ function MockTradingContent() {
   const [coins, setCoins] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
+  const [mainView, setMainView] = useState<'chart' | 'positions' | 'history' | 'analytics'>('chart');
 
   const {
     account,
@@ -245,102 +246,106 @@ function MockTradingContent() {
           </SidebarContent>
         </Sidebar>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0">
-          {/* Chart Header */}
-          <div className="h-11 bg-card border-b border-border px-4 flex items-center gap-4">
-            {selectedCoin && (
-              <>
-                <img src={selectedCoin.image} alt="" className="w-5 h-5 rounded-full" />
-                <span className="text-sm font-semibold">
-                  {selectedCoin.symbol.toUpperCase()}/USDT
-                </span>
-                <span className="text-lg font-mono font-bold">
-                  ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
-                </span>
-                <span className={`text-xs font-mono font-semibold ${
-                  priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
-                </span>
-              </>
-            )}
-          </div>
-          
-          {/* Chart */}
-          <div className="flex-1 bg-background">
-            <TradingViewChart
-              coinId={selectedCoin?.id || 'bitcoin'}
-              symbol={selectedCoin?.symbol || 'BTC'}
-              currentPrice={currentPrice}
-              key={selectedSymbol}
-            />
-          </div>
+          {/* Price Header + View Tabs */}
+          <div className="h-12 bg-card border-b border-border flex items-center justify-between px-4">
+            <div className="flex items-center gap-4">
+              {selectedCoin && (
+                <>
+                  <img src={selectedCoin.image} alt="" className="w-6 h-6 rounded-full" />
+                  <span className="text-sm font-semibold">
+                    {selectedCoin.symbol.toUpperCase()}/USDT
+                  </span>
+                  <span className="text-xl font-mono font-bold">
+                    ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
+                  </span>
+                  <span className={`text-sm font-mono font-semibold ${
+                    priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
+                  }`}>
+                    {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+                  </span>
+                </>
+              )}
+            </div>
 
-          {/* Bottom Panel */}
-          <div className="h-56 bg-card border-t border-border">
-            <Tabs defaultValue="positions" className="h-full flex flex-col">
-              <TabsList className="h-10 rounded-none bg-transparent border-b border-border justify-start px-4">
+            {/* View Tabs */}
+            <Tabs value={mainView} onValueChange={(v) => setMainView(v as any)} className="h-full">
+              <TabsList className="h-full bg-transparent border-0">
+                <TabsTrigger value="chart" className="text-xs">Chart</TabsTrigger>
                 <TabsTrigger value="positions" className="text-xs">
                   Positions ({openPositions.length})
                 </TabsTrigger>
-                <TabsTrigger value="history" className="text-xs">
-                  History
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="text-xs">
-                  Analytics
-                </TabsTrigger>
+                <TabsTrigger value="history" className="text-xs">History</TabsTrigger>
+                <TabsTrigger value="analytics" className="text-xs">Analytics</TabsTrigger>
               </TabsList>
+            </Tabs>
+          </div>
 
-              <TabsContent value="positions" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
-                  {openPositions.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-                      No Open Positions
-                    </div>
-                  ) : (
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/30">
+          {/* Content Area - Full Height */}
+          <div className="flex-1 bg-background overflow-hidden">
+            {mainView === 'chart' && (
+              <TradingViewChart
+                coinId={selectedCoin?.id || 'bitcoin'}
+                symbol={selectedCoin?.symbol || 'BTC'}
+                currentPrice={currentPrice}
+                key={selectedSymbol}
+              />
+            )}
+
+            {mainView === 'positions' && (
+              <ScrollArea className="h-full">
+                {openPositions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <p className="text-sm">No Open Positions</p>
+                    <p className="text-xs mt-2">Place an order to start trading</p>
+                  </div>
+                ) : (
+                  <div className="p-4">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30 sticky top-0">
                         <tr className="text-muted-foreground text-left">
-                          <th className="py-2 px-4 font-medium">Symbol</th>
-                          <th className="py-2 px-4 font-medium">Side</th>
-                          <th className="py-2 px-4 font-medium text-right">Size</th>
-                          <th className="py-2 px-4 font-medium text-right">Entry</th>
-                          <th className="py-2 px-4 font-medium text-right">Current</th>
-                          <th className="py-2 px-4 font-medium text-right">P&L</th>
-                          <th className="py-2 px-4 font-medium text-right">P&L%</th>
-                          <th className="py-2 px-4 font-medium text-right">Action</th>
+                          <th className="py-3 px-4 font-medium">Symbol</th>
+                          <th className="py-3 px-4 font-medium">Side</th>
+                          <th className="py-3 px-4 font-medium text-right">Size</th>
+                          <th className="py-3 px-4 font-medium text-right">Entry Price</th>
+                          <th className="py-3 px-4 font-medium text-right">Mark Price</th>
+                          <th className="py-3 px-4 font-medium text-right">Unrealized P&L</th>
+                          <th className="py-3 px-4 font-medium text-right">ROI%</th>
+                          <th className="py-3 px-4 font-medium text-right">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {openPositions.map((pos) => (
                           <tr key={pos.id} className="border-t border-border hover:bg-accent/50">
-                            <td className="py-2 px-4 font-medium">{pos.symbol.replace('USDT', '')}</td>
-                            <td className="py-2 px-4">
-                              <span className={`text-[10px] font-bold ${
-                                pos.side === 'BUY' ? 'text-green-500' : 'text-red-500'
+                            <td className="py-3 px-4 font-semibold">{pos.symbol.replace('USDT', '')}</td>
+                            <td className="py-3 px-4">
+                              <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                pos.side === 'BUY' 
+                                  ? 'bg-green-500/10 text-green-500' 
+                                  : 'bg-red-500/10 text-red-500'
                               }`}>
                                 {pos.side}
                               </span>
                             </td>
-                            <td className="py-2 px-4 text-right font-mono">{pos.quantity.toFixed(4)}</td>
-                            <td className="py-2 px-4 text-right font-mono">${pos.entry_price.toFixed(2)}</td>
-                            <td className="py-2 px-4 text-right font-mono">${pos.current_price.toFixed(2)}</td>
-                            <td className={`py-2 px-4 text-right font-mono font-semibold ${
+                            <td className="py-3 px-4 text-right font-mono">{pos.quantity.toFixed(4)}</td>
+                            <td className="py-3 px-4 text-right font-mono">${pos.entry_price.toFixed(2)}</td>
+                            <td className="py-3 px-4 text-right font-mono">${pos.current_price.toFixed(2)}</td>
+                            <td className={`py-3 px-4 text-right font-mono font-bold ${
                               pos.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
                               {pos.unrealized_pnl >= 0 ? '+' : ''}${pos.unrealized_pnl.toFixed(2)}
                             </td>
-                            <td className={`py-2 px-4 text-right font-mono font-semibold ${
+                            <td className={`py-3 px-4 text-right font-mono font-bold ${
                               pos.unrealized_pnl_percent >= 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
                               {pos.unrealized_pnl_percent >= 0 ? '+' : ''}{pos.unrealized_pnl_percent.toFixed(2)}%
                             </td>
-                            <td className="py-2 px-4 text-right">
+                            <td className="py-3 px-4 text-right">
                               <Button
                                 size="sm"
                                 onClick={() => closePosition({ positionId: pos.id, exitPrice: pos.current_price })}
-                                className="h-6 text-[10px] bg-red-500 hover:bg-red-600"
+                                className="bg-red-500 hover:bg-red-600"
                               >
                                 Close
                               </Button>
@@ -349,71 +354,76 @@ function MockTradingContent() {
                         ))}
                       </tbody>
                     </table>
-                  )}
-                </ScrollArea>
-              </TabsContent>
+                  </div>
+                )}
+              </ScrollArea>
+            )}
 
-              <TabsContent value="history" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
-                  {history.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
-                      No Trade History
-                    </div>
-                  ) : (
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/30">
+            {mainView === 'history' && (
+              <ScrollArea className="h-full">
+                {history.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <p className="text-sm">No Trade History</p>
+                    <p className="text-xs mt-2">Your closed trades will appear here</p>
+                  </div>
+                ) : (
+                  <div className="p-4">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30 sticky top-0">
                         <tr className="text-muted-foreground text-left">
-                          <th className="py-2 px-4 font-medium">Symbol</th>
-                          <th className="py-2 px-4 font-medium">Side</th>
-                          <th className="py-2 px-4 font-medium text-right">Entry</th>
-                          <th className="py-2 px-4 font-medium text-right">Exit</th>
-                          <th className="py-2 px-4 font-medium text-right">P&L</th>
-                          <th className="py-2 px-4 font-medium text-right">P&L%</th>
-                          <th className="py-2 px-4 font-medium">Time</th>
+                          <th className="py-3 px-4 font-medium">Symbol</th>
+                          <th className="py-3 px-4 font-medium">Side</th>
+                          <th className="py-3 px-4 font-medium text-right">Entry Price</th>
+                          <th className="py-3 px-4 font-medium text-right">Exit Price</th>
+                          <th className="py-3 px-4 font-medium text-right">Realized P&L</th>
+                          <th className="py-3 px-4 font-medium text-right">ROI%</th>
+                          <th className="py-3 px-4 font-medium">Closed At</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {history.slice(0, 50).map((trade) => (
+                        {history.slice(0, 100).map((trade) => (
                           <tr key={trade.id} className="border-t border-border hover:bg-accent/50">
-                            <td className="py-2 px-4 font-medium">{trade.symbol.replace('USDT', '')}</td>
-                            <td className="py-2 px-4">
-                              <span className={`text-[10px] font-bold ${
-                                trade.side === 'BUY' ? 'text-green-500' : 'text-red-500'
+                            <td className="py-3 px-4 font-semibold">{trade.symbol.replace('USDT', '')}</td>
+                            <td className="py-3 px-4">
+                              <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                trade.side === 'BUY' 
+                                  ? 'bg-green-500/10 text-green-500' 
+                                  : 'bg-red-500/10 text-red-500'
                               }`}>
                                 {trade.side}
                               </span>
                             </td>
-                            <td className="py-2 px-4 text-right font-mono">${trade.entry_price.toFixed(2)}</td>
-                            <td className="py-2 px-4 text-right font-mono">${trade.exit_price.toFixed(2)}</td>
-                            <td className={`py-2 px-4 text-right font-mono font-semibold ${
+                            <td className="py-3 px-4 text-right font-mono">${trade.entry_price.toFixed(2)}</td>
+                            <td className="py-3 px-4 text-right font-mono">${trade.exit_price.toFixed(2)}</td>
+                            <td className={`py-3 px-4 text-right font-mono font-bold ${
                               trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
                               {trade.profit_loss >= 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}
                             </td>
-                            <td className={`py-2 px-4 text-right font-mono font-semibold ${
+                            <td className={`py-3 px-4 text-right font-mono font-bold ${
                               trade.profit_loss_percent >= 0 ? 'text-green-500' : 'text-red-500'
                             }`}>
                               {trade.profit_loss_percent >= 0 ? '+' : ''}{trade.profit_loss_percent.toFixed(2)}%
                             </td>
-                            <td className="py-2 px-4 text-muted-foreground text-[10px]">
+                            <td className="py-3 px-4 text-muted-foreground text-xs">
                               {new Date(trade.closed_at).toLocaleString()}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-
-              <TabsContent value="analytics" className="flex-1 overflow-hidden m-0">
-                <ScrollArea className="h-full">
-                  <div className="p-4">
-                    <TradingAnalytics account={account} history={history} />
                   </div>
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
+                )}
+              </ScrollArea>
+            )}
+
+            {mainView === 'analytics' && (
+              <ScrollArea className="h-full">
+                <div className="p-6 max-w-7xl mx-auto">
+                  <TradingAnalytics account={account} history={history} />
+                </div>
+              </ScrollArea>
+            )}
           </div>
         </main>
 
