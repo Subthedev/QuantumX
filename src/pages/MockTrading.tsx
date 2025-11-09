@@ -322,11 +322,11 @@ export default function MockTrading() {
       </header>
 
       {/* Main Trading Area - Fixed height layout */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         {/* Chart + Order Panel */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex">
           {/* Chart Area */}
-          <div className="flex-1 bg-background border-r border-border/40 flex flex-col overflow-hidden">
+          <div className="flex-1 bg-background border-r border-border/40 flex flex-col">
             <TradingViewChart
               coinId={selectedCoin?.id || 'bitcoin'}
               symbol={selectedCoin?.symbol || 'BTC'}

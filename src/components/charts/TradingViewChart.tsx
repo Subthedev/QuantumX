@@ -317,21 +317,37 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
     // Reset initialization flag when creating new chart
     isInitializedRef.current = false;
 
-    const chart = createChart(chartContainerRef.current, {
-      ...chartTheme,
-      width: chartContainerRef.current.clientWidth,
-      height,
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-        mouseWheel: true,
-        pinch: true, // ✅ Enable pinch-to-zoom on mobile
-      },
+    // Wait for container to have proper dimensions
+    const initChart = () => {
+      if (!chartContainerRef.current) return;
+      
+      const containerWidth = chartContainerRef.current.clientWidth;
+      const containerHeight = chartContainerRef.current.clientHeight;
+      
+      // Ensure we have valid dimensions
+      if (containerWidth === 0 || containerHeight === 0) {
+        console.warn('Container has zero dimensions, retrying...');
+        requestAnimationFrame(initChart);
+        return;
+      }
+
+      console.log('Creating chart with dimensions:', { width: containerWidth, height: containerHeight });
+
+      const chart = createChart(chartContainerRef.current, {
+        ...chartTheme,
+        width: containerWidth,
+        height: containerHeight,
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true,
+          horzTouchDrag: true,
+          vertTouchDrag: true,
+        },
+        handleScale: {
+          axisPressedMouseMove: true,
+          mouseWheel: true,
+          pinch: true, // ✅ Enable pinch-to-zoom on mobile
+        },
       timeScale: {
         ...chartTheme.timeScale,
         rightOffset: 0,
@@ -356,6 +372,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
     });
 
     chartRef.current = chart;
+    console.log('Chart instance created successfully');
 
     // Handle resize - preserve visible range
     const handleResize = () => {
@@ -363,15 +380,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         const timeScale = chartRef.current.timeScale();
         const currentRange = timeScale.getVisibleLogicalRange();
 
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
-
-        // Restore visible range after resize
-        if (currentRange) {
-          requestAnimationFrame(() => {
-            timeScale.setVisibleLogicalRange(currentRange);
+        const newWidth = chartContainerRef.current.clientWidth;
+        const newHeight = chartContainerRef.current.clientHeight;
+        
+        if (newWidth > 0 && newHeight > 0) {
+          chartRef.current.applyOptions({
+            width: newWidth,
+            height: newHeight,
           });
+
+          // Restore visible range after resize
+          if (currentRange) {
+            requestAnimationFrame(() => {
+              timeScale.setVisibleLogicalRange(currentRange);
+            });
+          }
         }
       }
     };
@@ -386,7 +409,15 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       seriesRef.current = null;
       isInitializedRef.current = false;
     };
-  }, [height, chartTheme, coinId]);
+  };
+  
+  // Start initialization
+  requestAnimationFrame(initChart);
+
+  return () => {
+    // Cleanup handled by initChart
+  };
+}, [coinId, chartTheme]);
 
   // Load initial data when chart is ready and coinId is available
   useEffect(() => {
@@ -434,9 +465,9 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full w-full flex flex-col">
       {/* Header Controls */}
-      <div className="flex items-center justify-between gap-2 flex-shrink-0 p-3 border-b border-border">
+      <div className="flex items-center justify-between gap-2 flex-shrink-0 p-3 border-b border-border bg-background">
         {/* Price Info */}
         <div className="flex-1 min-w-0">
           <div className={isMobile ? "text-lg font-semibold" : "text-2xl font-semibold"}>
@@ -519,7 +550,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       )}
 
       {/* Chart Container */}
-      <div className="relative flex-1 min-h-0">
+      <div className="flex-1 relative">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -550,9 +581,9 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         )}
         <div
           ref={chartContainerRef}
-          className="w-full h-full rounded-lg overflow-hidden border border-border"
+          className="w-full h-full"
           style={{
-            touchAction: 'none' // Allow pinch-to-zoom and pan gestures
+            touchAction: 'none'
           }}
         />
       </div>
