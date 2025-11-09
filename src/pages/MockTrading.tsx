@@ -48,7 +48,8 @@ export default function MockTrading() {
     closePosition,
     resetAccount,
     updatePrices,
-    isPlacingOrder
+    isPlacingOrder,
+    isLoading: tradingDataLoading
   } = useMockTrading();
 
   const loadCryptoData = useCallback(async () => {
@@ -99,6 +100,18 @@ export default function MockTrading() {
   }, [openPositions, coins, updatePrices]);
 
   if (!user) return <Navigate to="/auth" replace />;
+
+  // Show loading state while initial data loads
+  if (loading || (tradingDataLoading && !account)) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading trading platform...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handlePlaceOrder = () => {
     if (!quantity) return;
