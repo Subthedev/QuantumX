@@ -1,34 +1,21 @@
 /**
- * Mock Trading Page - Binance-Inspired Professional Interface
- * Clean, minimal, and well-structured for real trading experience
+ * Mock Trading - Professional Binance-Inspired Interface
+ * System Design: Clean, structured, everything visible at once
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
 import TradingViewChart from '@/components/charts/TradingViewChart';
-import { RiskManagementPanel } from '@/components/trading/RiskManagementPanel';
 import { TradingAnalytics } from '@/components/trading/TradingAnalytics';
 import { CustomBalanceDialog } from '@/components/trading/CustomBalanceDialog';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
-  History, 
-  RotateCcw, 
-  Search, 
-  Settings, 
-  BarChart3,
-  X
-} from 'lucide-react';
+import { Search, RotateCcw, Settings } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
@@ -46,15 +33,11 @@ export default function MockTrading() {
   const [coins, setCoins] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
-  const [showRiskPanel, setShowRiskPanel] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [calculatedPositionSize, setCalculatedPositionSize] = useState(0);
 
   const {
     account,
     openPositions,
     history,
-    isLoading,
     placeOrder,
     closePosition,
     resetAccount,
@@ -62,7 +45,6 @@ export default function MockTrading() {
     isPlacingOrder
   } = useMockTrading();
 
-  // Load crypto data
   const loadCryptoData = useCallback(async () => {
     try {
       const data = await cryptoDataService.getTopCryptos(100);
@@ -80,7 +62,6 @@ export default function MockTrading() {
     return () => clearInterval(interval);
   }, [loadCryptoData]);
 
-  // Get selected coin
   const selectedCoin = useMemo(() => {
     const symbol = selectedSymbol.replace('USDT', '').toLowerCase();
     return coins.find(c => c.symbol.toLowerCase() === symbol);
@@ -89,7 +70,6 @@ export default function MockTrading() {
   const currentPrice = selectedCoin?.current_price ?? 0;
   const priceChange24h = selectedCoin?.price_change_percentage_24h ?? 0;
 
-  // Filter coins
   const filteredCoins = useMemo(() => {
     if (!searchQuery) return coins;
     return coins.filter(coin => 
@@ -98,10 +78,8 @@ export default function MockTrading() {
     );
   }, [searchQuery, coins]);
 
-  // Update positions in real-time
   useEffect(() => {
     if (!openPositions.length || !coins.length) return;
-    
     const interval = setInterval(() => {
       openPositions.forEach(position => {
         const symbol = position.symbol.replace('USDT', '').toLowerCase();
@@ -111,17 +89,13 @@ export default function MockTrading() {
         }
       });
     }, 2000);
-
     return () => clearInterval(interval);
   }, [openPositions, coins, updatePrices]);
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  if (!user) return <Navigate to="/auth" replace />;
 
   const handlePlaceOrder = () => {
     if (!quantity || !currentPrice) return;
-
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) return;
 
@@ -145,7 +119,6 @@ export default function MockTrading() {
 
   const handleSetCustomBalance = async (newBalance: number) => {
     if (!user) return;
-    
     try {
       await supabase
         .from('mock_trading_accounts')
@@ -158,98 +131,87 @@ export default function MockTrading() {
           losing_trades: 0
         })
         .eq('user_id', user.id);
-      
       window.location.reload();
     } catch (error) {
       console.error('Failed to set custom balance:', error);
     }
   };
 
-  const handleApplyPositionSize = () => {
-    if (calculatedPositionSize > 0 && currentPrice > 0) {
-      const qty = calculatedPositionSize / currentPrice;
-      setQuantity(qty.toFixed(6));
-    }
-  };
-
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Top Header - Clean & Minimal */}
-      <div className="h-14 border-b border-border/40 bg-card/30 backdrop-blur-sm flex items-center justify-between px-4">
-        <div className="flex items-center gap-8">
-          <div>
-            <h1 className="text-base font-semibold">Paper Trading</h1>
-            <p className="text-[10px] text-muted-foreground">Real-time simulation</p>
-          </div>
-          
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Balance:</span>
-              <span className="font-semibold font-mono">
-                ${(account?.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    <div className="h-screen flex flex-col bg-[#0B0E11]">
+      {/* Top Header - 48px */}
+      <div className="h-12 bg-[#161A1E] border-b border-[#23262B] flex items-center justify-between px-3">
+        <div className="flex items-center gap-6 text-[11px]">
+          <span className="text-sm font-semibold text-white">Paper Trading</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#848E9C]">Balance:</span>
+              <span className="text-white font-mono font-medium">
+                ${(account?.balance || 0).toFixed(2)}
               </span>
             </div>
-            <Separator orientation="vertical" className="h-4" />
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Equity:</span>
-              <span className="font-semibold font-mono">${accountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              <span className={`font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#848E9C]">Equity:</span>
+              <span className="text-white font-mono font-medium">${accountValue.toFixed(2)}</span>
+              <span className={`font-mono font-medium ${totalReturn >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
                 {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
               </span>
             </div>
-            <Separator orientation="vertical" className="h-4" />
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">P&L:</span>
-              <span className={`font-semibold font-mono ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {totalUnrealizedPnL >= 0 ? '+' : ''}${Math.abs(totalUnrealizedPnL).toFixed(2)}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#848E9C]">Unrealized P&L:</span>
+              <span className={`font-mono font-medium ${totalUnrealizedPnL >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
               </span>
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setShowAnalytics(!showAnalytics)} className="h-8 text-xs">
-            <BarChart3 className="h-3.5 w-3.5 mr-1" />
-            Analytics
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setBalanceDialogOpen(true)} className="h-8 text-xs">
-            <Settings className="h-3.5 w-3.5 mr-1" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setBalanceDialogOpen(true)}
+            className="h-7 text-[11px] text-[#848E9C] hover:text-white hover:bg-[#23262B]"
+          >
+            <Settings className="h-3 w-3 mr-1" />
             Balance
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => resetAccount()} className="h-8 text-xs">
-            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => resetAccount()}
+            className="h-7 text-[11px] text-[#848E9C] hover:text-white hover:bg-[#23262B]"
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
             Reset
           </Button>
         </div>
       </div>
 
-      {/* Main Trading Layout */}
+      {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Coin List */}
-        <div className="w-64 border-r border-border/40 flex flex-col bg-card/20">
-          {/* Search */}
-          <div className="p-2 border-b border-border/40">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        {/* Left - Market List (240px) */}
+        <div className="w-60 bg-[#161A1E] border-r border-[#23262B] flex flex-col">
+          <div className="h-10 px-2 flex items-center border-b border-[#23262B]">
+            <div className="relative w-full">
+              <Search className="absolute left-2 top-2 h-3 w-3 text-[#474D57]" />
               <Input
-                placeholder="Search coins..."
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9 text-xs bg-background"
+                className="h-7 pl-7 text-[11px] bg-[#0B0E11] border-[#23262B] text-white placeholder:text-[#474D57]"
               />
             </div>
           </div>
-
-          {/* Coin List */}
+          
           <ScrollArea className="flex-1">
             {loading ? (
-              <div className="p-2 space-y-1">
+              <div className="p-2 space-y-0.5">
                 {[1,2,3,4,5].map((i) => (
-                  <div key={i} className="h-12 bg-muted/30 rounded animate-pulse" />
+                  <div key={i} className="h-11 bg-[#0B0E11] rounded animate-pulse" />
                 ))}
               </div>
             ) : (
-              <div className="p-1">
+              <div>
                 {filteredCoins.map((coin) => {
                   const symbol = `${coin.symbol.toUpperCase()}USDT`;
                   const isSelected = selectedSymbol === symbol;
@@ -257,30 +219,23 @@ export default function MockTrading() {
                     <button
                       key={coin.id}
                       onClick={() => setSelectedSymbol(symbol)}
-                      className={`w-full p-2 rounded transition-colors text-left ${
-                        isSelected 
-                          ? 'bg-primary/10 border-l-2 border-primary' 
-                          : 'hover:bg-muted/50 border-l-2 border-transparent'
+                      className={`w-full px-2 py-1.5 flex items-center justify-between hover:bg-[#23262B] transition-colors ${
+                        isSelected ? 'bg-[#23262B]' : ''
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate">{coin.symbol.toUpperCase()}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{coin.name}</p>
-                          </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <img src={coin.image} alt="" className="w-5 h-5 rounded-full" />
+                        <span className="text-[11px] font-medium text-white">{coin.symbol.toUpperCase()}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[11px] font-mono text-white">
+                          ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
                         </div>
-                        <div className="text-right ml-2">
-                          <p className="text-xs font-semibold font-mono">
-                            ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
-                          </p>
-                          <p className={`text-[10px] font-semibold ${
-                            (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                          }`}>
-                            {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
-                            {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
-                          </p>
+                        <div className={`text-[10px] font-mono ${
+                          (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                        }`}>
+                          {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
+                          {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
                         </div>
                       </div>
                     </button>
@@ -291,33 +246,28 @@ export default function MockTrading() {
           </ScrollArea>
         </div>
 
-        {/* Center - Chart Area */}
+        {/* Center - Chart */}
         <div className="flex-1 flex flex-col">
-          {/* Chart Header */}
-          <div className="h-12 border-b border-border/40 bg-card/10 flex items-center justify-between px-4">
-            <div className="flex items-center gap-4">
-              {selectedCoin && (
-                <img src={selectedCoin.image} alt={selectedCoin.name} className="w-6 h-6 rounded-full" />
-              )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{selectedCoin?.name || selectedSymbol.replace('USDT', '')}</span>
-                  <span className="text-[10px] text-muted-foreground">{selectedSymbol}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 ml-4">
-                <span className="text-lg font-bold font-mono">
+          <div className="h-10 bg-[#161A1E] border-b border-[#23262B] px-3 flex items-center gap-4">
+            {selectedCoin && (
+              <>
+                <img src={selectedCoin.image} alt="" className="w-5 h-5 rounded-full" />
+                <span className="text-[13px] font-semibold text-white">
+                  {selectedCoin.symbol.toUpperCase()}/USDT
+                </span>
+                <span className="text-lg font-mono font-semibold text-white">
                   ${currentPrice >= 1 ? currentPrice.toFixed(2) : currentPrice.toFixed(6)}
                 </span>
-                <span className={`text-sm font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                <span className={`text-[12px] font-mono font-semibold ${
+                  priceChange24h >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                }`}>
                   {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                 </span>
-              </div>
-            </div>
+              </>
+            )}
           </div>
-
-          {/* Chart */}
-          <div className="flex-1 bg-background">
+          
+          <div className="flex-1 bg-[#0B0E11]">
             <TradingViewChart
               coinId={selectedCoin?.id || 'bitcoin'}
               symbol={selectedCoin?.symbol || 'BTC'}
@@ -327,79 +277,86 @@ export default function MockTrading() {
           </div>
 
           {/* Bottom Panel - Positions & History */}
-          <div className="h-64 border-t border-border/40 bg-card/10">
+          <div className="h-56 bg-[#161A1E] border-t border-[#23262B]">
             <Tabs defaultValue="positions" className="h-full flex flex-col">
-              <TabsList className="w-full h-10 rounded-none border-b border-border/40 bg-transparent justify-start px-4">
-                <TabsTrigger value="positions" className="data-[state=active]:bg-background text-xs">
+              <TabsList className="h-9 rounded-none bg-transparent border-b border-[#23262B] justify-start px-3">
+                <TabsTrigger 
+                  value="positions" 
+                  className="text-[11px] data-[state=active]:text-white data-[state=active]:bg-[#23262B] text-[#848E9C]"
+                >
                   Positions ({openPositions.length})
                 </TabsTrigger>
-                <TabsTrigger value="history" className="data-[state=active]:bg-background text-xs">
-                  History ({history.length})
+                <TabsTrigger 
+                  value="history" 
+                  className="text-[11px] data-[state=active]:text-white data-[state=active]:bg-[#23262B] text-[#848E9C]"
+                >
+                  History
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="analytics" 
+                  className="text-[11px] data-[state=active]:text-white data-[state=active]:bg-[#23262B] text-[#848E9C]"
+                >
+                  Analytics
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="positions" className="flex-1 overflow-hidden m-0">
                 <ScrollArea className="h-full">
                   {openPositions.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                      <Activity className="h-10 w-10 mb-2 opacity-30" />
-                      <p className="text-sm">No open positions</p>
+                    <div className="flex items-center justify-center h-full text-[#474D57] text-[11px]">
+                      No Open Positions
                     </div>
                   ) : (
-                    <div className="p-4">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-border/40">
-                            <th className="text-left pb-2 font-medium text-muted-foreground">Symbol</th>
-                            <th className="text-left pb-2 font-medium text-muted-foreground">Side</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">Size</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">Entry</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">Current</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">P&L</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">P&L%</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">Action</th>
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-[#0B0E11]">
+                        <tr className="text-[#848E9C] text-left">
+                          <th className="py-2 px-3 font-medium">Symbol</th>
+                          <th className="py-2 px-3 font-medium">Side</th>
+                          <th className="py-2 px-3 font-medium text-right">Size</th>
+                          <th className="py-2 px-3 font-medium text-right">Entry Price</th>
+                          <th className="py-2 px-3 font-medium text-right">Mark Price</th>
+                          <th className="py-2 px-3 font-medium text-right">PnL</th>
+                          <th className="py-2 px-3 font-medium text-right">PnL%</th>
+                          <th className="py-2 px-3 font-medium text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {openPositions.map((pos) => (
+                          <tr key={pos.id} className="border-t border-[#23262B] hover:bg-[#23262B]/50">
+                            <td className="py-2 px-3 text-white font-medium">{pos.symbol.replace('USDT', '')}</td>
+                            <td className="py-2 px-3">
+                              <span className={`text-[10px] font-semibold ${
+                                pos.side === 'BUY' ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                              }`}>
+                                {pos.side}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-white">{pos.quantity.toFixed(4)}</td>
+                            <td className="py-2 px-3 text-right font-mono text-white">${pos.entry_price.toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right font-mono text-white">${pos.current_price.toFixed(2)}</td>
+                            <td className={`py-2 px-3 text-right font-mono font-semibold ${
+                              pos.unrealized_pnl >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                            }`}>
+                              {pos.unrealized_pnl >= 0 ? '+' : ''}${pos.unrealized_pnl.toFixed(2)}
+                            </td>
+                            <td className={`py-2 px-3 text-right font-mono font-semibold ${
+                              pos.unrealized_pnl_percent >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                            }`}>
+                              {pos.unrealized_pnl_percent >= 0 ? '+' : ''}{pos.unrealized_pnl_percent.toFixed(2)}%
+                            </td>
+                            <td className="py-2 px-3 text-right">
+                              <Button
+                                size="sm"
+                                onClick={() => closePosition({ positionId: pos.id, exitPrice: pos.current_price })}
+                                className="h-6 text-[10px] bg-[#F6465D] hover:bg-[#F6465D]/80 text-white"
+                              >
+                                Close
+                              </Button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {openPositions.map((position) => (
-                            <tr key={position.id} className="border-b border-border/40 hover:bg-muted/30">
-                              <td className="py-3 font-semibold">{position.symbol.replace('USDT', '')}</td>
-                              <td className="py-3">
-                                <Badge 
-                                  variant={position.side === 'BUY' ? 'default' : 'secondary'}
-                                  className="text-[10px] px-2"
-                                >
-                                  {position.side}
-                                </Badge>
-                              </td>
-                              <td className="py-3 text-right font-mono">{position.quantity.toFixed(4)}</td>
-                              <td className="py-3 text-right font-mono">${position.entry_price.toFixed(2)}</td>
-                              <td className="py-3 text-right font-mono">${position.current_price.toFixed(2)}</td>
-                              <td className={`py-3 text-right font-mono font-semibold ${
-                                position.unrealized_pnl >= 0 ? 'text-green-500' : 'text-red-500'
-                              }`}>
-                                {position.unrealized_pnl >= 0 ? '+' : ''}${position.unrealized_pnl.toFixed(2)}
-                              </td>
-                              <td className={`py-3 text-right font-mono font-semibold ${
-                                position.unrealized_pnl_percent >= 0 ? 'text-green-500' : 'text-red-500'
-                              }`}>
-                                {position.unrealized_pnl_percent >= 0 ? '+' : ''}{position.unrealized_pnl_percent.toFixed(2)}%
-                              </td>
-                              <td className="py-3 text-right">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => closePosition({ positionId: position.id, exitPrice: position.current_price })}
-                                  className="h-7 text-xs"
-                                >
-                                  Close
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
                 </ScrollArea>
               </TabsContent>
@@ -407,91 +364,102 @@ export default function MockTrading() {
               <TabsContent value="history" className="flex-1 overflow-hidden m-0">
                 <ScrollArea className="h-full">
                   {history.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                      <History className="h-10 w-10 mb-2 opacity-30" />
-                      <p className="text-sm">No trading history</p>
+                    <div className="flex items-center justify-center h-full text-[#474D57] text-[11px]">
+                      No Trade History
                     </div>
                   ) : (
-                    <div className="p-4">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-b border-border/40">
-                            <th className="text-left pb-2 font-medium text-muted-foreground">Symbol</th>
-                            <th className="text-left pb-2 font-medium text-muted-foreground">Side</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">Entry</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">Exit</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">P&L</th>
-                            <th className="text-right pb-2 font-medium text-muted-foreground">P&L%</th>
-                            <th className="text-left pb-2 font-medium text-muted-foreground">Time</th>
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-[#0B0E11]">
+                        <tr className="text-[#848E9C] text-left">
+                          <th className="py-2 px-3 font-medium">Symbol</th>
+                          <th className="py-2 px-3 font-medium">Side</th>
+                          <th className="py-2 px-3 font-medium text-right">Entry</th>
+                          <th className="py-2 px-3 font-medium text-right">Exit</th>
+                          <th className="py-2 px-3 font-medium text-right">PnL</th>
+                          <th className="py-2 px-3 font-medium text-right">PnL%</th>
+                          <th className="py-2 px-3 font-medium">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {history.slice(0, 50).map((trade) => (
+                          <tr key={trade.id} className="border-t border-[#23262B] hover:bg-[#23262B]/50">
+                            <td className="py-2 px-3 text-white font-medium">{trade.symbol.replace('USDT', '')}</td>
+                            <td className="py-2 px-3">
+                              <span className={`text-[10px] font-semibold ${
+                                trade.side === 'BUY' ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                              }`}>
+                                {trade.side}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-white">${trade.entry_price.toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right font-mono text-white">${trade.exit_price.toFixed(2)}</td>
+                            <td className={`py-2 px-3 text-right font-mono font-semibold ${
+                              trade.profit_loss >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                            }`}>
+                              {trade.profit_loss >= 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}
+                            </td>
+                            <td className={`py-2 px-3 text-right font-mono font-semibold ${
+                              trade.profit_loss_percent >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'
+                            }`}>
+                              {trade.profit_loss_percent >= 0 ? '+' : ''}{trade.profit_loss_percent.toFixed(2)}%
+                            </td>
+                            <td className="py-2 px-3 text-[#848E9C]">{new Date(trade.closed_at).toLocaleString()}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {history.slice(0, 50).map((trade) => (
-                            <tr key={trade.id} className="border-b border-border/40 hover:bg-muted/30">
-                              <td className="py-3 font-semibold">{trade.symbol.replace('USDT', '')}</td>
-                              <td className="py-3">
-                                <Badge 
-                                  variant={trade.side === 'BUY' ? 'default' : 'secondary'}
-                                  className="text-[10px] px-2"
-                                >
-                                  {trade.side}
-                                </Badge>
-                              </td>
-                              <td className="py-3 text-right font-mono">${trade.entry_price.toFixed(2)}</td>
-                              <td className="py-3 text-right font-mono">${trade.exit_price.toFixed(2)}</td>
-                              <td className={`py-3 text-right font-mono font-semibold ${
-                                trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'
-                              }`}>
-                                {trade.profit_loss >= 0 ? '+' : ''}${trade.profit_loss.toFixed(2)}
-                              </td>
-                              <td className={`py-3 text-right font-mono font-semibold ${
-                                trade.profit_loss_percent >= 0 ? 'text-green-500' : 'text-red-500'
-                              }`}>
-                                {trade.profit_loss_percent >= 0 ? '+' : ''}{trade.profit_loss_percent.toFixed(2)}%
-                              </td>
-                              <td className="py-3 text-muted-foreground">
-                                {new Date(trade.closed_at).toLocaleString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="analytics" className="flex-1 overflow-hidden m-0">
+                <ScrollArea className="h-full">
+                  <div className="p-3">
+                    <TradingAnalytics account={account} history={history} />
+                  </div>
                 </ScrollArea>
               </TabsContent>
             </Tabs>
           </div>
         </div>
 
-        {/* Right Sidebar - Order Entry */}
-        <div className="w-80 border-l border-border/40 flex flex-col bg-card/20">
-          {/* Order Form */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-4">
-              {/* Side Selector */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={orderSide === 'BUY' ? 'default' : 'outline'}
+        {/* Right - Order Entry (280px) */}
+        <div className="w-72 bg-[#161A1E] border-l border-[#23262B] flex flex-col">
+          <div className="h-10 px-3 flex items-center border-b border-[#23262B]">
+            <span className="text-[11px] font-semibold text-white">Spot</span>
+          </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-3 space-y-3">
+              {/* Buy/Sell Tabs */}
+              <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#0B0E11] rounded">
+                <button
                   onClick={() => setOrderSide('BUY')}
-                  className={`h-10 ${orderSide === 'BUY' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-green-600/10 hover:text-green-600'}`}
+                  className={`py-1.5 text-[11px] font-semibold rounded transition-colors ${
+                    orderSide === 'BUY' 
+                      ? 'bg-[#0ECB81] text-white' 
+                      : 'text-[#848E9C] hover:text-white'
+                  }`}
                 >
-                  Buy / Long
-                </Button>
-                <Button
-                  variant={orderSide === 'SELL' ? 'default' : 'outline'}
+                  Buy
+                </button>
+                <button
                   onClick={() => setOrderSide('SELL')}
-                  className={`h-10 ${orderSide === 'SELL' ? 'bg-red-600 hover:bg-red-700 text-white' : 'hover:bg-red-600/10 hover:text-red-600'}`}
+                  className={`py-1.5 text-[11px] font-semibold rounded transition-colors ${
+                    orderSide === 'SELL' 
+                      ? 'bg-[#F6465D] text-white' 
+                      : 'text-[#848E9C] hover:text-white'
+                  }`}
                 >
-                  Sell / Short
-                </Button>
+                  Sell
+                </button>
               </div>
 
               {/* Leverage */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs">Leverage</Label>
-                  <Badge variant="secondary" className="text-xs font-mono">{leverage}x</Badge>
+                  <span className="text-[11px] text-[#848E9C]">Leverage</span>
+                  <span className="text-[11px] font-mono text-white font-semibold">{leverage}x</span>
                 </div>
                 <Slider
                   value={[leverage]}
@@ -499,164 +467,96 @@ export default function MockTrading() {
                   min={1}
                   max={125}
                   step={1}
-                  className="w-full"
+                  className="[&_[role=slider]]:bg-[#FCD535] [&_[role=slider]]:border-0"
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
+                <div className="flex justify-between text-[9px] text-[#474D57]">
                   <span>1x</span>
-                  <span>25x</span>
                   <span>50x</span>
                   <span>125x</span>
                 </div>
               </div>
 
-              {/* Quantity */}
-              <div className="space-y-2">
-                <Label className="text-xs">Amount ({selectedSymbol.replace('USDT', '')})</Label>
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-[#848E9C]">Amount</span>
+                  <span className="text-[10px] text-[#474D57]">{selectedSymbol.replace('USDT', '')}</span>
+                </div>
                 <Input
                   type="number"
                   step="0.001"
                   placeholder="0.00"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  className="h-10 font-mono"
+                  className="h-9 text-[11px] font-mono bg-[#0B0E11] border-[#23262B] text-white"
                 />
                 {quantity && currentPrice > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    ≈ ${(parseFloat(quantity) * currentPrice).toFixed(2)} USD
-                  </p>
+                  <div className="text-[10px] text-[#848E9C]">
+                    ≈ ${(parseFloat(quantity) * currentPrice).toFixed(2)}
+                  </div>
                 )}
               </div>
 
-              {/* Quick Percentage */}
-              <div className="grid grid-cols-4 gap-2">
-                {[25, 50, 75, 100].map((percent) => (
-                  <Button
-                    key={percent}
-                    variant="outline"
-                    size="sm"
+              {/* Quick % */}
+              <div className="grid grid-cols-4 gap-1">
+                {[25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
                     onClick={() => {
                       const balance = account?.balance || 0;
-                      const amount = (balance * (percent / 100)) / currentPrice;
-                      setQuantity(amount.toFixed(6));
+                      const amt = (balance * (pct / 100)) / currentPrice;
+                      setQuantity(amt.toFixed(6));
                     }}
-                    className="h-8 text-xs"
+                    className="py-1 text-[10px] font-medium text-[#848E9C] hover:text-white bg-[#0B0E11] rounded transition-colors"
                   >
-                    {percent}%
-                  </Button>
+                    {pct}%
+                  </button>
                 ))}
               </div>
 
-              <Separator />
-
-              {/* Stop Loss & Take Profit */}
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label className="text-xs">Stop Loss (Optional)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={stopLoss}
-                    onChange={(e) => setStopLoss(e.target.value)}
-                    className="h-9 font-mono"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Take Profit (Optional)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={takeProfit}
-                    onChange={(e) => setTakeProfit(e.target.value)}
-                    className="h-9 font-mono"
-                  />
-                </div>
+              {/* Stop Loss */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] text-[#848E9C]">Stop Loss</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Optional"
+                  value={stopLoss}
+                  onChange={(e) => setStopLoss(e.target.value)}
+                  className="h-8 text-[11px] font-mono bg-[#0B0E11] border-[#23262B] text-white"
+                />
               </div>
 
-              {/* Place Order Button */}
+              {/* Take Profit */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] text-[#848E9C]">Take Profit</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Optional"
+                  value={takeProfit}
+                  onChange={(e) => setTakeProfit(e.target.value)}
+                  className="h-8 text-[11px] font-mono bg-[#0B0E11] border-[#23262B] text-white"
+                />
+              </div>
+
+              {/* Place Order */}
               <Button
-                className={`w-full h-11 font-semibold ${
-                  orderSide === 'BUY' 
-                    ? 'bg-green-600 hover:bg-green-700 text-white' 
-                    : 'bg-red-600 hover:bg-red-700 text-white'
-                }`}
                 onClick={handlePlaceOrder}
                 disabled={!quantity || !currentPrice || isPlacingOrder}
+                className={`w-full h-10 text-[12px] font-semibold ${
+                  orderSide === 'BUY' 
+                    ? 'bg-[#0ECB81] hover:bg-[#0ECB81]/80 text-white' 
+                    : 'bg-[#F6465D] hover:bg-[#F6465D]/80 text-white'
+                }`}
               >
-                {isPlacingOrder ? 'Placing Order...' : `${orderSide === 'BUY' ? 'Open Long' : 'Open Short'}`}
-              </Button>
-
-              {/* Risk Management Tool */}
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowRiskPanel(!showRiskPanel)}
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Risk Management
+                {isPlacingOrder ? 'Placing...' : orderSide === 'BUY' ? 'Buy / Long' : 'Sell / Short'}
               </Button>
             </div>
-          </div>
+          </ScrollArea>
         </div>
-
-        {/* Risk Panel Overlay */}
-        {showRiskPanel && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="w-full max-w-2xl max-h-[80vh] bg-card rounded-lg shadow-lg border border-border overflow-hidden">
-              <div className="p-4 border-b border-border flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Risk Management</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowRiskPanel(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <ScrollArea className="max-h-[calc(80vh-80px)]">
-                <div className="p-4">
-                  <RiskManagementPanel
-                    accountBalance={account?.balance || 0}
-                    currentPrice={currentPrice}
-                    symbol={selectedSymbol}
-                    openPositionsCount={openPositions.length}
-                    onPositionSizeCalculated={setCalculatedPositionSize}
-                  />
-                  {calculatedPositionSize > 0 && (
-                    <Button
-                      className="w-full mt-4"
-                      onClick={() => {
-                        handleApplyPositionSize();
-                        setShowRiskPanel(false);
-                      }}
-                    >
-                      Apply to Order
-                    </Button>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          </div>
-        )}
-
-        {/* Analytics Panel Overlay */}
-        {showAnalytics && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="w-full max-w-4xl max-h-[80vh] bg-card rounded-lg shadow-lg border border-border overflow-hidden">
-              <div className="p-4 border-b border-border flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Trading Analytics</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowAnalytics(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <ScrollArea className="max-h-[calc(80vh-80px)]">
-                <div className="p-4">
-                  <TradingAnalytics account={account} history={history} />
-                </div>
-              </ScrollArea>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Custom Balance Dialog */}
       <CustomBalanceDialog
         open={balanceDialogOpen}
         onOpenChange={setBalanceDialogOpen}
