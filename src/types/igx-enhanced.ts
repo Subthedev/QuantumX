@@ -266,6 +266,26 @@ export interface IGXSystemStatus {
 }
 
 // ============================================================================
+// SIGNAL TYPES
+// ============================================================================
+
+export interface SignalCandidate {
+  symbol: string;
+  type: 'LONG' | 'SHORT';
+  confidence: number;
+  entry: number;
+  takeProfit: number;
+  stopLoss: number;
+  timestamp: number;
+}
+
+export interface IGXSignal extends SignalCandidate {
+  id: string;
+  strategyName: string;
+  riskReward: number;
+}
+
+// ============================================================================
 // UTILITY TYPES
 // ============================================================================
 
