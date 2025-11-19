@@ -1,7 +1,7 @@
 # Complete Mailgun + Supabase Email Setup Guide for IgniteX
 
-**Professional Email**: `contact@ignitexagency.com`
-**Domain**: `ignitexagency.com`
+**Professional Email**: `contact@ignitex.live`
+**Domain**: `ignitex.live`
 **Purpose**: Enable email verification and password reset for IgniteX application
 
 ---
@@ -27,10 +27,10 @@
 3. Click **"Domains"** (or **"Domain Settings"**)
 4. Click **"Add New Domain"** button
 5. Enter your domain:
-   - **Domain Name**: `mg.ignitexagency.com` (recommended subdomain approach)
-   - OR use: `ignitexagency.com` (root domain)
+   - **Domain Name**: `mg.ignitex.live` (recommended subdomain approach)
+   - OR use: `ignitex.live` (root domain)
 
-   > ⚠️ **Recommended**: Use `mg.ignitexagency.com` subdomain to avoid conflicts with existing email
+   > ⚠️ **Recommended**: Use `mg.ignitex.live` subdomain to avoid conflicts with existing email
 
 6. **Region**: Choose **US** or **EU** based on your location
 7. **DKIM Key Length**: Keep default (2048 bits)
@@ -45,33 +45,33 @@ After adding the domain, you'll see a page with **DNS Records** that need to be 
 #### 1. TXT Record (SPF)
 ```
 Type: TXT
-Name: mg.ignitexagency.com (or @)
+Name: mg.ignitex.live (or @)
 Value: v=spf1 include:mailgun.org ~all
 ```
 
 #### 2. TXT Record (DKIM)
 ```
 Type: TXT
-Name: k1._domainkey.mg.ignitexagency.com
+Name: k1._domainkey.mg.ignitex.live
 Value: k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC... (long string)
 ```
 
 #### 3. CNAME Record (Tracking)
 ```
 Type: CNAME
-Name: email.mg.ignitexagency.com
+Name: email.mg.ignitex.live
 Value: mailgun.org
 ```
 
 #### 4. MX Records (Receiving - Optional)
 ```
 Type: MX
-Name: mg.ignitexagency.com
+Name: mg.ignitex.live
 Value: mxa.mailgun.org
 Priority: 10
 
 Type: MX
-Name: mg.ignitexagency.com
+Name: mg.ignitex.live
 Value: mxb.mailgun.org
 Priority: 10
 ```
@@ -80,12 +80,12 @@ Priority: 10
 
 ### Step 4: Add DNS Records to Your Domain Provider
 
-You need to add these records to wherever you manage DNS for `ignitexagency.com` (GoDaddy, Namecheap, Cloudflare, etc.)
+You need to add these records to wherever you manage DNS for `ignitex.live` (GoDaddy, Namecheap, Cloudflare, etc.)
 
 #### If Using Cloudflare:
 
 1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Select **ignitexagency.com** domain
+2. Select **ignitex.live** domain
 3. Click **"DNS"** in the left sidebar
 4. Click **"Add record"** button
 
@@ -124,7 +124,7 @@ Repeat for `mxb.mailgun.org` with priority 10
 
 1. Log in to GoDaddy
 2. Go to **My Products** → **Domains**
-3. Click **DNS** next to ignitexagency.com
+3. Click **DNS** next to ignitex.live
 4. Scroll to **Records** section
 5. Click **Add** button
 
@@ -133,14 +133,14 @@ Follow similar steps as Cloudflare, using the records from Mailgun.
 #### If Using Namecheap:
 
 1. Log in to Namecheap
-2. Click **Domain List** → Select **ignitexagency.com**
+2. Click **Domain List** → Select **ignitex.live**
 3. Click **Advanced DNS** tab
 4. Add records following the same pattern
 
 ### Step 5: Verify Domain in Mailgun
 
 1. Return to Mailgun Dashboard → **Sending** → **Domains**
-2. Click on **mg.ignitexagency.com**
+2. Click on **mg.ignitex.live**
 3. Click **"Verify DNS Settings"** button
 4. Wait for verification (can take 24-48 hours for DNS propagation)
 5. You should see **green checkmarks** next to each record when verified
@@ -150,9 +150,9 @@ Follow similar steps as Cloudflare, using the records from Mailgun.
 ### Step 6: Create SMTP Credentials
 
 1. In Mailgun Dashboard, go to **Sending** → **Domain Settings**
-2. Select your domain: **mg.ignitexagency.com**
+2. Select your domain: **mg.ignitex.live**
 3. Click on **"SMTP Credentials"** tab
-4. You'll see a default credential like `postmaster@mg.ignitexagency.com`
+4. You'll see a default credential like `postmaster@mg.ignitex.live`
 5. Click **"Reset Password"** button
 6. **IMPORTANT**: A popup will show your new password - **COPY IT IMMEDIATELY**
    - This password will NOT be shown again!
@@ -165,9 +165,9 @@ Follow similar steps as Cloudflare, using the records from Mailgun.
 ```
 SMTP Host: smtp.mailgun.org
 SMTP Port: 587 (recommended) or 465 (SSL)
-SMTP Username: postmaster@mg.ignitexagency.com
+SMTP Username: postmaster@mg.ignitex.live
 SMTP Password: [The password you just copied]
-From Email: contact@ignitexagency.com
+From Email: contact@ignitex.live
 From Name: IgniteX
 ```
 
@@ -198,7 +198,7 @@ IgniteX
 
 **SMTP sender email:**
 ```
-contact@ignitexagency.com
+contact@ignitex.live
 ```
 
 **SMTP host:**
@@ -213,7 +213,7 @@ smtp.mailgun.org
 
 **SMTP username:**
 ```
-postmaster@mg.ignitexagency.com
+postmaster@mg.ignitex.live
 ```
 
 **SMTP password:**
@@ -223,12 +223,12 @@ postmaster@mg.ignitexagency.com
 
 **SMTP admin email:**
 ```
-contact@ignitexagency.com
+contact@ignitex.live
 ```
 
 > ⚠️ **Common Mistake**: Don't confuse "SMTP admin email" with "SMTP username". They are different!
-> - **SMTP username**: `postmaster@mg.ignitexagency.com` (from Mailgun)
-> - **SMTP admin email**: `contact@ignitexagency.com` (your professional email)
+> - **SMTP username**: `postmaster@mg.ignitex.live` (from Mailgun)
+> - **SMTP admin email**: `contact@ignitex.live` (your professional email)
 
 ### Step 4: Save SMTP Configuration
 
@@ -259,19 +259,19 @@ Scroll down to **"URL Configuration"** section:
 
 **Site URL:**
 ```
-https://ignitexagency.com
+https://ignitex.live
 ```
 
 **Redirect URLs** (add these):
 ```
-https://ignitexagency.com/email-verified
-https://ignitexagency.com/reset-password
+https://ignitex.live/email-verified
+https://ignitex.live/reset-password
 ```
 
 > **Important - Production URLs Only**:
 > - The app is configured to **always use production URLs** for email verification
-> - Email verification links redirect to `https://ignitexagency.com/email-verified`
-> - Password reset links redirect to `https://ignitexagency.com/reset-password`
+> - Email verification links redirect to `https://ignitex.live/email-verified`
+> - Password reset links redirect to `https://ignitex.live/reset-password`
 > - This ensures verification works on **both desktop and mobile devices**
 > - Users can sign up from localhost, but will be verified and logged in on production
 > - No need for localhost or local IP redirect URLs!
@@ -281,7 +281,7 @@ Click **"Add URL"** for each one, then **Save**
 > **How It Works**:
 > 1. User signs up (from localhost or production)
 > 2. Clicks verification link in email
-> 3. Redirected to **https://ignitexagency.com/email-verified**
+> 3. Redirected to **https://ignitex.live/email-verified**
 > 4. Sees success message with checkmark
 > 5. **Automatically logged in on production**
 > 6. Redirected to dashboard after 3 seconds
@@ -472,7 +472,7 @@ Click **Save**
 4. Click **"Sign Up"**
 5. You should see: **"Check Your Email"** screen
 6. **Check your email inbox** (and spam folder)
-7. You should receive an email from `contact@ignitexagency.com`
+7. You should receive an email from `contact@ignitex.live`
 8. Click the **"Confirm Email Address"** button
 9. Should redirect to `/auth` page
 10. Sign in with your credentials ✅
@@ -519,7 +519,7 @@ Click **Save**
 #### Issue 1: "SMTP connection failed"
 **Solution:**
 - Double-check SMTP username and password
-- Make sure you're using `postmaster@mg.ignitexagency.com` not `contact@ignitexagency.com`
+- Make sure you're using `postmaster@mg.ignitex.live` not `contact@ignitex.live`
 - Verify port is 587
 - Check for extra spaces in credentials
 
@@ -528,7 +528,7 @@ Click **Save**
 - Make sure SPF and DKIM records are properly configured in DNS
 - Wait 24-48 hours for DNS propagation
 - Add DMARC record (optional but recommended)
-- Ask recipients to whitelist `contact@ignitexagency.com`
+- Ask recipients to whitelist `contact@ignitex.live`
 
 #### Issue 3: "Domain not verified"
 **Solution:**
@@ -554,8 +554,8 @@ Click **Save**
 #### Issue 6: Verification link redirects to localhost
 **Solution:**
 - **This happens in development** - Supabase uses `window.location.origin` which is `http://localhost:8080`
-- **For production**: Make sure production URL `https://ignitexagency.com/auth` is in Supabase redirect URLs
-- **Quick fix for testing**: Manually edit the URL in email from `localhost:8080` to `ignitexagency.com`
+- **For production**: Make sure production URL `https://ignitex.live/auth` is in Supabase redirect URLs
+- **Quick fix for testing**: Manually edit the URL in email from `localhost:8080` to `ignitex.live`
 - **Proper fix**: Deploy to production and test there, OR configure Supabase environment
 
 #### Issue 7: Verification link doesn't work on mobile
@@ -570,9 +570,9 @@ Click **Save**
    - Update Supabase redirect URLs to include `http://192.168.1.4:8080/email-verified`
    - Make sure mobile is on the **same WiFi network** as your computer
 
-2. **If using production (ignitexagency.com):**
+2. **If using production (ignitex.live):**
    - Make sure HTTPS is enabled and certificate is valid
-   - Check that `https://ignitexagency.com/email-verified` is in Supabase redirect URLs
+   - Check that `https://ignitex.live/email-verified` is in Supabase redirect URLs
    - Try opening the link in mobile browser directly (not in email app's internal viewer)
    - Some email apps block external links - long-press link and choose "Open in Browser"
 
@@ -615,8 +615,8 @@ Add this TXT record to your DNS:
 
 ```
 Type: TXT
-Name: _dmarc.mg.ignitexagency.com
-Value: v=DMARC1; p=none; rua=mailto:contact@ignitexagency.com
+Name: _dmarc.mg.ignitex.live
+Value: v=DMARC1; p=none; rua=mailto:contact@ignitex.live
 ```
 
 This helps with email deliverability and gives you reports.
@@ -656,11 +656,11 @@ Configure Mailgun webhooks to track:
         IGNITEX EMAIL CONFIGURATION
 ═══════════════════════════════════════════
 
-MAILGUN DOMAIN: mg.ignitexagency.com
+MAILGUN DOMAIN: mg.ignitex.live
 SMTP HOST: smtp.mailgun.org
 SMTP PORT: 587
-SMTP USER: postmaster@mg.ignitexagency.com
-FROM EMAIL: contact@ignitexagency.com
+SMTP USER: postmaster@mg.ignitex.live
+FROM EMAIL: contact@ignitex.live
 
 SUPABASE PROJECT: ignitex (vidziydspeewmcexqicg)
 
@@ -670,7 +670,7 @@ DASHBOARDS:
 
 EMAIL FLOW:
 1. User signs up
-2. Email sent from contact@ignitexagency.com
+2. Email sent from contact@ignitex.live
 3. Powered by Mailgun SMTP
 4. User clicks verification link
 5. Redirects to /auth
@@ -690,4 +690,4 @@ EMAIL FLOW:
 
 ---
 
-**🎉 You're all set!** Your IgniteX app can now send professional emails from `contact@ignitexagency.com` via Mailgun SMTP.
+**🎉 You're all set!** Your IgniteX app can now send professional emails from `contact@ignitex.live` via Mailgun SMTP.

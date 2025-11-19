@@ -143,20 +143,27 @@ class StrategyPerformanceTracker {
   }
 
   /**
-   * Get performance metrics for all strategies
+   * Get performance metrics for all strategies (17 institutional-grade strategies)
    */
   async getAllStrategyPerformances(): Promise<StrategyPerformance[]> {
     const strategyNames: StrategyName[] = [
       'WHALE_SHADOW',
       'SPRING_TRAP',
       'MOMENTUM_SURGE',
+      'MOMENTUM_SURGE_V2',
+      'MOMENTUM_RECOVERY',
       'FUNDING_SQUEEZE',
       'ORDER_FLOW_TSUNAMI',
       'FEAR_GREED_CONTRARIAN',
       'GOLDEN_CROSS_MOMENTUM',
       'MARKET_PHASE_SNIPER',
       'LIQUIDITY_HUNTER',
-      'VOLATILITY_BREAKOUT'
+      'VOLATILITY_BREAKOUT',
+      'STATISTICAL_ARBITRAGE',
+      'ORDER_BOOK_MICROSTRUCTURE',
+      'LIQUIDATION_CASCADE_PREDICTION',
+      'CORRELATION_BREAKDOWN_DETECTOR',
+      'BOLLINGER_MEAN_REVERSION'
     ];
 
     const performances = await Promise.all(

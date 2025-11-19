@@ -51,10 +51,10 @@ export function useMockTrading(symbol?: string) {
       } else {
         soundManager.play('order_sell');
       }
-      
+
       // Trigger haptic feedback
       hapticManager.orderPlaced(data.side);
-      
+
       toast({
         title: 'Order Placed',
         description: `${data.side} ${data.quantity} ${data.symbol} at $${data.entry_price.toFixed(2)}`,
@@ -66,7 +66,7 @@ export function useMockTrading(symbol?: string) {
       // Play error sound and haptic
       soundManager.play('error');
       hapticManager.orderFailed();
-      
+
       toast({
         title: 'Order Failed',
         description: error.message,
@@ -79,21 +79,21 @@ export function useMockTrading(symbol?: string) {
   const closePositionMutation = useMutation({
     mutationFn: async ({ positionId, exitPrice }: { positionId: string; exitPrice: number }) => {
       if (!user) throw new Error('User not authenticated');
-      
+
       // Get position before closing to calculate profit
       const position = openPositions.find(p => p.id === positionId);
       const profit = position?.unrealized_pnl || 0;
-      
+
       const result = await mockTradingService.closePosition(user.id, positionId, exitPrice);
       return { result, profit };
     },
     onSuccess: (data) => {
       // Play sound for order filled
       soundManager.play('order_filled');
-      
+
       // Trigger haptic based on profit/loss
       hapticManager.positionClosed(data.profit);
-      
+
       toast({
         title: 'Position Closed',
         description: 'Your position has been closed successfully',
@@ -106,7 +106,7 @@ export function useMockTrading(symbol?: string) {
       // Play error sound and haptic
       soundManager.play('error');
       hapticManager.orderFailed();
-      
+
       toast({
         title: 'Close Failed',
         description: error.message,

@@ -21,6 +21,7 @@ import { igxAlphaModel } from './IGXAlphaModel';
 import { igxBetaModel } from './IGXBetaModel';
 import { igxQualityChecker } from './IGXQualityChecker';
 import type { IGXSignal } from './IGXBetaModel';
+import { globalHubService } from '../globalHubService';
 
 export interface IGXSystemStatus {
   status: 'RUNNING' | 'STOPPED' | 'ERROR';
@@ -183,7 +184,7 @@ export class IGXSystemOrchestrator {
   /**
    * Handle approved signal
    */
-  private handleApprovedSignal(event: CustomEvent) {
+  private async handleApprovedSignal(event: CustomEvent) {
     const signal: IGXSignal = event.detail;
 
     // Record signal
@@ -202,6 +203,30 @@ export class IGXSystemOrchestrator {
 
     // Log signal
     this.logSignal(signal);
+
+    // 🚀 CRITICAL: Send signal to Global Hub Service for Arena integration
+    try {
+      const hubSignal = {
+        id: signal.id,
+        symbol: signal.symbol,
+        direction: signal.direction,
+        confidence: signal.confidence,
+        grade: signal.qualityScore >= 80 ? 'A+' : signal.qualityScore >= 70 ? 'A' : signal.qualityScore >= 60 ? 'B' : 'C',
+        strategy: signal.winningStrategy,
+        qualityScore: signal.qualityScore,
+        timestamp: signal.timestamp,
+        entry: signal.entryPrice,
+        stopLoss: signal.stopLoss,
+        targets: signal.targets,
+        riskRewardRatio: signal.riskRewardRatio
+      };
+
+      // Add signal to Global Hub (which will emit 'signal:new' event)
+      await globalHubService.addSignal(hubSignal);
+      console.log(`[IGX System] ✅ Signal sent to Global Hub: ${signal.symbol} ${signal.direction} via ${signal.winningStrategy}`);
+    } catch (error) {
+      console.error('[IGX System] ⚠️ Failed to send signal to Global Hub:', error);
+    }
 
     // Simulate execution (in production, would send to exchange)
     this.simulateExecution(signal);

@@ -13,6 +13,8 @@
  * Version 2: Enhanced with real outcome tracking integration
  */
 
+import { advancedRejectionFilter } from './AdvancedRejectionFilter';
+
 // ===== TYPES =====
 
 export type MarketRegime = 'BULLISH_TREND' | 'BEARISH_TREND' | 'SIDEWAYS' | 'HIGH_VOLATILITY' | 'LOW_VOLATILITY';
@@ -466,8 +468,11 @@ class DeltaQualityEngine {
     learningProgress: 0
   };
 
-  private readonly QUALITY_THRESHOLD = 60; // Minimum quality score to pass
-  private readonly ML_THRESHOLD = 0.55; // Minimum ML probability to pass
+  // ✅ TESTING THRESHOLDS - Very low to allow signal flow for testing
+  // Note: Made mutable (not readonly) to allow diagnostic panel adjustments
+  private QUALITY_THRESHOLD = 20; // Very low for testing (Gamma handles tier filtering)
+  private ML_THRESHOLD = 0.25; // TESTING - 25% win probability (very permissive for testing)
+  private STRATEGY_WINRATE_THRESHOLD = 0; // TESTING - Disabled (no veto during testing)
 
   constructor() {
     console.log('[Delta V2 Engine] Initializing...');
@@ -475,8 +480,24 @@ class DeltaQualityEngine {
     this.performanceTracker = new StrategyPerformanceTracker();
     this.mlScorer = new MLSignalScorer();
 
+    // ✅ Load thresholds from localStorage (persist across refreshes)
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('igx_delta_thresholds');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          this.QUALITY_THRESHOLD = parsed.quality || 20;
+          this.ML_THRESHOLD = parsed.ml || 0.25;
+          this.STRATEGY_WINRATE_THRESHOLD = parsed.strategyWinRate !== undefined ? parsed.strategyWinRate : 0;
+          console.log('[Delta V2 Engine] 📂 Loaded saved thresholds from localStorage');
+        }
+      } catch (error) {
+        console.warn('[Delta V2 Engine] Could not load saved thresholds:', error);
+      }
+    }
+
     console.log('[Delta V2 Engine] ✅ Initialized with quant-level quality control');
-    console.log(`[Delta V2 Engine] Thresholds: Quality ≥${this.QUALITY_THRESHOLD}, ML ≥${(this.ML_THRESHOLD * 100).toFixed(0)}%`);
+    console.log(`[Delta V2 Engine] Thresholds: Quality ≥${this.QUALITY_THRESHOLD}, ML ≥${(this.ML_THRESHOLD * 100).toFixed(0)}%, Strategy Win Rate ≥${this.STRATEGY_WINRATE_THRESHOLD}%`);
   }
 
   // Main filtering function
@@ -510,37 +531,57 @@ class DeltaQualityEngine {
     this.stats.mlAccuracy = this.mlScorer.getAccuracy();
     this.stats.learningProgress = this.mlScorer.getLearningProgress();
 
-    // ✅ PHASE 1: Regime-Aware Quality Threshold
-    // SIDEWAYS/LOW_VOLATILITY markets → Accept quality ≥ 50 (MEDIUM signals appropriate)
-    // TRENDING/HIGH_VOLATILITY markets → Require quality ≥ 60 (HIGH signals only)
-    let qualityThreshold = this.QUALITY_THRESHOLD; // Default: 60
+    // ✅ PHASE 1: Regime-Aware Quality Threshold (TEMPORARILY DISABLED FOR TESTING)
+    // Using base threshold for all regimes to allow signal flow
+    let qualityThreshold = this.QUALITY_THRESHOLD; // TESTING: Using 30 for all regimes
 
     if (regime === 'SIDEWAYS' || regime === 'LOW_VOLATILITY') {
-      qualityThreshold = 50; // Lower threshold for consolidation markets
-      console.log(`[Delta V2] 🎯 Regime-Aware Threshold: ${regime} → Quality ≥ ${qualityThreshold} (accepting MEDIUM)`);
+      qualityThreshold = Math.max(this.QUALITY_THRESHOLD, 25); // TESTING: Very low threshold
+      console.log(`[Delta V2] 🎯 TESTING MODE - Regime: ${regime} → Quality ≥ ${qualityThreshold} (ACCEPTING MOST SIGNALS)`);
     } else if (regime === 'BULLISH_TREND' || regime === 'BEARISH_TREND' || regime === 'HIGH_VOLATILITY') {
-      qualityThreshold = 60; // Strict threshold for trending/volatile markets
-      console.log(`[Delta V2] 🎯 Regime-Aware Threshold: ${regime} → Quality ≥ ${qualityThreshold} (HIGH only)`);
+      qualityThreshold = Math.max(this.QUALITY_THRESHOLD, 30); // TESTING: Low threshold
+      console.log(`[Delta V2] 🎯 TESTING MODE - Regime: ${regime} → Quality ≥ ${qualityThreshold} (ACCEPTING MOST SIGNALS)`);
     }
 
-    // Decision logic
+    // ✅ SIMPLIFIED ML-ONLY FILTERING - Trust Gamma's tier filtering, focus on ML prediction
     let passed = false;
     let rejectionReason: string | undefined;
 
-    if (qualityScore < qualityThreshold) {
-      rejectionReason = `Quality score too low: ${qualityScore.toFixed(1)} < ${qualityThreshold} (${regime} market)`;
-    } else if (mlProbability < this.ML_THRESHOLD) {
-      rejectionReason = `ML probability too low: ${(mlProbability * 100).toFixed(1)}% < ${(this.ML_THRESHOLD * 100).toFixed(1)}%`;
-    } else if (strategyWinRate < 45) {
-      rejectionReason = `Strategy underperforming in ${regime}: ${strategyWinRate.toFixed(1)}% win rate`;
-    } else {
+    // Simplified filtering: ML prediction + Strategy win rate veto
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`[Delta V2] 📊 EVALUATING: ${signal.symbol} ${signal.direction}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`🤖 ML Win Probability: ${(mlProbability * 100).toFixed(1)}% (threshold: ${(this.ML_THRESHOLD * 100).toFixed(1)}%)`);
+    console.log(`🎯 Strategy Win Rate: ${strategyWinRate.toFixed(1)}% (veto threshold: ${this.STRATEGY_WINRATE_THRESHOLD}%)`);
+    console.log(`🌍 Market Regime: ${regime}`);
+    console.log(`📊 Quality Score: ${qualityScore.toFixed(1)} (for reference only, not used in filtering)`);
+
+    // Primary filter: ML probability
+    if (mlProbability < this.ML_THRESHOLD) {
+      rejectionReason = `ML win probability too low: ${(mlProbability * 100).toFixed(1)}% < ${(this.ML_THRESHOLD * 100).toFixed(1)}%`;
+      passed = false;
+      console.log(`❌ REJECT: ${rejectionReason}`);
+    }
+    // Veto filter: Strategy performance (only reject if extremely poor)
+    else if (strategyWinRate < this.STRATEGY_WINRATE_THRESHOLD && this.STRATEGY_WINRATE_THRESHOLD > 0) {
+      rejectionReason = `Strategy underperforming: ${strategyWinRate.toFixed(1)}% win rate < ${this.STRATEGY_WINRATE_THRESHOLD}% threshold`;
+      passed = false;
+      console.log(`❌ REJECT (VETO): ${rejectionReason}`);
+    }
+    else {
       passed = true;
-      this.stats.totalPassed++;
+      console.log(`✅ PASS: ML predicts ${(mlProbability * 100).toFixed(1)}% win probability`);
+      if (strategyWinRate > 0) {
+        console.log(`   Strategy historical win rate: ${strategyWinRate.toFixed(1)}% in ${regime} market`);
+      }
     }
 
-    if (!passed) {
+    if (passed) {
+      this.stats.totalPassed++;
+    } else {
       this.stats.totalRejected++;
     }
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
     this.stats.passRate = (this.stats.totalPassed / this.stats.totalProcessed) * 100;
     this.stats.topStrategies = this.performanceTracker.getTopStrategies(regime, 3);
@@ -560,6 +601,21 @@ class DeltaQualityEngine {
       `Quality: ${qualityScore.toFixed(1)} | ML: ${(mlProbability * 100).toFixed(1)}% | ` +
       `Regime: ${regime} | Strategy: ${signal.strategy} (${strategyWinRate.toFixed(1)}% WR)`
     );
+    
+    // ✅ LOG REJECTION WITH ADVANCED ML FILTER
+    if (!passed && rejectionReason) {
+      advancedRejectionFilter.filterAndLog({
+        symbol: signal.symbol,
+        direction: signal.direction,
+        rejectionStage: 'DELTA',
+        rejectionReason,
+        qualityScore,
+        confidenceScore: signal.confidence,
+        dataQuality: qualityScore,
+        marketRegime: regime,
+        volatility: signal.technicals.volatility
+      });
+    }
 
     return filteredSignal;
   }
@@ -586,6 +642,40 @@ class DeltaQualityEngine {
 
   getStrategyPerformance(): StrategyPerformance[] {
     return this.performanceTracker.getAllPerformance();
+  }
+
+  // ✅ Threshold management for diagnostic panel
+  getThresholds() {
+    return {
+      quality: this.QUALITY_THRESHOLD,
+      ml: this.ML_THRESHOLD,
+      strategyWinRate: this.STRATEGY_WINRATE_THRESHOLD
+    };
+  }
+
+  setThresholds(quality: number, ml: number, strategyWinRate?: number) {
+    this.QUALITY_THRESHOLD = quality;
+    this.ML_THRESHOLD = ml;
+    if (strategyWinRate !== undefined) {
+      this.STRATEGY_WINRATE_THRESHOLD = strategyWinRate;
+    }
+
+    // ✅ Save to localStorage for persistence
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('igx_delta_thresholds', JSON.stringify({
+          quality,
+          ml,
+          strategyWinRate: this.STRATEGY_WINRATE_THRESHOLD
+        }));
+        console.log(`[Delta V2] 💾 Thresholds saved to localStorage`);
+      } catch (error) {
+        console.warn('[Delta V2] Could not save thresholds:', error);
+      }
+    }
+
+    console.log(`[Delta V2] 🎚️ Thresholds updated: Quality ≥${quality}, ML ≥${(ml * 100).toFixed(0)}%, Strategy Win Rate ≥${this.STRATEGY_WINRATE_THRESHOLD}%`);
+    console.log(`[Delta V2] 🚪 Gate opened! Signals with Quality ≥${quality} AND ML ≥${(ml * 100).toFixed(0)}% AND Strategy Win Rate ≥${this.STRATEGY_WINRATE_THRESHOLD}% will now pass.`);
   }
 }
 

@@ -179,7 +179,7 @@ private pendingRequests: Map<string, Promise<any>> = new Map();
 
 ### Phase 2: CloudFlare CDN Setup
 1. Sign up at https://cloudflare.com
-2. Add domain: ignitexagency.com
+2. Add domain: ignitex.live
 3. Update nameservers
 4. Configure settings:
    - Enable Auto Minify (HTML, CSS, JS)

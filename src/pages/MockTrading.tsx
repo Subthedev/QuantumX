@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useMockTrading } from '@/hooks/useMockTrading';
 import { useAuth } from '@/hooks/useAuth';
 import TradingViewChart from '@/components/charts/TradingViewChart';
@@ -14,14 +15,15 @@ import { TradingAnalytics } from '@/components/trading/TradingAnalytics';
 import { CustomBalanceDialog } from '@/components/trading/CustomBalanceDialog';
 import { SoundHapticSettings } from '@/components/trading/SoundHapticSettings';
 import { TradeReplayDialog } from '@/components/trading/TradeReplayDialog';
-import { Search, ChevronDown, BarChart3, Settings, Volume2, Play } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Search, ChevronDown, BarChart3, Settings, Volume2, Play, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { cryptoDataService } from '@/services/cryptoDataService';
 import type { CryptoData } from '@/services/cryptoDataService';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function MockTrading() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT');
   const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT' | 'STOP_LOSS' | 'STOP_LIMIT' | 'TRAILING_STOP'>('MARKET');
   const [orderSide, setOrderSide] = useState<'BUY' | 'SELL'>('BUY');
@@ -39,6 +41,8 @@ export default function MockTrading() {
   const [marketsOpen, setMarketsOpen] = useState(false);
   const [replayDialogOpen, setReplayDialogOpen] = useState(false);
   const [selectedReplayTrade, setSelectedReplayTrade] = useState<typeof history[0] | null>(null);
+  const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
+  const [lastPrice, setLastPrice] = useState(0);
 
   const {
     account,
@@ -65,7 +69,9 @@ export default function MockTrading() {
 
   useEffect(() => {
     loadCryptoData();
-    const interval = setInterval(loadCryptoData, 30000);
+    // Real-time price updates every 1 second for true live trading feel
+    // Service has 2-second cache to prevent rate limit hits
+    const interval = setInterval(loadCryptoData, 1000);
     return () => clearInterval(interval);
   }, [loadCryptoData]);
 
@@ -77,9 +83,19 @@ export default function MockTrading() {
   const currentPrice = selectedCoin?.current_price ?? 0;
   const priceChange24h = selectedCoin?.price_change_percentage_24h ?? 0;
 
+  // Price flash animation effect
+  useEffect(() => {
+    if (lastPrice > 0 && currentPrice > 0 && lastPrice !== currentPrice) {
+      setPriceFlash(currentPrice > lastPrice ? 'up' : 'down');
+      const timeout = setTimeout(() => setPriceFlash(null), 500);
+      return () => clearTimeout(timeout);
+    }
+    setLastPrice(currentPrice);
+  }, [currentPrice]);
+
   const filteredCoins = useMemo(() => {
     if (!searchQuery) return coins;
-    return coins.filter(coin => 
+    return coins.filter(coin =>
       coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       coin.symbol.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -95,7 +111,7 @@ export default function MockTrading() {
           updatePrices(position.symbol, coin.current_price);
         }
       });
-    }, 1000); // Real-time updates every second
+    }, 1000); // Real-time P&L updates every 1 second
     return () => clearInterval(interval);
   }, [openPositions, coins, updatePrices]);
 
@@ -118,7 +134,7 @@ export default function MockTrading() {
     const qty = parseFloat(quantity);
     if (isNaN(qty) || qty <= 0) return;
 
-    const orderPrice = orderType === 'LIMIT' 
+    const orderPrice = orderType === 'LIMIT'
       ? (limitPrice ? parseFloat(limitPrice) : currentPrice)
       : currentPrice;
 
@@ -171,18 +187,85 @@ export default function MockTrading() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Ultra-Compact Header - Hyperliquid Style */}
-      <header className="h-11 border-b border-border/40 flex items-center px-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center flex-1 gap-3">
-          {/* Market Selector */}
+      {/* Professional Top Header - Spacious Layout */}
+      <header className="h-14 border-b border-border/40 flex items-center px-6 bg-background/95 backdrop-blur">
+        <div className="flex items-center gap-6 flex-1">
+          <Badge variant="outline" className="h-7 px-3 text-xs font-semibold border-primary/50 text-primary">
+            Paper Trading
+          </Badge>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Balance</span>
+              <span className="font-semibold">${accountValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">P&L</span>
+              <span className={`font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Positions</span>
+              <Badge variant="secondary" className="h-6 px-2 text-xs font-semibold">{openPositions.length}</Badge>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Analytics">
+                <BarChart3 className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-[600px] sm:max-w-[600px]">
+              <SheetHeader>
+                <SheetTitle>Trading Analytics</SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100vh-80px)] mt-6">
+                <TradingAnalytics account={account} history={history} />
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Sound & Haptics">
+                <Volume2 className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-[400px] sm:max-w-[400px]">
+              <SheetHeader>
+                <SheetTitle>Sound & Haptic Settings</SheetTitle>
+              </SheetHeader>
+              <SoundHapticSettings />
+            </SheetContent>
+          </Sheet>
+          <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-8 w-8" title="Account Settings">
+            <Settings className="h-4 w-4" />
+          </Button>
+          <div className="h-5 w-px bg-border/40 mx-2" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className="h-8 gap-2 hover:bg-accent px-3"
+            title="Back to Dashboard"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm font-medium">Back</span>
+          </Button>
+        </div>
+      </header>
+
+      {/* Professional Market Bar - Clean & Spacious */}
+      <div className="h-16 border-b border-border/40 flex items-center px-6 bg-background/50">
+        <div className="flex items-center gap-8 flex-1">
+          {/* Coin Selector - Prominent */}
           <Sheet open={marketsOpen} onOpenChange={setMarketsOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" className="h-7 gap-1.5 hover:bg-accent text-xs font-medium px-2">
-                {selectedCoin && <img src={selectedCoin.image} alt="" className="w-3.5 h-3.5 rounded-full" />}
-                <span className="font-semibold">
-                  {selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT
-                </span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              <Button variant="ghost" className="h-10 gap-2 hover:bg-accent px-3">
+                {selectedCoin && <img src={selectedCoin.image} alt="" className="w-6 h-6 rounded-full" />}
+                <span className="font-bold text-base">{selectedCoin?.symbol.toUpperCase() || 'BTC'}/USDT</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 p-0">
@@ -219,16 +302,14 @@ export default function MockTrading() {
                       <div className="flex-1 text-left">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm font-semibold">{coin.symbol.toUpperCase()}</span>
-                           <span className={`text-sm ${
-                             (coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                           }`}>
-                             {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
-                             {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
-                           </span>
-                         </div>
-                         <div className="text-sm text-muted-foreground">
-                           ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
-                         </div>
+                          <span className={`text-sm ${(coin.price_change_percentage_24h ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {(coin.price_change_percentage_24h ?? 0) >= 0 ? '+' : ''}
+                            {(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          ${coin.current_price >= 1 ? coin.current_price.toFixed(2) : coin.current_price.toFixed(6)}
+                        </div>
                       </div>
                     </button>
                   );
@@ -237,102 +318,77 @@ export default function MockTrading() {
             </SheetContent>
           </Sheet>
 
-          {/* Market Stats */}
-          <div className="flex items-center gap-3 text-xs border-l border-border/40 pl-3">
-            <div className="flex gap-3">
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase text-muted-foreground">24h Change</span>
-                <span className={`text-sm font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
-                </span>
-              </div>
-              <div className="flex flex-col border-l border-border/40 pl-3">
-                <span className="text-[9px] uppercase text-muted-foreground">24h High</span>
-                <span className="text-sm font-semibold">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
-              </div>
-              <div className="flex flex-col border-l border-border/40 pl-3">
-                <span className="text-[9px] uppercase text-muted-foreground">24h Low</span>
-                <span className="text-sm font-semibold">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
-              </div>
-              <div className="flex flex-col border-l border-border/40 pl-3">
-                <span className="text-[9px] uppercase text-muted-foreground">24h Volume</span>
-                <span className="text-sm font-semibold">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
-              </div>
+          {/* Price & Metrics - Clean Layout */}
+          <div className="flex items-center gap-8 flex-1">
+            {/* Live Price - Large & Prominent */}
+            <div className="flex items-baseline gap-2">
+              <span className={`text-2xl font-bold tabular-nums transition-all duration-300 ${
+                priceFlash === 'up' ? 'text-green-500 scale-105' :
+                priceFlash === 'down' ? 'text-red-500 scale-105' : 'text-foreground'
+              }`}>
+                ${currentPrice >= 1 ? currentPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : currentPrice.toFixed(6)}
+              </span>
+              <span className={`text-base font-semibold ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+              </span>
             </div>
-          </div>
-        </div>
 
-        {/* Account Info */}
-          <div className="flex items-center gap-2.5 border-l border-border/40 pl-3">
-            <div className="flex gap-3 text-xs">
+            {/* 24h Metrics - Spacious */}
+            <div className="flex items-center gap-6 text-sm">
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase text-muted-foreground">Equity</span>
-                <span className="text-sm font-semibold">${accountValue.toFixed(2)}</span>
+                <span className="text-muted-foreground text-xs">24h High</span>
+                <span className="font-semibold text-green-500">${selectedCoin?.high_24h?.toFixed(2) || '0.00'}</span>
               </div>
-              <div className="flex flex-col border-l border-border/40 pl-3">
-                <span className="text-[9px] uppercase text-muted-foreground">Total PnL</span>
-                <span className={`text-sm font-semibold ${totalReturn >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-                </span>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground text-xs">24h Low</span>
+                <span className="font-semibold text-red-500">${selectedCoin?.low_24h?.toFixed(2) || '0.00'}</span>
               </div>
-              <div className="flex flex-col border-l border-border/40 pl-3">
-                <span className="text-[9px] uppercase text-muted-foreground">Unrealized</span>
-                <span className={`text-sm font-semibold ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {totalUnrealizedPnL >= 0 ? '+' : ''}${totalUnrealizedPnL.toFixed(2)}
-                </span>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground text-xs">24h Volume</span>
+                <span className="font-semibold">${((selectedCoin?.total_volume || 0) / 1e9).toFixed(2)}B</span>
               </div>
             </div>
 
-          <div className="flex items-center gap-0.5 border-l border-border/40 pl-3">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" title="Analytics">
-                  <BarChart3 className="h-3 w-3" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-[600px] sm:max-w-[600px]">
-                <SheetHeader>
-                  <SheetTitle>Trading Analytics</SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-80px)] mt-6">
-                  <TradingAnalytics account={account} history={history} />
-                </ScrollArea>
-              </SheetContent>
-            </Sheet>
-
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6" title="Sound & Haptics">
-                  <Volume2 className="h-3 w-3" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-[400px] sm:max-w-[400px]">
-                <SheetHeader>
-                  <SheetTitle>Sound & Haptic Settings</SheetTitle>
-                </SheetHeader>
-                <SoundHapticSettings />
-              </SheetContent>
-            </Sheet>
-
-            <Button variant="ghost" size="icon" onClick={() => setBalanceDialogOpen(true)} className="h-6 w-6" title="Account Settings">
-              <Settings className="h-3 w-3" />
-            </Button>
+            {/* Unrealized P&L - Conditional */}
+            {totalUnrealizedPnL !== 0 && (
+              <div className="flex flex-col text-sm">
+                <span className="text-muted-foreground text-xs">Unrealized P&L</span>
+                <span className={`font-semibold tabular-nums ${totalUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {totalUnrealizedPnL >= 0 ? '+' : ''}${Math.abs(totalUnrealizedPnL).toFixed(2)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Trading Area - Fixed height layout */}
       <div className="flex-1 flex flex-col">
         {/* Chart + Order Panel */}
         <div className="flex-1 flex">
-          {/* Chart Area */}
-          <div className="flex-1 bg-background border-r border-border/40 flex flex-col">
-            <TradingViewChart
-              coinId={selectedCoin?.id || 'bitcoin'}
-              symbol={selectedCoin?.symbol || 'BTC'}
-              currentPrice={currentPrice}
-              key={selectedSymbol}
-            />
+          {/* Chart Area with smooth loading */}
+          <div className="flex-1 bg-background border-r border-border/40 flex flex-col relative">
+            <Suspense fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+                <div className="space-y-4 text-center">
+                  <div className="relative">
+                    <TrendingUp className="h-12 w-12 text-primary animate-pulse mx-auto" />
+                    <div className="absolute inset-0 bg-primary/20 blur-xl animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-48 mx-auto" />
+                    <Skeleton className="h-3 w-32 mx-auto" />
+                  </div>
+                </div>
+              </div>
+            }>
+              <TradingViewChart
+                coinId={selectedCoin?.id || 'bitcoin'}
+                symbol={selectedCoin?.symbol || 'BTC'}
+                currentPrice={currentPrice}
+                key={selectedSymbol}
+              />
+            </Suspense>
           </div>
 
           {/* Order Panel - Right Side */}
@@ -360,8 +416,8 @@ export default function MockTrading() {
                 <button
                   onClick={() => setOrderSide('BUY')}
                   className={`py-1.5 text-xs font-semibold rounded transition-all ${
-                    orderSide === 'BUY' 
-                      ? 'bg-green-600 text-white shadow-sm' 
+                    orderSide === 'BUY'
+                      ? 'bg-green-600 text-white shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -370,8 +426,8 @@ export default function MockTrading() {
                 <button
                   onClick={() => setOrderSide('SELL')}
                   className={`py-1.5 text-xs font-semibold rounded transition-all ${
-                    orderSide === 'SELL' 
-                      ? 'bg-red-600 text-white shadow-sm' 
+                    orderSide === 'SELL'
+                      ? 'bg-red-600 text-white shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -518,8 +574,8 @@ export default function MockTrading() {
                 onClick={handlePlaceOrder}
                 disabled={!quantity || (orderType === 'LIMIT' && !limitPrice) || isPlacingOrder}
                 className={`w-full h-10 text-sm font-semibold shadow-lg transition-all ${
-                  orderSide === 'BUY' 
-                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-500/20' 
+                  orderSide === 'BUY'
+                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-500/20'
                     : 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
                 }`}
               >
@@ -643,9 +699,8 @@ export default function MockTrading() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="h-6 px-2 text-xs"
                             onClick={() => handleReplayTrade(trade)}
-                            title="Replay Trade"
                           >
                             <Play className="h-3 w-3" />
                           </Button>
@@ -660,19 +715,19 @@ export default function MockTrading() {
         </div>
       </div>
 
+      {/* Dialogs */}
       <CustomBalanceDialog
         open={balanceDialogOpen}
         onOpenChange={setBalanceDialogOpen}
-        currentBalance={account?.balance || 10000}
+        currentBalance={account?.balance || 0}
         onSetBalance={handleSetCustomBalance}
+        onResetAccount={resetAccount}
       />
 
       <TradeReplayDialog
-        trade={selectedReplayTrade}
         open={replayDialogOpen}
         onOpenChange={setReplayDialogOpen}
-        coinId={selectedReplayTrade ? selectedReplayTrade.symbol.replace('USDT', '').toLowerCase() : 'bitcoin'}
-        symbol={selectedReplayTrade ? selectedReplayTrade.symbol.replace('USDT', '') : 'BTC'}
+        trade={selectedReplayTrade}
       />
     </div>
   );

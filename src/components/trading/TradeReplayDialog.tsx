@@ -90,12 +90,12 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                   : 'bg-red-500/10 border-red-500/20'
               }`}>
                 <div className="text-xs text-muted-foreground mb-1">Total Profit/Loss</div>
-                <div className={`text-2xl font-bold ${
+                <div className={`text-2xl font-bold font-mono ${
                   isProfitable ? 'text-green-500' : 'text-red-500'
                 }`}>
                   {isProfitable ? '+' : ''}${trade.profit_loss.toFixed(2)}
                 </div>
-                <div className={`text-sm ${
+                <div className={`text-sm font-mono ${
                   isProfitable ? 'text-green-500' : 'text-red-500'
                 }`}>
                   {isProfitable ? '+' : ''}{trade.profit_loss_percent.toFixed(2)}%
@@ -109,7 +109,7 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                     <DollarSign className="w-3 h-3" />
                     ROI
                   </div>
-                  <div className={`text-lg font-bold ${
+                  <div className={`text-lg font-bold font-mono ${
                     roi >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
                     {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
@@ -120,7 +120,7 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                     <Clock className="w-3 h-3" />
                     Duration
                   </div>
-                  <div className="text-lg font-bold">
+                  <div className="text-lg font-bold font-mono">
                     {duration}
                   </div>
                 </div>
@@ -143,12 +143,12 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                     
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Quantity</span>
-                      <span className="font-medium">{trade.quantity.toFixed(6)}</span>
+                      <span className="font-mono font-medium">{trade.quantity.toFixed(6)}</span>
                     </div>
 
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Leverage</span>
-                      <span className="font-medium">{trade.leverage}x</span>
+                      <span className="font-mono font-medium">{trade.leverage}x</span>
                     </div>
                   </div>
                 </div>
@@ -161,17 +161,17 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Price</span>
-                      <span className="font-medium">${trade.entry_price.toFixed(2)}</span>
+                      <span className="font-mono font-medium">${trade.entry_price.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Time</span>
-                      <span className="text-xs">
+                      <span className="font-mono text-xs">
                         {format(new Date(trade.opened_at), 'MMM dd, HH:mm:ss')}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Value</span>
-                      <span className="font-medium">${investment.toFixed(2)}</span>
+                      <span className="font-mono font-medium">${investment.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -184,17 +184,17 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Price</span>
-                      <span className="font-medium">${trade.exit_price.toFixed(2)}</span>
+                      <span className="font-mono font-medium">${trade.exit_price.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Time</span>
-                      <span className="text-xs">
+                      <span className="font-mono text-xs">
                         {format(new Date(trade.closed_at), 'MMM dd, HH:mm:ss')}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Value</span>
-                      <span className="font-medium">
+                      <span className="font-mono font-medium">
                         ${(trade.quantity * trade.exit_price).toFixed(2)}
                       </span>
                     </div>
@@ -209,11 +209,11 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Trading Fees</span>
-                      <span className="text-red-500">-${trade.fees.toFixed(2)}</span>
+                      <span className="font-mono text-red-500">-${trade.fees.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-semibold pt-2 border-t">
                       <span>Net P&L</span>
-                      <span className={`${isProfitable ? 'text-green-500' : 'text-red-500'}`}>
+                      <span className={`font-mono ${isProfitable ? 'text-green-500' : 'text-red-500'}`}>
                         {isProfitable ? '+' : ''}${trade.profit_loss.toFixed(2)}
                       </span>
                     </div>
@@ -224,15 +224,15 @@ export function TradeReplayDialog({ trade, open, onOpenChange, coinId, symbol }:
                 <div className="p-3 rounded-lg bg-muted/50 border">
                   <div className="text-xs text-muted-foreground mb-2">Price Movement</div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">${trade.entry_price.toFixed(2)}</span>
+                    <span className="text-sm font-mono">${trade.entry_price.toFixed(2)}</span>
                     <div className="flex-1 mx-3 h-px bg-border relative">
                       <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
                         isProfitable ? 'bg-green-500' : 'bg-red-500'
                       }`} />
                     </div>
-                    <span className="text-sm">${trade.exit_price.toFixed(2)}</span>
+                    <span className="text-sm font-mono">${trade.exit_price.toFixed(2)}</span>
                   </div>
-                  <div className={`text-xs text-center mt-1 ${
+                  <div className={`text-xs text-center mt-1 font-mono ${
                     isProfitable ? 'text-green-500' : 'text-red-500'
                   }`}>
                     {((trade.exit_price - trade.entry_price) / trade.entry_price * 100 * (trade.side === 'BUY' ? 1 : -1)).toFixed(2)}% move
