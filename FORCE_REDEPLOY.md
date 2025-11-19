@@ -64,16 +64,16 @@ The 404 error on `/email-verified` is happening because the deployed version is 
 
 After redeploying, verify these URLs work:
 
-1. ✅ https://ignitexagency.com/
-2. ✅ https://ignitexagency.com/auth
-3. ✅ https://ignitexagency.com/email-verified (should NOT show 404!)
-4. ✅ https://ignitexagency.com/dashboard
+1. ✅ https://ignitex.live/
+2. ✅ https://ignitex.live/auth
+3. ✅ https://ignitex.live/email-verified (should NOT show 404!)
+4. ✅ https://ignitex.live/dashboard
 
 ## If Still Showing 404 After Redeploy:
 
 ### Check 1: Verify Latest Code is Deployed
 
-Visit: https://ignitexagency.com/
+Visit: https://ignitex.live/
 
 Open browser console (F12) and check:
 ```javascript
@@ -104,7 +104,7 @@ Should show:
 
 ### Check 4: Hard Refresh Browser
 
-1. Open https://ignitexagency.com/email-verified
+1. Open https://ignitex.live/email-verified
 2. Press:
    - **Mac**: `Cmd + Shift + R`
    - **Windows/Linux**: `Ctrl + Shift + R`
@@ -138,11 +138,11 @@ If nothing works, delete the old deployment and start fresh:
 
 Once deployed and `/email-verified` loads without 404:
 
-1. Go to https://ignitexagency.com/auth
+1. Go to https://ignitex.live/auth
 2. Sign up with a NEW email
 3. Check email
 4. Click verification link
-5. Should redirect to https://ignitexagency.com/email-verified
+5. Should redirect to https://ignitex.live/email-verified
 6. Should show success message
 7. Should auto-login
 8. Should redirect to dashboard
@@ -173,7 +173,7 @@ ls -la dist/_redirects
 
 ## Expected Output:
 
-After successful deployment, visiting https://ignitexagency.com/email-verified should show:
+After successful deployment, visiting https://ignitex.live/email-verified should show:
 
 - **Loading spinner** with "Verifying Your Email..." (if no session)
 - **OR** Success message with checkmark if verified
@@ -189,7 +189,7 @@ After successful deployment, visiting https://ignitexagency.com/email-verified s
 1. Go to Vercel/Netlify dashboard
 2. Click "Clear cache and redeploy"
 3. Wait 2-3 minutes
-4. Test https://ignitexagency.com/email-verified
+4. Test https://ignitex.live/email-verified
 5. Should work! ✅
 
 **If that doesn't work**: Delete and recreate the deployment from scratch with the latest code.
