@@ -3,7 +3,7 @@
 This guide will help you deploy IgniteX to production and fix the 404 error on `/email-verified`.
 
 ## Problem
-Currently, https://ignitexagency.com/email-verified shows a 404 error because:
+Currently, https://ignitex.live/email-verified shows a 404 error because:
 1. The production site hasn't been updated with the latest code
 2. The hosting needs to be configured for React Router (SPA)
 
@@ -37,7 +37,7 @@ If you have any `.env` variables, add them in Vercel:
 #### Step 4: Connect Custom Domain
 
 1. Go to Project Settings → Domains
-2. Add your domain: `ignitexagency.com`
+2. Add your domain: `ignitex.live`
 3. Follow Vercel's DNS instructions to point your domain
 4. Wait for DNS propagation (5-60 minutes)
 
@@ -74,7 +74,7 @@ Netlify will auto-detect settings from `netlify.toml`, but verify:
 
 1. Go to Site settings → Domain management
 2. Click **"Add custom domain"**
-3. Enter `ignitexagency.com`
+3. Enter `ignitex.live`
 4. Follow Netlify's DNS instructions
 5. Wait for DNS propagation
 
@@ -163,11 +163,11 @@ Once your site is deployed, verify these:
 
 ### 1. Test Email Verification Flow
 
-1. Go to https://ignitexagency.com/auth
+1. Go to https://ignitex.live/auth
 2. Sign up with a new email
 3. Check your email
 4. Click verification link
-5. Should redirect to https://ignitexagency.com/email-verified
+5. Should redirect to https://ignitex.live/email-verified
 6. Should see success message and auto-login
 7. Should redirect to dashboard
 
@@ -181,12 +181,12 @@ Once your site is deployed, verify these:
 ### 3. Verify Routes Work
 
 Test these URLs directly:
-- ✅ https://ignitexagency.com/
-- ✅ https://ignitexagency.com/auth
-- ✅ https://ignitexagency.com/email-verified
-- ✅ https://ignitexagency.com/reset-password
-- ✅ https://ignitexagency.com/dashboard
-- ✅ https://ignitexagency.com/about
+- ✅ https://ignitex.live/
+- ✅ https://ignitex.live/auth
+- ✅ https://ignitex.live/email-verified
+- ✅ https://ignitex.live/reset-password
+- ✅ https://ignitex.live/dashboard
+- ✅ https://ignitex.live/about
 
 All should load without 404 errors.
 
@@ -196,8 +196,8 @@ Make sure Supabase has these redirect URLs:
 1. Go to Supabase Dashboard
 2. Settings → Authentication → URL Configuration
 3. Verify these URLs are added:
-   - `https://ignitexagency.com/email-verified`
-   - `https://ignitexagency.com/reset-password`
+   - `https://ignitex.live/email-verified`
+   - `https://ignitex.live/reset-password`
 
 ---
 
@@ -257,8 +257,8 @@ netlify deploy --prod
 
 The app is configured to use **production URLs for all email verification**:
 
-- All email verification links → `https://ignitexagency.com/email-verified`
-- All password reset links → `https://ignitexagency.com/reset-password`
+- All email verification links → `https://ignitex.live/email-verified`
+- All password reset links → `https://ignitex.live/reset-password`
 
 This ensures:
 - ✅ Works on mobile and desktop

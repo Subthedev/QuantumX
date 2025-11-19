@@ -1,6 +1,6 @@
 # 🔧 Update Email Verification Redirect URL
 
-**Issue:** Users are being redirected to `ignitexagency.com` instead of `ignitex.live` after email verification.
+**Issue:** Users are being redirected to `ignitex.live` instead of `ignitex.live` after email verification.
 
 **Solution:** Update the Site URL and Redirect URLs in Supabase Auth settings.
 
@@ -11,7 +11,7 @@
 2. Navigate to **Authentication** → **URL Configuration**
 
 ### 2. Update Site URL
-- **Current:** `https://ignitexagency.com` 
+- **Current:** `https://ignitex.live` 
 - **Change to:** `https://ignitex.live`
 
 ### 3. Update Redirect URLs
@@ -24,7 +24,7 @@ https://ignitex.live/**
 
 ### 4. Remove Old URLs
 Remove any URLs containing:
-- `ignitexagency.com`
+- `ignitex.live`
 - Old domain references
 
 ### 5. Save Changes
@@ -40,7 +40,7 @@ Project Dashboard → Authentication → URL Configuration
 **Settings to Update:**
 - ✅ **Site URL:** `https://ignitex.live`
 - ✅ **Redirect URLs:** Add `https://ignitex.live/**`
-- ❌ **Remove:** Any `ignitexagency.com` URLs
+- ❌ **Remove:** Any `ignitex.live` URLs
 
 ## ⚡ Immediate Effect
 
@@ -52,7 +52,7 @@ Once updated:
 ## 🚨 Important Notes
 
 1. **This change affects the email templates** - verification emails will now redirect to `ignitex.live`
-2. **Existing verification links** with the old domain may still redirect to `ignitexagency.com`
+2. **Existing verification links** with the old domain may still redirect to `ignitex.live`
 3. **New verification emails** will use the updated domain
 4. **Test the flow** after making changes by signing up with a new email
 

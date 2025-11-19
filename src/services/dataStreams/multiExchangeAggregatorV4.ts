@@ -451,6 +451,50 @@ export class MultiExchangeAggregatorV4 {
   isActive(): boolean {
     return this.isRunning;
   }
+
+  /**
+   * Get aggregated data for a symbol
+   * Returns the latest price data from cache
+   */
+  async getAggregatedData(symbol: string): Promise<{ currentPrice: number; timestamp: number } | null> {
+    // Try exact match first
+    const priceData = this.lastPriceMap.get(symbol);
+
+    if (priceData && priceData.price > 0) {
+      console.log(`[AggregatorV4] ✅ Price for ${symbol}: $${priceData.price.toFixed(2)} from ${priceData.source}`);
+      return {
+        currentPrice: priceData.price,
+        timestamp: priceData.timestamp
+      };
+    }
+
+    // Try with USDT suffix
+    const symbolWithUSDT = symbol.includes('USDT') ? symbol : `${symbol}USDT`;
+    const priceDataWithUSDT = this.lastPriceMap.get(symbolWithUSDT);
+
+    if (priceDataWithUSDT && priceDataWithUSDT.price > 0) {
+      console.log(`[AggregatorV4] ✅ Price for ${symbolWithUSDT}: $${priceDataWithUSDT.price.toFixed(2)} from ${priceDataWithUSDT.source}`);
+      return {
+        currentPrice: priceDataWithUSDT.price,
+        timestamp: priceDataWithUSDT.timestamp
+      };
+    }
+
+    // Try without USDT suffix
+    const symbolWithoutUSDT = symbol.replace('USDT', '');
+    const priceDataWithoutUSDT = this.lastPriceMap.get(symbolWithoutUSDT);
+
+    if (priceDataWithoutUSDT && priceDataWithoutUSDT.price > 0) {
+      console.log(`[AggregatorV4] ✅ Price for ${symbolWithoutUSDT}: $${priceDataWithoutUSDT.price.toFixed(2)} from ${priceDataWithoutUSDT.source}`);
+      return {
+        currentPrice: priceDataWithoutUSDT.price,
+        timestamp: priceDataWithoutUSDT.timestamp
+      };
+    }
+
+    console.warn(`[AggregatorV4] ⚠️ No price data available for ${symbol}`);
+    return null;
+  }
 }
 
 // Singleton instance

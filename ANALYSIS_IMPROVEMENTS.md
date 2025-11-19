@@ -537,13 +537,13 @@ const enrichedData = await enrichedCryptoDataService.getEnrichedData('bitcoin');
 ## 📞 CONTACTS
 
 **Technical Questions:**
-- Developer: development@ignitexagency.com
+- Developer: development@ignitex.live
 
 **Legal Questions:**
-- Legal Team: legal@ignitexagency.com
+- Legal Team: legal@ignitex.live
 
 **User Feedback:**
-- Support: support@ignitexagency.com
+- Support: support@ignitex.live
 
 ---
 

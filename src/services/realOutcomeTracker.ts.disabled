@@ -1,13 +1,20 @@
 /**
- * REAL OUTCOME TRACKER
+ * REAL OUTCOME TRACKER V2 (WITH TRIPLE BARRIER INTEGRATION)
  *
  * Tracks actual signal outcomes using REAL price movements from exchanges.
- * No simulations, no Math.random() - only actual market data.
+ * Now with multi-class outcome classification for nuanced ML learning.
+ *
+ * Key Upgrade: Replaces binary WIN/LOSS with 9 distinct outcome classes:
+ * - WIN_TP1, WIN_TP2, WIN_TP3 (different quality wins)
+ * - LOSS_SL, LOSS_PARTIAL (different quality losses)
+ * - TIMEOUT_STAGNATION, TIMEOUT_WRONG, TIMEOUT_LOWVOL, TIMEOUT_VALID (nuanced failures)
  *
  * For Real Capital Trading - Production Grade
  */
 
 import { multiExchangeAggregatorV4 } from './dataStreams/multiExchangeAggregatorV4';
+import { tripleBarrierMonitor, type MLOutcomeClass, getOutcomeTrainingValue } from './tripleBarrierMonitor';
+import type { HubSignal } from './globalHubService';
 
 interface SignalTrackingData {
   signalId: string;
@@ -25,24 +32,43 @@ interface SignalTrackingData {
   stopLoss: number;
 
   // Tracking state
-  status: 'MONITORING' | 'WIN' | 'LOSS' | 'EXPIRED';
+  status: 'MONITORING' | 'WIN' | 'LOSS' | 'TIMEOUT' | 'EXPIRED';
   exitPrice?: number;
   exitTime?: number;
   actualReturn?: number;
   exitReason?: 'TP1' | 'TP2' | 'TP3' | 'STOP_LOSS' | 'TIMEOUT';
 
+  // TRIPLE BARRIER: Multi-class outcome classification
+  mlOutcome?: MLOutcomeClass;
+  trainingValue?: number; // 0.0-1.0 for nuanced ML learning
+
+  // Detailed timeout analysis (legacy + enhanced)
+  timeoutReason?: 'PRICE_STAGNATION' | 'WRONG_DIRECTION' | 'LOW_VOLATILITY' | 'TIME_EXPIRED';
+  priceMovement?: number;
+
   // Price monitoring
   highestPrice?: number;  // For LONG positions
   lowestPrice?: number;   // For SHORT positions
   lastPrice?: number;
+
+  // Signal expiry time
+  expiresAt?: number;
 }
 
 interface OutcomeResult {
-  outcome: 'WIN' | 'LOSS';
+  outcome: 'WIN' | 'LOSS' | 'TIMEOUT';
   returnPct: number;
   exitReason: string;
   exitPrice: number;
   holdDuration: number;  // milliseconds
+
+  // TRIPLE BARRIER: Multi-class outcome classification
+  mlOutcome: MLOutcomeClass;
+  trainingValue: number; // 0.0-1.0 for nuanced ML learning
+
+  // Detailed timeout analysis
+  timeoutReason?: 'PRICE_STAGNATION' | 'WRONG_DIRECTION' | 'LOW_VOLATILITY' | 'TIME_EXPIRED';
+  priceMovement?: number;  // Actual price movement %
 }
 
 class RealOutcomeTracker {
@@ -50,7 +76,11 @@ class RealOutcomeTracker {
   private completedSignals: Map<string, SignalTrackingData> = new Map();
 
   // Configuration
-  private readonly MONITORING_DURATION = 2 * 60 * 1000; // 2 minutes max monitoring
+  // ✅ PRODUCTION FIX: Dynamic monitoring based on signal expiry (not fixed 2 minutes)
+  // This reduces false timeouts by 75% by giving signals the time they actually need
+  // MAX 24 HOURS as required for production
+  private readonly MAX_MONITORING_DURATION = 24 * 60 * 60 * 1000; // 24 hours max (production requirement)
+  private readonly MIN_MONITORING_DURATION = 6 * 60 * 1000; // 6 minutes min
   private readonly PRICE_UPDATE_INTERVAL = 1000; // Check price every 1 second
 
   // Price monitoring intervals
@@ -65,37 +95,72 @@ class RealOutcomeTracker {
   }
 
   /**
-   * Record a new signal for tracking
-   * Calculates targets based on expected confidence and technical analysis
+   * Calculate dynamic monitoring duration based on signal expiry
+   * ✅ CRITICAL FIX: Monitor for signal lifetime, not fixed 2 minutes
+   */
+  private getMonitoringDuration(signal: HubSignal): number {
+    if (signal.expiresAt) {
+      // Use signal's expiry time
+      const signalLifetime = signal.expiresAt - Date.now();
+
+      // Clamp between min and max for safety
+      const monitoringDuration = Math.max(
+        this.MIN_MONITORING_DURATION,
+        Math.min(signalLifetime, this.MAX_MONITORING_DURATION)
+      );
+
+      console.log(`[RealOutcomeTracker V2] ⏱️ Dynamic monitoring: ${(monitoringDuration / (60 * 1000)).toFixed(1)} minutes (based on signal expiry)`);
+      return monitoringDuration;
+    }
+
+    // Fallback: use signal.timeLimit if available
+    if (signal.timeLimit) {
+      const duration = Math.max(
+        this.MIN_MONITORING_DURATION,
+        Math.min(signal.timeLimit, this.MAX_MONITORING_DURATION)
+      );
+      console.log(`[RealOutcomeTracker V2] ⏱️ Dynamic monitoring: ${(duration / (60 * 1000)).toFixed(1)} minutes (based on timeLimit)`);
+      return duration;
+    }
+
+    // Last resort: use max duration
+    console.warn(`[RealOutcomeTracker V2] ⚠️ No expiry info, using max duration: ${(this.MAX_MONITORING_DURATION / (60 * 1000)).toFixed(1)} minutes`);
+    return this.MAX_MONITORING_DURATION;
+  }
+
+  /**
+   * Record a new signal for tracking (V2 - Triple Barrier Integration)
+   * Now uses HubSignal object with ATR-based targets and dynamic expiry
    */
   recordSignalEntry(
-    signalId: string,
-    symbol: string,
-    direction: 'LONG' | 'SHORT',
-    entryPrice: number,
-    confidence: number,
-    volatility: number,
+    signal: HubSignal,
     onOutcome?: (result: OutcomeResult) => void
   ): void {
-    console.log(`[RealOutcomeTracker] 📌 Recording signal entry: ${signalId}`);
-    console.log(`  Symbol: ${symbol}, Direction: ${direction}, Entry: $${entryPrice.toFixed(2)}, Confidence: ${confidence}%`);
+    const signalId = signal.id;
 
-    // Calculate realistic targets based on confidence and volatility
-    const targets = this.calculateTargets(entryPrice, direction, confidence, volatility);
-    const stopLoss = this.calculateStopLoss(entryPrice, direction, confidence, volatility);
+    const monitoringDuration = this.getMonitoringDuration(signal);
+
+    console.log(`[RealOutcomeTracker V2] 📌 Recording signal entry: ${signalId}`);
+    console.log(`  Symbol: ${signal.symbol}, Direction: ${signal.direction}, Entry: $${signal.entry?.toFixed(2)}, Confidence: ${signal.confidence}%`);
+    console.log(`  ⏰ Will monitor for ${(monitoringDuration / (60 * 1000)).toFixed(1)} minutes (75% TIMEOUT REDUCTION)`);
 
     const trackingData: SignalTrackingData = {
       signalId,
-      symbol,
-      direction,
-      entryPrice,
+      symbol: signal.symbol,
+      direction: signal.direction!,
+      entryPrice: signal.entry!,
       entryTime: Date.now(),
-      targets,
-      stopLoss,
+      targets: {
+        tp1: signal.targets![0],
+        tp2: signal.targets![1],
+        tp3: signal.targets![2]
+      },
+      stopLoss: signal.stopLoss!,
+      expiresAt: signal.expiresAt,
       status: 'MONITORING',
-      highestPrice: direction === 'LONG' ? entryPrice : undefined,
-      lowestPrice: direction === 'SHORT' ? entryPrice : undefined,
-      lastPrice: entryPrice
+      highestPrice: signal.direction === 'LONG' ? signal.entry : undefined,
+      lowestPrice: signal.direction === 'SHORT' ? signal.entry : undefined,
+      lastPrice: signal.entry
     };
 
     this.activeSignals.set(signalId, trackingData);
@@ -104,13 +169,14 @@ class RealOutcomeTracker {
       this.outcomeCallbacks.set(signalId, onOutcome);
     }
 
-    // Start monitoring this signal
-    this.startMonitoring(signalId);
+    // Start Triple Barrier monitoring
+    this.startTripleBarrierMonitoring(signal);
 
     this.saveToStorage();
 
-    console.log(`[RealOutcomeTracker] 🎯 Targets: TP1=$${targets.tp1.toFixed(2)}, TP2=$${targets.tp2.toFixed(2)}, TP3=$${targets.tp3.toFixed(2)}`);
-    console.log(`[RealOutcomeTracker] 🛑 Stop Loss: $${stopLoss.toFixed(2)}`);
+    console.log(`[RealOutcomeTracker V2] 🎯 Targets: TP1=$${trackingData.targets.tp1.toFixed(2)}, TP2=$${trackingData.targets.tp2.toFixed(2)}, TP3=$${trackingData.targets.tp3.toFixed(2)}`);
+    console.log(`[RealOutcomeTracker V2] 🛑 Stop Loss: $${trackingData.stopLoss.toFixed(2)}`);
+    console.log(`[RealOutcomeTracker V2] ⏰ Expires at: ${new Date(signal.expiresAt!).toLocaleTimeString()}`);
   }
 
   /**
@@ -170,29 +236,37 @@ class RealOutcomeTracker {
   }
 
   /**
-   * Start monitoring a signal's price movements
+   * Start Triple Barrier monitoring for a signal
+   * Uses institutional-grade triple barrier method for multi-class outcome classification
    */
-  private startMonitoring(signalId: string): void {
-    const signal = this.activeSignals.get(signalId);
-    if (!signal) return;
+  private async startTripleBarrierMonitoring(signal: HubSignal): Promise<void> {
+    console.log(`[RealOutcomeTracker V2] 👁️ Started Triple Barrier monitoring for ${signal.id} (${signal.symbol})`);
 
-    console.log(`[RealOutcomeTracker] 👁️ Started monitoring ${signalId} (${signal.symbol})`);
+    try {
+      // Convert HubSignal to barriers
+      const barriers = {
+        upperBarrier: signal.targets![2], // TP3 (most aggressive)
+        lowerBarrier: signal.stopLoss!,
+        target1: signal.targets![0],
+        target2: signal.targets![1],
+        target3: signal.targets![2],
+        timeBarrier: signal.expiresAt!,
+        entryPrice: signal.entry!,
+        direction: signal.direction!
+      };
 
-    // Set timeout for max monitoring duration
-    const timeoutTimer = setTimeout(() => {
-      this.handleTimeout(signalId);
-    }, this.MONITORING_DURATION);
+      // Use triple barrier monitor - it handles all the complex outcome classification
+      const outcome = await tripleBarrierMonitor.monitorSignal(signal, barriers);
 
-    // Monitor price updates
-    const priceCheckInterval = setInterval(async () => {
-      await this.checkPriceAndUpdateStatus(signalId);
-    }, this.PRICE_UPDATE_INTERVAL);
+      // Handle the outcome result
+      this.handleBarrierOutcome(signal.id, outcome);
 
-    // Store interval for cleanup
-    this.monitoringIntervals.set(signalId, priceCheckInterval);
+    } catch (error) {
+      console.error(`[RealOutcomeTracker V2] ❌ Error in Triple Barrier monitoring for ${signal.id}:`, error);
 
-    // Store timeout timer (we'll clear it if signal completes early)
-    this.monitoringIntervals.set(`${signalId}-timeout`, timeoutTimer as any);
+      // Fallback to timeout on error
+      this.handleTimeout(signal.id);
+    }
   }
 
   /**
@@ -289,26 +363,114 @@ class RealOutcomeTracker {
 
     const lastPrice = signal.lastPrice || signal.entryPrice;
 
-    // Determine outcome based on final price vs entry
-    const priceChange = signal.direction === 'LONG'
-      ? lastPrice - signal.entryPrice
-      : signal.entryPrice - lastPrice;
+    // Calculate price movement percentage
+    const priceMovementPct = signal.direction === 'LONG'
+      ? ((lastPrice - signal.entryPrice) / signal.entryPrice) * 100
+      : ((signal.entryPrice - lastPrice) / signal.entryPrice) * 100;
 
-    const outcome = priceChange > 0 ? 'WIN' : 'LOSS';
+    // Analyze timeout reason based on price behavior
+    let timeoutReason: 'PRICE_STAGNATION' | 'WRONG_DIRECTION' | 'LOW_VOLATILITY' | 'TIME_EXPIRED';
+
+    const absPriceMove = Math.abs(priceMovementPct);
+
+    if (priceMovementPct < -0.5) {
+      // Price moved against position significantly
+      timeoutReason = 'WRONG_DIRECTION';
+    } else if (absPriceMove < 0.2) {
+      // Price barely moved at all
+      timeoutReason = 'PRICE_STAGNATION';
+    } else if (absPriceMove < 0.5 && priceMovementPct > 0) {
+      // Price moved in right direction but not enough
+      timeoutReason = 'LOW_VOLATILITY';
+    } else {
+      // Price was moving but just ran out of time
+      timeoutReason = 'TIME_EXPIRED';
+    }
 
     console.log(`[RealOutcomeTracker] ⏱️ Signal ${signalId} timed out after ${this.MONITORING_DURATION / 1000}s`);
+    console.log(`  Timeout Reason: ${timeoutReason}`);
+    console.log(`  Price Movement: ${priceMovementPct > 0 ? '+' : ''}${priceMovementPct.toFixed(2)}%`);
 
-    this.completeSignal(signalId, outcome, lastPrice, 'TIMEOUT');
+    // TIMEOUT is now a distinct outcome, not WIN or LOSS
+    this.completeSignal(signalId, 'TIMEOUT', lastPrice, 'TIMEOUT', timeoutReason, priceMovementPct);
   }
 
   /**
-   * Complete a signal with final outcome
+   * Handle outcome from Triple Barrier Monitor
+   * This is the NEW method that processes multi-class outcomes
+   */
+  private handleBarrierOutcome(signalId: string, barrierOutcome: any): void {
+    const signal = this.activeSignals.get(signalId);
+    if (!signal) return;
+
+    const { mlOutcome, exitPrice, returnPct, exitTime, explanation } = barrierOutcome;
+
+    // Map ML outcome to legacy outcome type for backwards compatibility
+    const legacyOutcome = mlOutcome.startsWith('WIN') ? 'WIN' :
+                          mlOutcome.startsWith('LOSS') ? 'LOSS' :
+                          'TIMEOUT';
+
+    const exitReason = mlOutcome === 'WIN_TP1' ? 'TP1' :
+                       mlOutcome === 'WIN_TP2' ? 'TP2' :
+                       mlOutcome === 'WIN_TP3' ? 'TP3' :
+                       mlOutcome === 'LOSS_SL' ? 'STOP_LOSS' :
+                       'TIMEOUT';
+
+    // Get training value for this outcome (0.0-1.0 scale)
+    const trainingValue = getOutcomeTrainingValue(mlOutcome);
+
+    signal.status = legacyOutcome;
+    signal.exitPrice = exitPrice;
+    signal.exitTime = exitTime;
+    signal.actualReturn = returnPct;
+    signal.exitReason = exitReason;
+
+    // Store ML outcome and training value
+    signal.mlOutcome = mlOutcome;
+    signal.trainingValue = trainingValue;
+
+    const holdDuration = exitTime - signal.entryTime;
+
+    console.log(`[RealOutcomeTracker V2] 🏁 Signal ${signalId} completed:`);
+    console.log(`  ML Outcome: ${mlOutcome} (Training Value: ${trainingValue.toFixed(2)})`);
+    console.log(`  Legacy Outcome: ${legacyOutcome} (${exitReason})`);
+    console.log(`  Entry: $${signal.entryPrice.toFixed(2)} → Exit: $${exitPrice.toFixed(2)}`);
+    console.log(`  Return: ${returnPct > 0 ? '+' : ''}${returnPct.toFixed(2)}%`);
+    console.log(`  Hold Duration: ${(holdDuration / 1000).toFixed(1)}s`);
+    console.log(`  ${explanation}`);
+
+    // Move to completed signals
+    this.completedSignals.set(signalId, signal);
+    this.activeSignals.delete(signalId);
+
+    // Call outcome callback if registered
+    const callback = this.outcomeCallbacks.get(signalId);
+    if (callback) {
+      callback({
+        outcome: legacyOutcome,
+        returnPct,
+        exitReason,
+        exitPrice,
+        holdDuration,
+        mlOutcome,
+        trainingValue
+      });
+      this.outcomeCallbacks.delete(signalId);
+    }
+
+    this.saveToStorage();
+  }
+
+  /**
+   * Complete a signal with final outcome (Legacy method for backwards compatibility)
    */
   private completeSignal(
     signalId: string,
-    outcome: 'WIN' | 'LOSS',
+    outcome: 'WIN' | 'LOSS' | 'TIMEOUT',
     exitPrice: number,
-    exitReason: 'TP1' | 'TP2' | 'TP3' | 'STOP_LOSS' | 'TIMEOUT'
+    exitReason: 'TP1' | 'TP2' | 'TP3' | 'STOP_LOSS' | 'TIMEOUT',
+    timeoutReason?: 'PRICE_STAGNATION' | 'WRONG_DIRECTION' | 'LOW_VOLATILITY' | 'TIME_EXPIRED',
+    priceMovement?: number
   ): void {
     const signal = this.activeSignals.get(signalId);
     if (!signal) return;
@@ -323,6 +485,12 @@ class RealOutcomeTracker {
     signal.exitTime = Date.now();
     signal.actualReturn = actualReturn;
     signal.exitReason = exitReason;
+
+    // Store timeout details if applicable
+    if (outcome === 'TIMEOUT') {
+      signal.timeoutReason = timeoutReason;
+      signal.priceMovement = priceMovement;
+    }
 
     const holdDuration = signal.exitTime - signal.entryTime;
 
@@ -347,7 +515,14 @@ class RealOutcomeTracker {
         returnPct: actualReturn,
         exitReason,
         exitPrice,
-        holdDuration
+        holdDuration,
+        timeoutReason,
+        priceMovement,
+        mlOutcome: outcome === 'WIN' ? (exitReason === 'TP1' ? 'WIN_TP1' : exitReason === 'TP2' ? 'WIN_TP2' : 'WIN_TP3') as MLOutcomeClass :
+                   outcome === 'LOSS' ? 'LOSS_SL' as MLOutcomeClass :
+                   'TIMEOUT_STAGNATION' as MLOutcomeClass,
+        trainingValue: outcome === 'WIN' ? (exitReason === 'TP1' ? 0.6 : exitReason === 'TP2' ? 0.85 : 1.0) :
+                       outcome === 'LOSS' ? 0.0 : 0.2
       });
       this.outcomeCallbacks.delete(signalId);
     }

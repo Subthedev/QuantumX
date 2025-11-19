@@ -59,7 +59,7 @@ npm run preview
 - Supabase auth with implicit flow, session persistence in localStorage
 - AuthProvider wraps entire app in [App.tsx](src/App.tsx)
 - Auth state: `user`, `session`, `loading`, `signUp()`, `signIn()`, `signOut()`, `resetPassword()`, `updatePassword()`, `resendVerificationEmail()`
-- **Email Verification:** All email redirects use production URL `https://ignitexagency.com` to ensure mobile compatibility
+- **Email Verification:** All email redirects use production URL `https://ignitex.live` to ensure mobile compatibility
 - Supabase client: [src/integrations/supabase/client.ts](src/integrations/supabase/client.ts)
 
 ### Data Services Layer
@@ -270,7 +270,7 @@ This project is deployed via Lovable platform:
 - Changes via Lovable are auto-committed to this repo
 - Manual pushes to this repo reflect in Lovable
 - Deploy via Lovable: Share → Publish
-- Production URL: https://ignitexagency.com
+- Production URL: https://ignitex.live
 
 ## External APIs
 
