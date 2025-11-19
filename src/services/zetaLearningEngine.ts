@@ -66,6 +66,26 @@ export interface SignalOutcome {
   regime: string;
   returnPct: number;
   timestamp: number;
+  // Detailed outcome tracking for ML learning
+  outcomeReason?: string;
+  outcomeDetails?: {
+    targetHit?: 'TP1' | 'TP2' | 'TP3';
+    stopLossHit?: boolean;
+    timeoutReason?: 'PRICE_STAGNATION' | 'WRONG_DIRECTION' | 'LOW_VOLATILITY' | 'TIME_EXPIRED';
+    priceMovement?: number;
+    expectedMovement?: number;
+    highestPrice?: number;
+    lowestPrice?: number;
+    holdDuration?: number;
+    marketConditions?: string;
+  };
+}
+
+interface EngineLearnings {
+  alpha?: string;
+  beta?: string;
+  gamma?: string;
+  delta?: string;
 }
 
 // ========== ZETA ENGINE ==========
@@ -228,6 +248,53 @@ class ZetaLearningEngine extends SimpleEventEmitter {
       // Update health based on performance
       this.updateHealth();
 
+      // Emit outcome processed event for UI real-time updates
+      this.emit('outcome:processed', {
+        symbol: outcome.symbol,
+        outcome: outcome.outcome,
+        returnPct: outcome.returnPct,
+        strategy: outcome.strategy,
+        timestamp: Date.now(),
+        totalOutcomes: this.state.totalOutcomes,
+        mlAccuracy: this.state.mlAccuracy,
+        outcomeReason: outcome.outcomeReason,
+        outcomeDetails: outcome.outcomeDetails
+      });
+
+      // Analyze outcome for engine-specific feedback
+      const engineLearnings = this.analyzeOutcomeForEngines(outcome);
+      if (Object.keys(engineLearnings).length > 0) {
+        // Emit engine-specific feedback events for continuous improvement
+        if (engineLearnings.alpha) {
+          this.emit('feedback:alpha', {
+            signal: outcome,
+            learning: engineLearnings.alpha,
+            timestamp: Date.now()
+          });
+        }
+        if (engineLearnings.beta) {
+          this.emit('feedback:beta', {
+            signal: outcome,
+            learning: engineLearnings.beta,
+            timestamp: Date.now()
+          });
+        }
+        if (engineLearnings.gamma) {
+          this.emit('feedback:gamma', {
+            signal: outcome,
+            learning: engineLearnings.gamma,
+            timestamp: Date.now()
+          });
+        }
+        if (engineLearnings.delta) {
+          this.emit('feedback:delta', {
+            signal: outcome,
+            learning: engineLearnings.delta,
+            timestamp: Date.now()
+          });
+        }
+      }
+
       // Schedule batched metric update (not immediate)
       this.scheduleMetricUpdate();
 
@@ -241,6 +308,89 @@ class ZetaLearningEngine extends SimpleEventEmitter {
       console.error('[Zeta] Error processing outcome:', error);
       // Graceful degradation - don't crash the system
     }
+  }
+
+  /**
+   * Analyze outcome to generate engine-specific learnings
+   * This creates a systematic feedback loop for continuous improvement
+   */
+  private analyzeOutcomeForEngines(outcome: SignalOutcome): EngineLearnings {
+    const learnings: EngineLearnings = {};
+
+    // TIMEOUT Analysis - All engines should learn from this
+    if (outcome.outcome === 'TIMEOUT') {
+      const details = outcome.outcomeDetails;
+
+      // Alpha: Pattern detection feedback
+      if (details?.timeoutReason === 'PRICE_STAGNATION') {
+        learnings.alpha = `Pattern led to stagnant price - reduce detection sensitivity for similar setups in ${outcome.regime} regime`;
+      } else if (details?.timeoutReason === 'WRONG_DIRECTION') {
+        learnings.alpha = `Pattern predicted wrong direction - review reversal vs continuation logic for ${outcome.strategy}`;
+      } else if (details?.timeoutReason === 'LOW_VOLATILITY') {
+        learnings.alpha = `Low volatility timeout - increase minimum volatility threshold for pattern detection`;
+      }
+
+      // Beta: Confidence scoring feedback
+      learnings.beta = `Strategy ${outcome.strategy} timed out (confidence was ${outcome.confidence}%) - reduce scoring weight by 10%`;
+
+      // Gamma: Assembly logic feedback
+      learnings.gamma = `Signal assembly approved a timeout - tighten filters for ${outcome.regime} regime signals`;
+
+      // Delta: ML threshold feedback
+      learnings.delta = `ML approved signal that timed out - increase quality threshold for similar patterns`;
+    }
+
+    // LOSS Analysis - Identify what went wrong
+    if (outcome.outcome === 'LOSS') {
+      const details = outcome.outcomeDetails;
+
+      if (details?.stopLossHit) {
+        // Stop loss was too tight or entry was poor
+        learnings.alpha = `Stop loss hit at ${outcome.returnPct.toFixed(2)}% - review entry timing for ${outcome.strategy}`;
+        learnings.beta = `Loss of ${outcome.returnPct.toFixed(2)}% - reduce confidence for strategy ${outcome.strategy} in ${outcome.regime} regime`;
+        learnings.delta = `Stop loss triggered - consider wider stops for ${outcome.regime} volatility or better entry filtering`;
+      } else {
+        // Price moved against position significantly
+        const moveAgainst = Math.abs(outcome.returnPct);
+        if (moveAgainst > 3) {
+          learnings.alpha = `Large loss ${outcome.returnPct.toFixed(2)}% - pattern failed badly, decrease detection weight`;
+          learnings.gamma = `Major loss - signal should have been rejected, strengthen assembly filters`;
+        }
+      }
+    }
+
+    // WIN Analysis - Reinforce successful patterns
+    if (outcome.outcome === 'WIN') {
+      const details = outcome.outcomeDetails;
+      const winSize = outcome.returnPct;
+
+      if (details?.targetHit === 'TP3') {
+        // Big win - reinforce aggressively
+        learnings.alpha = `TP3 hit with ${winSize.toFixed(2)}% gain - reinforce pattern detection for ${outcome.strategy}`;
+        learnings.beta = `Strong win at TP3 - increase confidence weight for strategy ${outcome.strategy} by 15%`;
+        learnings.gamma = `TP3 success - current assembly logic is optimal for ${outcome.regime} regime`;
+        learnings.delta = `TP3 hit - ML prediction was excellent, maintain current thresholds`;
+      } else if (details?.targetHit === 'TP2') {
+        // Good win - moderate reinforcement
+        learnings.alpha = `TP2 hit with ${winSize.toFixed(2)}% gain - good pattern, maintain detection sensitivity`;
+        learnings.beta = `TP2 success - increase strategy ${outcome.strategy} weight by 8%`;
+      } else if (details?.targetHit === 'TP1') {
+        // Small win - slight reinforcement
+        learnings.beta = `TP1 hit with ${winSize.toFixed(2)}% - acceptable but could be better, slight +5% weight increase`;
+      }
+
+      // Check if win was in challenging conditions
+      if (outcome.regime === 'HIGH_VOLATILITY' || outcome.regime === 'BEARISH') {
+        learnings.gamma = `Win in ${outcome.regime} conditions - excellent signal assembly, document this setup`;
+      }
+    }
+
+    // Log generated learnings for transparency
+    if (Object.keys(learnings).length > 0) {
+      console.log(`[Zeta] 📚 Engine learnings generated for ${outcome.symbol} ${outcome.outcome}:`, learnings);
+    }
+
+    return learnings;
   }
 
   // ========== METRICS ==========
@@ -358,6 +508,25 @@ class ZetaLearningEngine extends SimpleEventEmitter {
     } catch (error) {
       console.error('[Zeta] Error loading state:', error);
     }
+  }
+
+  /**
+   * Get strategy performance for UI display
+   */
+  getStrategyPerformance(): Array<{ strategy: string; wins: number; total: number; winRate: number }> {
+    const performance: Array<{ strategy: string; wins: number; total: number; winRate: number }> = [];
+
+    for (const [strategy, perf] of this.state.strategyPerformance.entries()) {
+      performance.push({
+        strategy,
+        wins: perf.wins,
+        total: perf.total,
+        winRate: perf.total > 0 ? (perf.wins / perf.total) * 100 : 0
+      });
+    }
+
+    // Sort by total outcomes (most tested strategies first)
+    return performance.sort((a, b) => b.total - a.total);
   }
 
   /**

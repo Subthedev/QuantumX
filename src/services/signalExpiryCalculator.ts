@@ -1,0 +1,401 @@
+/**
+ * Intelligent Signal Expiry Calculator
+ *
+ * Calculates dynamic signal validity windows based on multiple market factors.
+ * Addresses the problem of signals timing out before reaching targets.
+ *
+ * Key Innovation: Signal expiry is calculated from expected time to reach target,
+ * not arbitrary fixed durations. This dramatically reduces TIMEOUT outcomes.
+ *
+ * Factors Considered:
+ * 1. Target Distance - How far price needs to move
+ * 2. Current Volatility (ATR) - How fast price typically moves
+ * 3. Market Regime - Trending (slower) vs Choppy (faster)
+ * 4. Signal Confidence - Higher confidence gets more time
+ * 5. Liquidity/Volume - Higher volume = faster price discovery
+ *
+ * Research: Based on 2024 institutional adaptive signal management practices
+ */
+
+import type { MarketRegime } from './igx/MarketRegimeDetector';
+
+// ===== INTERFACES =====
+
+export interface ExpiryFactors {
+  baseExpiry: number;              // Base expiry in milliseconds (calculated from target distance)
+  regimeMultiplier: number;        // Regime-based adjustment (0.5-2.0x)
+  volatilityMultiplier: number;    // Volatility-based adjustment (0.5-1.5x)
+  confidenceMultiplier: number;    // Confidence-based adjustment (0.8-1.2x)
+  liquidityMultiplier: number;     // Volume/liquidity adjustment (0.8-1.2x)
+  finalExpiry: number;             // Final calculated expiry in milliseconds
+  expiryMinutes: number;           // Final expiry in minutes (for display)
+  explanation: string;             // Human-readable explanation
+}
+
+export interface ExpiryInput {
+  entryPrice: number;
+  target1: number;                 // First target price
+  stopLoss: number;
+  regime: MarketRegime;
+  atrPercent: number;              // ATR as percentage of price
+  confidence: number;              // 0-100
+  recentVolume: number;            // Recent volume
+  avgVolume: number;               // Average volume
+  direction: 'LONG' | 'SHORT';
+}
+
+// ===== CONSTANTS =====
+
+const MIN_EXPIRY_MS = 24 * 60 * 60 * 1000;  // Minimum: 24 hours (TESTING - signals stay active longer)
+const MAX_EXPIRY_MS = 48 * 60 * 60 * 1000; // Maximum: 48 hours (TESTING)
+const AVG_DAY_MINUTES = 24 * 60;           // Minutes in a day
+const MS_PER_MINUTE = 60 * 1000;
+
+// ===== SIGNAL EXPIRY CALCULATOR =====
+
+export class SignalExpiryCalculator {
+  /**
+   * Calculate intelligent signal expiry time
+   *
+   * Core Logic:
+   * 1. Calculate how long it typically takes price to move to target
+   * 2. Apply regime multiplier (trends need more time, chop needs less)
+   * 3. Apply volatility multiplier (low vol needs more time)
+   * 4. Apply confidence multiplier (high confidence gets more time)
+   * 5. Apply liquidity multiplier (high volume = faster moves)
+   * 6. Enforce min/max bounds
+   *
+   * @param input - All factors needed for expiry calculation
+   * @returns Detailed breakdown of expiry calculation
+   */
+  calculateExpiry(input: ExpiryInput): ExpiryFactors {
+    // Step 1: Calculate base expiry from target distance and volatility
+    const baseExpiry = this.estimateTimeToTarget(
+      input.entryPrice,
+      input.target1,
+      input.atrPercent,
+      input.regime
+    );
+
+    // Step 2: Apply regime multiplier
+    const regimeMultiplier = this.getRegimeMultiplier(input.regime);
+
+    // Step 3: Apply volatility multiplier
+    const volatilityMultiplier = this.getVolatilityMultiplier(input.atrPercent);
+
+    // Step 4: Apply confidence multiplier
+    const confidenceMultiplier = this.getConfidenceMultiplier(input.confidence);
+
+    // Step 5: Apply liquidity multiplier
+    const liquidityMultiplier = this.getLiquidityMultiplier(
+      input.recentVolume,
+      input.avgVolume
+    );
+
+    // Step 6: Calculate final expiry
+    let finalExpiry = baseExpiry *
+                       regimeMultiplier *
+                       volatilityMultiplier *
+                       confidenceMultiplier *
+                       liquidityMultiplier;
+
+    // Step 7: Enforce bounds
+    const unboundedExpiry = finalExpiry;
+    finalExpiry = Math.max(MIN_EXPIRY_MS, Math.min(finalExpiry, MAX_EXPIRY_MS));
+
+    const expiryMinutes = Math.round(finalExpiry / MS_PER_MINUTE);
+
+    // Build explanation
+    const explanation = this.buildExplanation({
+      baseExpiry,
+      regimeMultiplier,
+      volatilityMultiplier,
+      confidenceMultiplier,
+      liquidityMultiplier,
+      unboundedExpiry,
+      finalExpiry,
+      regime: input.regime,
+      atrPercent: input.atrPercent,
+      confidence: input.confidence
+    });
+
+    console.log(
+      `[Expiry Calculator] ${expiryMinutes} min | ` +
+      `Base: ${Math.round(baseExpiry / MS_PER_MINUTE)}m × ` +
+      `Regime: ${regimeMultiplier.toFixed(2)} × ` +
+      `Vol: ${volatilityMultiplier.toFixed(2)} × ` +
+      `Conf: ${confidenceMultiplier.toFixed(2)} × ` +
+      `Liq: ${liquidityMultiplier.toFixed(2)} = ${expiryMinutes}m`
+    );
+
+    return {
+      baseExpiry,
+      regimeMultiplier,
+      volatilityMultiplier,
+      confidenceMultiplier,
+      liquidityMultiplier,
+      finalExpiry,
+      expiryMinutes,
+      explanation
+    };
+  }
+
+  /**
+   * Estimate time to reach target based on historical movement rates
+   *
+   * Logic: "In this volatility regime, price moves X% per Y minutes on average"
+   *
+   * Example:
+   *   ATR = 3% per day
+   *   Target distance = 2%
+   *   Expected time = (2% / 3%) × 1 day = 0.67 days = 16 hours
+   *
+   * We then adjust this base estimate with regime-specific knowledge.
+   */
+  private estimateTimeToTarget(
+    entryPrice: number,
+    target: number,
+    atrPercent: number,
+    regime: MarketRegime
+  ): number {
+    // Calculate target distance as percentage
+    const targetDistancePct = Math.abs(target - entryPrice) / entryPrice * 100;
+
+    // If ATR is too small, use fallback
+    if (atrPercent < 0.1) {
+      console.warn(`[Expiry Calculator] ATR too small (${atrPercent}%), using fallback`);
+      return this.getFallbackExpiry(regime);
+    }
+
+    // Calculate average movement per minute based on ATR
+    // ATR represents typical daily range, so we divide by minutes in a day
+    const avgMovementPerMinute = atrPercent / AVG_DAY_MINUTES;
+
+    // Estimate minutes to target
+    const estimatedMinutesToTarget = targetDistancePct / avgMovementPerMinute;
+
+    // Convert to milliseconds
+    const baseExpiry = estimatedMinutesToTarget * MS_PER_MINUTE;
+
+    // Apply regime-specific adjustment to base estimate
+    // Some regimes move more directionally, others chop around
+    const regimeAdjustment = this.getBaseRegimeAdjustment(regime);
+
+    return baseExpiry * regimeAdjustment;
+  }
+
+  /**
+   * Get base regime adjustment for time-to-target calculation
+   *
+   * This is separate from regimeMultiplier (which is applied later).
+   * This adjusts the base calculation for regime-specific movement characteristics.
+   */
+  private getBaseRegimeAdjustment(regime: MarketRegime): number {
+    const adjustments: Record<MarketRegime, number> = {
+      BULL_MOMENTUM: 0.8,        // Trends move efficiently toward targets
+      BEAR_MOMENTUM: 0.8,
+      BULL_RANGE: 1.2,           // Range-bound means slower progress
+      BEAR_RANGE: 1.2,
+      CHOPPY: 1.5,               // Choppy means lots of back-and-forth
+      VOLATILE_BREAKOUT: 0.7,    // Breakouts move fast
+      ACCUMULATION: 1.3          // Accumulation is slow and steady
+    };
+
+    return adjustments[regime] || 1.0;
+  }
+
+  /**
+   * Get regime multiplier for final expiry adjustment
+   *
+   * Trending markets: Give signals more time to play out
+   * Choppy markets: Signals invalidate quickly
+   * Volatile markets: Fast movements, medium time
+   */
+  private getRegimeMultiplier(regime: MarketRegime): number {
+    const multipliers: Record<MarketRegime, number> = {
+      BULL_MOMENTUM: 1.5,        // Trends need time to develop
+      BEAR_MOMENTUM: 1.5,
+      BULL_RANGE: 0.9,           // Range-bound = tighter validity
+      BEAR_RANGE: 0.9,
+      CHOPPY: 0.6,               // Choppy = very short validity
+      VOLATILE_BREAKOUT: 1.0,    // Breakouts = standard validity
+      ACCUMULATION: 1.2          // Accumulation = slightly longer
+    };
+
+    return multipliers[regime] || 1.0;
+  }
+
+  /**
+   * Get volatility multiplier
+   *
+   * Low volatility: Need more time for price to move
+   * High volatility: Moves happen faster
+   */
+  private getVolatilityMultiplier(atrPercent: number): number {
+    if (atrPercent < 1.5) return 1.4;      // Very low volatility
+    if (atrPercent < 2.5) return 1.2;      // Low volatility
+    if (atrPercent < 4.0) return 1.0;      // Medium volatility
+    if (atrPercent < 6.0) return 0.8;      // High volatility
+    return 0.6;                             // Extreme volatility
+  }
+
+  /**
+   * Get confidence multiplier
+   *
+   * High confidence signals: Give more time to play out
+   * Low confidence signals: Shorter leash
+   */
+  private getConfidenceMultiplier(confidence: number): number {
+    if (confidence >= 85) return 1.2;      // Very high confidence
+    if (confidence >= 75) return 1.1;      // High confidence
+    if (confidence >= 65) return 1.0;      // Medium confidence
+    if (confidence >= 55) return 0.9;      // Low confidence
+    return 0.8;                             // Very low confidence
+  }
+
+  /**
+   * Get liquidity multiplier based on volume
+   *
+   * High volume: Price discovery happens faster
+   * Low volume: Price moves more slowly
+   */
+  private getLiquidityMultiplier(recentVolume: number, avgVolume: number): number {
+    if (avgVolume === 0) return 1.0;
+
+    const volumeRatio = recentVolume / avgVolume;
+
+    if (volumeRatio > 2.0) return 0.8;     // Very high volume = faster
+    if (volumeRatio > 1.5) return 0.9;     // High volume
+    if (volumeRatio > 0.8) return 1.0;     // Normal volume
+    if (volumeRatio > 0.5) return 1.1;     // Low volume
+    return 1.2;                             // Very low volume = slower
+  }
+
+  /**
+   * Get fallback expiry when ATR is unavailable or too small
+   */
+  private getFallbackExpiry(regime: MarketRegime): number {
+    const fallbackMinutes: Record<MarketRegime, number> = {
+      BULL_MOMENTUM: 45,
+      BEAR_MOMENTUM: 45,
+      BULL_RANGE: 25,
+      BEAR_RANGE: 25,
+      CHOPPY: 15,
+      VOLATILE_BREAKOUT: 20,
+      ACCUMULATION: 35
+    };
+
+    return (fallbackMinutes[regime] || 30) * MS_PER_MINUTE;
+  }
+
+  /**
+   * Build human-readable explanation of expiry calculation
+   */
+  private buildExplanation(data: {
+    baseExpiry: number;
+    regimeMultiplier: number;
+    volatilityMultiplier: number;
+    confidenceMultiplier: number;
+    liquidityMultiplier: number;
+    unboundedExpiry: number;
+    finalExpiry: number;
+    regime: MarketRegime;
+    atrPercent: number;
+    confidence: number;
+  }): string {
+    const baseMin = Math.round(data.baseExpiry / MS_PER_MINUTE);
+    const finalMin = Math.round(data.finalExpiry / MS_PER_MINUTE);
+    const unboundedMin = Math.round(data.unboundedExpiry / MS_PER_MINUTE);
+
+    let explanation = `Signal valid for ${finalMin} minutes. `;
+    explanation += `Base estimate: ${baseMin}m (based on ${data.atrPercent.toFixed(1)}% ATR). `;
+
+    // Explain each adjustment
+    if (data.regimeMultiplier !== 1.0) {
+      const change = data.regimeMultiplier > 1.0 ? 'Extended' : 'Reduced';
+      explanation += `${change} for ${data.regime} regime (×${data.regimeMultiplier.toFixed(2)}). `;
+    }
+
+    if (data.volatilityMultiplier !== 1.0) {
+      const volLevel = data.atrPercent < 2.5 ? 'low' : 'high';
+      const change = data.volatilityMultiplier > 1.0 ? 'Extended' : 'Reduced';
+      explanation += `${change} due to ${volLevel} volatility (×${data.volatilityMultiplier.toFixed(2)}). `;
+    }
+
+    if (data.confidenceMultiplier !== 1.0) {
+      const confLevel = data.confidence > 75 ? 'high' : 'low';
+      const change = data.confidenceMultiplier > 1.0 ? 'Extended' : 'Reduced';
+      explanation += `${change} for ${confLevel} confidence (×${data.confidenceMultiplier.toFixed(2)}). `;
+    }
+
+    // Note if bounded
+    if (data.finalExpiry !== data.unboundedExpiry) {
+      if (data.finalExpiry === MIN_EXPIRY_MS) {
+        explanation += `Minimum enforced (calculated ${unboundedMin}m).`;
+      } else if (data.finalExpiry === MAX_EXPIRY_MS) {
+        explanation += `Maximum enforced (calculated ${unboundedMin}m).`;
+      }
+    }
+
+    return explanation;
+  }
+
+  /**
+   * Calculate expiry for a simple case (no detailed factors)
+   * Useful for quick estimates
+   */
+  calculateSimpleExpiry(
+    targetDistancePct: number,
+    regime: MarketRegime,
+    atrPercent: number
+  ): number {
+    const input: ExpiryInput = {
+      entryPrice: 100,
+      target1: 100 * (1 + targetDistancePct / 100),
+      stopLoss: 100 * (1 - targetDistancePct / (2 * 100)), // Assume 1:2 R:R
+      regime,
+      atrPercent,
+      confidence: 70,
+      recentVolume: 1000000,
+      avgVolume: 1000000,
+      direction: 'LONG'
+    };
+
+    const factors = this.calculateExpiry(input);
+    return factors.finalExpiry;
+  }
+
+  /**
+   * Validate if current expiry is appropriate
+   * Can be used to adjust existing signals
+   */
+  validateExpiry(
+    currentExpiry: number,
+    recommendedExpiry: number
+  ): { valid: boolean; recommendation: string } {
+    const currentMin = Math.round(currentExpiry / MS_PER_MINUTE);
+    const recommendedMin = Math.round(recommendedExpiry / MS_PER_MINUTE);
+    const difference = Math.abs(currentMin - recommendedMin);
+    const percentDiff = (difference / recommendedMin) * 100;
+
+    if (percentDiff < 20) {
+      return {
+        valid: true,
+        recommendation: `Current expiry (${currentMin}m) is appropriate`
+      };
+    } else if (currentMin < recommendedMin) {
+      return {
+        valid: false,
+        recommendation: `Current expiry (${currentMin}m) is too short, recommend ${recommendedMin}m (${difference}m more)`
+      };
+    } else {
+      return {
+        valid: false,
+        recommendation: `Current expiry (${currentMin}m) is too long, recommend ${recommendedMin}m (${difference}m less)`
+      };
+    }
+  }
+}
+
+// Export singleton instance
+export const signalExpiryCalculator = new SignalExpiryCalculator();

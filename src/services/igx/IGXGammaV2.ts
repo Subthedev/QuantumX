@@ -28,7 +28,8 @@
  */
 
 import type { StrategyConsensus } from './interfaces/StrategyConsensus';
-import { rejectionLogger } from '../RejectionLoggerService';
+import { advancedRejectionFilter } from '../AdvancedRejectionFilter';
+import { signalDeduplicationCache } from '../SignalDeduplicationCache';
 
 /**
  * Market condition data from Alpha V3
@@ -114,8 +115,31 @@ export class IGXGammaV2 {
   private alphaMarketCondition: AlphaMarketCondition | null = null;
   private dataEngineMetrics: DataEngineMetrics | null = null;
 
+  // ✅ P0.1: INSTITUTIONAL-GRADE DEDUPLICATION
+  // Callback to get active signals from globalHubService (one signal per coin discipline)
+  private getActiveSignals: (() => any[]) | null = null;
+
+  // ✅ CONFIGURABLE TIER FILTERING
+  // Beta V5 only generates: HIGH, MEDIUM, LOW (no PREMIUM tier exists)
+  private tierConfig = {
+    acceptHigh: true,    // Default: accept HIGH tier signals
+    acceptMedium: true,  // Default: accept MEDIUM tier signals (changed to true)
+    acceptLow: true,     // ✅ TESTING: Accept LOW tier for signal flow (was always rejected)
+    highPriority: 'HIGH' as 'HIGH' | 'MEDIUM' // Priority for HIGH tier signals
+  };
+
   constructor() {
     console.log('[IGX Gamma V2] 🎯 Initialized - Adaptive Market Condition Matcher');
+    this.loadTierConfig();
+  }
+
+  /**
+   * ✅ P0.1: Set active signals provider for deduplication
+   * Called by globalHubService to enable "one signal per coin" enforcement
+   */
+  setActiveSignalsProvider(provider: () => any[]): void {
+    this.getActiveSignals = provider;
+    console.log('[IGX Gamma V2] 🔒 Deduplication enabled - One signal per coin enforced');
   }
 
   /**
@@ -200,8 +224,8 @@ export class IGXGammaV2 {
     } else {
       console.log(`[IGX Gamma V2] ❌ Signal rejected - will NOT emit to queue`);
       
-      // ✅ LOG REJECTION
-      rejectionLogger.logRejection({
+      // ✅ LOG REJECTION WITH ADVANCED ML FILTER
+      advancedRejectionFilter.filterAndLog({
         symbol: consensus.symbol,
         direction: consensus.direction || 'NEUTRAL',
         rejectionStage: 'GAMMA',
@@ -209,8 +233,9 @@ export class IGXGammaV2 {
         qualityScore: consensus.dataQuality,
         confidenceScore: consensus.confidence,
         dataQuality: consensus.dataQuality,
-        strategyVotes: Array.from(consensus.individualRecommendations || []),
-        marketRegime: consensus.marketRegime || undefined
+        strategyVotes: consensus.individualRecommendations,
+        marketRegime: decision.marketCondition.regime,
+        volatility: decision.dataMetrics.volatility * 100
       });
     }
   }
@@ -222,8 +247,54 @@ export class IGXGammaV2 {
     const startTime = performance.now();
     this.stats.totalProcessed++;
 
+    // ✅ SMART 24-HOUR DEDUPLICATION CHECK (Production Grade)
+    // Prevents same coin+direction within 24 hours, allows different directions
+    // Example: BTC LONG blocked for 24h, but BTC SHORT allowed immediately
+    const isDuplicate = signalDeduplicationCache.isDuplicate(
+      consensus.symbol,
+      consensus.direction
+    );
+
+    if (isDuplicate) {
+      const timeRemaining = signalDeduplicationCache.getTimeRemainingFormatted(
+        consensus.symbol,
+        consensus.direction
+      );
+
+      const reason = `DUPLICATE REJECTED: ${consensus.symbol} ${consensus.direction} ` +
+        `already sent within last 24 hours (${timeRemaining} remaining)`;
+
+      this.stats.totalRejected++;
+      const rejectionKey = '24-Hour Duplicate (Same Coin+Direction)';
+      this.stats.rejectionReasons.set(
+        rejectionKey,
+        (this.stats.rejectionReasons.get(rejectionKey) || 0) + 1
+      );
+
+      console.log(
+        `\n[IGX Gamma V2] 🔒 24H DUPLICATE REJECTED: ${consensus.symbol} ${consensus.direction}\n` +
+        `├─ Time Remaining: ${timeRemaining}\n` +
+        `├─ Different Direction: ${consensus.direction === 'LONG' ? 'SHORT' : 'LONG'} would be allowed ✅\n` +
+        `├─ Rule: ONE SIGNAL PER COIN+DIRECTION per 24 hours\n` +
+        `└─ Confidence: ${consensus.confidence}% (Quality: ${consensus.qualityTier})\n`
+      );
+
+      const marketCondition = this.alphaMarketCondition || this.getDefaultMarketCondition();
+      const dataMetrics = this.dataEngineMetrics || this.getDefaultDataMetrics();
+
+      return {
+        passed: false,
+        priority: 'REJECT',
+        reason,
+        consensus,
+        marketCondition,
+        dataMetrics,
+        timestamp: Date.now()
+      };
+    }
+
     console.log(
-      `\n[IGX Gamma V2] 🎯 Matching: ${consensus.symbol} ${consensus.direction} ` +
+      `\n[IGX Gamma V2] 🧪 COMPLETE BYPASS MODE: ${consensus.symbol} ${consensus.direction} ` +
       `(Quality Tier: ${consensus.qualityTier}, Confidence: ${consensus.confidence}%)`
     );
 
@@ -231,139 +302,56 @@ export class IGXGammaV2 {
     const marketCondition = this.alphaMarketCondition || this.getDefaultMarketCondition();
     const dataMetrics = this.dataEngineMetrics || this.getDefaultDataMetrics();
 
+    // ✅ SIMPLIFIED TIER-BASED FILTERING - Trust Beta's consensus, focus on deduplication
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`[IGX Gamma V2] 📊 EVALUATING: ${consensus.symbol} ${consensus.direction}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`🏆 Quality Tier: ${consensus.qualityTier}`);
+    console.log(`📈 Confidence: ${consensus.confidence}%`);
+    console.log(`⚙️  Tier Config: HIGH=${this.tierConfig.acceptHigh}, MEDIUM=${this.tierConfig.acceptMedium}, LOW=${this.tierConfig.acceptLow}`);
+
     let passed = false;
     let priority: 'HIGH' | 'MEDIUM' | 'REJECT' = 'REJECT';
     let reason = '';
 
-    // ADAPTIVE FILTERING RULES
-
-    // ✅ PHASE 1: Rule 0 - REGIME-AWARE QUALITY FILTERING (Highest Priority)
-    // Use Beta's market regime detection for intelligent quality acceptance
-    const betaRegime = consensus.marketRegime;
-
-    if (betaRegime) {
-      // 📊 ACCUMULATION/RANGE MARKETS → Accept HIGH + MEDIUM quality
-      // These are consolidation markets where MEDIUM quality signals are appropriate
-      if (betaRegime === 'ACCUMULATION' || betaRegime === 'BULL_RANGE' || betaRegime === 'BEAR_RANGE') {
-        if (consensus.qualityTier === 'HIGH') {
-          passed = true;
-          priority = 'HIGH';
-          reason = `HIGH quality + ${betaRegime} market → HIGH priority (regime-aware)`;
-        } else if (consensus.qualityTier === 'MEDIUM' && consensus.confidence >= 50) {
-          passed = true;
-          priority = 'MEDIUM';
-          reason = `MEDIUM quality + ${betaRegime} market → MEDIUM priority (regime-aware filtering)`;
-        } else if (consensus.qualityTier === 'MEDIUM') {
-          reason = `Rejected MEDIUM quality: Confidence ${consensus.confidence}% too low (need 50%+ in ${betaRegime})`;
-        } else {
-          reason = `Rejected LOW quality: ${betaRegime} market accepts HIGH/MEDIUM only`;
-        }
-
-        console.log(`[IGX Gamma V2] 🎯 Regime-Aware Filter: ${betaRegime} | Accepting: HIGH, MEDIUM (50%+)`);
-      }
-      // 🚀 TRENDING MARKETS → Only HIGH quality passes
-      // Strong trends need highest confidence signals
-      else if (betaRegime === 'BULL_MOMENTUM' || betaRegime === 'BEAR_MOMENTUM' || betaRegime === 'VOLATILE_BREAKOUT') {
-        if (consensus.qualityTier === 'HIGH') {
-          passed = true;
-          priority = 'HIGH';
-          reason = `HIGH quality + ${betaRegime} market → HIGH priority (strong trend requires HIGH quality)`;
-        } else {
-          reason = `Rejected ${consensus.qualityTier} quality: ${betaRegime} requires HIGH quality (strong directional market)`;
-        }
-
-        console.log(`[IGX Gamma V2] 🎯 Regime-Aware Filter: ${betaRegime} | Accepting: HIGH only`);
-      }
-      // 🌊 CHOPPY MARKETS → Only HIGH quality passes
-      // Choppy markets are dangerous, need highest confidence
-      else if (betaRegime === 'CHOPPY') {
-        if (consensus.qualityTier === 'HIGH') {
-          passed = true;
-          priority = 'HIGH';
-          reason = `HIGH quality + ${betaRegime} market → HIGH priority (choppy market requires HIGH quality)`;
-        } else {
-          reason = `Rejected ${consensus.qualityTier} quality: ${betaRegime} is dangerous, requires HIGH quality`;
-        }
-
-        console.log(`[IGX Gamma V2] 🎯 Regime-Aware Filter: ${betaRegime} | Accepting: HIGH only (dangerous conditions)`);
-      }
+    // Simplified tier-based filtering (Beta V5 only generates: HIGH, MEDIUM, LOW)
+    if (consensus.qualityTier === 'HIGH' && this.tierConfig.acceptHigh) {
+      passed = true;
+      priority = this.tierConfig.highPriority;
+      reason = `HIGH tier (${consensus.confidence}% confidence) - Priority: ${priority}`;
+      console.log(`✅ PASS: ${reason}`);
+    } else if (consensus.qualityTier === 'MEDIUM' && this.tierConfig.acceptMedium) {
+      passed = true;
+      priority = 'MEDIUM';
+      reason = `MEDIUM tier (${consensus.confidence}% confidence)`;
+      console.log(`✅ PASS: ${reason}`);
+    } else if (consensus.qualityTier === 'LOW' && this.tierConfig.acceptLow) {
+      passed = true;
+      priority = 'MEDIUM'; // Treat LOW as MEDIUM priority for now
+      reason = `LOW tier accepted for testing (${consensus.confidence}% confidence)`;
+      console.log(`✅ PASS: ${reason}`);
+    } else if (consensus.qualityTier === 'LOW' && !this.tierConfig.acceptLow) {
+      passed = false;
+      priority = 'REJECT';
+      reason = `LOW tier disabled in config`;
+      console.log(`❌ REJECT: ${reason}`);
+    } else if (consensus.qualityTier === 'HIGH' && !this.tierConfig.acceptHigh) {
+      passed = false;
+      priority = 'REJECT';
+      reason = `HIGH tier disabled in config`;
+      console.log(`❌ REJECT: ${reason} (Enable in Control Center)`);
+    } else if (consensus.qualityTier === 'MEDIUM' && !this.tierConfig.acceptMedium) {
+      passed = false;
+      priority = 'REJECT';
+      reason = `MEDIUM tier disabled in config`;
+      console.log(`❌ REJECT: ${reason} (Enable in Control Center)`);
+    } else {
+      passed = false;
+      priority = 'REJECT';
+      reason = `Unknown quality tier: ${consensus.qualityTier}`;
+      console.log(`❌ REJECT: ${reason}`);
     }
-
-    // If regime-based rule made a decision, skip volatility-based rules
-    // Otherwise, fall through to existing volatility-based rules as backup
-    if (!passed && betaRegime) {
-      // Regime-based rejection is final - no fallback to volatility rules
-      console.log(`[IGX Gamma V2] ❌ Regime-based rejection: ${reason}`);
-    }
-    // Rule 1: HIGH volatility → Only HIGH quality passes (BACKUP if no regime data)
-    else if (dataMetrics.volatility > 0.05) {
-      if (consensus.qualityTier === 'HIGH') {
-        passed = true;
-        priority = 'HIGH';
-        reason = 'HIGH quality + High volatility market → HIGH priority';
-      } else {
-        reason = `Rejected ${consensus.qualityTier} quality: High volatility (${(dataMetrics.volatility * 100).toFixed(1)}%) requires HIGH quality`;
-      }
-    }
-    // Rule 2: Uncertain regime (low confidence) → Only HIGH quality
-    else if (marketCondition.confidence < 60) {
-      if (consensus.qualityTier === 'HIGH') {
-        passed = true;
-        priority = 'HIGH';
-        reason = 'HIGH quality + Uncertain regime → HIGH priority';
-      } else {
-        reason = `Rejected ${consensus.qualityTier} quality: Uncertain regime (${marketCondition.confidence}% confidence) requires HIGH quality`;
-      }
-    }
-    // Rule 3: LOW volatility + STRONG trend → HIGH & MEDIUM pass, LOW gets chance
-    else if (dataMetrics.volatility < 0.02 && marketCondition.trend === 'STRONG') {
-      if (consensus.qualityTier === 'HIGH') {
-        passed = true;
-        priority = 'HIGH';
-        reason = 'HIGH quality + Low vol + Strong trend → HIGH priority';
-      } else if (consensus.qualityTier === 'MEDIUM') {
-        passed = true;
-        priority = 'MEDIUM';
-        reason = 'MEDIUM quality + Low vol + Strong trend → MEDIUM priority';
-      } else if (consensus.confidence >= 55) {
-        // ✅ Give LOW quality a chance in VERY favorable conditions if confidence is decent
-        passed = true;
-        priority = 'MEDIUM';
-        reason = 'LOW quality BUT favorable conditions (low vol + strong trend) + decent confidence → MEDIUM priority';
-      } else {
-        reason = 'Rejected LOW quality: Confidence too low even in favorable conditions';
-      }
-    }
-    // Rule 4: Moderate volatility + Moderate/Strong trend → HIGH & MEDIUM pass, LOW might pass
-    else if (dataMetrics.volatility >= 0.02 && dataMetrics.volatility <= 0.05 &&
-             (marketCondition.trend === 'STRONG' || marketCondition.trend === 'MODERATE')) {
-      if (consensus.qualityTier === 'HIGH') {
-        passed = true;
-        priority = 'HIGH';
-        reason = 'HIGH quality + Moderate conditions → HIGH priority';
-      } else if (consensus.qualityTier === 'MEDIUM') {
-        passed = true;
-        priority = 'MEDIUM';
-        reason = 'MEDIUM quality + Moderate conditions → MEDIUM priority';
-      } else if (consensus.confidence >= 50 && marketCondition.trend === 'STRONG') {
-        // ✅ LOW quality gets chance in moderate conditions IF strong trend + decent confidence
-        passed = true;
-        priority = 'MEDIUM';
-        reason = 'LOW quality BUT strong trend + moderate vol + decent confidence → MEDIUM priority';
-      } else {
-        reason = 'Rejected LOW quality: Insufficient confidence or weak trend';
-      }
-    }
-    // Rule 5: Default - Only HIGH quality in unclear conditions
-    else {
-      if (consensus.qualityTier === 'HIGH') {
-        passed = true;
-        priority = 'HIGH';
-        reason = 'HIGH quality → HIGH priority (default filtering)';
-      } else {
-        reason = `Rejected ${consensus.qualityTier} quality: Default requires HIGH quality`;
-      }
-    }
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
     // Record stats
     if (passed) {
@@ -377,7 +365,7 @@ export class IGXGammaV2 {
       this.stats.totalRejected++;
       const rejectionCount = this.stats.rejectionReasons.get(reason) || 0;
       this.stats.rejectionReasons.set(reason, rejectionCount + 1);
-      console.log(`[IGX Gamma V2] ❌ REJECTED: ${reason}`);
+      console.log(`[IGX Gamma V2] ❌ REJECTED: ${reason} (confidence: ${consensus.confidence}%)`);
     }
 
     // Record processing time
@@ -393,6 +381,16 @@ export class IGXGammaV2 {
       dataMetrics,
       timestamp: Date.now()
     };
+
+    // ✅ RECORD APPROVED SIGNAL IN 24H CACHE (if passed)
+    // This prevents duplicate signals for same coin+direction within 24 hours
+    if (passed) {
+      signalDeduplicationCache.recordSignal(consensus.symbol, consensus.direction);
+      console.log(
+        `[IGX Gamma V2] 📝 Signal recorded in 24h cache: ${consensus.symbol} ${consensus.direction} ` +
+        `(valid until ${new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString()})`
+      );
+    }
 
     return decision;
   }
@@ -469,6 +467,48 @@ export class IGXGammaV2 {
    */
   testMatch(consensus: StrategyConsensus): GammaFilterDecision {
     return this.matchToMarketConditions(consensus);
+  }
+
+  /**
+   * Load tier configuration from localStorage
+   */
+  private loadTierConfig(): void {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('igx_gamma_tier_config');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          this.tierConfig = { ...this.tierConfig, ...parsed };
+          console.log('[IGX Gamma V2] 📂 Loaded tier config from localStorage:', this.tierConfig);
+        }
+      } catch (error) {
+        console.warn('[IGX Gamma V2] Could not load tier config:', error);
+      }
+    }
+  }
+
+  /**
+   * Get current tier configuration
+   */
+  getTierConfig() {
+    return { ...this.tierConfig };
+  }
+
+  /**
+   * Update tier configuration
+   */
+  setTierConfig(config: Partial<typeof this.tierConfig>): void {
+    this.tierConfig = { ...this.tierConfig, ...config };
+
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('igx_gamma_tier_config', JSON.stringify(this.tierConfig));
+        console.log('[IGX Gamma V2] 💾 Tier config saved:', this.tierConfig);
+      } catch (error) {
+        console.warn('[IGX Gamma V2] Could not save tier config:', error);
+      }
+    }
   }
 }
 

@@ -15,16 +15,8 @@ interface TradingViewChartProps {
   height?: number;
 }
 
-const TIMEFRAMES: { label: string; value: ChartTimeframe; days: number }[] = [
-  { label: '1H', value: '1H', days: 1 },
-  { label: '4H', value: '4H', days: 1 },
-  { label: '1D', value: '1D', days: 1 },
-  { label: '7D', value: '7D', days: 7 },
-  { label: '30D', value: '30D', days: 30 },
-  { label: '90D', value: '90D', days: 90 },
-  { label: '1Y', value: '1Y', days: 365 },
-  { label: 'ALL', value: 'ALL', days: 9999 },
-];
+// FIXED TIMEFRAME: All coins show daily candles with maximum historic data
+const FIXED_TIMEFRAME: ChartTimeframe = '1D'; // Daily candles for all coins
 
 const CHART_TYPES: { label: string; value: ChartType; icon: React.ReactNode }[] = [
   { label: 'Candlestick', value: 'candlestick', icon: <BarChart3 className="w-3 h-3" /> },
@@ -46,8 +38,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const isInitializedRef = useRef(false);
   const { theme: appTheme } = useTheme();
 
-  const [chartType, setChartType] = useState<ChartType>('candlestick');
-  const [timeframe] = useState<ChartTimeframe>('ALL'); // Fixed to ALL time
+  const [chartType] = useState<ChartType>('candlestick'); // Fixed to candlestick only
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataPointsCount, setDataPointsCount] = useState<number>(0);
@@ -131,18 +122,18 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       return;
     }
 
-    console.log('Loading chart data for', coinId, timeframe, chartType);
+    console.log('Loading chart data for', coinId, FIXED_TIMEFRAME, chartType);
     setLoading(true);
     setError(null);
 
     try {
-      const data = await ohlcDataService.fetchDataForTimeframe(coinId, timeframe);
+      const data = await ohlcDataService.fetchDataForTimeframe(coinId, FIXED_TIMEFRAME);
 
       if (!data.ohlc || data.ohlc.length === 0) {
         throw new Error('No data available for this timeframe');
       }
 
-      console.log(`Received ${data.ohlc.length} data points for ${timeframe}`);
+      console.log(`Received ${data.ohlc.length} data points for ${FIXED_TIMEFRAME}`);
 
       setDataPointsCount(data.ohlc.length);
 
@@ -155,10 +146,14 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         points: sortedOHLC.length
       });
 
-      // Remove old series
+      // Remove old series and reset time scale for fresh start
       if (seriesRef.current && chartRef.current) {
         chartRef.current.removeSeries(seriesRef.current);
         seriesRef.current = null;
+
+        // Reset time scale to default state when switching timeframes
+        const timeScale = chartRef.current.timeScale();
+        timeScale.resetTimeScale();
       }
       if (volumeSeriesRef.current && chartRef.current) {
         chartRef.current.removeSeries(volumeSeriesRef.current);
@@ -224,25 +219,43 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
         });
       }
 
-      // Configure timeScale to show ALL data - Binance style
+      // FIT ALL DATA: Show complete chart with dynamic spacing based on candle count
       const timeScale = chartRef.current.timeScale();
 
-      // Show ALL data points from first to last with small padding
-      // This is the key to displaying the full chart without empty space
       if (sortedOHLC.length > 0) {
-        // Add small negative padding to show from very start
-        timeScale.setVisibleLogicalRange({
-          from: -0.5,
-          to: sortedOHLC.length - 0.5,
+        const numberOfCandles = sortedOHLC.length;
+        const firstCandle = sortedOHLC[0];
+        const lastCandle = sortedOHLC[sortedOHLC.length - 1];
+        const firstDate = new Date((firstCandle.time as number) * 1000).toLocaleDateString();
+        const lastDate = new Date((lastCandle.time as number) * 1000).toLocaleDateString();
+
+        console.log(`📊 ${FIXED_TIMEFRAME}: ${numberOfCandles} candles from ${firstDate} to ${lastDate}`);
+
+        // Calculate bar spacing to fit ALL candles in view
+        const chartWidth = chartContainerRef.current?.clientWidth || 1000;
+        const availableWidth = chartWidth - 80; // Account for price scale
+        const calculatedSpacing = availableWidth / numberOfCandles;
+
+        // Ensure minimum readable spacing (0.5px) - will require scroll if too many candles
+        const barSpacing = Math.max(0.5, calculatedSpacing);
+
+        console.log(`📊 Spacing: ${barSpacing.toFixed(2)}px for ${numberOfCandles} candles in ${availableWidth}px`);
+
+        // Configure time scale for zoom/scroll experience
+        timeScale.applyOptions({
+          barSpacing: barSpacing,
+          minBarSpacing: 0.5,
+          rightOffset: 5,
+          fixLeftEdge: false,
+          fixRightEdge: false,
+          lockVisibleTimeRangeOnResize: false,
+          shiftVisibleRangeOnNewBar: true,
         });
 
-        // Force the range again after a short delay to override any defaults
-        setTimeout(() => {
-          timeScale.setVisibleLogicalRange({
-            from: -0.5,
-            to: sortedOHLC.length - 0.5,
-          });
-        }, 100);
+        // Fit all content to show complete data range
+        timeScale.fitContent();
+
+        console.log(`✅ Showing ALL ${numberOfCandles} candles - user can zoom/scroll`);
       }
 
       // Calculate price info using sorted data
@@ -287,7 +300,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [coinId, timeframe, chartType]);
+  }, [coinId, chartType]);
 
   // Initialize chart
   useEffect(() => {
@@ -302,26 +315,30 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       ...chartTheme,
       width: chartContainerRef.current.clientWidth,
       height,
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
       handleScale: {
-        axisPressedMouseMove: true,
-        mouseWheel: true,
-        pinch: true, // ✅ Enable pinch-to-zoom on mobile
+        axisPressedMouseMove: {
+          time: true,    // Allow horizontal scaling (time axis)
+          price: true,   // Allow vertical scaling (price axis)
+        },
+        mouseWheel: true,      // Enable zoom with mouse wheel
+        pinch: true,           // Enable pinch-to-zoom on mobile
+      },
+      handleScroll: {
+        mouseWheel: true,          // Scroll with mouse wheel
+        pressedMouseMove: true,    // Scroll by dragging
+        horzTouchDrag: true,       // Horizontal scroll on mobile
+        vertTouchDrag: true,       // Vertical scroll on mobile
       },
       timeScale: {
         ...chartTheme.timeScale,
-        rightOffset: 0,
-        barSpacing: 6,
-        minBarSpacing: 0.5,
-        fixLeftEdge: false,
-        fixRightEdge: false,
+        rightOffset: 5,            // Small buffer on right
+        minBarSpacing: 0.5,        // Minimum spacing when zoomed in
+        barSpacing: 8,             // Default spacing (will be overridden per data load)
+        fixLeftEdge: false,        // Allow scrolling to historic data
+        fixRightEdge: false,       // Allow scrolling forward
         lockVisibleTimeRangeOnResize: false,
-        rightBarStaysOnScroll: false,
+        rightBarStaysOnScroll: true,
+        shiftVisibleRangeOnNewBar: true,
         borderVisible: true,
         visible: true,
         timeVisible: true,
@@ -329,6 +346,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
       },
       rightPriceScale: {
         ...chartTheme.rightPriceScale,
+        autoScale: true, // Enable autoscale for price
         scaleMargins: {
           top: 0.1,
           bottom: 0.1,
@@ -338,17 +356,21 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
     chartRef.current = chart;
 
-    // Handle resize - preserve visible range
+    // Handle resize - preserve user's zoom/scroll position
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         const timeScale = chartRef.current.timeScale();
-        const currentRange = timeScale.getVisibleLogicalRange();
 
+        // Save current visible range before resize
+        const currentRange = timeScale.getVisibleLogicalRange();
+        const currentBarSpacing = timeScale.options().barSpacing;
+
+        // Update chart width
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
         });
 
-        // Restore visible range after resize
+        // Restore visible range to maintain user's view
         if (currentRange) {
           requestAnimationFrame(() => {
             timeScale.setVisibleLogicalRange(currentRange);
@@ -386,23 +408,6 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
     loadChartData();
   }, [coinId, loadChartData]);
 
-  // Load data when timeframe or chart type changes (skip initial mount)
-  useEffect(() => {
-    if (!chartRef.current) {
-      console.log('Skipping data load - chart not ready');
-      return;
-    }
-
-    // Only reload if already initialized (skip first mount)
-    if (!isInitializedRef.current) {
-      console.log('Skipping timeframe/chartType effect - not yet initialized');
-      return;
-    }
-
-    console.log('Timeframe/ChartType changed, reloading data');
-    loadChartData();
-  }, [timeframe, chartType, loadChartData]);
-
   const handleRefresh = () => {
     ohlcDataService.clearCache(coinId);
     loadChartData();
@@ -415,76 +420,20 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   return (
-    <Card className={isMobile ? "p-2 space-y-2" : "p-4 space-y-4"}>
-      {/* Header Controls */}
-      <div className="flex items-center justify-between gap-2">
-        {/* Price Info */}
-        <div className="flex-1 min-w-0">
-          <div className={isMobile ? "text-lg font-bold" : "text-2xl font-bold"}>
-            ${priceInfo.current.toFixed(priceInfo.current < 1 ? 6 : 2)}
-          </div>
-          <div className={`text-xs ${getChangeColor(priceInfo.changePercent)}`}>
-            {priceInfo.changePercent >= 0 ? '+' : ''}
-            {priceInfo.changePercent.toFixed(2)}% ({timeframe})
-          </div>
-          {!isMobile && (
-            <div className="flex gap-3 text-xs mt-1">
-              <div>
-                <span className="text-muted-foreground">H:</span>{' '}
-                <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">L:</span>{' '}
-                <span className="font-semibold">${priceInfo.low.toFixed(priceInfo.low < 1 ? 6 : 2)}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Compact controls for mobile */}
-        <div className="flex items-center gap-1">
-          {/* Chart Type Selector - Compact for mobile */}
-          {CHART_TYPES.map((type) => (
-            <Button
-              key={type.value}
-              onClick={() => setChartType(type.value)}
-              variant={chartType === type.value ? 'default' : 'outline'}
-              size={isMobile ? 'icon' : 'sm'}
-              className={isMobile ? "h-7 w-7" : "h-8"}
-              title={type.label}
-            >
-              {type.icon}
-              {!isMobile && <span className="ml-1.5 text-xs">{type.label}</span>}
-            </Button>
-          ))}
-
-          {/* Refresh Button */}
-          <Button
-            onClick={handleRefresh}
-            variant="ghost"
-            size={isMobile ? 'icon' : 'sm'}
-            disabled={loading}
-            className={isMobile ? "h-7 w-7" : "h-8"}
-            title="Refresh"
-          >
-            <RefreshCw className={`${isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
+    <Card className={isMobile ? "p-2 space-y-2" : "p-3 space-y-3"}>
+      {/* Minimal Header - Refresh Only */}
+      <div className="flex items-center justify-end">
+        <Button
+          onClick={handleRefresh}
+          variant="ghost"
+          size="sm"
+          disabled={loading}
+          className="h-7 w-7"
+          title="Refresh chart data"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
-
-      {/* High/Low for mobile - shown below price */}
-      {isMobile && (
-        <div className="flex gap-4 text-[10px] px-1">
-          <div>
-            <span className="text-muted-foreground">High:</span>{' '}
-            <span className="font-semibold">${priceInfo.high.toFixed(priceInfo.high < 1 ? 6 : 2)}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Low:</span>{' '}
-            <span className="font-semibold">${priceInfo.low.toFixed(priceInfo.low < 1 ? 6 : 2)}</span>
-          </div>
-        </div>
-      )}
 
       {/* Chart Container */}
       <div className="relative">

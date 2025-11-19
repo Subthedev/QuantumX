@@ -1,18 +1,23 @@
 /**
- * ORDER FLOW TSUNAMI STRATEGY
+ * ORDER FLOW TSUNAMI STRATEGY V2 (WITH SPOOFING DETECTION)
  * Detects massive buy-side order book imbalances (>70%) indicating imminent surge
+ * NOW WITH ANTI-SPOOFING: Filters out fake order book walls
  *
  * LOGIC:
  * - Requires order book data
- * - buyPressure > 70% = imminent price surge
+ * - Analyzes order book for spoofing patterns (wall flashing, concentration, layering)
+ * - Uses adjusted buy pressure after removing suspected spoofing
+ * - Rejects signals if spoofing score > 70%
+ * - buyPressure > 70% = imminent price surge (after spoofing filter)
  * - Base confidence: 35
  * - Add based on how much > 70% (up to +35 for >80%)
- * - Minimum threshold: 58%
+ * - Minimum threshold: 62% (raised due to spoofing filter)
  */
 
 import { StrategySignal } from './strategyTypes';
 import { MarketDataInput } from '../smartMoneySignalEngine';
 import { technicalAnalysisService } from '../technicalAnalysis';
+import { spoofingDetection, OrderBookSnapshot } from '../spoofingDetection';
 
 export class OrderFlowTsunamiStrategy {
   async analyze(data: MarketDataInput): Promise<StrategySignal> {
@@ -45,13 +50,70 @@ export class OrderFlowTsunamiStrategy {
     }
 
     const currentPrice = data.marketData?.current_price || 0;
-    const buyPressure = data.orderBookData.buyPressure;
-    const sellPressure = 100 - buyPressure;
-    const bidAskRatio = data.orderBookData.bidAskRatio || 1.0;
+    const rawBuyPressure = data.orderBookData.buyPressure;
+    const rawBidAskRatio = data.orderBookData.bidAskRatio || 1.0;
 
-    console.log(`[OrderFlowTsunamiStrategy] Buy Pressure: ${buyPressure.toFixed(2)}%`);
-    console.log(`[OrderFlowTsunamiStrategy] Sell Pressure: ${sellPressure.toFixed(2)}%`);
-    console.log(`[OrderFlowTsunamiStrategy] Bid/Ask Ratio: ${bidAskRatio.toFixed(3)}`);
+    console.log(`[OrderFlowTsunamiStrategy] Raw Buy Pressure: ${rawBuyPressure.toFixed(2)}%`);
+    console.log(`[OrderFlowTsunamiStrategy] Raw Bid/Ask Ratio: ${rawBidAskRatio.toFixed(3)}`);
+
+    // ===== SPOOFING DETECTION (INSTITUTIONAL ANTI-MANIPULATION) =====
+    // Create order book snapshot for spoofing analysis
+    const orderBookSnapshot: OrderBookSnapshot = {
+      timestamp: Date.now(),
+      bids: data.orderBookData.bids || [],
+      asks: data.orderBookData.asks || [],
+      buyPressure: rawBuyPressure,
+      bidAskRatio: rawBidAskRatio
+    };
+
+    const spoofingAnalysis = spoofingDetection.analyzeOrderBook(data.symbol, orderBookSnapshot);
+
+    console.log(`[OrderFlowTsunamiStrategy] Spoofing Score: ${spoofingAnalysis.spoofingScore.toFixed(1)}%`);
+    console.log(`[OrderFlowTsunamiStrategy] Trust Score: ${spoofingAnalysis.trustScore.toFixed(1)}%`);
+    console.log(`[OrderFlowTsunamiStrategy] Adjusted Buy Pressure: ${spoofingAnalysis.adjustedBuyPressure.toFixed(2)}%`);
+
+    // REJECT if high spoofing detected (>70% confidence of manipulation)
+    if (spoofingAnalysis.isSpoofed || spoofingAnalysis.spoofingScore > 70) {
+      console.log(`[OrderFlowTsunamiStrategy] ❌ REJECTED - Order book spoofing detected`);
+      return {
+        strategyName: 'ORDER_FLOW_TSUNAMI',
+        symbol: data.symbol,
+        type: null,
+        confidence: 0,
+        strength: 'WEAK',
+        reasoning: [
+          `🚨 ORDER BOOK SPOOFING DETECTED`,
+          `Spoofing Score: ${spoofingAnalysis.spoofingScore.toFixed(1)}% (threshold: 70%)`,
+          ...spoofingAnalysis.reasons,
+          `⚠️ Order book appears manipulated with fake walls - SIGNAL REJECTED for safety`
+        ],
+        entryMin: 0,
+        entryMax: 0,
+        targets: { target1: 0, target2: 0, target3: 0 },
+        stopLoss: 0,
+        riskRewardRatio: 0,
+        timeframe: '1-3 days',
+        indicators: {
+          rawBuyPressure,
+          adjustedBuyPressure: spoofingAnalysis.adjustedBuyPressure,
+          spoofingScore: spoofingAnalysis.spoofingScore,
+          trustScore: spoofingAnalysis.trustScore,
+          currentPrice
+        },
+        rejected: true,
+        rejectionReason: `Order book spoofing detected (${spoofingAnalysis.spoofingScore.toFixed(0)}% confidence)`
+      };
+    }
+
+    // Use ADJUSTED values after spoofing filter
+    const buyPressure = spoofingAnalysis.adjustedBuyPressure;
+    const sellPressure = 100 - buyPressure;
+    const bidAskRatio = spoofingAnalysis.adjustedBidAskRatio;
+
+    console.log(`[OrderFlowTsunamiStrategy] ✅ Using spoofing-filtered values:`);
+    console.log(`[OrderFlowTsunamiStrategy]    Buy Pressure: ${buyPressure.toFixed(2)}% (adjusted)`);
+    console.log(`[OrderFlowTsunamiStrategy]    Sell Pressure: ${sellPressure.toFixed(2)}%`);
+    console.log(`[OrderFlowTsunamiStrategy]    Bid/Ask Ratio: ${bidAskRatio.toFixed(3)} (adjusted)`);
 
     // BULLISH TSUNAMI: Massive buy-side pressure (>70%)
     if (buyPressure > 70) {
@@ -60,6 +122,17 @@ export class OrderFlowTsunamiStrategy {
 
       reasoning.push(`🌊 ORDER FLOW TSUNAMI DETECTED: ${buyPressure.toFixed(1)}% buy pressure`);
       reasoning.push(`💡 Massive buy-side imbalance indicates imminent price surge`);
+
+      // Add spoofing analysis to reasoning
+      if (spoofingAnalysis.spoofingScore > 30 && spoofingAnalysis.spoofingScore <= 70) {
+        reasoning.push(`⚠️ Moderate Spoofing Risk: ${spoofingAnalysis.spoofingScore.toFixed(0)}% (adjusted pressure used)`);
+        // Reduce confidence for moderate spoofing
+        const spoofPenalty = Math.floor(spoofingAnalysis.spoofingScore / 10);
+        confidence -= spoofPenalty;
+        reasoning.push(`🔧 Confidence reduced by ${spoofPenalty}% due to spoofing risk`);
+      } else if (spoofingAnalysis.spoofingScore <= 20) {
+        reasoning.push(`✅ Clean Order Book: ${spoofingAnalysis.trustScore.toFixed(0)}% trust score`);
+      }
 
       // Calculate pressure bonus based on extremity
       if (buyPressure > 85) {
@@ -95,6 +168,17 @@ export class OrderFlowTsunamiStrategy {
 
       reasoning.push(`🌊 SELL-SIDE TSUNAMI DETECTED: ${sellPressure.toFixed(1)}% sell pressure`);
       reasoning.push(`💡 Massive sell-side imbalance indicates imminent price drop`);
+
+      // Add spoofing analysis to reasoning
+      if (spoofingAnalysis.spoofingScore > 30 && spoofingAnalysis.spoofingScore <= 70) {
+        reasoning.push(`⚠️ Moderate Spoofing Risk: ${spoofingAnalysis.spoofingScore.toFixed(0)}% (adjusted pressure used)`);
+        // Reduce confidence for moderate spoofing
+        const spoofPenalty = Math.floor(spoofingAnalysis.spoofingScore / 10);
+        confidence -= spoofPenalty;
+        reasoning.push(`🔧 Confidence reduced by ${spoofPenalty}% due to spoofing risk`);
+      } else if (spoofingAnalysis.spoofingScore <= 20) {
+        reasoning.push(`✅ Clean Order Book: ${spoofingAnalysis.trustScore.toFixed(0)}% trust score`);
+      }
 
       // Calculate pressure bonus
       if (sellPressure > 85) {
@@ -162,9 +246,9 @@ export class OrderFlowTsunamiStrategy {
       }
     }
 
-    // Reject signal if confidence too low
-    if (!signalType || confidence < 58) {
-      console.log(`[OrderFlowTsunamiStrategy] Signal REJECTED - Confidence ${confidence}% below threshold (58%)`);
+    // Reject signal if confidence too low (raised threshold due to spoofing filter)
+    if (!signalType || confidence < 62) {
+      console.log(`[OrderFlowTsunamiStrategy] Signal REJECTED - Confidence ${confidence}% below threshold (62%)`);
       return {
         strategyName: 'ORDER_FLOW_TSUNAMI',
         symbol: data.symbol,
@@ -179,38 +263,60 @@ export class OrderFlowTsunamiStrategy {
         riskRewardRatio: 0,
         timeframe: '1-3 days',
         indicators: {
+          rawBuyPressure,
+          adjustedBuyPressure: buyPressure,
           buyPressure,
           sellPressure,
           bidAskRatio,
+          spoofingScore: spoofingAnalysis.spoofingScore,
+          trustScore: spoofingAnalysis.trustScore,
           currentPrice
         },
         rejected: true,
-        rejectionReason: `Confidence ${Math.round(confidence)}% below threshold (58%)`
+        rejectionReason: `Confidence ${Math.round(confidence)}% below threshold (62%)`
       };
     }
 
-    // Calculate entry, targets, and stop loss
+    // ===== ATR-BASED DYNAMIC LEVELS =====
+    // Order flow tsunamis are explosive breakouts - use VOLATILE_BREAKOUT regime
+    const { atrCalculator } = await import('../atrCalculator');
+
+    const direction: 'LONG' | 'SHORT' = signalType === 'BUY' ? 'LONG' : 'SHORT';
+
+    // Use VOLATILE_BREAKOUT regime (tsunamis are explosive, fast-moving waves)
+    const atrLevels = atrCalculator.getDynamicLevels(
+      currentPrice,
+      direction,
+      data.ohlcData?.candles || [],
+      'VOLATILE_BREAKOUT', // Explosive breakout moves typical of order flow tsunamis
+      confidence
+    );
+
     let entryMin = 0, entryMax = 0, target1 = 0, target2 = 0, target3 = 0, stopLoss = 0;
 
     if (signalType === 'BUY') {
       entryMin = currentPrice * 0.99; // 1% below
       entryMax = currentPrice * 1.01; // 1% above
-      target1 = currentPrice * 1.06; // 6% profit
-      target2 = currentPrice * 1.12; // 12% profit
-      target3 = currentPrice * 1.20; // 20% profit (tsunami wave)
-      stopLoss = currentPrice * 0.95; // 5% stop loss
+      target1 = atrLevels.target1;
+      target2 = atrLevels.target2;
+      target3 = atrLevels.target3;
+      stopLoss = atrLevels.stopLoss;
     } else {
       entryMin = currentPrice * 0.99;
       entryMax = currentPrice * 1.01;
-      target1 = currentPrice * 0.94; // 6% profit on short
-      target2 = currentPrice * 0.88; // 12% profit on short
-      target3 = currentPrice * 0.80; // 20% profit on short
-      stopLoss = currentPrice * 1.05; // 5% stop loss
+      target1 = atrLevels.target1;
+      target2 = atrLevels.target2;
+      target3 = atrLevels.target3;
+      stopLoss = atrLevels.stopLoss;
     }
 
-    const riskRewardRatio = signalType === 'BUY'
-      ? ((target1 - currentPrice) / (currentPrice - stopLoss))
-      : ((currentPrice - target1) / (stopLoss - currentPrice));
+    const riskRewardRatio = atrLevels.riskRewardRatios[0];
+
+    console.log(
+      `[OrderFlowTsunamiStrategy] ATR-Based Levels | ` +
+      `ATR: ${atrLevels.atrPercent.toFixed(2)}% | ` +
+      `R:R: 1:${atrLevels.riskRewardRatios[0].toFixed(1)} / 1:${atrLevels.riskRewardRatios[1].toFixed(1)} / 1:${atrLevels.riskRewardRatios[2].toFixed(1)}`
+    );
 
     // Determine strength
     let strength: 'WEAK' | 'MODERATE' | 'STRONG' | 'VERY_STRONG';
@@ -235,12 +341,22 @@ export class OrderFlowTsunamiStrategy {
       riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
       timeframe: '1-3 days',
       indicators: {
-        buyPressure,
+        rawBuyPressure, // Original buy pressure before spoofing filter
+        adjustedBuyPressure: buyPressure, // Buy pressure after spoofing filter
+        buyPressure, // Final used value
         sellPressure,
         bidAskRatio,
         imbalancePercent: Math.abs(buyPressure - 50),
+        spoofingScore: spoofingAnalysis.spoofingScore,
+        trustScore: spoofingAnalysis.trustScore,
+        spoofingFiltered: spoofingAnalysis.spoofingScore > 30,
         currentPrice
       },
+      // ATR-based fields
+      atrBased: true,
+      atrValue: atrLevels.atrValue,
+      atrPercent: atrLevels.atrPercent,
+      riskRewardRatios: atrLevels.riskRewardRatios,
       rejected: false
     };
   }
