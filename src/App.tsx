@@ -16,6 +16,40 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 // ENABLED - PHASE 1-4 PIPELINE AUTO-STARTS
 import "@/services/igx/IGXBackgroundService";
 
+// ✅ 24/7 AUTONOMOUS OPERATION MONITORS
+// These services ensure continuous, uninterrupted operation with zero manual intervention
+import { heartbeatMonitor } from "@/services/heartbeatMonitor";
+import { pageVisibilityManager } from "@/services/pageVisibilityManager";
+
+// Auto-start monitors for production-grade 24/7 operation
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    console.log('\n' + '🚀'.repeat(40));
+    console.log('[App] 🚀 INITIALIZING 24/7 AUTONOMOUS OPERATION MONITORS...');
+    console.log('🚀'.repeat(40) + '\n');
+
+    // Start heartbeat monitor for auto-restart
+    heartbeatMonitor.start();
+    console.log('[App] ✅ Heartbeat Monitor: ACTIVE');
+
+    // Start page visibility manager to prevent throttling
+    pageVisibilityManager.start();
+    console.log('[App] ✅ Page Visibility Manager: ACTIVE');
+
+    console.log('\n' + '✅'.repeat(40));
+    console.log('[App] ✅✅✅ ALL MONITORS OPERATIONAL! ✅✅✅');
+    console.log('[App] System Status:');
+    console.log('[App]   • Auto-restart: ENABLED (every 5s check)');
+    console.log('[App]   • Timer protection: ENABLED (prevents throttling)');
+    console.log('[App]   • Supabase reconnection: READY (will activate on first subscription)');
+    console.log('[App] 🔧 Debug commands:');
+    console.log('[App]   • heartbeatMonitor.getStats()');
+    console.log('[App]   • pageVisibilityManager.getStats()');
+    console.log('[App]   • supabaseReconnectionManager.getAllStats()');
+    console.log('✅'.repeat(40) + '\n');
+  }, 500); // Short delay to ensure DOM is ready
+}
+
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const About = lazy(() => import("./pages/About"));
@@ -41,9 +75,19 @@ const OrderBook = lazy(() => import("./pages/OrderBook"));
 const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
 const IntelligenceHubV3 = lazy(() => import("./pages/IntelligenceHubV3"));
 const IntelligenceHubAuto = lazy(() => import("./pages/IntelligenceHubAuto"));
+const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
+const IntelligenceHubTiered = lazy(() => import("./pages/IntelligenceHubTiered"));
+const Upgrade = lazy(() => import("./pages/Upgrade"));
 const PipelineMonitor = lazy(() => import("./pages/PipelineMonitor"));
 const IGXTestRunner = lazy(() => import("./pages/IGXTestRunner"));
 const BetaV5Test = lazy(() => import("./pages/BetaV5Test"));
+const MockTrading = lazy(() => import("./pages/MockTrading"));
+const MLAdmin = lazy(() => import("./pages/MLAdmin"));
+const Arena = lazy(() => import("./pages/Arena"));
+const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
+const ArenaTest = lazy(() => import("./pages/ArenaTest"));
+const ArenaDiagnostic = lazy(() => import("./pages/ArenaDiagnostic"));
+const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 
 // Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
@@ -87,6 +131,10 @@ const App = () => {
               {/* Public routes */}
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/arena" element={<ArenaEnhanced />} />
+              <Route path="/arena-diagnostic" element={<ArenaDiagnostic />} />
+              <Route path="/arena-test" element={<ArenaTest />} />
+              <Route path="/arena-classic" element={<Arena />} />
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-verified" element={<EmailVerified />} />
@@ -108,12 +156,25 @@ const App = () => {
               <Route path="/onchain-analysis" element={<ProtectedRoute><OnChainAnalysis /></ProtectedRoute>} />
               <Route path="/funding-rates" element={<ProtectedRoute><FundingRates /></ProtectedRoute>} />
               <Route path="/orderbook" element={<ProtectedRoute><OrderBook /></ProtectedRoute>} />
+
+              {/*
+                Intelligence Hub Routes - DEV CONTROL CENTER
+                These routes are accessible via direct URL for development/monitoring
+                Not advertised publicly - Arena shows real-time metrics from Intelligence Hub
+                Access via: /intelligence-hub, /intelligence-hub-v3, /intelligence-hub-auto
+              */}
+              <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
+              <Route path="/intelligence-hub/monthly" element={<ProtectedRoute><IntelligenceHubMonthly /></ProtectedRoute>} />
               <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
               <Route path="/intelligence-hub-v3" element={<ProtectedRoute><IntelligenceHubV3 /></ProtectedRoute>} />
               <Route path="/intelligence-hub-auto" element={<ProtectedRoute><IntelligenceHubAuto /></ProtectedRoute>} />
+              <Route path="/intelligence-hub-tiered" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} />
+              <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
               <Route path="/pipeline-monitor" element={<ProtectedRoute><PipelineMonitor /></ProtectedRoute>} />
               <Route path="/igx-test-runner" element={<IGXTestRunner />} />
               <Route path="/beta-v5-test" element={<BetaV5Test />} />
+              <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
+              <Route path="/ml-admin" element={<ProtectedRoute><MLAdmin /></ProtectedRoute>} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

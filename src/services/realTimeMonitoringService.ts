@@ -68,6 +68,19 @@ export class RealTimeMonitoringService {
     console.log(`[RealTimeMonitoring] ✅ OHLC initialized: ${ohlcStats.coinsWithData}/${ohlcStats.totalCoins} coins have data`);
     console.log(`[RealTimeMonitoring]    Candles per coin: avg ${ohlcStats.avgCandlesPerCoin.toFixed(0)}, min ${ohlcStats.minCandles}, max ${ohlcStats.maxCandles}\n`);
 
+    // ✅ CRITICAL: Start Data Engine V4 for real-time market prices
+    // This provides consistent price data for Arena and mock trading
+    console.log('[RealTimeMonitoring] 📊 Starting Data Engine V4 for real-time prices...');
+    const { multiExchangeAggregatorV4 } = await import('./dataStreams/multiExchangeAggregatorV4');
+    multiExchangeAggregatorV4.start(config.coinGeckoIds, (ticker) => {
+      // Data is cached in aggregator for retrieval by mockTradingService
+      // Log only first few updates to avoid spam
+      if (Math.random() < 0.001) { // Log 0.1% of updates
+        console.log(`[Data Engine] Price: ${ticker.symbol} @ $${ticker.price.toFixed(2)}`);
+      }
+    });
+    console.log('[RealTimeMonitoring] ✅ Data Engine V4 started - real-time prices available\n');
+
     // Start IGX Hybrid System
     // Note: IGX system internally manages all 4 engines
     await igxSystem.start();

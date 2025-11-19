@@ -267,49 +267,42 @@ class OHLCDataService {
   }
 
   /**
-   * Get CryptoCompare aggregate level based on days
-   * Returns appropriate candle intervals for each timeframe
+   * Map timeframe directly to CryptoCompare API settings
+   * Each timeframe represents a CANDLE INTERVAL
+   */
+  private getTimeframeConfig(timeframe: ChartTimeframe): { endpoint: string; limit: number; aggregate: number } {
+    // CryptoCompare API limit: 2000 data points max
+    const configs: Record<ChartTimeframe, { endpoint: string; limit: number; aggregate: number }> = {
+      '1H': { endpoint: 'histohour', limit: 2000, aggregate: 1 },     // 2000 x 1h candles
+      '4H': { endpoint: 'histohour', limit: 2000, aggregate: 4 },     // 2000 x 4h candles
+      '12H': { endpoint: 'histohour', limit: 2000, aggregate: 12 },   // 2000 x 12h candles
+      '1D': { endpoint: 'histoday', limit: 2000, aggregate: 1 },      // 2000 x 1d candles
+      '7D': { endpoint: 'histoday', limit: 2000, aggregate: 7 },      // 2000 x 7d candles
+      '30D': { endpoint: 'histoday', limit: 2000, aggregate: 30 },
+      '90D': { endpoint: 'histoday', limit: 2000, aggregate: 90 },
+      '180D': { endpoint: 'histoday', limit: 2000, aggregate: 180 },
+      '1Y': { endpoint: 'histoday', limit: 2000, aggregate: 365 },
+      'ALL': { endpoint: 'histoday', limit: 2000, aggregate: 1 },
+    };
+
+    return configs[timeframe] || configs['1D']; // Default to 1D
+  }
+
+  /**
+   * DEPRECATED: Use getTimeframeConfig instead
+   * Kept for backward compatibility
    */
   private getAggregateLevel(days: number | 'max'): { endpoint: string; limit: number; aggregate: number } {
-    // CryptoCompare API limits: 2000 data points max per request
-
-    if (days === 'max' || days >= 2000) {
-      // ALL: Daily candles for maximum history
+    if (days >= 1000 || days === 'max') {
       return { endpoint: 'histoday', limit: 2000, aggregate: 1 };
     }
-
     if (days >= 365) {
-      // 1Y/90D/180D: Daily candles
       return { endpoint: 'histoday', limit: Math.min(days, 2000), aggregate: 1 };
     }
-
-    if (days >= 180) {
-      // 180D: Daily candles
-      return { endpoint: 'histoday', limit: Math.min(days, 2000), aggregate: 1 };
-    }
-
     if (days >= 90) {
-      // 90D: Daily candles
-      return { endpoint: 'histoday', limit: Math.min(days, 2000), aggregate: 1 };
+      return { endpoint: 'histohour', limit: 2000, aggregate: 4 };
     }
-
-    if (days >= 30) {
-      // 30D: 6-hour candles (4 per day = 120 candles for 30 days)
-      return { endpoint: 'histohour', limit: Math.min(days * 4, 2000), aggregate: 6 };
-    }
-
-    if (days >= 7) {
-      // 7D: 2-hour candles (12 per day = 84 candles for 7 days)
-      return { endpoint: 'histohour', limit: Math.min(days * 12, 2000), aggregate: 2 };
-    }
-
-    if (days >= 1) {
-      // 1D/1H/4H: 1-hour candles (24 per day)
-      return { endpoint: 'histohour', limit: Math.min(days * 24, 2000), aggregate: 1 };
-    }
-
-    // < 1 day: 15-minute candles
-    return { endpoint: 'histominute', limit: 96, aggregate: 15 };
+    return { endpoint: 'histohour', limit: 2000, aggregate: 1 };
   }
 
   /**
@@ -373,8 +366,8 @@ class OHLCDataService {
    * Fetch from CryptoCompare API (PRIMARY - Reliable and generous free tier)
    * WITH ROBUST SYMBOL FALLBACK for all 104 coins
    */
-  async fetchFromCryptoCompare(coinGeckoId: string, days: number | 'max'): Promise<ChartData> {
-    const cacheKey = `${coinGeckoId}-${days}-cryptocompare`;
+  async fetchFromCryptoCompare(coinGeckoId: string, days: number | 'max', timeframe?: ChartTimeframe): Promise<ChartData> {
+    const cacheKey = `${coinGeckoId}-${days}-${timeframe || 'default'}-cryptocompare`;
     const cached = this.cache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -382,7 +375,10 @@ class OHLCDataService {
       return cached.data;
     }
 
-    const { endpoint, limit, aggregate } = this.getAggregateLevel(typeof days === 'number' ? days : 365);
+    // Use timeframe-based config if available, otherwise fall back to days-based
+    const { endpoint, limit, aggregate } = timeframe
+      ? this.getTimeframeConfig(timeframe)
+      : this.getAggregateLevel(typeof days === 'number' ? days : 365);
 
     // Generate multiple symbol attempts
     const primarySymbol = this.getSymbol(coinGeckoId);
@@ -462,19 +458,21 @@ class OHLCDataService {
 
   /**
    * Map timeframe to API days parameter
-   * Fetches appropriate historical depth for each timeframe
+   * Timeframe represents CANDLE INTERVAL, fetch MAX available data
+   * User can zoom/scroll through all data
    */
   getApiDays(timeframe: ChartTimeframe): number | 'max' {
     const mapping: Record<ChartTimeframe, number | 'max'> = {
-      '1H': 1,      // 1 day with 1-hour candles
-      '4H': 7,      // 7 days with 2-hour candles
-      '1D': 30,     // 30 days with 2-hour candles
-      '7D': 90,     // 90 days with 6-hour candles
-      '30D': 180,   // 180 days with 12-hour candles
-      '90D': 365,   // 1 year with daily candles
-      '180D': 730,  // 2 years with daily candles
-      '1Y': 365,    // 1 year with daily candles
-      'ALL': 2000,  // Maximum available (~5+ years with daily candles)
+      '1H': 2000,   // Max 2000 x 1-hour candles = ~83 days of data
+      '4H': 2000,   // Max 2000 x 4-hour candles = ~333 days of data
+      '12H': 2000,  // Max 2000 x 12-hour candles = ~1000 days of data
+      '1D': 2000,   // Max 2000 x daily candles = ~5.5 years of data
+      '7D': 2000,   // Max 2000 x weekly candles = ~38 years of data
+      '30D': 2000,
+      '90D': 2000,
+      '180D': 2000,
+      '1Y': 2000,
+      'ALL': 2000,
     };
     return mapping[timeframe];
   }
@@ -507,7 +505,7 @@ class OHLCDataService {
     try {
       // PRIMARY: CryptoCompare (reliable, native OHLC data)
       try {
-        const cryptoCompareData = await this.fetchFromCryptoCompare(coinId, apiDays);
+        const cryptoCompareData = await this.fetchFromCryptoCompare(coinId, apiDays, timeframe);
         console.log(`✅ Success via CryptoCompare: ${cryptoCompareData.ohlc.length} candles\n`);
         return cryptoCompareData;
       } catch (cryptoCompareError) {

@@ -1,16 +1,19 @@
 /**
  * IGX MULTI-STRATEGY ENGINE
- * Runs 10 specialized strategies in parallel
+ * Runs 17 specialized strategies in parallel
  * Tracks performance of each strategy independently
  */
 
 import { StrategySignal, StrategyName, STRATEGY_METADATA } from './strategyTypes';
 import { MarketDataInput } from '../smartMoneySignalEngine';
 import { whaleShadowStrategy } from './whaleShadowStrategy';
+import { advancedRejectionFilter } from '../AdvancedRejectionFilter';
 
-// Import all strategies (we'll create these next)
+// Import all strategies
 import { springTrapStrategy } from './springTrapStrategy';
 import { momentumSurgeStrategy } from './momentumSurgeStrategy';
+import { momentumSurgeV2Strategy } from './momentumSurgeV2Strategy';
+import { momentumRecoveryStrategy } from './momentumRecoveryStrategy';
 import { fundingSqueezeStrategy } from './fundingSqueezeStrategy';
 import { orderFlowTsunamiStrategy } from './orderFlowTsunamiStrategy';
 import { fearGreedContrarianStrategy } from './fearGreedContrarianStrategy';
@@ -18,6 +21,11 @@ import { goldenCrossMomentumStrategy } from './goldenCrossMomentumStrategy';
 import { marketPhaseSniperStrategy } from './marketPhaseSniperStrategy';
 import { liquidityHunterStrategy } from './liquidityHunterStrategy';
 import { volatilityBreakoutStrategy } from './volatilityBreakoutStrategy';
+import { statisticalArbitrageStrategy } from './statisticalArbitrageStrategy';
+import { orderBookMicrostructureStrategy } from './orderBookMicrostructureStrategy';
+import { liquidationCascadePredictionStrategy } from './liquidationCascadePredictionStrategy';
+import { correlationBreakdownDetectorStrategy } from './correlationBreakdownDetectorStrategy';
+import { bollingerMeanReversionStrategy } from './bollingerMeanReversionStrategy';
 
 export interface MultiStrategyResult {
   symbol: string;
@@ -33,21 +41,28 @@ class MultiStrategyEngine {
   private strategies = {
     WHALE_SHADOW: whaleShadowStrategy,
     SPRING_TRAP: springTrapStrategy,
-    MOMENTUM_SURGE: momentumSurgeStrategy,
+    MOMENTUM_SURGE: momentumSurgeStrategy, // Legacy (deprecated)
+    MOMENTUM_SURGE_V2: momentumSurgeV2Strategy, // NEW: True momentum (RSI 60-75)
+    MOMENTUM_RECOVERY: momentumRecoveryStrategy, // NEW: Mean reversion (RSI 40-60)
     FUNDING_SQUEEZE: fundingSqueezeStrategy,
     ORDER_FLOW_TSUNAMI: orderFlowTsunamiStrategy,
     FEAR_GREED_CONTRARIAN: fearGreedContrarianStrategy,
     GOLDEN_CROSS_MOMENTUM: goldenCrossMomentumStrategy,
     MARKET_PHASE_SNIPER: marketPhaseSniperStrategy,
     LIQUIDITY_HUNTER: liquidityHunterStrategy,
-    VOLATILITY_BREAKOUT: volatilityBreakoutStrategy
+    VOLATILITY_BREAKOUT: volatilityBreakoutStrategy,
+    STATISTICAL_ARBITRAGE: statisticalArbitrageStrategy, // NEW: Pairs trading (Jump Trading approach)
+    ORDER_BOOK_MICROSTRUCTURE: orderBookMicrostructureStrategy, // NEW: OFI analysis (Renaissance/Citadel approach)
+    LIQUIDATION_CASCADE_PREDICTION: liquidationCascadePredictionStrategy, // NEW: Cascade prediction (Alameda approach)
+    CORRELATION_BREAKDOWN_DETECTOR: correlationBreakdownDetectorStrategy, // NEW: BTC correlation breakdown (quant fund approach)
+    BOLLINGER_MEAN_REVERSION: bollingerMeanReversionStrategy // NEW: Mean reversion (complements Volatility Breakout)
   };
 
   /**
-   * Analyze a coin using all 10 strategies in parallel
+   * Analyze a coin using all 17 strategies in parallel
    */
   async analyzeWithAllStrategies(data: MarketDataInput): Promise<MultiStrategyResult> {
-    console.log(`\n[MultiStrategy] Running all 10 strategies for ${data.symbol.toUpperCase()}...`);
+    console.log(`\n[MultiStrategy] Running all 17 strategies for ${data.symbol.toUpperCase()}...`);
 
     // Run all strategies in parallel
     const strategyPromises = Object.entries(this.strategies).map(async ([name, strategy]) => {
@@ -79,6 +94,20 @@ class MultiStrategyEngine {
 
     const allSignals = await Promise.all(strategyPromises);
 
+    // Log rejected signals to Advanced ML Filter
+    const rejectedSignals = allSignals.filter(s => s.rejected);
+    for (const signal of rejectedSignals) {
+      await advancedRejectionFilter.filterAndLog({
+        symbol: signal.symbol,
+        direction: signal.type === 'BUY' ? 'LONG' : signal.type === 'SELL' ? 'SHORT' : 'NEUTRAL',
+        rejectionStage: 'ALPHA',
+        rejectionReason: signal.rejectionReason || 'Unknown rejection',
+        qualityScore: signal.confidence,
+        confidenceScore: signal.confidence,
+        dataQuality: signal.confidence
+      });
+    }
+
     // Filter successful signals (not rejected, confidence above threshold)
     const successfulSignals = allSignals.filter(
       s => !s.rejected && s.type !== null && s.confidence >= STRATEGY_METADATA[s.strategyName].minConfidenceThreshold
@@ -97,7 +126,7 @@ class MultiStrategyEngine {
       : 0;
 
     console.log(`[MultiStrategy] ${data.symbol.toUpperCase()} Results:`);
-    console.log(`  - Total Strategies Run: 10`);
+    console.log(`  - Total Strategies Run: 17`);
     console.log(`  - Successful Signals: ${successfulSignals.length}`);
     console.log(`  - Best Signal: ${bestSignal ? `${bestSignal.strategyName} (${bestSignal.confidence}%)` : 'None'}`);
     console.log(`  - Average Confidence: ${averageConfidence.toFixed(1)}%`);
@@ -105,7 +134,7 @@ class MultiStrategyEngine {
     return {
       symbol: data.symbol,
       timestamp: new Date(),
-      totalStrategiesRun: 10,
+      totalStrategiesRun: 17,
       successfulStrategies: successfulSignals.length,
       signals: allSignals,
       bestSignal,
@@ -155,6 +184,20 @@ class MultiStrategyEngine {
     });
 
     const allSignals = await Promise.all(strategyPromises);
+
+    // Log rejected signals to Advanced ML Filter
+    const rejectedSignals = allSignals.filter(s => s.rejected);
+    for (const signal of rejectedSignals) {
+      await advancedRejectionFilter.filterAndLog({
+        symbol: signal.symbol,
+        direction: signal.type === 'BUY' ? 'LONG' : signal.type === 'SELL' ? 'SHORT' : 'NEUTRAL',
+        rejectionStage: 'ALPHA',
+        rejectionReason: signal.rejectionReason || 'Unknown rejection',
+        qualityScore: signal.confidence,
+        confidenceScore: signal.confidence,
+        dataQuality: signal.confidence
+      });
+    }
 
     const successfulSignals = allSignals.filter(
       s => !s.rejected && s.type !== null && s.confidence >= STRATEGY_METADATA[s.strategyName].minConfidenceThreshold
