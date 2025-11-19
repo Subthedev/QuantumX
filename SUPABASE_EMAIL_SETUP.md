@@ -64,10 +64,10 @@ For email verification and password reset features to work properly, you need to
 
 #### Update URL Configuration
 1. In Authentication, go to **URL Configuration**
-2. Set **Site URL**: `https://ignitexagency.com` (or your production domain)
+2. Set **Site URL**: `https://ignitex.live` (or your production domain)
 3. Add **Redirect URLs**:
-   - `https://ignitexagency.com/auth`
-   - `https://ignitexagency.com/reset-password`
+   - `https://ignitex.live/auth`
+   - `https://ignitex.live/reset-password`
    - `http://localhost:8080/auth` (for development)
    - `http://localhost:8080/reset-password` (for development)
 
@@ -90,7 +90,7 @@ By default, Supabase uses their SMTP service which has rate limits.
    Port: 587
    Username: your-smtp-username
    Password: your-smtp-password
-   Sender Email: noreply@ignitexagency.com
+   Sender Email: noreply@ignitex.live
    Sender Name: IgniteX
    ```
 

@@ -243,197 +243,150 @@ serve(async (req) => {
 
     console.log(`[Signal Generator] 🎯 Processing tiers: ${tiersToProcess.join(', ')}`)
 
-    console.log(`[Signal Generator] Scanning ${SYMBOLS.length} coins...`)
+    let signalsGenerated = 0
 
-    // Scan all coins and collect potential signals
-    const potentialSignals: any[] = []
+    // ✅ IMPROVED LOGIC: Generate 1 BEST signal per tier independently
+    // Each tier gets its own signal selection based on its own history
+    for (const tier of tiersToProcess) {
+      console.log(`\n[Signal Generator] 🎯 === Processing ${tier} Tier ===`)
+      console.log(`[Signal Generator] Scanning ${SYMBOLS.length} coins for ${tier} tier...`)
 
-    for (const symbol of SYMBOLS) {
-      try {
-        const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`)
-        if (!response.ok) continue
+      // Get users for this specific tier
+      const tierUsers = allUsers.filter(u => u.tier === tier)
+      if (tierUsers.length === 0) {
+        console.log(`[Signal Generator] ⚠️  No users for ${tier} tier, skipping`)
+        continue
+      }
 
-        const data = await response.json()
-        const price = parseFloat(data.lastPrice)
-        const priceChange = parseFloat(data.priceChangePercent)
-        const volume = parseFloat(data.volume)
+      // Scan all coins and collect potential signals
+      const potentialSignals: any[] = []
 
-        // Relaxed criteria: 0.5% price change, 100k volume
-        const meetsLongCriteria = priceChange > 0.5 && volume > 100000
-        const meetsShortCriteria = priceChange < -0.5 && volume > 100000
+      for (const symbol of SYMBOLS) {
+        try {
+          const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`)
+          if (!response.ok) continue
 
-        if (meetsLongCriteria || meetsShortCriteria) {
-          const direction = meetsLongCriteria ? 'LONG' : 'SHORT'
-          const confidence = Math.min(Math.abs(priceChange) * 10 + 60, 95)
+          const data = await response.json()
+          const price = parseFloat(data.lastPrice)
+          const priceChange = parseFloat(data.priceChangePercent)
+          const volume = parseFloat(data.volume)
 
-          potentialSignals.push({
-            symbol,
-            direction,
-            confidence,
-            entry_price: price,
-            take_profit: [
-              direction === 'LONG' ? price * 1.02 : price * 0.98,
-              direction === 'LONG' ? price * 1.04 : price * 0.96
-            ],
-            stop_loss: direction === 'LONG' ? price * 0.98 : price * 1.02,
-            strategy: 'Momentum Surge',
-            timeframe: '15m',
-            priceChangePercent: Math.abs(priceChange)
-          })
+          // Relaxed criteria: 0.5% price change, 100k volume
+          const meetsLongCriteria = priceChange > 0.5 && volume > 100000
+          const meetsShortCriteria = priceChange < -0.5 && volume > 100000
+
+          if (meetsLongCriteria || meetsShortCriteria) {
+            const direction = meetsLongCriteria ? 'LONG' : 'SHORT'
+            const confidence = Math.min(Math.abs(priceChange) * 10 + 60, 95)
+
+            potentialSignals.push({
+              symbol,
+              direction,
+              confidence,
+              entry_price: price,
+              take_profit: [
+                direction === 'LONG' ? price * 1.02 : price * 0.98,
+                direction === 'LONG' ? price * 1.04 : price * 0.96
+              ],
+              stop_loss: direction === 'LONG' ? price * 0.98 : price * 1.02,
+              strategy: 'Momentum Surge',
+              timeframe: '15m',
+              priceChangePercent: Math.abs(priceChange)
+            })
+          }
+        } catch (error) {
+          // Silently continue on error
         }
-      } catch (error) {
-        console.error(`[Signal Generator] Error scanning ${symbol}:`, error)
-      }
-    }
-
-    console.log(`[Signal Generator] Found ${potentialSignals.length} potential signals`)
-
-    // ✅ PHASE 2: DIRECTION-AWARE DEDUPLICATION (Production Grade)
-    // Get recent signals from last 2 hours (not just 10 minutes)
-    const { data: recentSignals } = await supabase
-      .from('user_signals')
-      .select('symbol, signal_type, metadata')
-      .eq('metadata->>generatedBy', 'edge-function')
-      .gte('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()) // Last 2 hours
-      .order('created_at', { ascending: false })
-
-    console.log(`[Signal Generator] 📊 Checking ${recentSignals?.length || 0} recent signals (2h window)`)
-
-    // Build smart deduplication map: symbol + direction + outcome
-    const recentSignalMap = new Map<string, { direction: string; outcome?: string; timestamp: number }>()
-
-    for (const signal of recentSignals || []) {
-      const key = `${signal.symbol}-${signal.signal_type}`
-      const outcome = signal.metadata?.mlOutcome
-      recentSignalMap.set(key, {
-        direction: signal.signal_type,
-        outcome,
-        timestamp: Date.now()
-      })
-    }
-
-    // ✅ SMART FILTERING: Direction-aware + Outcome-aware
-    let availableSignals: any[] = potentialSignals.filter(s => {
-      const sameDirectionKey = `${s.symbol}-${s.direction}`
-      const oppositeDirection = s.direction === 'LONG' ? 'SHORT' : 'LONG'
-      const oppositeDirectionKey = `${s.symbol}-${oppositeDirection}`
-
-      const recentSameDirection = recentSignalMap.get(sameDirectionKey)
-      const recentOppositeDirection = recentSignalMap.get(oppositeDirectionKey)
-
-      // ALLOW: If no recent signal for this symbol
-      if (!recentSameDirection && !recentOppositeDirection) {
-        return true
       }
 
-      // ALLOW: Opposite direction (reversal opportunity)
-      if (recentOppositeDirection && !recentSameDirection) {
-        console.log(`[Signal Generator] ✅ REVERSAL: ${s.symbol} ${s.direction} (previous was ${oppositeDirection})`)
-        return true
+      console.log(`[Signal Generator] ${tier}: Found ${potentialSignals.length} potential signals`)
+
+      // ✅ TIER-SPECIFIC DEDUPLICATION: Check this tier's recent signals only
+      const { data: recentTierSignals } = await supabase
+        .from('user_signals')
+        .select('symbol, signal_type, metadata')
+        .eq('tier', tier)
+        .eq('metadata->>generatedBy', 'edge-function')
+        .gte('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+
+      console.log(`[Signal Generator] ${tier}: Checking ${recentTierSignals?.length || 0} recent signals (2h window)`)
+
+      // Build smart deduplication map for this tier
+      const recentSignalMap = new Map<string, { direction: string; outcome?: string }>()
+
+      for (const signal of recentTierSignals || []) {
+        const key = `${signal.symbol}-${signal.signal_type}`
+        const outcome = signal.metadata?.mlOutcome
+        recentSignalMap.set(key, { direction: signal.signal_type, outcome })
       }
 
-      // CHECK OUTCOME: If same direction exists recently
-      if (recentSameDirection) {
-        const outcome = recentSameDirection.outcome
+      // ✅ SMART FILTERING: Direction-aware + Outcome-aware for this tier
+      let availableSignals: any[] = potentialSignals.filter(s => {
+        const sameDirectionKey = `${s.symbol}-${s.direction}`
+        const oppositeDirection = s.direction === 'LONG' ? 'SHORT' : 'LONG'
+        const oppositeDirectionKey = `${s.symbol}-${oppositeDirection}`
 
-        // ALLOW: Previous signal WON (momentum continuation)
-        if (outcome && outcome.startsWith('WIN_')) {
-          console.log(`[Signal Generator] ✅ MOMENTUM: ${s.symbol} ${s.direction} (previous WON)`)
-          return true
-        }
+        const recentSameDirection = recentSignalMap.get(sameDirectionKey)
+        const recentOppositeDirection = recentSignalMap.get(oppositeDirectionKey)
 
-        // BLOCK: Previous signal LOST or TIMED OUT
-        if (outcome && (outcome.startsWith('LOSS_') || outcome.startsWith('TIMEOUT_'))) {
-          console.log(`[Signal Generator] ❌ BLOCKED: ${s.symbol} ${s.direction} (previous ${outcome})`)
+        // ALLOW: If no recent signal for this symbol
+        if (!recentSameDirection && !recentOppositeDirection) return true
+
+        // ALLOW: Opposite direction (reversal)
+        if (recentOppositeDirection && !recentSameDirection) return true
+
+        // CHECK OUTCOME: If same direction exists recently
+        if (recentSameDirection) {
+          const outcome = recentSameDirection.outcome
+          // ALLOW: Previous signal WON (momentum)
+          if (outcome && outcome.startsWith('WIN_')) return true
+          // BLOCK: Previous signal LOST or TIMED OUT
+          if (outcome && (outcome.startsWith('LOSS_') || outcome.startsWith('TIMEOUT_'))) return false
+          // BLOCK: Still active (no outcome yet)
           return false
         }
 
-        // BLOCK: Still monitoring (no outcome yet)
-        console.log(`[Signal Generator] ❌ BLOCKED: ${s.symbol} ${s.direction} (still active)`)
-        return false
+        return true
+      })
+
+      console.log(`[Signal Generator] ${tier}: After deduplication: ${availableSignals.length} signals`)
+
+      // ✅ SMART FALLBACK: Use highest confidence signal if all filtered
+      if (availableSignals.length === 0 && potentialSignals.length > 0) {
+        console.log(`[Signal Generator] ${tier}: FALLBACK - Using highest confidence signal`)
+        const sortedByConfidence = potentialSignals.sort((a, b) => b.confidence - a.confidence)
+        availableSignals = [sortedByConfidence[0]]
+        availableSignals[0].isHighConvictionRepeat = true
       }
 
-      return true
-    })
-
-    console.log(`[Signal Generator] ✅ After smart deduplication: ${availableSignals.length} signals`)
-
-    // ✅ PHASE 2: SMART FALLBACK - Use highest confidence signal even if recent
-    if (availableSignals.length === 0) {
-      console.log('[Signal Generator] 🎯 SMART FALLBACK: All signals filtered, using highest-confidence signal')
-
-      // Sort potential signals by confidence (highest first)
-      const sortedByConfidence = potentialSignals.sort((a, b) => b.confidence - a.confidence)
-      const bestSignal = sortedByConfidence[0]
-
-      if (bestSignal) {
-        console.log(`[Signal Generator] 💎 HIGH-CONVICTION REPEAT: ${bestSignal.symbol} ${bestSignal.direction} (${bestSignal.confidence}% confidence)`)
-
-        // Mark as high-conviction repeat in metadata
-        bestSignal.isHighConvictionRepeat = true
-        availableSignals = [bestSignal]
-      } else {
-        // Last resort: Pick random unused symbol
-        const recentSymbolSet = new Set(Array.from(recentSignalMap.keys()).map(k => k.split('-')[0]))
-        const unusedSymbols = SYMBOLS.filter(sym => !recentSymbolSet.has(sym))
-        const randomSymbol = unusedSymbols.length > 0
-          ? unusedSymbols[Math.floor(Math.random() * unusedSymbols.length)]
-          : SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]
-
-        console.log(`[Signal Generator] 🎲 RANDOM FALLBACK: ${randomSymbol} (no quality signals available)`)
-
-        // Fetch data for random symbol
-        const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${randomSymbol}`)
-        const data = await response.json()
-        const price = parseFloat(data.lastPrice)
-        const priceChange = parseFloat(data.priceChangePercent)
-
-        availableSignals = [{
-          symbol: randomSymbol,
-          direction: priceChange >= 0 ? 'LONG' : 'SHORT',
-          confidence: 75,
-          entry_price: price,
-          take_profit: [
-            priceChange >= 0 ? price * 1.02 : price * 0.98,
-            priceChange >= 0 ? price * 1.04 : price * 0.96
-          ],
-          stop_loss: priceChange >= 0 ? price * 0.98 : price * 1.02,
-          strategy: 'Momentum Surge',
-          timeframe: '15m',
-          priceChangePercent: Math.abs(priceChange),
-          isRandomFallback: true
-        }]
+      // If still no signals, skip this tier
+      if (availableSignals.length === 0) {
+        console.log(`[Signal Generator] ${tier}: No suitable signals found, skipping`)
+        continue
       }
-    }
 
-    // Sort by strongest signal (highest price change) and pick top 1
-    availableSignals.sort((a, b) => b.priceChangePercent - a.priceChangePercent)
-    const selectedSignal = availableSignals[0]
+      // ✅ SELECT THE BEST SIGNAL: Highest price change = strongest momentum
+      availableSignals.sort((a, b) => b.priceChangePercent - a.priceChangePercent)
+      const selectedSignal = availableSignals[0]
 
-    console.log(`[Signal Generator] ✅ Selected: ${selectedSignal.symbol} ${selectedSignal.direction} (${selectedSignal.priceChangePercent.toFixed(2)}% change)`)
+      console.log(`[Signal Generator] ${tier}: ✅ BEST SIGNAL: ${selectedSignal.symbol} ${selectedSignal.direction} (${selectedSignal.priceChangePercent.toFixed(2)}% change, ${selectedSignal.confidence}% confidence)`)
 
-    let signalsGenerated = 0
+      // Get crypto logo URL
+      const imageUrl = getCryptoImageUrl(selectedSignal.symbol)
 
-    // Get crypto logo URL for the selected signal
-    const imageUrl = getCryptoImageUrl(selectedSignal.symbol)
-    console.log(`[Signal Generator] 📸 Logo for ${selectedSignal.symbol}: ${imageUrl || 'NOT FOUND'}`)
+      // Calculate adaptive expiry
+      const adaptiveExpiry = calculateAdaptiveExpiry(
+        selectedSignal.entry_price,
+        selectedSignal.take_profit[0],
+        selectedSignal.confidence,
+        selectedSignal.priceChangePercent
+      )
 
-    // ✅ CRITICAL FIX #2: Calculate adaptive expiry (not fixed 24h)
-    const adaptiveExpiry = calculateAdaptiveExpiry(
-      selectedSignal.entry_price,
-      selectedSignal.take_profit[0], // Use first target for calculation
-      selectedSignal.confidence,
-      selectedSignal.priceChangePercent
-    )
+      console.log(`[Signal Generator] ${tier}: ⏰ Expiry: ${adaptiveExpiry.expiryHours.toFixed(1)}h - ${adaptiveExpiry.explanation}`)
 
-    console.log(`[Signal Generator] ⏰ Adaptive Expiry: ${adaptiveExpiry.expiryHours.toFixed(1)} hours (was 24h fixed)`)
-    console.log(`[Signal Generator] 📊 ${adaptiveExpiry.explanation}`)
-
-    // ✅ TIER-AWARE DISTRIBUTION: Only distribute to tiers that are ready
-    for (const tier of tiersToProcess) {
-      // Get users for this specific tier
-      const tierUsers = allUsers.filter(u => u.tier === tier)
-      console.log(`[Signal Generator] 📤 Distributing to ${tierUsers.length} ${tier} users`)
+      // ✅ DISTRIBUTE THIS 1 SIGNAL TO ALL USERS OF THIS TIER
+      console.log(`[Signal Generator] ${tier}: 📤 Distributing to ${tierUsers.length} users`)
 
       for (const user of tierUsers) {
         const expiresAt = new Date(Date.now() + adaptiveExpiry.expiryMs).toISOString()
@@ -442,7 +395,7 @@ serve(async (req) => {
           .from('user_signals')
           .insert({
             user_id: user.user_id,
-            signal_id: `${selectedSignal.symbol}-${Date.now()}-${tier}`,
+            signal_id: `${selectedSignal.symbol}-${Date.now()}-${tier}-${user.user_id}`,
             tier: tier,
             symbol: selectedSignal.symbol,
             signal_type: selectedSignal.direction,
@@ -456,15 +409,13 @@ serve(async (req) => {
               timeframe: selectedSignal.timeframe,
               generatedBy: 'edge-function',
               timestamp: new Date().toISOString(),
-              image: imageUrl, // ✅ DASHBOARD-PERFECT LOGO: Same CoinGecko URLs as Dashboard
+              image: imageUrl,
               adaptiveExpiry: {
                 expiryHours: adaptiveExpiry.expiryHours,
                 explanation: adaptiveExpiry.explanation,
                 volatility: selectedSignal.priceChangePercent
               },
-              // ✅ PHASE 2: Smart fallback indicators
-              isHighConvictionRepeat: selectedSignal.isHighConvictionRepeat || false,
-              isRandomFallback: selectedSignal.isRandomFallback || false
+              isHighConvictionRepeat: selectedSignal.isHighConvictionRepeat || false
             },
             full_details: true,
             viewed: false,
@@ -473,17 +424,22 @@ serve(async (req) => {
 
         if (!error) {
           signalsGenerated++
-          console.log(`[Signal Generator] ✅ ${tier} signal sent to user ${user.user_id}`)
         } else {
-          console.error(`[Signal Generator] ❌ Error sending ${tier} signal to user ${user.user_id}:`, error)
+          console.error(`[Signal Generator] ${tier}: ❌ Error for user ${user.user_id}:`, error)
         }
       }
+
+      console.log(`[Signal Generator] ${tier}: ✅ Successfully distributed 1 signal to ${tierUsers.length} users`)
     }
+
+    console.log(`\n[Signal Generator] 🎉 COMPLETE: Generated ${signalsGenerated} total signal records (1 signal per tier × users)`)
+    console.log(`[Signal Generator] 📊 Processed tiers: ${tiersToProcess.join(', ')}`)
 
     return new Response(
       JSON.stringify({
         success: true,
         signalsGenerated,
+        tiersProcessed: tiersToProcess,
         timestamp: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

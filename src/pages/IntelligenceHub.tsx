@@ -118,7 +118,7 @@ export default function IntelligenceHub() {
   useEffect(() => {
     if (tier === 'PRO') setQuotaLimit(15);
     else if (tier === 'MAX') setQuotaLimit(30);
-    else setQuotaLimit(2);
+    else setQuotaLimit(3); // ✅ FIX: FREE tier gets 3 signals, not 2
   }, [tier]);
 
   // Fetch quota usage from database
