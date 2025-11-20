@@ -91,9 +91,10 @@ class ScheduledSignalDropper {
 
     this.isRunning = true;
 
-    // Set initial next drop times to now (drop immediately on first signal)
+    // ✅ INSTANT DROP MODE: Drop first signal immediately when buffered
+    // Then revert to normal intervals (48min for MAX, 96min for PRO, 8h for FREE)
     const now = Date.now();
-    this.stats.FREE.nextDropTime = now;
+    this.stats.FREE.nextDropTime = now; // Drop immediately when first signal buffered
     this.stats.PRO.nextDropTime = now;
     this.stats.MAX.nextDropTime = now;
 
@@ -104,7 +105,11 @@ class ScheduledSignalDropper {
     }, 1000); // ✅ Changed from 5000ms to 1000ms for precision
 
     console.log('[ScheduledDropper] ✅ Started - Checking for drops every 1 second (PRECISE TIMING)');
-    console.log('[ScheduledDropper] 🚀 Signals will drop EXACTLY when timer shows 0:00!');
+    console.log('[ScheduledDropper] 🚀 INSTANT DROP MODE: First signal will drop immediately!');
+    console.log('[ScheduledDropper] 📋 After first drop, signals will drop at normal intervals:');
+    console.log(`[ScheduledDropper]    FREE: Every ${this.DROP_INTERVALS.FREE / (60 * 1000)} minutes (3 signals/24h)`);
+    console.log(`[ScheduledDropper]    PRO: Every ${this.DROP_INTERVALS.PRO / (60 * 1000)} minutes (15 signals/24h)`);
+    console.log(`[ScheduledDropper]    MAX: Every ${this.DROP_INTERVALS.MAX / (60 * 1000)} minutes (30 signals/24h)`);
   }
 
   /**
