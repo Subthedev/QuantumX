@@ -1,123 +1,83 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, Zap } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { globalHubService } from '@/services/globalHubService';
 
 interface SignalDropTimerProps {
   tier: 'FREE' | 'PRO' | 'MAX';
-  onTimerExpire?: () => void; // Deprecated - no longer used
+  onTimerExpire?: () => void;
 }
 
 /**
- * OPTIMIZED DATABASE-SYNCHRONIZED SIGNAL DROP TIMER
+ * DEEPLY INTEGRATED SIGNAL DROP TIMER
  *
- * ✅ SMOOTH COUNTDOWN - Local state updates every second for lag-free UI
- * ✅ DATABASE SYNC - Queries database every 30 seconds to detect new signals
- * ✅ TIER-SYNCHRONIZED - Matches backend rate limiting perfectly
- * ✅ WORKS 24/7 - Even when browser was closed
+ * ✅ Reads directly from globalHubService state (no database queries!)
+ * ✅ Perfect synchronization with rate limiter
+ * ✅ Smooth 1-second updates
+ * ✅ 24/7 autonomous operation
+ * ✅ Shows buffer size for debugging
  */
-export function SignalDropTimer({ tier }: SignalDropTimerProps) {
+export function SignalDropTimer({ tier, onTimerExpire }: SignalDropTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [dropIntervalSeconds, setDropIntervalSeconds] = useState(60);
-  const lastSignalTimeRef = useRef<number | null>(null); // Cached last signal timestamp
-  const mountTimeRef = useRef<number>(Date.now());
+  const [bufferSize, setBufferSize] = useState(0);
+  const [intervalSeconds, setIntervalSeconds] = useState(0);
 
-  // ✅ PRODUCTION TIERED INTERVALS - Matches backend rate limiting
-  // FREE: 3 signals per 24h → Every 8 hours
-  // PRO: 15 signals per 24h → Every 96 minutes
-  // MAX: 30 signals per 24h → Every 48 minutes
-  const DROP_INTERVALS = {
-    FREE: 8 * 60 * 60,   // 8 hours in seconds
-    PRO: 96 * 60,        // 96 minutes in seconds
-    MAX: 48 * 60         // 48 minutes in seconds
-  };
-
-  // Database sync - runs once on mount and every 30 seconds
   useEffect(() => {
-    console.log(`[SignalDropTimer] 🚀 Starting OPTIMIZED timer for ${tier} tier`);
-    console.log(`[SignalDropTimer] ✅ Smooth 1-second countdown with 30-second database sync`);
+    console.log(`[SignalDropTimer] 🚀 Starting INTEGRATED timer for ${tier} tier`);
+    console.log(`[SignalDropTimer] ✅ Reading directly from globalHubService - NO database queries!`);
 
-    const interval = DROP_INTERVALS[tier];
-    setDropIntervalSeconds(interval);
+    // Get interval from service
+    const interval = Math.floor(globalHubService.getDropInterval(tier) / 1000); // Convert to seconds
+    setIntervalSeconds(interval);
 
-    // Query database to get last signal timestamp
-    const syncWithDatabase = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          // No user - count from mount time
-          if (lastSignalTimeRef.current === null) {
-            lastSignalTimeRef.current = mountTimeRef.current;
-            console.log(`[SignalDropTimer] ⏰ [${tier}] No user - counting from mount time`);
-          }
-          return;
-        }
+    // Track if we've already triggered force-check at 0
+    let hasTriggeredAtZero = false;
+    let lastRemaining = -1;
 
-        // Query database for last signal (tier-specific)
-        const { data, error } = await supabase
-          .from('user_signals')
-          .select('created_at')
-          .eq('user_id', user.id)
-          .eq('tier', tier)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          console.error(`[SignalDropTimer] [${tier}] ❌ Database error:`, error);
-          return;
-        }
-
-        if (!data) {
-          // No signals yet - count from mount time
-          if (lastSignalTimeRef.current === null) {
-            lastSignalTimeRef.current = mountTimeRef.current;
-            console.log(`[SignalDropTimer] ⏰ [${tier}] No signals yet - counting from mount time`);
-          }
-          return;
-        }
-
-        // Found signal - update cached timestamp
-        const signalTime = new Date(data.created_at).getTime();
-        if (lastSignalTimeRef.current !== signalTime) {
-          lastSignalTimeRef.current = signalTime;
-          console.log(`[SignalDropTimer] 🔄 [${tier}] Updated from database: Last signal at ${new Date(signalTime).toLocaleTimeString()}`);
-        }
-      } catch (error) {
-        console.error(`[SignalDropTimer] [${tier}] ❌ Sync error:`, error);
-      }
-    };
-
-    // Initial sync
-    syncWithDatabase();
-
-    // Periodic database sync every 30 seconds (not every second!)
-    const syncInterval = setInterval(syncWithDatabase, 30000);
-
-    // Smooth local countdown every second (no database queries)
-    const tickInterval = setInterval(() => {
-      if (lastSignalTimeRef.current === null) {
-        // Fallback - count from mount time
-        lastSignalTimeRef.current = mountTimeRef.current;
-      }
-
-      const now = Date.now();
-      const nextDropTime = lastSignalTimeRef.current + (interval * 1000);
-      const remaining = Math.max(0, Math.floor((nextDropTime - now) / 1000));
-
+    // Update every second - read directly from globalHubService
+    const updateTimer = () => {
+      // Read time remaining directly from service
+      const remaining = globalHubService.getTimeRemaining(tier);
       setTimeRemaining(remaining);
+
+      // Read buffer size for debugging
+      const bufSize = globalHubService.getBufferSize(tier);
+      setBufferSize(bufSize);
 
       // Log every minute for debugging
       if (remaining % 60 === 0 && remaining > 0) {
-        console.log(`[SignalDropTimer] ⏱️  [${tier}] ${remaining}s remaining`);
+        console.log(`[SignalDropTimer] ⏱️  [${tier}] ${remaining}s remaining, buffer: ${bufSize} signals`);
       }
-    }, 1000); // Smooth 1-second updates
+
+      // Trigger callback when timer JUST hit 0 (not on subsequent ticks)
+      if (remaining === 0 && lastRemaining > 0) {
+        // Timer just transitioned to 0 - force-check buffer
+        console.log(`[SignalDropTimer] ⚡ Timer hit 0 for ${tier} - triggering force-check`);
+        globalHubService.forceCheckBuffer(tier);
+        hasTriggeredAtZero = true;
+
+        // Also trigger custom callback if provided
+        if (onTimerExpire) {
+          onTimerExpire();
+        }
+      } else if (remaining > 0) {
+        // Timer reset - clear flag for next expiry
+        hasTriggeredAtZero = false;
+      }
+
+      lastRemaining = remaining;
+    };
+
+    // Initial update
+    updateTimer();
+
+    // Update every second
+    const tickInterval = setInterval(updateTimer, 1000);
 
     return () => {
-      clearInterval(syncInterval);
       clearInterval(tickInterval);
       console.log(`[SignalDropTimer] 🛑 Stopped timer for ${tier} tier`);
     };
-  }, [tier]);
+  }, [tier, onTimerExpire]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -131,7 +91,9 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const percentage = ((dropIntervalSeconds - timeRemaining) / dropIntervalSeconds) * 100;
+  const percentage = intervalSeconds > 0
+    ? ((intervalSeconds - timeRemaining) / intervalSeconds) * 100
+    : 0;
 
   return (
     <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 ${
@@ -166,6 +128,11 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
         }`}>
           {formatTime(timeRemaining)}
         </span>
+        {bufferSize > 0 && (
+          <span className="text-[10px] text-gray-500 font-medium">
+            {bufferSize} in buffer
+          </span>
+        )}
       </div>
 
       {/* Progress bar */}
