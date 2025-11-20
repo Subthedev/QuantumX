@@ -8,20 +8,26 @@
 
 // Type exports
 export interface HubSignal {
-  id: string;
+  id?: string;
   symbol: string;
   direction: 'LONG' | 'SHORT';
   confidence: number;
   entry: number;
   targets: number[];
-  stopLoss: number;
+  stopLoss?: number;
   timestamp: number;
-  strategy: string;
-  timeframe: string;
+  strategy?: string;
+  strategyName?: string;
+  timeframe?: string;
   qualityScore: number;
-  expiresAt: number;
+  qualityTier?: string;
+  riskLevel?: string;
+  riskReward?: number;
+  riskRewardRatio?: number;
+  expiresAt?: number;
+  timeLimit?: number;
   tier?: 'FREE' | 'PRO' | 'MAX';
-  outcome?: 'pending' | 'hit_tp1' | 'hit_tp2' | 'hit_sl' | 'expired';
+  outcome?: 'pending' | 'hit_tp1' | 'hit_tp2' | 'hit_sl' | 'expired' | null;
 }
 
 export interface HubMetrics {
@@ -92,6 +98,14 @@ class GlobalHubService {
       avgConfidenceScore: 0,
       topStrategies: [],
       monthlySignals: 0
+    };
+  }
+
+  getState() {
+    return {
+      signalHistory: this.signals,
+      activeSignals: this.signals.filter(s => s.expiresAt > Date.now()),
+      metrics: this.getMetrics()
     };
   }
 
