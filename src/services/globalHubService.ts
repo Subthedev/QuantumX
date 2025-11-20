@@ -451,6 +451,77 @@ class GlobalHubService extends SimpleEventEmitter {
     return this.lastPublishTime[tier];
   }
 
+  /**
+   * Initialize truly independent tier timers by checking database for last signals
+   * Each tier gets its own independent starting point for 24/7 autonomous operation
+   */
+  private async initializeIndependentTierTimers(): Promise<void> {
+    console.log('[GlobalHub] 🔄 Initializing independent tier timers from database...');
+
+    const tiers: UserTier[] = ['FREE', 'PRO', 'MAX'];
+    const now = Date.now();
+
+    // Try to get current user for tier-specific signal queries
+    let userId: string | null = null;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id || null;
+    } catch (error) {
+      console.warn('[GlobalHub] ⚠️  Could not get user for tier initialization - using staggered start');
+    }
+
+    for (const tier of tiers) {
+      try {
+        // Query database for last signal for this tier
+        if (userId) {
+          const { data, error } = await supabase
+            .from('user_signals')
+            .select('created_at')
+            .eq('user_id', userId)
+            .eq('tier', tier)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!error && data) {
+            // Found existing signal - resume from its timestamp
+            const lastSignalTime = new Date(data.created_at).getTime();
+            this.lastPublishTime[tier] = lastSignalTime;
+            const elapsed = now - lastSignalTime;
+            const interval = this.DROP_INTERVALS[tier];
+            const remaining = Math.max(0, interval - elapsed);
+
+            console.log(`[GlobalHub] ✅ [${tier}] Resumed from database: Last signal ${Math.floor(elapsed / 60000)}min ago, next in ${Math.floor(remaining / 60000)}min`);
+            continue;
+          }
+        }
+
+        // No existing signal - use staggered start times for first drops
+        // This prevents all tiers from dropping simultaneously on first start
+        const staggerOffsets = {
+          MAX: 0,           // First signal in 48 min (fastest)
+          PRO: 15 * 60 * 1000,  // First signal in 96 + 15 min (staggered by 15min)
+          FREE: 30 * 60 * 1000  // First signal in 8h + 30 min (staggered by 30min)
+        };
+
+        this.lastPublishTime[tier] = now - staggerOffsets[tier];
+        const interval = this.DROP_INTERVALS[tier];
+        const effectiveWait = interval - staggerOffsets[tier];
+
+        console.log(`[GlobalHub] 🆕 [${tier}] No existing signals - first signal in ${Math.floor(effectiveWait / 60000)} minutes`);
+      } catch (error) {
+        console.error(`[GlobalHub] ❌ [${tier}] Error initializing timer:`, error);
+        // Fallback - use now as starting point
+        this.lastPublishTime[tier] = now;
+      }
+    }
+
+    console.log('[GlobalHub] ✅ Tier timers initialized independently');
+    console.log(`[GlobalHub]    MAX: ${Math.floor((this.DROP_INTERVALS.MAX - (now - this.lastPublishTime.MAX)) / 60000)}min`);
+    console.log(`[GlobalHub]    PRO: ${Math.floor((this.DROP_INTERVALS.PRO - (now - this.lastPublishTime.PRO)) / 60000)}min`);
+    console.log(`[GlobalHub]    FREE: ${Math.floor((this.DROP_INTERVALS.FREE - (now - this.lastPublishTime.FREE)) / 60000)}min`);
+  }
+
   // ===== INITIALIZATION =====
 
   private loadState(): HubState {
@@ -684,17 +755,12 @@ class GlobalHubService extends SimpleEventEmitter {
     // ✅ CRITICAL: Initialize service start time for rate limiting
     this.serviceStartTime = Date.now();
 
-    // ✅ TIMER SYNCHRONIZATION: Initialize lastPublishTime for ALL tiers
-    // This ensures the timer and rate limiter are perfectly synchronized
-    // First signal for each tier will drop when the timer hits 0
-    this.lastPublishTime.FREE = this.serviceStartTime;
-    this.lastPublishTime.PRO = this.serviceStartTime;
-    this.lastPublishTime.MAX = this.serviceStartTime;
+    // ✅ INDEPENDENT TIER TIMERS: Check database for last signal per tier
+    // This ensures each tier operates completely independently with 24/7 resilience
+    await this.initializeIndependentTierTimers();
 
-    console.log('[GlobalHub] ⏰ Rate limiter initialized - timers synchronized!');
-    console.log('[GlobalHub]    FREE tier: First signal in 8 hours');
-    console.log('[GlobalHub]    PRO tier: First signal in 96 minutes');
-    console.log('[GlobalHub]    MAX tier: First signal in 48 minutes');
+    console.log('[GlobalHub] ⏰ Independent tier timers initialized!');
+    console.log('[GlobalHub]    Each tier operates on its own schedule 24/7');
 
     // Only set startTime if this is the first start (not a reload)
     if (this.state.metrics.startTime === 0) {

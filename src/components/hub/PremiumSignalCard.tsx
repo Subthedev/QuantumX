@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CryptoLogo } from '@/utils/cryptoLogos';
 import { logoService } from '@/services/logoService';
+import { SignalExpiryCountdown } from '@/components/SignalExpiryCountdown';
 import {
   TrendingUp,
   TrendingDown,
@@ -283,6 +284,11 @@ export function PremiumSignalCard({
                     <Clock className="w-3 h-3" />
                     {getTimeAgo(timestamp)}
                   </div>
+                )}
+
+                {/* Expiry Countdown - Real-time countdown */}
+                {expiresAt && !isLocked && (
+                  <SignalExpiryCountdown expiresAt={expiresAt} compact={true} />
                 )}
               </div>
             </div>
