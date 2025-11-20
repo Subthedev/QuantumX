@@ -170,16 +170,16 @@ export default function IntelligenceHub() {
           return;
         }
 
-        // Fetch user's tier-based signals from database (last 24 hours)
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        // Fetch user's tier-based signals from database
+        // ✅ TEMPORARY FIX: Remove 24h filter to debug why we're getting 0 signals
         console.log(`[Hub] 🔍 Fetching signals for user: ${user.id}`);
-        console.log(`[Hub] 🔍 Query filters: created_at >= ${twentyFourHoursAgo}, limit: ${quotaLimit}`);
+        console.log(`[Hub] 🔍 Query filters: user_id = ${user.id}, limit: ${quotaLimit}`);
 
         const { data, error } = await supabase
           .from('user_signals')
           .select('*')
           .eq('user_id', user.id)
-          .gte('created_at', twentyFourHoursAgo)
+          // .gte('created_at', twentyFourHoursAgo) // REMOVED: Let's see ALL signals first
           .order('created_at', { ascending: false })
           .limit(quotaLimit); // ✅ FIX: Limit to tier quota
 
