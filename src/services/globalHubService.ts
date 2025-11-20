@@ -2640,23 +2640,23 @@ class GlobalHubService extends SimpleEventEmitter {
         };
 
         console.log(`${'─'.repeat(80)}`);
-        console.log(`🎯 [SIGNAL FLOW] STAGE 4: Buffer Signal for Scheduled Drop`);
+        console.log(`🎯 [SIGNAL FLOW] STAGE 4: PUBLISH SIGNAL IMMEDIATELY`);
         console.log(`${'─'.repeat(80)}`);
 
-        // ✅ SCHEDULED DROP SYSTEM: Don't publish immediately
-        // Buffer signal and let scheduler drop it at the right time
-        // This ensures even distribution and proper timing
+        // ✅ INSTANT PUBLISH MODE: Publish signal immediately to database
+        // No buffering, no scheduler delays - signals appear in real-time
+        // This ensures users see signals as soon as they're generated
 
-        console.log(`\n📥 Buffering signal for scheduled drop...`);
+        console.log(`\n🚀 Publishing signal IMMEDIATELY to database...`);
         console.log(`   Signal: ${displaySignal.symbol} ${displaySignal.direction}`);
         console.log(`   Confidence: ${displaySignal.confidence?.toFixed(1)}`);
         console.log(`   Quality: ${displaySignal.qualityScore?.toFixed(1)}`);
 
-        // Buffer the signal (scheduler will drop it when time is right)
-        scheduledSignalDropper.bufferSignal(displaySignal);
+        // ✅ PUBLISH IMMEDIATELY - No buffering, no delays!
+        await this.publishApprovedSignal(displaySignal);
 
-        console.log(`✅ Signal buffered successfully`);
-        console.log(`📊 Scheduler will drop best signal at next interval`);
+        console.log(`✅ Signal published and distributed to users!`);
+        console.log(`📊 Signal is now live in database and will appear in UI within 3 seconds`);
         console.log(`${'='.repeat(80)}\n`);
 
       } else {
