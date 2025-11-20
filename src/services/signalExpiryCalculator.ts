@@ -46,8 +46,9 @@ export interface ExpiryInput {
 
 // ===== CONSTANTS =====
 
-const MIN_EXPIRY_MS = 24 * 60 * 60 * 1000;  // Minimum: 24 hours (TESTING - signals stay active longer)
-const MAX_EXPIRY_MS = 48 * 60 * 60 * 1000; // Maximum: 48 hours (TESTING)
+// ✅ AGGRESSIVE EXPIRY: Signals must resolve within 24h for highest probability
+const MIN_EXPIRY_MS = 4 * 60 * 60 * 1000;  // Minimum: 4 hours (crypto moves fast!)
+const MAX_EXPIRY_MS = 24 * 60 * 60 * 1000; // Maximum: 24 hours (HARD CAP)
 const AVG_DAY_MINUTES = 24 * 60;           // Minutes in a day
 const MS_PER_MINUTE = 60 * 1000;
 
@@ -187,70 +188,69 @@ export class SignalExpiryCalculator {
   /**
    * Get base regime adjustment for time-to-target calculation
    *
-   * This is separate from regimeMultiplier (which is applied later).
+   * ✅ AGGRESSIVE: Favor faster outcomes to maximize hit rate within 24h
    * This adjusts the base calculation for regime-specific movement characteristics.
    */
   private getBaseRegimeAdjustment(regime: MarketRegime): number {
     const adjustments: Record<MarketRegime, number> = {
-      BULL_MOMENTUM: 0.8,        // Trends move efficiently toward targets
-      BEAR_MOMENTUM: 0.8,
-      BULL_RANGE: 1.2,           // Range-bound means slower progress
-      BEAR_RANGE: 1.2,
-      CHOPPY: 1.5,               // Choppy means lots of back-and-forth
-      VOLATILE_BREAKOUT: 0.7,    // Breakouts move fast
-      ACCUMULATION: 1.3          // Accumulation is slow and steady
+      BULL_MOMENTUM: 0.6,        // ✅ Trends move efficiently - expect fast TP
+      BEAR_MOMENTUM: 0.6,        // ✅ Momentum moves directionally
+      BULL_RANGE: 0.9,           // ✅ Range-bound slower but still reasonable
+      BEAR_RANGE: 0.9,
+      CHOPPY: 1.0,               // ✅ Choppy means back-and-forth (medium time)
+      VOLATILE_BREAKOUT: 0.5,    // ✅ Breakouts move VERY fast - shortest time
+      ACCUMULATION: 0.8          // ✅ Accumulation medium-fast
     };
 
-    return adjustments[regime] || 1.0;
+    return adjustments[regime] || 0.8;
   }
 
   /**
    * Get regime multiplier for final expiry adjustment
    *
-   * Trending markets: Give signals more time to play out
-   * Choppy markets: Signals invalidate quickly
-   * Volatile markets: Fast movements, medium time
+   * ✅ AGGRESSIVE: All multipliers reduced for faster outcomes within 24h
+   * Focus on high-probability short-term moves rather than extended plays
    */
   private getRegimeMultiplier(regime: MarketRegime): number {
     const multipliers: Record<MarketRegime, number> = {
-      BULL_MOMENTUM: 1.5,        // Trends need time to develop
-      BEAR_MOMENTUM: 1.5,
-      BULL_RANGE: 0.9,           // Range-bound = tighter validity
-      BEAR_RANGE: 0.9,
-      CHOPPY: 0.6,               // Choppy = very short validity
-      VOLATILE_BREAKOUT: 1.0,    // Breakouts = standard validity
-      ACCUMULATION: 1.2          // Accumulation = slightly longer
+      BULL_MOMENTUM: 1.1,        // ✅ Reduced from 1.5 - momentum should move fast
+      BEAR_MOMENTUM: 1.1,        // ✅ Same for bearish momentum
+      BULL_RANGE: 0.8,           // ✅ Range-bound = tight validity window
+      BEAR_RANGE: 0.8,
+      CHOPPY: 0.7,               // ✅ Choppy = short validity (noise invalidates signals)
+      VOLATILE_BREAKOUT: 0.9,    // ✅ Breakouts move fast, don't need long time
+      ACCUMULATION: 0.9          // ✅ Reduced from 1.2 - accumulation still reasonable
     };
 
-    return multipliers[regime] || 1.0;
+    return multipliers[regime] || 0.9;
   }
 
   /**
    * Get volatility multiplier
    *
-   * Low volatility: Need more time for price to move
-   * High volatility: Moves happen faster
+   * ✅ AGGRESSIVE: Even low vol should resolve within 24h
+   * High volatility = faster moves = shorter expiry
    */
   private getVolatilityMultiplier(atrPercent: number): number {
-    if (atrPercent < 1.5) return 1.4;      // Very low volatility
-    if (atrPercent < 2.5) return 1.2;      // Low volatility
-    if (atrPercent < 4.0) return 1.0;      // Medium volatility
-    if (atrPercent < 6.0) return 0.8;      // High volatility
-    return 0.6;                             // Extreme volatility
+    if (atrPercent < 1.5) return 1.2;      // ✅ Reduced from 1.4 - low vol still needs to move
+    if (atrPercent < 2.5) return 1.0;      // ✅ Reduced from 1.2 - standard time
+    if (atrPercent < 4.0) return 0.9;      // ✅ Medium volatility = slightly faster
+    if (atrPercent < 6.0) return 0.7;      // ✅ High volatility = fast moves
+    return 0.6;                             // ✅ Extreme volatility = very fast
   }
 
   /**
    * Get confidence multiplier
    *
-   * High confidence signals: Give more time to play out
-   * Low confidence signals: Shorter leash
+   * ✅ AGGRESSIVE: Even high confidence should resolve quickly
+   * Focus on near-term high-probability moves
    */
   private getConfidenceMultiplier(confidence: number): number {
-    if (confidence >= 85) return 1.2;      // Very high confidence
-    if (confidence >= 75) return 1.1;      // High confidence
-    if (confidence >= 65) return 1.0;      // Medium confidence
-    if (confidence >= 55) return 0.9;      // Low confidence
-    return 0.8;                             // Very low confidence
+    if (confidence >= 85) return 1.1;      // ✅ Reduced from 1.2 - very high confidence
+    if (confidence >= 75) return 1.0;      // ✅ Reduced from 1.1 - standard time
+    if (confidence >= 65) return 0.9;      // ✅ Medium confidence = slightly shorter
+    if (confidence >= 55) return 0.8;      // ✅ Low confidence = short leash
+    return 0.7;                             // ✅ Very low confidence = very short
   }
 
   /**
@@ -273,19 +273,22 @@ export class SignalExpiryCalculator {
 
   /**
    * Get fallback expiry when ATR is unavailable or too small
+   *
+   * ✅ AGGRESSIVE: Short fallback times for fast resolution
+   * All values designed to resolve within 24h with high probability
    */
   private getFallbackExpiry(regime: MarketRegime): number {
-    const fallbackMinutes: Record<MarketRegime, number> = {
-      BULL_MOMENTUM: 45,
-      BEAR_MOMENTUM: 45,
-      BULL_RANGE: 25,
-      BEAR_RANGE: 25,
-      CHOPPY: 15,
-      VOLATILE_BREAKOUT: 20,
-      ACCUMULATION: 35
+    const fallbackHours: Record<MarketRegime, number> = {
+      BULL_MOMENTUM: 12,         // ✅ 12 hours for momentum trends
+      BEAR_MOMENTUM: 12,
+      BULL_RANGE: 8,             // ✅ 8 hours for range-bound
+      BEAR_RANGE: 8,
+      CHOPPY: 6,                 // ✅ 6 hours for choppy (invalidates quickly)
+      VOLATILE_BREAKOUT: 8,      // ✅ 8 hours for breakouts
+      ACCUMULATION: 10           // ✅ 10 hours for accumulation
     };
 
-    return (fallbackMinutes[regime] || 30) * MS_PER_MINUTE;
+    return (fallbackHours[regime] || 8) * 60 * MS_PER_MINUTE;
   }
 
   /**
