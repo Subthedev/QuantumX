@@ -16,36 +16,30 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 // ENABLED - PHASE 1-4 PIPELINE AUTO-STARTS
 import "@/services/igx/IGXBackgroundService";
 
-// ✅ 24/7 AUTONOMOUS OPERATION MONITORS
-// These services ensure continuous, uninterrupted operation with zero manual intervention
-import { heartbeatMonitor } from "@/services/heartbeatMonitor";
-import { pageVisibilityManager } from "@/services/pageVisibilityManager";
+// ✅ 24/7 AUTONOMOUS OPERATION
+// Signal generation now handled by Supabase Edge Functions (server-side)
+// Client-side monitors disabled - no longer needed with server-side architecture
+// import { heartbeatMonitor } from "@/services/heartbeatMonitor";
+// import { pageVisibilityManager } from "@/services/pageVisibilityManager";
 
-// Auto-start monitors for production-grade 24/7 operation
+// Production system: Server-side signal generation via edge functions
+// Timer synchronized with database - no client-side generation needed
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     console.log('\n' + '🚀'.repeat(40));
-    console.log('[App] 🚀 INITIALIZING 24/7 AUTONOMOUS OPERATION MONITORS...');
+    console.log('[App] 🚀 IGNITEX PRODUCTION SYSTEM INITIALIZED');
     console.log('🚀'.repeat(40) + '\n');
 
-    // Start heartbeat monitor for auto-restart
-    heartbeatMonitor.start();
-    console.log('[App] ✅ Heartbeat Monitor: ACTIVE');
-
-    // Start page visibility manager to prevent throttling
-    pageVisibilityManager.start();
-    console.log('[App] ✅ Page Visibility Manager: ACTIVE');
+    console.log('[App] ✅ Server-Side Signal Generation: ACTIVE');
+    console.log('[App] ✅ Database-Synchronized Timer: ACTIVE');
+    console.log('[App] ✅ Real-time Signal Updates: ACTIVE');
 
     console.log('\n' + '✅'.repeat(40));
-    console.log('[App] ✅✅✅ ALL MONITORS OPERATIONAL! ✅✅✅');
-    console.log('[App] System Status:');
-    console.log('[App]   • Auto-restart: ENABLED (every 5s check)');
-    console.log('[App]   • Timer protection: ENABLED (prevents throttling)');
-    console.log('[App]   • Supabase reconnection: READY (will activate on first subscription)');
-    console.log('[App] 🔧 Debug commands:');
-    console.log('[App]   • heartbeatMonitor.getStats()');
-    console.log('[App]   • pageVisibilityManager.getStats()');
-    console.log('[App]   • supabaseReconnectionManager.getAllStats()');
+    console.log('[App] ✅✅✅ PRODUCTION SYSTEM OPERATIONAL! ✅✅✅');
+    console.log('[App] System Architecture:');
+    console.log('[App]   • Signal Generation: Server-side (Supabase Edge Functions)');
+    console.log('[App]   • Timer: Database-synchronized (no client-side generation)');
+    console.log('[App]   • Updates: Real-time via Supabase subscriptions');
     console.log('✅'.repeat(40) + '\n');
   }, 500); // Short delay to ensure DOM is ready
 }
@@ -72,24 +66,27 @@ const ETFFlows = lazy(() => import("./pages/ETFFlows"));
 const OnChainAnalysis = lazy(() => import("./pages/OnChainAnalysis"));
 const FundingRates = lazy(() => import("./pages/FundingRates"));
 const OrderBook = lazy(() => import("./pages/OrderBook"));
-const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
-// Disabled in production - using main IntelligenceHub
-// const IntelligenceHubV3 = lazy(() => import("./pages/IntelligenceHubV3"));
-// const IntelligenceHubAuto = lazy(() => import("./pages/IntelligenceHubAuto"));
-const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
+// Using IntelligenceHubTiered for server-side signal generation
 const IntelligenceHubTiered = lazy(() => import("./pages/IntelligenceHubTiered"));
 const Upgrade = lazy(() => import("./pages/Upgrade"));
-// Disabled in production - diagnostic pages
+const MockTrading = lazy(() => import("./pages/MockTrading"));
+const MLAdmin = lazy(() => import("./pages/MLAdmin"));
+const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
+
+// Disabled in production - require globalHubService (client-side generation)
+// const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
+// const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
+// const Arena = lazy(() => import("./pages/Arena"));
+// const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
+// const ArenaTest = lazy(() => import("./pages/ArenaTest"));
+// const ArenaDiagnostic = lazy(() => import("./pages/ArenaDiagnostic"));
+
+// Disabled in production - diagnostic/test pages
+// const IntelligenceHubV3 = lazy(() => import("./pages/IntelligenceHubV3"));
+// const IntelligenceHubAuto = lazy(() => import("./pages/IntelligenceHubAuto"));
 // const PipelineMonitor = lazy(() => import("./pages/PipelineMonitor"));
 // const IGXTestRunner = lazy(() => import("./pages/IGXTestRunner"));
 // const BetaV5Test = lazy(() => import("./pages/BetaV5Test"));
-const MockTrading = lazy(() => import("./pages/MockTrading"));
-const MLAdmin = lazy(() => import("./pages/MLAdmin"));
-const Arena = lazy(() => import("./pages/Arena"));
-const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
-const ArenaTest = lazy(() => import("./pages/ArenaTest"));
-const ArenaDiagnostic = lazy(() => import("./pages/ArenaDiagnostic"));
-const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 
 // Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
@@ -133,10 +130,11 @@ const App = () => {
               {/* Public routes */}
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/arena" element={<ArenaEnhanced />} />
-              <Route path="/arena-diagnostic" element={<ArenaDiagnostic />} />
-              <Route path="/arena-test" element={<ArenaTest />} />
-              <Route path="/arena-classic" element={<Arena />} />
+              {/* Arena routes disabled - require globalHubService */}
+              {/* <Route path="/arena" element={<ArenaEnhanced />} /> */}
+              {/* <Route path="/arena-diagnostic" element={<ArenaDiagnostic />} /> */}
+              {/* <Route path="/arena-test" element={<ArenaTest />} /> */}
+              {/* <Route path="/arena-classic" element={<Arena />} /> */}
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-verified" element={<EmailVerified />} />
@@ -160,25 +158,18 @@ const App = () => {
               <Route path="/orderbook" element={<ProtectedRoute><OrderBook /></ProtectedRoute>} />
 
               {/*
-                Intelligence Hub Routes - DEV CONTROL CENTER
-                These routes are accessible via direct URL for development/monitoring
-                Not advertised publicly - Arena shows real-time metrics from Intelligence Hub
-                Access via: /intelligence-hub, /intelligence-hub-v3, /intelligence-hub-auto
+                Intelligence Hub - Server-Side Signal Generation
+                Main production route using tiered system with database signals
               */}
               <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
-              <Route path="/intelligence-hub/monthly" element={<ProtectedRoute><IntelligenceHubMonthly /></ProtectedRoute>} />
-              <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
-              {/* Disabled in production - using main IntelligenceHub */}
-              {/* <Route path="/intelligence-hub-v3" element={<ProtectedRoute><IntelligenceHubV3 /></ProtectedRoute>} /> */}
-              {/* <Route path="/intelligence-hub-auto" element={<ProtectedRoute><IntelligenceHubAuto /></ProtectedRoute>} /> */}
+              <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} />
               <Route path="/intelligence-hub-tiered" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} />
               <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
-              {/* Disabled in production - diagnostic pages */}
-              {/* <Route path="/pipeline-monitor" element={<ProtectedRoute><PipelineMonitor /></ProtectedRoute>} /> */}
-              {/* <Route path="/igx-test-runner" element={<IGXTestRunner />} /> */}
-              {/* <Route path="/beta-v5-test" element={<BetaV5Test />} /> */}
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
               <Route path="/ml-admin" element={<ProtectedRoute><MLAdmin /></ProtectedRoute>} />
+
+              {/* Disabled in production - require globalHubService (client-side generation) */}
+              {/* <Route path="/intelligence-hub/monthly" element={<ProtectedRoute><IntelligenceHubMonthly /></ProtectedRoute>} /> */}
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
