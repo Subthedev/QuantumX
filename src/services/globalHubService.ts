@@ -333,7 +333,11 @@ class GlobalHubService extends SimpleEventEmitter {
       // Clone signal for this tier (independent copy)
       const tierSignal = { ...signal };
       this.signalBuffers[tier].push(tierSignal);
-      console.log(`📥 [${tier}] Signal added to buffer (buffer size: ${this.signalBuffers[tier].length})`);
+
+      const timeRemaining = this.getTimeRemaining(tier);
+      const remainingStr = this.formatDuration(timeRemaining * 1000);
+
+      console.log(`📥 [${tier}] Signal added to buffer (buffer: ${this.signalBuffers[tier].length}, timer: ${remainingStr})`);
     }
 
     // Attempt to publish from each tier's buffer independently
@@ -408,16 +412,97 @@ class GlobalHubService extends SimpleEventEmitter {
    * This ensures signals are published as soon as rate limit expires for each tier
    */
   private startBufferProcessor() {
+    let tickCount = 0;
+
     setInterval(async () => {
+      tickCount++;
       const tiers: UserTier[] = ['FREE', 'PRO', 'MAX'];
 
+      // Log tier states every minute (6 ticks at 10s intervals)
+      if (tickCount % 6 === 0) {
+        this.logTierStates();
+      }
+
       for (const tier of tiers) {
-        if (this.signalBuffers[tier].length > 0) {
-          console.log(`[Buffer Processor] [${tier}] Checking rate limits (${this.signalBuffers[tier].length} signals in buffer)...`);
+        const bufferSize = this.signalBuffers[tier].length;
+        const timeRemaining = this.getTimeRemaining(tier);
+
+        if (bufferSize > 0) {
+          console.log(`[Buffer Processor] 🔍 [${tier}] ${bufferSize} signal(s) buffered, ${timeRemaining}s until drop`);
+
+          // Check if timer expired
+          if (timeRemaining === 0) {
+            console.log(`[Buffer Processor] ⚡ [${tier}] TIMER EXPIRED - Processing buffer now!`);
+          }
+
           await this.processSignalBuffer(tier);
+        } else if (timeRemaining === 0) {
+          // Critical case: Timer expired but no signals in buffer
+          console.log(`[Buffer Processor] ⚠️  [${tier}] Timer expired but buffer is EMPTY - waiting for next signal`);
         }
       }
     }, 10000); // Check every 10 seconds
+  }
+
+  /**
+   * Log comprehensive tier states for debugging autonomous operation
+   */
+  private logTierStates() {
+    console.log('\n' + '='.repeat(80));
+    console.log('🎯 AUTONOMOUS TIER STATES - 24/7 OPERATION STATUS');
+    console.log('='.repeat(80));
+
+    const tiers: UserTier[] = ['MAX', 'PRO', 'FREE'];
+
+    for (const tier of tiers) {
+      const interval = this.DROP_INTERVALS[tier];
+      const lastPublish = this.lastPublishTime[tier];
+      const timeRemaining = this.getTimeRemaining(tier);
+      const bufferSize = this.signalBuffers[tier].length;
+      const now = Date.now();
+      const elapsed = now - lastPublish;
+
+      // Format times
+      const intervalStr = this.formatDuration(interval);
+      const remainingStr = this.formatDuration(timeRemaining * 1000);
+      const elapsedStr = this.formatDuration(elapsed);
+
+      // Status emoji
+      const statusEmoji = timeRemaining === 0 ? '🔴' : timeRemaining < 300 ? '🟡' : '🟢';
+
+      console.log(`\n${statusEmoji} [${tier}] Tier Status:`);
+      console.log(`   📊 Interval: ${intervalStr}`);
+      console.log(`   ⏱️  Elapsed: ${elapsedStr}`);
+      console.log(`   ⏳ Remaining: ${remainingStr}`);
+      console.log(`   📥 Buffer: ${bufferSize} signal(s)`);
+      console.log(`   🎯 Last Publish: ${new Date(lastPublish).toLocaleTimeString()}`);
+
+      if (timeRemaining === 0 && bufferSize > 0) {
+        console.log(`   ⚡ ACTION: Ready to publish BEST signal!`);
+      } else if (timeRemaining === 0 && bufferSize === 0) {
+        console.log(`   ⚠️  WARNING: Timer expired but buffer empty - waiting for signals`);
+      }
+    }
+
+    console.log('\n' + '='.repeat(80) + '\n');
+  }
+
+  /**
+   * Format milliseconds into human-readable duration
+   */
+  private formatDuration(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${mins}m ${secs}s`;
+    } else if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
   }
 
   /**
@@ -449,6 +534,68 @@ class GlobalHubService extends SimpleEventEmitter {
    */
   public getLastPublishTime(tier: UserTier): number {
     return this.lastPublishTime[tier];
+  }
+
+  /**
+   * Get drop interval for a specific tier (in milliseconds)
+   */
+  public getDropInterval(tier: UserTier): number {
+    return this.DROP_INTERVALS[tier];
+  }
+
+  /**
+   * Get time remaining until next signal for a tier (in seconds)
+   * Returns 0 if timer has expired (signal should drop)
+   */
+  public getTimeRemaining(tier: UserTier): number {
+    const now = Date.now();
+    const lastPublish = this.lastPublishTime[tier];
+    const interval = this.DROP_INTERVALS[tier];
+    const elapsed = now - lastPublish;
+    const remaining = Math.max(0, Math.floor((interval - elapsed) / 1000));
+    return remaining;
+  }
+
+  /**
+   * Get buffer size for a tier
+   */
+  public getBufferSize(tier: UserTier): number {
+    return this.signalBuffers[tier].length;
+  }
+
+  /**
+   * Force-check and process buffer for a specific tier
+   * Called by timer component when countdown hits 0 to ensure instantaneous publishing
+   */
+  public async forceCheckBuffer(tier: UserTier): Promise<void> {
+    console.log(`[GlobalHub] 🔔 Timer expired for ${tier} tier - force-checking buffer`);
+    await this.processSignalBuffer(tier);
+  }
+
+  /**
+   * Get all tier timer states for debugging
+   */
+  public getTierStates() {
+    return {
+      MAX: {
+        lastPublishTime: this.lastPublishTime.MAX,
+        interval: this.DROP_INTERVALS.MAX,
+        timeRemaining: this.getTimeRemaining('MAX'),
+        bufferSize: this.signalBuffers.MAX.length
+      },
+      PRO: {
+        lastPublishTime: this.lastPublishTime.PRO,
+        interval: this.DROP_INTERVALS.PRO,
+        timeRemaining: this.getTimeRemaining('PRO'),
+        bufferSize: this.signalBuffers.PRO.length
+      },
+      FREE: {
+        lastPublishTime: this.lastPublishTime.FREE,
+        interval: this.DROP_INTERVALS.FREE,
+        timeRemaining: this.getTimeRemaining('FREE'),
+        bufferSize: this.signalBuffers.FREE.length
+      }
+    };
   }
 
   /**
@@ -761,6 +908,9 @@ class GlobalHubService extends SimpleEventEmitter {
 
     console.log('[GlobalHub] ⏰ Independent tier timers initialized!');
     console.log('[GlobalHub]    Each tier operates on its own schedule 24/7');
+
+    // ✅ LOG INITIAL TIER STATES for debugging autonomous operation
+    this.logTierStates();
 
     // Only set startTime if this is the first start (not a reload)
     if (this.state.metrics.startTime === 0) {
