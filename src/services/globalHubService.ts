@@ -281,6 +281,13 @@ class GlobalHubService extends SimpleEventEmitter {
     MAX: []
   };
 
+  // Processing locks to prevent concurrent buffer processing (fixes multiple signal publishing)
+  private processingLocks: Record<UserTier, boolean> = {
+    FREE: false,
+    PRO: false,
+    MAX: false
+  };
+
   constructor() {
     super();
 
@@ -350,8 +357,15 @@ class GlobalHubService extends SimpleEventEmitter {
    * Process buffered signals and publish if rate limit allows
    * Called both when new signals arrive and periodically to check for expired rate limits
    * Each tier operates independently with its own buffer and timer
+   * 🔒 PROTECTED BY LOCK to prevent concurrent processing and duplicate signals
    */
   private async processSignalBuffer(tier: UserTier): Promise<void> {
+    // 🔒 CHECK LOCK: Prevent concurrent processing of same tier
+    if (this.processingLocks[tier]) {
+      console.log(`🔒 [${tier}] Already processing buffer - skipping duplicate call`);
+      return;
+    }
+
     // Check if this tier's buffer is empty
     if (this.signalBuffers[tier].length === 0) {
       return;
@@ -374,37 +388,47 @@ class GlobalHubService extends SimpleEventEmitter {
       return;
     }
 
-    // Rate limit allows - publish the BEST signal from this tier's buffer
-    console.log(`\n${'─'.repeat(80)}`);
-    console.log(`✅ [${tier}] Rate limit expired - PUBLISHING SIGNAL!`);
-    console.log(`📊 Selecting BEST signal from ${tier} buffer (${this.signalBuffers[tier].length} signals)`);
+    // 🔒 ACQUIRE LOCK: Prevent other calls from processing while we publish
+    this.processingLocks[tier] = true;
+    console.log(`🔒 [${tier}] Lock acquired - processing buffer`);
 
-    // Sort this tier's buffer by confidence (highest first)
-    this.signalBuffers[tier].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+    try {
+      // Rate limit allows - publish the BEST signal from this tier's buffer
+      console.log(`\n${'─'.repeat(80)}`);
+      console.log(`✅ [${tier}] Rate limit expired - PUBLISHING 1 BEST SIGNAL!`);
+      console.log(`📊 Selecting BEST signal from ${tier} buffer (${this.signalBuffers[tier].length} signals)`);
 
-    // Take the best signal
-    const bestSignal = this.signalBuffers[tier].shift()!;
-    console.log(`\n🏆 [${tier}] BEST SIGNAL SELECTED:`);
-    console.log(`   ${bestSignal.symbol} ${bestSignal.direction}`);
-    console.log(`   Confidence: ${bestSignal.confidence?.toFixed(1)}%`);
-    console.log(`   Quality: ${bestSignal.qualityScore?.toFixed(1)}`);
+      // Sort this tier's buffer by confidence (highest first)
+      this.signalBuffers[tier].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
-    // Clear remaining buffer signals for this tier (keep only top signal per interval)
-    if (this.signalBuffers[tier].length > 0) {
-      console.log(`🗑️  [${tier}] Discarding ${this.signalBuffers[tier].length} lower-confidence signals from buffer`);
-      this.signalBuffers[tier] = [];
+      // Take the best signal
+      const bestSignal = this.signalBuffers[tier].shift()!;
+      console.log(`\n🏆 [${tier}] BEST SIGNAL SELECTED:`);
+      console.log(`   ${bestSignal.symbol} ${bestSignal.direction}`);
+      console.log(`   Confidence: ${bestSignal.confidence?.toFixed(1)}%`);
+      console.log(`   Quality: ${bestSignal.qualityScore?.toFixed(1)}`);
+
+      // Clear remaining buffer signals for this tier (keep only top signal per interval)
+      if (this.signalBuffers[tier].length > 0) {
+        console.log(`🗑️  [${tier}] Discarding ${this.signalBuffers[tier].length} lower-confidence signals from buffer`);
+        this.signalBuffers[tier] = [];
+      }
+
+      // Update last publish time for this tier BEFORE publishing (prevents race condition)
+      this.lastPublishTime[tier] = now;
+
+      // Publish the best signal with tier information
+      console.log(`\n🚀 [${tier}] Publishing BEST signal to database...`);
+      await this.publishApprovedSignalWithTier(bestSignal, tier);
+
+      console.log(`✅ [${tier}] Signal published and distributed!`);
+      console.log(`⏰ [${tier}] Next signal in ${Math.ceil(interval / (60 * 1000))} minutes`);
+      console.log(`${'='.repeat(80)}\n`);
+    } finally {
+      // 🔓 RELEASE LOCK: Always release lock, even if error occurred
+      this.processingLocks[tier] = false;
+      console.log(`🔓 [${tier}] Lock released - ready for next interval`);
     }
-
-    // Update last publish time for this tier
-    this.lastPublishTime[tier] = now;
-
-    // Publish the best signal with tier information
-    console.log(`\n🚀 [${tier}] Publishing BEST signal to database...`);
-    await this.publishApprovedSignalWithTier(bestSignal, tier);
-
-    console.log(`✅ [${tier}] Signal published and distributed!`);
-    console.log(`⏰ [${tier}] Next signal in ${Math.ceil(interval / (60 * 1000))} minutes`);
-    console.log(`${'='.repeat(80)}\n`);
   }
 
   /**
