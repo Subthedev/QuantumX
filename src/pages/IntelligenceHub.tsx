@@ -194,6 +194,40 @@ export default function IntelligenceHub() {
 
         setUserSignals(mappedSignals);
 
+        // ✅ CRITICAL FIX: Convert database signals to HubSignal format and update allSignalHistory
+        const hubSignals: HubSignal[] = mappedSignals.map(dbSignal => {
+          // Parse take_profit array from JSONB
+          const takeProfitArray = Array.isArray(dbSignal.take_profit) ? dbSignal.take_profit : [];
+          const targets = takeProfitArray.filter((t: any) => t !== null && typeof t === 'number') as number[];
+
+          return {
+            id: dbSignal.id,
+            symbol: dbSignal.symbol,
+            direction: dbSignal.signal_type as 'LONG' | 'SHORT',
+            confidence: dbSignal.confidence,
+            entry: dbSignal.entry_price || 0,
+            stopLoss: dbSignal.stop_loss,
+            targets,
+            riskReward: targets.length > 0 && dbSignal.stop_loss
+              ? Math.abs((targets[0] - (dbSignal.entry_price || 0)) / ((dbSignal.entry_price || 0) - dbSignal.stop_loss))
+              : undefined,
+            qualityTier: 'MEDIUM',
+            riskLevel: 'MEDIUM',
+            timestamp: new Date(dbSignal.created_at).getTime(),
+            expiresAt: new Date(dbSignal.expires_at).getTime(),
+            timeLimit: new Date(dbSignal.expires_at).getTime() - new Date(dbSignal.created_at).getTime(),
+            outcome: null,
+            strategyName: dbSignal.metadata?.strategy || 'Multi-Strategy',
+            timeframe: dbSignal.metadata?.timeframe || '15m',
+            qualityScore: dbSignal.quality_score || dbSignal.confidence,
+            tier: dbSignal.tier
+          };
+        });
+
+        // Update the signal history display
+        setAllSignalHistory(hubSignals);
+        console.log(`[Hub] ✅ Updated signal history with ${hubSignals.length} database signals`);
+
         // ✅ FIX: Only disable loading after initial load
         if (isInitialLoadRef.current) {
           setLoadingUserSignals(false);
@@ -265,6 +299,31 @@ export default function IntelligenceHub() {
                     return prev;
                   }
                 });
+
+                // Also update allSignalHistory with converted HubSignal
+                const newSignal = payload.new;
+                const takeProfitArray = Array.isArray(newSignal.take_profit) ? newSignal.take_profit : [];
+                const targets = takeProfitArray.filter((t: any) => t !== null && typeof t === 'number') as number[];
+
+                const hubSignal: HubSignal = {
+                  id: newSignal.id,
+                  symbol: newSignal.symbol,
+                  direction: newSignal.signal_type as 'LONG' | 'SHORT',
+                  confidence: newSignal.confidence,
+                  entry: newSignal.entry_price || 0,
+                  stopLoss: newSignal.stop_loss,
+                  targets,
+                  timestamp: new Date(newSignal.created_at).getTime(),
+                  expiresAt: new Date(newSignal.expires_at).getTime(),
+                  strategyName: newSignal.metadata?.strategy || 'Multi-Strategy',
+                  timeframe: newSignal.metadata?.timeframe || '15m',
+                  qualityScore: newSignal.quality_score || newSignal.confidence,
+                  tier: newSignal.tier,
+                  outcome: null
+                };
+
+                setAllSignalHistory(prev => [hubSignal, ...prev]);
+                console.log('[Hub] 🆕 Real-time signal added:', newSignal.symbol);
               } catch (error) {
                 console.error('[Hub] Error in real-time INSERT handler:', error);
               }
@@ -303,6 +362,30 @@ export default function IntelligenceHub() {
                     return prev;
                   }
                 });
+
+                // Also update allSignalHistory
+                const updatedSignal = payload.new;
+                const takeProfitArray = Array.isArray(updatedSignal.take_profit) ? updatedSignal.take_profit : [];
+                const targets = takeProfitArray.filter((t: any) => t !== null && typeof t === 'number') as number[];
+
+                const hubSignal: HubSignal = {
+                  id: updatedSignal.id,
+                  symbol: updatedSignal.symbol,
+                  direction: updatedSignal.signal_type as 'LONG' | 'SHORT',
+                  confidence: updatedSignal.confidence,
+                  entry: updatedSignal.entry_price || 0,
+                  stopLoss: updatedSignal.stop_loss,
+                  targets,
+                  timestamp: new Date(updatedSignal.created_at).getTime(),
+                  expiresAt: new Date(updatedSignal.expires_at).getTime(),
+                  strategyName: updatedSignal.metadata?.strategy || 'Multi-Strategy',
+                  timeframe: updatedSignal.metadata?.timeframe || '15m',
+                  qualityScore: updatedSignal.quality_score || updatedSignal.confidence,
+                  tier: updatedSignal.tier,
+                  outcome: null
+                };
+
+                setAllSignalHistory(prev => prev.map(sig => sig.id === updatedSignal.id ? hubSignal : sig));
               } catch (error) {
                 console.error('[Hub] Error in real-time UPDATE handler:', error);
               }
