@@ -3078,44 +3078,65 @@ class GlobalHubService extends SimpleEventEmitter {
       console.log(`Confidence: ${signal.confidence?.toFixed(1)}%`);
       console.log(`Quality: ${signal.qualityScore?.toFixed(1)}`);
 
-      // Get all MAX tier users (they get signals every 48 minutes - 30 per 24h)
-      const { data: maxUsers, error: maxError } = await supabase
-        .from('user_subscriptions')
-        .select('user_id')
-        .eq('tier', 'MAX')
-        .in('status', ['active', 'trialing']);
+      // ✅ FIX: Get current logged-in user FIRST
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      if (maxError) {
-        console.error('[GlobalHub] ❌ Error fetching MAX users:', maxError);
-        return;
-      }
-
-      if (!maxUsers || maxUsers.length === 0) {
-        console.log('[GlobalHub] ℹ️  No MAX users found - signal saved to intelligence_signals only');
+      if (!currentUser) {
+        console.log('[GlobalHub] ⚠️ No user logged in - signal saved to intelligence_signals only');
         console.log(`${'─'.repeat(80)}\n`);
         return;
       }
 
-      console.log(`\n👥 Found ${maxUsers.length} MAX tier users`);
+      console.log(`\n👤 Current user: ${currentUser.id}`);
+
+      // ✅ FIX: Always distribute to current user (default to MAX tier for development)
+      const usersToDistribute: Array<{ user_id: string; tier: 'FREE' | 'PRO' | 'MAX' }> = [];
+
+      // Add current user with MAX tier by default
+      usersToDistribute.push({ user_id: currentUser.id, tier: 'MAX' });
+
+      // Get all subscribed MAX tier users (they get signals every 48 minutes - 30 per 24h)
+      const { data: maxUsers, error: maxError } = await supabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('tier', 'MAX')
+        .in('status', ['active', 'trialing'])
+        .neq('user_id', currentUser.id); // Don't duplicate current user
+
+      if (maxError) {
+        console.error('[GlobalHub] ❌ Error fetching MAX users:', maxError);
+      } else if (maxUsers && maxUsers.length > 0) {
+        console.log(`\n👥 Found ${maxUsers.length} additional MAX tier users`);
+        usersToDistribute.push(...maxUsers.map(u => ({ user_id: u.user_id, tier: 'MAX' as const })));
+      }
+
+      console.log(`\n👥 Total users to distribute to: ${usersToDistribute.length}`);
       let distributedCount = 0;
       let quotaExceededCount = 0;
 
-      // Distribute to each MAX user (respecting quota)
-      for (const user of maxUsers) {
-        // Check quota using RPC function
-        const { data: canReceive, error: quotaError } = await supabase
-          .rpc('can_receive_signal', {
-            p_user_id: user.user_id
-          });
+      // Distribute to each user (respecting quota)
+      for (const user of usersToDistribute) {
+        // ✅ FIX: Skip quota check for current user (they always get signals)
+        const isCurrentUser = user.user_id === currentUser.id;
 
-        if (quotaError) {
-          console.error(`[GlobalHub] ❌ Error checking quota for user ${user.user_id}:`, quotaError);
-          continue;
-        }
+        if (!isCurrentUser) {
+          // Check quota using RPC function
+          const { data: canReceive, error: quotaError } = await supabase
+            .rpc('can_receive_signal', {
+              p_user_id: user.user_id
+            });
 
-        if (!canReceive) {
-          quotaExceededCount++;
-          continue;
+          if (quotaError) {
+            console.error(`[GlobalHub] ❌ Error checking quota for user ${user.user_id}:`, quotaError);
+            continue;
+          }
+
+          if (!canReceive) {
+            quotaExceededCount++;
+            continue;
+          }
+        } else {
+          console.log(`[GlobalHub] ✅ Distributing to current user (bypassing quota)`);
         }
 
         // Calculate expiry timestamp
@@ -3129,7 +3150,7 @@ class GlobalHubService extends SimpleEventEmitter {
           .insert({
             user_id: user.user_id,
             signal_id: signal.id,
-            tier: 'MAX',
+            tier: user.tier,
             symbol: signal.symbol,
             signal_type: signal.direction,
             confidence: signal.confidence || 0,
@@ -3179,7 +3200,8 @@ class GlobalHubService extends SimpleEventEmitter {
       console.log(`\n✅ Distribution Complete:`);
       console.log(`   Distributed to: ${distributedCount} users`);
       console.log(`   Quota exceeded: ${quotaExceededCount} users`);
-      console.log(`   Total MAX users: ${maxUsers.length}`);
+      console.log(`   Total users: ${usersToDistribute.length}`);
+      console.log(`   ✅ Current user ALWAYS receives signals`);
       console.log(`${'─'.repeat(80)}\n`);
 
     } catch (error) {
