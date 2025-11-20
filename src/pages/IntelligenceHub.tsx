@@ -658,6 +658,13 @@ export default function IntelligenceHub() {
     const ageFiltered = allSignalHistory.filter(signal => {
       // Use outcomeTimestamp if available (completed), otherwise use creation timestamp
       const signalTime = signal.outcomeTimestamp || signal.timestamp;
+
+      // 🛡️ SAFETY: Skip signals with invalid timestamps
+      if (!signalTime || typeof signalTime !== 'number' || isNaN(signalTime)) {
+        console.warn('[Hub] Skipping signal with invalid timestamp:', signal);
+        return false;
+      }
+
       const signalAge = currentTime - signalTime;
       return signalAge <= TWENTY_FOUR_HOURS && signalAge >= 0;
     });
@@ -673,25 +680,29 @@ export default function IntelligenceHub() {
     // Step 3: Sort by NEWEST first (most recent activity)
     const sorted = [...filtered].sort((a, b) => {
       // Sort by outcome timestamp if available, otherwise by creation timestamp
-      const aTime = a.outcomeTimestamp || a.timestamp;
-      const bTime = b.outcomeTimestamp || b.timestamp;
+      const aTime = a.outcomeTimestamp || a.timestamp || 0;
+      const bTime = b.outcomeTimestamp || b.timestamp || 0;
       return bTime - aTime; // Descending order (newest first)
     });
 
     // Log sorted results every 10 seconds
     if (currentTime % 10000 < 1000 && sorted.length > 0) {
       console.log('[Hub UI] 📈 After filtering and sorting:', sorted.length, 'signals (showTimeouts:', showTimeouts + ')');
+      const newestSignal = sorted[0];
+      const newestTime = newestSignal?.outcomeTimestamp || newestSignal?.timestamp || Date.now();
       console.log('[Hub UI] Newest signal:', {
-        symbol: sorted[0].symbol,
-        outcome: sorted[0].outcome,
-        time: new Date(sorted[0].outcomeTimestamp || sorted[0].timestamp).toLocaleString(),
-        minutesAgo: Math.round((currentTime - (sorted[0].outcomeTimestamp || sorted[0].timestamp)) / 60000)
+        symbol: newestSignal?.symbol || 'N/A',
+        outcome: newestSignal?.outcome || 'N/A',
+        time: new Date(newestTime).toLocaleString(),
+        minutesAgo: Math.round((currentTime - newestTime) / 60000)
       });
       if (sorted.length > 1) {
+        const oldestSignal = sorted[Math.min(19, sorted.length - 1)];
+        const oldestTime = oldestSignal?.outcomeTimestamp || oldestSignal?.timestamp || Date.now();
         console.log('[Hub UI] Oldest signal on page 1:', {
-          symbol: sorted[Math.min(19, sorted.length - 1)].symbol,
-          time: new Date(sorted[Math.min(19, sorted.length - 1)].outcomeTimestamp || sorted[Math.min(19, sorted.length - 1)].timestamp).toLocaleString(),
-          minutesAgo: Math.round((currentTime - (sorted[Math.min(19, sorted.length - 1)].outcomeTimestamp || sorted[Math.min(19, sorted.length - 1)].timestamp)) / 60000)
+          symbol: oldestSignal?.symbol || 'N/A',
+          time: new Date(oldestTime).toLocaleString(),
+          minutesAgo: Math.round((currentTime - oldestTime) / 60000)
         });
       }
     }
@@ -1128,7 +1139,12 @@ export default function IntelligenceHub() {
     return `${seconds}s`;
   };
 
-  const timeAgo = (timestamp: number) => {
+  const timeAgo = (timestamp: number | undefined) => {
+    // 🛡️ SAFETY: Handle undefined timestamps
+    if (!timestamp || typeof timestamp !== 'number' || isNaN(timestamp)) {
+      return 'N/A';
+    }
+
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
     if (seconds < 60) return `${seconds}s ago`;
     const minutes = Math.floor(seconds / 60);
@@ -2446,7 +2462,7 @@ export default function IntelligenceHub() {
                             {/* Timestamp */}
                             <div className="pt-2 border-t border-slate-200">
                               <div className="text-[10px] text-slate-500">
-                                Generated: {new Date(sig.timestamp).toLocaleString()}
+                                Generated: {sig.timestamp ? new Date(sig.timestamp).toLocaleString() : 'N/A'}
                               </div>
                             </div>
                           </div>
