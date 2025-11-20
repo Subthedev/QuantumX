@@ -259,6 +259,8 @@ class GlobalHubService extends SimpleEventEmitter {
   private monthlyHistory: MonthlyStats[] = [];
 
   // ✅ RATE LIMITING - Drop only 1 best signal per tier interval
+  // Initialize with service start time (set in start() method)
+  private serviceStartTime: number = 0;
   private lastPublishTime: Record<UserTier, number> = {
     FREE: 0,
     PRO: 0,
@@ -272,8 +274,12 @@ class GlobalHubService extends SimpleEventEmitter {
     MAX: 48 * 60 * 1000           // 48 minutes
   };
 
-  // Buffer to hold approved signals until rate limit allows publishing
-  private signalBuffer: HubSignal[] = [];
+  // Separate buffers for each tier - ensures independent signal generation
+  private signalBuffers: Record<UserTier, HubSignal[]> = {
+    FREE: [],
+    PRO: [],
+    MAX: []
+  };
 
   constructor() {
     super();
@@ -309,32 +315,41 @@ class GlobalHubService extends SimpleEventEmitter {
   }
 
   /**
-   * Add a signal to the buffer and attempt to publish if rate limit allows
+   * Add a signal to ALL tier buffers and attempt to publish for each tier independently
+   * Each tier gets its own copy of the signal and operates on its own timer
    */
-  private async bufferAndPublishSignal(signal: HubSignal, tier: UserTier = 'MAX'): Promise<void> {
+  private async bufferAndPublishSignalToAllTiers(signal: HubSignal): Promise<void> {
     console.log(`\n${'─'.repeat(80)}`);
-    console.log(`🎯 [RATE LIMITING] Signal approved - checking rate limits`);
+    console.log(`🎯 [MULTI-TIER DISTRIBUTION] Signal approved - distributing to ALL tiers`);
     console.log(`${'─'.repeat(80)}`);
     console.log(`   Signal: ${signal.symbol} ${signal.direction}`);
     console.log(`   Confidence: ${signal.confidence?.toFixed(1)}%`);
     console.log(`   Quality: ${signal.qualityScore?.toFixed(1)}`);
-    console.log(`   Target Tier: ${tier}`);
 
-    // Add signal to buffer
-    this.signalBuffer.push(signal);
-    console.log(`📥 Signal added to buffer (buffer size: ${this.signalBuffer.length})`);
+    // Add signal to ALL tier buffers (independent copies)
+    const tiers: UserTier[] = ['FREE', 'PRO', 'MAX'];
 
-    // Attempt to publish from buffer (checks rate limits internally)
-    await this.processSignalBuffer(tier);
+    for (const tier of tiers) {
+      // Clone signal for this tier (independent copy)
+      const tierSignal = { ...signal };
+      this.signalBuffers[tier].push(tierSignal);
+      console.log(`📥 [${tier}] Signal added to buffer (buffer size: ${this.signalBuffers[tier].length})`);
+    }
+
+    // Attempt to publish from each tier's buffer independently
+    for (const tier of tiers) {
+      await this.processSignalBuffer(tier);
+    }
   }
 
   /**
    * Process buffered signals and publish if rate limit allows
    * Called both when new signals arrive and periodically to check for expired rate limits
+   * Each tier operates independently with its own buffer and timer
    */
-  private async processSignalBuffer(tier: UserTier = 'MAX'): Promise<void> {
-    // Check if buffer is empty
-    if (this.signalBuffer.length === 0) {
+  private async processSignalBuffer(tier: UserTier): Promise<void> {
+    // Check if this tier's buffer is empty
+    if (this.signalBuffers[tier].length === 0) {
       return;
     }
 
@@ -346,58 +361,94 @@ class GlobalHubService extends SimpleEventEmitter {
     const remaining = interval - elapsed;
 
     if (!this.canPublishForTier(tier)) {
-      const remainingMinutes = Math.ceil(remaining / (60 * 1000));
-      console.log(`⏳ Rate limit active for ${tier} tier`);
-      console.log(`   Last signal: ${lastPublish === 0 ? 'Never' : new Date(lastPublish).toLocaleTimeString()}`);
-      console.log(`   Next allowed: ${remainingMinutes} minutes from now`);
-      console.log(`   Buffer size: ${this.signalBuffer.length} signals waiting`);
-      console.log(`${'='.repeat(80)}\n`);
+      const remainingSeconds = Math.ceil(remaining / 1000);
+      const remainingMinutes = Math.floor(remainingSeconds / 60);
+      const remainingSecs = remainingSeconds % 60;
+      console.log(`⏳ [${tier}] Rate limit active`);
+      console.log(`   Next allowed: ${remainingMinutes}m ${remainingSecs}s`);
+      console.log(`   Buffer size: ${this.signalBuffers[tier].length} signals waiting`);
       return;
     }
 
-    // Rate limit allows - publish the BEST signal from buffer
-    console.log(`✅ Rate limit allows publishing for ${tier} tier`);
-    console.log(`📊 Selecting BEST signal from buffer (${this.signalBuffer.length} signals)`);
+    // Rate limit allows - publish the BEST signal from this tier's buffer
+    console.log(`\n${'─'.repeat(80)}`);
+    console.log(`✅ [${tier}] Rate limit expired - PUBLISHING SIGNAL!`);
+    console.log(`📊 Selecting BEST signal from ${tier} buffer (${this.signalBuffers[tier].length} signals)`);
 
-    // Sort buffer by confidence (highest first)
-    this.signalBuffer.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+    // Sort this tier's buffer by confidence (highest first)
+    this.signalBuffers[tier].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
 
     // Take the best signal
-    const bestSignal = this.signalBuffer.shift()!;
-    console.log(`\n🏆 BEST SIGNAL SELECTED:`);
+    const bestSignal = this.signalBuffers[tier].shift()!;
+    console.log(`\n🏆 [${tier}] BEST SIGNAL SELECTED:`);
     console.log(`   ${bestSignal.symbol} ${bestSignal.direction}`);
     console.log(`   Confidence: ${bestSignal.confidence?.toFixed(1)}%`);
     console.log(`   Quality: ${bestSignal.qualityScore?.toFixed(1)}`);
 
-    // Clear remaining buffer signals (keep only top signal per interval)
-    if (this.signalBuffer.length > 0) {
-      console.log(`🗑️  Discarding ${this.signalBuffer.length} lower-confidence signals from buffer`);
-      this.signalBuffer = [];
+    // Clear remaining buffer signals for this tier (keep only top signal per interval)
+    if (this.signalBuffers[tier].length > 0) {
+      console.log(`🗑️  [${tier}] Discarding ${this.signalBuffers[tier].length} lower-confidence signals from buffer`);
+      this.signalBuffers[tier] = [];
     }
 
     // Update last publish time for this tier
     this.lastPublishTime[tier] = now;
 
-    // Publish the best signal
-    console.log(`\n🚀 Publishing BEST signal to database...`);
-    await this.publishApprovedSignal(bestSignal);
+    // Publish the best signal with tier information
+    console.log(`\n🚀 [${tier}] Publishing BEST signal to database...`);
+    await this.publishApprovedSignalWithTier(bestSignal, tier);
 
-    console.log(`✅ Signal published and distributed to users!`);
-    console.log(`⏰ Next signal for ${tier} tier in ${Math.ceil(interval / (60 * 1000))} minutes`);
+    console.log(`✅ [${tier}] Signal published and distributed!`);
+    console.log(`⏰ [${tier}] Next signal in ${Math.ceil(interval / (60 * 1000))} minutes`);
     console.log(`${'='.repeat(80)}\n`);
   }
 
   /**
-   * Periodically check and process buffered signals (runs every 10 seconds)
-   * This ensures signals are published as soon as rate limit expires
+   * Periodically check and process buffered signals for ALL tiers (runs every 10 seconds)
+   * This ensures signals are published as soon as rate limit expires for each tier
    */
   private startBufferProcessor() {
     setInterval(async () => {
-      if (this.signalBuffer.length > 0) {
-        console.log(`[Buffer Processor] Checking rate limits (${this.signalBuffer.length} signals in buffer)...`);
-        await this.processSignalBuffer('MAX');
+      const tiers: UserTier[] = ['FREE', 'PRO', 'MAX'];
+
+      for (const tier of tiers) {
+        if (this.signalBuffers[tier].length > 0) {
+          console.log(`[Buffer Processor] [${tier}] Checking rate limits (${this.signalBuffers[tier].length} signals in buffer)...`);
+          await this.processSignalBuffer(tier);
+        }
       }
     }, 10000); // Check every 10 seconds
+  }
+
+  /**
+   * Publish signal with specific tier assignment
+   * This is a wrapper around publishApprovedSignal that includes tier metadata
+   */
+  private async publishApprovedSignalWithTier(signal: HubSignal, tier: UserTier): Promise<void> {
+    // Add tier metadata to signal
+    const tierSignal = {
+      ...signal,
+      tier // Add tier to signal metadata
+    };
+
+    // Publish using existing method
+    await this.publishApprovedSignal(tierSignal);
+  }
+
+  /**
+   * Get service start time for timer synchronization
+   * This allows the UI timer to sync with the rate limiter
+   */
+  public getServiceStartTime(): number {
+    return this.serviceStartTime;
+  }
+
+  /**
+   * Get last publish time for a specific tier
+   * Useful for timer synchronization
+   */
+  public getLastPublishTime(tier: UserTier): number {
+    return this.lastPublishTime[tier];
   }
 
   // ===== INITIALIZATION =====
@@ -629,7 +680,22 @@ class GlobalHubService extends SimpleEventEmitter {
       activeSignals: this.state.activeSignals.length,
       startTime: this.state.metrics.startTime
     });
-    
+
+    // ✅ CRITICAL: Initialize service start time for rate limiting
+    this.serviceStartTime = Date.now();
+
+    // ✅ TIMER SYNCHRONIZATION: Initialize lastPublishTime for ALL tiers
+    // This ensures the timer and rate limiter are perfectly synchronized
+    // First signal for each tier will drop when the timer hits 0
+    this.lastPublishTime.FREE = this.serviceStartTime;
+    this.lastPublishTime.PRO = this.serviceStartTime;
+    this.lastPublishTime.MAX = this.serviceStartTime;
+
+    console.log('[GlobalHub] ⏰ Rate limiter initialized - timers synchronized!');
+    console.log('[GlobalHub]    FREE tier: First signal in 8 hours');
+    console.log('[GlobalHub]    PRO tier: First signal in 96 minutes');
+    console.log('[GlobalHub]    MAX tier: First signal in 48 minutes');
+
     // Only set startTime if this is the first start (not a reload)
     if (this.state.metrics.startTime === 0) {
       this.state.metrics.startTime = Date.now();
@@ -637,7 +703,7 @@ class GlobalHubService extends SimpleEventEmitter {
     } else {
       console.log('[GlobalHub] ⏰ Resuming from previous session - preserving startTime');
     }
-    
+
     this.state.isRunning = true;
     this.saveMetrics(); // Save immediately after setting isRunning
 
@@ -2781,8 +2847,8 @@ class GlobalHubService extends SimpleEventEmitter {
         console.log(`   Confidence: ${displaySignal.confidence?.toFixed(1)}%`);
         console.log(`   Quality: ${displaySignal.qualityScore?.toFixed(1)}`);
 
-        // ✅ Buffer and publish with rate limiting (default: MAX tier)
-        await this.bufferAndPublishSignal(displaySignal, 'MAX');
+        // ✅ Buffer and publish to ALL tiers (FREE, PRO, MAX) with independent rate limiting
+        await this.bufferAndPublishSignalToAllTiers(displaySignal);
 
       } else {
         // Signal rejected by Delta

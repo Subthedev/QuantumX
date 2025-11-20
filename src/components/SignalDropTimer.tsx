@@ -8,56 +8,51 @@ interface SignalDropTimerProps {
 }
 
 /**
- * DATABASE-SYNCHRONIZED SIGNAL DROP TIMER
+ * OPTIMIZED DATABASE-SYNCHRONIZED SIGNAL DROP TIMER
  *
- * This timer reads the LAST SIGNAL TIMESTAMP from the database
- * and calculates when the next signal will drop based on the backend interval.
- *
- * ✅ TRUE BACKEND SYNC - Reads actual signal generation timestamps
+ * ✅ SMOOTH COUNTDOWN - Local state updates every second for lag-free UI
+ * ✅ DATABASE SYNC - Queries database every 30 seconds to detect new signals
+ * ✅ TIER-SYNCHRONIZED - Matches backend rate limiting perfectly
  * ✅ WORKS 24/7 - Even when browser was closed
- * ✅ NO FRONTEND SCHEDULER - Pure database-driven
- * ✅ COUNTS DOWN - Even before first signal (shows time until first drop)
  */
 export function SignalDropTimer({ tier }: SignalDropTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [dropIntervalSeconds, setDropIntervalSeconds] = useState(60); // Default to 1 minute
-  const mountTimeRef = useRef<number>(Date.now()); // Track when component mounted
+  const [dropIntervalSeconds, setDropIntervalSeconds] = useState(60);
+  const lastSignalTimeRef = useRef<number | null>(null); // Cached last signal timestamp
+  const mountTimeRef = useRef<number>(Date.now());
 
-  // ✅ PRODUCTION TIERED INTERVALS - Database-synced timer
-  // Matches production tiered signal distribution:
+  // ✅ PRODUCTION TIERED INTERVALS - Matches backend rate limiting
   // FREE: 3 signals per 24h → Every 8 hours
   // PRO: 15 signals per 24h → Every 96 minutes
   // MAX: 30 signals per 24h → Every 48 minutes
   const DROP_INTERVALS = {
-    FREE: 8 * 60 * 60,   // 8 hours in seconds (3 signals/24h)
-    PRO: 96 * 60,        // 96 minutes in seconds (15 signals/24h)
-    MAX: 48 * 60         // 48 minutes in seconds (30 signals/24h)
+    FREE: 8 * 60 * 60,   // 8 hours in seconds
+    PRO: 96 * 60,        // 96 minutes in seconds
+    MAX: 48 * 60         // 48 minutes in seconds
   };
 
-  // Main timer - reads LAST signal from database
+  // Database sync - runs once on mount and every 30 seconds
   useEffect(() => {
-    console.log(`[SignalDropTimer] 🚀 Starting DATABASE-SYNCED timer for ${tier} tier`);
-    console.log(`[SignalDropTimer] ✅ Reading from database - NO frontend scheduler!`);
-    console.log(`[SignalDropTimer] 🎯 Will count down even before first signal`);
+    console.log(`[SignalDropTimer] 🚀 Starting OPTIMIZED timer for ${tier} tier`);
+    console.log(`[SignalDropTimer] ✅ Smooth 1-second countdown with 30-second database sync`);
 
     const interval = DROP_INTERVALS[tier];
     setDropIntervalSeconds(interval);
-    mountTimeRef.current = Date.now(); // Reset mount time when tier changes
 
-    const tickInterval = setInterval(async () => {
+    // Query database to get last signal timestamp
+    const syncWithDatabase = async () => {
       try {
-        // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          console.warn('[SignalDropTimer] ⚠️ No user logged in');
-          // Still count down from mount time even without user
-          const elapsed = Math.floor((Date.now() - mountTimeRef.current) / 1000);
-          const remaining = Math.max(0, interval - elapsed);
-          setTimeRemaining(remaining);
+          // No user - count from mount time
+          if (lastSignalTimeRef.current === null) {
+            lastSignalTimeRef.current = mountTimeRef.current;
+            console.log(`[SignalDropTimer] ⏰ [${tier}] No user - counting from mount time`);
+          }
           return;
         }
 
-        // ✅ Query database for the LAST signal generated for THIS USER and TIER
+        // Query database for last signal (tier-specific)
         const { data, error } = await supabase
           .from('user_signals')
           .select('created_at')
@@ -68,43 +63,59 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
           .maybeSingle();
 
         if (error) {
-          console.error('[SignalDropTimer] ❌ Database error:', error);
+          console.error(`[SignalDropTimer] [${tier}] ❌ Database error:`, error);
           return;
         }
 
         if (!data) {
-          // ✅ FIX: No signals yet - count down from component mount time
-          // This makes timer count down immediately, showing time until first signal
-          const elapsed = Math.floor((Date.now() - mountTimeRef.current) / 1000);
-          const remaining = Math.max(0, interval - elapsed);
-          setTimeRemaining(remaining);
-
-          if (remaining % 30 === 0 && remaining > 0) {
-            console.log(`[SignalDropTimer] ⏱️  ${tier} tier: ${remaining}s until first signal (counting from page load)`);
+          // No signals yet - count from mount time
+          if (lastSignalTimeRef.current === null) {
+            lastSignalTimeRef.current = mountTimeRef.current;
+            console.log(`[SignalDropTimer] ⏰ [${tier}] No signals yet - counting from mount time`);
           }
           return;
         }
 
-        // Calculate next drop time based on last signal + interval
-        const lastSignalTime = new Date(data.created_at).getTime();
-        const nextDropTime = lastSignalTime + (interval * 1000);
-        const now = Date.now();
-        const remaining = Math.max(0, Math.floor((nextDropTime - now) / 1000));
-
-        setTimeRemaining(remaining);
-
-        // ✅ DEBUG: Log every 30 seconds for cleaner output
-        if (remaining % 30 === 0 && remaining > 0) {
-          console.log(`[SignalDropTimer] ⏱️  ${tier} tier sync: ${remaining}s until next drop (last signal: ${new Date(data.created_at).toLocaleTimeString()})`);
+        // Found signal - update cached timestamp
+        const signalTime = new Date(data.created_at).getTime();
+        if (lastSignalTimeRef.current !== signalTime) {
+          lastSignalTimeRef.current = signalTime;
+          console.log(`[SignalDropTimer] 🔄 [${tier}] Updated from database: Last signal at ${new Date(signalTime).toLocaleTimeString()}`);
         }
       } catch (error) {
-        console.error('[SignalDropTimer] ❌ Error calculating next drop:', error);
+        console.error(`[SignalDropTimer] [${tier}] ❌ Sync error:`, error);
       }
-    }, 1000); // Update every second
+    };
+
+    // Initial sync
+    syncWithDatabase();
+
+    // Periodic database sync every 30 seconds (not every second!)
+    const syncInterval = setInterval(syncWithDatabase, 30000);
+
+    // Smooth local countdown every second (no database queries)
+    const tickInterval = setInterval(() => {
+      if (lastSignalTimeRef.current === null) {
+        // Fallback - count from mount time
+        lastSignalTimeRef.current = mountTimeRef.current;
+      }
+
+      const now = Date.now();
+      const nextDropTime = lastSignalTimeRef.current + (interval * 1000);
+      const remaining = Math.max(0, Math.floor((nextDropTime - now) / 1000));
+
+      setTimeRemaining(remaining);
+
+      // Log every minute for debugging
+      if (remaining % 60 === 0 && remaining > 0) {
+        console.log(`[SignalDropTimer] ⏱️  [${tier}] ${remaining}s remaining`);
+      }
+    }, 1000); // Smooth 1-second updates
 
     return () => {
-      console.log(`[SignalDropTimer] 🛑 Stopping timer for ${tier} tier`);
+      clearInterval(syncInterval);
       clearInterval(tickInterval);
+      console.log(`[SignalDropTimer] 🛑 Stopped timer for ${tier} tier`);
     };
   }, [tier]);
 
@@ -120,7 +131,7 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const percentage = ((DROP_INTERVALS[tier] - timeRemaining) / DROP_INTERVALS[tier]) * 100;
+  const percentage = ((dropIntervalSeconds - timeRemaining) / dropIntervalSeconds) * 100;
 
   return (
     <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 ${
@@ -145,9 +156,9 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
           tier === 'PRO' ? 'text-blue-900' :
           'text-gray-900'
         }`}>
-          Next Signal In
+          Next {tier} Signal
         </span>
-        <span className={`text-lg font-bold ${
+        <span className={`text-lg font-bold tabular-nums ${
           timeRemaining <= 5 ? 'animate-pulse text-red-600' :
           tier === 'MAX' ? 'text-purple-700' :
           tier === 'PRO' ? 'text-blue-700' :
