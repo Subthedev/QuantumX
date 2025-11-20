@@ -30,16 +30,16 @@ if (typeof window !== 'undefined') {
     console.log('[App] 🚀 IGNITEX PRODUCTION SYSTEM INITIALIZED');
     console.log('🚀'.repeat(40) + '\n');
 
-    console.log('[App] ✅ Server-Side Signal Generation: ACTIVE');
-    console.log('[App] ✅ Database-Synchronized Timer: ACTIVE');
-    console.log('[App] ✅ Real-time Signal Updates: ACTIVE');
+    console.log('[App] ✅ Client-Side Engine Generation: ACTIVE');
+    console.log('[App] ✅ Market Analysis Engines: RUNNING');
+    console.log('[App] ✅ Autonomous Signal Drops: ENABLED');
 
     console.log('\n' + '✅'.repeat(40));
     console.log('[App] ✅✅✅ PRODUCTION SYSTEM OPERATIONAL! ✅✅✅');
     console.log('[App] System Architecture:');
-    console.log('[App]   • Signal Generation: Server-side (Supabase Edge Functions)');
-    console.log('[App]   • Timer: Database-synchronized (no client-side generation)');
-    console.log('[App]   • Updates: Real-time via Supabase subscriptions');
+    console.log('[App]   • Signal Generation: Client-side (18+ trading strategies)');
+    console.log('[App]   • Timer: Triggers signal drops when countdown hits 0');
+    console.log('[App]   • Engines: Continuously analyze top 50 cryptos 24/7');
     console.log('✅'.repeat(40) + '\n');
   }, 500); // Short delay to ensure DOM is ready
 }

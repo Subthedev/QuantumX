@@ -782,20 +782,21 @@ export default function IntelligenceHub() {
     }
     console.log('[Hub UI] Connecting to global service...');
 
-    // ✅ SERVER-SIDE MODE: Frontend does NOT start signal generation
-    // Signals are generated 24/7 by the Supabase Edge Function
-    // Frontend is a PASSIVE RECEIVER ONLY
+    // ✅ CLIENT-SIDE ENGINE MODE: Frontend ACTIVELY generates signals
+    // Engines run 24/7 in the browser analyzing markets
+    // Timer triggers signal drops when it hits 0
     const initializeService = async () => {
-      console.log('[Hub UI] 🚀 SERVER-SIDE MODE: Frontend will NOT generate signals');
-      console.log('[Hub UI] 📡 Frontend is PASSIVE RECEIVER - reading from database only');
+      console.log('[Hub UI] 🚀 CLIENT-SIDE ENGINE MODE: Frontend WILL generate signals');
+      console.log('[Hub UI] 🔥 Engines starting - analyzing markets 24/7...');
 
-      // DO NOT START THE SERVICE - it would generate frontend signals
-      // if (!globalHubService.isRunning()) {
-      //   await globalHubService.start();
-      // }
+      // ✅ START THE ENGINES - Generate signals in the browser
+      if (!globalHubService.isRunning()) {
+        await globalHubService.start();
+        console.log('[Hub UI] ✅ Engines started successfully!');
+      }
 
-      // Load initial state from database (not from service)
-      console.log('[Hub UI] 📥 Loading initial signals from database...');
+      // Load initial state from engines
+      console.log('[Hub UI] 📥 Loading initial signals from engines...');
       const initialMetrics = globalHubService.getMetrics();
       const initialSignals = globalHubService.getActiveSignals();
       const initialZetaMetrics = zetaLearningEngine.getMetrics();
