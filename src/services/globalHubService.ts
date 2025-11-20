@@ -74,7 +74,7 @@ class GlobalHubService {
   }
 
   getActiveSignals(): HubSignal[] {
-    return this.signals.filter(s => s.expiresAt > Date.now());
+    return this.signals.filter(s => s.expiresAt && s.expiresAt > Date.now());
   }
 
   getMetrics(): HubMetrics {
@@ -104,7 +104,7 @@ class GlobalHubService {
   getState() {
     return {
       signalHistory: this.signals,
-      activeSignals: this.signals.filter(s => s.expiresAt > Date.now()),
+      activeSignals: this.signals.filter(s => s.expiresAt && s.expiresAt > Date.now()),
       metrics: this.getMetrics()
     };
   }
