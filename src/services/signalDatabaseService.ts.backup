@@ -61,17 +61,10 @@ export class SignalDatabaseService {
     this.isPolling = true;
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        this.isPolling = false;
-        return;
-      }
-
       const { data: newSignals, error } = await supabase
-        .from('user_signals')
+        .from('intelligence_signals')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('status', 'ACTIVE')
         .gt('created_at', new Date(this.lastFetchedTimestamp).toISOString())
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
@@ -97,31 +90,25 @@ export class SignalDatabaseService {
         console.log(`[SignalDB] 🆕 ${trulyNewSignals.length} are genuinely new (${newSignals.length - trulyNewSignals.length} already seen)`);
 
         // Convert to HubSignal format
-        const hubSignals: HubSignal[] = trulyNewSignals.map(dbSignal => {
-          // Parse take_profit array from JSONB
-          const takeProfitArray = Array.isArray(dbSignal.take_profit) ? dbSignal.take_profit : [];
-          const targets = takeProfitArray.filter((t: any) => t !== null && typeof t === 'number') as number[];
-
-          return {
-            id: dbSignal.id,
-            symbol: dbSignal.symbol,
-            direction: dbSignal.signal_type as 'LONG' | 'SHORT',
-            confidence: dbSignal.confidence,
-            entry: dbSignal.entry_price || 0,
-            stopLoss: dbSignal.stop_loss || undefined,
-            targets,
-            riskReward: targets.length > 0 && dbSignal.stop_loss
-              ? Math.abs((targets[0] - (dbSignal.entry_price || 0)) / ((dbSignal.entry_price || 0) - dbSignal.stop_loss))
-              : undefined,
-            qualityTier: 'MEDIUM' as any,
-            riskLevel: 'MEDIUM' as any,
-            timestamp: new Date(dbSignal.created_at).getTime(),
-            timeLimit: new Date(dbSignal.expires_at).getTime() - new Date(dbSignal.created_at).getTime(),
-            outcome: null,
-            strategyName: dbSignal.metadata?.strategy || 'Multi-Strategy',
-            qualityScore: dbSignal.quality_score || dbSignal.confidence,
-          };
-        });
+        const hubSignals: HubSignal[] = trulyNewSignals.map(dbSignal => ({
+          id: dbSignal.id,
+          symbol: dbSignal.symbol,
+          direction: dbSignal.signal_type as 'LONG' | 'SHORT',
+          confidence: dbSignal.confidence,
+          entry: dbSignal.entry_min,
+          stopLoss: dbSignal.stop_loss || undefined,
+          targets: [dbSignal.target_1, dbSignal.target_2, dbSignal.target_3].filter(t => t !== null) as number[],
+          riskReward: dbSignal.target_1 && dbSignal.stop_loss
+            ? Math.abs((dbSignal.target_1 - dbSignal.entry_min) / (dbSignal.entry_min - dbSignal.stop_loss))
+            : undefined,
+          qualityTier: dbSignal.strength as any,
+          riskLevel: dbSignal.risk_level as any,
+          timestamp: new Date(dbSignal.created_at).getTime(),
+          timeLimit: new Date(dbSignal.expires_at).getTime() - new Date(dbSignal.created_at).getTime(),
+          outcome: null,
+          strategyName: dbSignal.strategy_name || 'Multi-Strategy',
+          qualityScore: dbSignal.confidence,
+        }));
 
         // Mark these signals as known
         hubSignals.forEach(sig => this.knownSignalIds.add(sig.id!));
@@ -152,17 +139,10 @@ export class SignalDatabaseService {
    */
   async fetchAllActiveSignals(): Promise<HubSignal[]> {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.warn('[SignalDB] ⚠️ No user logged in');
-        return [];
-      }
-
       const { data: activeSignals, error } = await supabase
-        .from('user_signals')
+        .from('intelligence_signals')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('status', 'ACTIVE')
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(50);
@@ -179,31 +159,25 @@ export class SignalDatabaseService {
 
       console.log(`[SignalDB] 📥 Loaded ${activeSignals.length} active signals`);
 
-      const hubSignals: HubSignal[] = activeSignals.map(dbSignal => {
-        // Parse take_profit array from JSONB
-        const takeProfitArray = Array.isArray(dbSignal.take_profit) ? dbSignal.take_profit : [];
-        const targets = takeProfitArray.filter((t: any) => t !== null && typeof t === 'number') as number[];
-
-        return {
-          id: dbSignal.id,
-          symbol: dbSignal.symbol,
-          direction: dbSignal.signal_type as 'LONG' | 'SHORT',
-          confidence: dbSignal.confidence,
-          entry: dbSignal.entry_price || 0,
-          stopLoss: dbSignal.stop_loss || undefined,
-          targets,
-          riskReward: targets.length > 0 && dbSignal.stop_loss
-            ? Math.abs((targets[0] - (dbSignal.entry_price || 0)) / ((dbSignal.entry_price || 0) - dbSignal.stop_loss))
-            : undefined,
-          qualityTier: 'MEDIUM' as any,
-          riskLevel: 'MEDIUM' as any,
-          timestamp: new Date(dbSignal.created_at).getTime(),
-          timeLimit: new Date(dbSignal.expires_at).getTime() - new Date(dbSignal.created_at).getTime(),
-          outcome: null,
-          strategyName: dbSignal.metadata?.strategy || 'Multi-Strategy',
-          qualityScore: dbSignal.quality_score || dbSignal.confidence,
-        };
-      });
+      const hubSignals: HubSignal[] = activeSignals.map(dbSignal => ({
+        id: dbSignal.id,
+        symbol: dbSignal.symbol,
+        direction: dbSignal.signal_type as 'LONG' | 'SHORT',
+        confidence: dbSignal.confidence,
+        entry: dbSignal.entry_min,
+        stopLoss: dbSignal.stop_loss || undefined,
+        targets: [dbSignal.target_1, dbSignal.target_2, dbSignal.target_3].filter(t => t !== null) as number[],
+        riskReward: dbSignal.target_1 && dbSignal.stop_loss
+          ? Math.abs((dbSignal.target_1 - dbSignal.entry_min) / (dbSignal.entry_min - dbSignal.stop_loss))
+          : undefined,
+        qualityTier: dbSignal.strength as any,
+        riskLevel: dbSignal.risk_level as any,
+        timestamp: new Date(dbSignal.created_at).getTime(),
+        timeLimit: new Date(dbSignal.expires_at).getTime() - new Date(dbSignal.created_at).getTime(),
+        outcome: null,
+        strategyName: dbSignal.strategy_name || 'Multi-Strategy',
+        qualityScore: dbSignal.confidence,
+      }));
 
       // Mark initial signals as known to prevent duplicates in polling
       hubSignals.forEach(sig => this.knownSignalIds.add(sig.id!));

@@ -66,16 +66,18 @@ const ETFFlows = lazy(() => import("./pages/ETFFlows"));
 const OnChainAnalysis = lazy(() => import("./pages/OnChainAnalysis"));
 const FundingRates = lazy(() => import("./pages/FundingRates"));
 const OrderBook = lazy(() => import("./pages/OrderBook"));
-// Using IntelligenceHubTiered for server-side signal generation
-const IntelligenceHubTiered = lazy(() => import("./pages/IntelligenceHubTiered"));
+// Intelligence Hub - Server-side signal generation with database polling
+const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
 const Upgrade = lazy(() => import("./pages/Upgrade"));
 const MockTrading = lazy(() => import("./pages/MockTrading"));
 const MLAdmin = lazy(() => import("./pages/MLAdmin"));
 const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 
-// Disabled in production - require globalHubService (client-side generation)
-// const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
+// Alternative Intelligence Hub variants (available but not primary)
+// const IntelligenceHubTiered = lazy(() => import("./pages/IntelligenceHubTiered"));
 // const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
+
+// Arena features (require full client-side system)
 // const Arena = lazy(() => import("./pages/Arena"));
 // const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
 // const ArenaTest = lazy(() => import("./pages/ArenaTest"));
@@ -159,16 +161,16 @@ const App = () => {
 
               {/*
                 Intelligence Hub - Server-Side Signal Generation
-                Main production route using tiered system with database signals
+                Main production route reading from user_signals table via signalDatabaseService
               */}
               <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
-              <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} />
-              <Route path="/intelligence-hub-tiered" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} />
+              <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
               <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
               <Route path="/ml-admin" element={<ProtectedRoute><MLAdmin /></ProtectedRoute>} />
 
-              {/* Disabled in production - require globalHubService (client-side generation) */}
+              {/* Alternative Intelligence Hub variants */}
+              {/* <Route path="/intelligence-hub-tiered" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} /> */}
               {/* <Route path="/intelligence-hub/monthly" element={<ProtectedRoute><IntelligenceHubMonthly /></ProtectedRoute>} /> */}
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
