@@ -135,13 +135,14 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 500,
     // Enable source maps for production debugging
     sourcemap: mode === 'production' ? false : true,
-    // Minify for smaller bundles - using esbuild with drop console
+    // Minify for smaller bundles - using esbuild
     minify: 'esbuild',
     target: 'es2015',
     cssCodeSplit: true,
-    // Drop console and debugger in production
+    // ✅ KEEP console logs in production for engine status visibility
+    // Users need to see "[Hub]" and "[SignalDB]" logs to know system is working
     esbuild: {
-      drop: mode === 'production' ? ['console', 'debugger'] : [],
+      drop: mode === 'production' ? ['debugger'] : [],  // Only drop debugger, keep console.log
     },
   },
   // Optimize dependencies
