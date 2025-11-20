@@ -313,13 +313,19 @@ export default function IntelligenceHub() {
                   entry: newSignal.entry_price || 0,
                   stopLoss: newSignal.stop_loss,
                   targets,
+                  riskReward: targets.length > 0 && newSignal.stop_loss
+                    ? Math.abs((targets[0] - (newSignal.entry_price || 0)) / ((newSignal.entry_price || 0) - newSignal.stop_loss))
+                    : undefined,
+                  qualityTier: 'MEDIUM',
+                  riskLevel: 'MEDIUM',
                   timestamp: new Date(newSignal.created_at).getTime(),
                   expiresAt: new Date(newSignal.expires_at).getTime(),
+                  timeLimit: new Date(newSignal.expires_at).getTime() - new Date(newSignal.created_at).getTime(),
+                  outcome: null,
                   strategyName: newSignal.metadata?.strategy || 'Multi-Strategy',
                   timeframe: newSignal.metadata?.timeframe || '15m',
                   qualityScore: newSignal.quality_score || newSignal.confidence,
-                  tier: newSignal.tier,
-                  outcome: null
+                  tier: newSignal.tier
                 };
 
                 setAllSignalHistory(prev => [hubSignal, ...prev]);
@@ -376,13 +382,19 @@ export default function IntelligenceHub() {
                   entry: updatedSignal.entry_price || 0,
                   stopLoss: updatedSignal.stop_loss,
                   targets,
+                  riskReward: targets.length > 0 && updatedSignal.stop_loss
+                    ? Math.abs((targets[0] - (updatedSignal.entry_price || 0)) / ((updatedSignal.entry_price || 0) - updatedSignal.stop_loss))
+                    : undefined,
+                  qualityTier: 'MEDIUM',
+                  riskLevel: 'MEDIUM',
                   timestamp: new Date(updatedSignal.created_at).getTime(),
                   expiresAt: new Date(updatedSignal.expires_at).getTime(),
+                  timeLimit: new Date(updatedSignal.expires_at).getTime() - new Date(updatedSignal.created_at).getTime(),
+                  outcome: null,
                   strategyName: updatedSignal.metadata?.strategy || 'Multi-Strategy',
                   timeframe: updatedSignal.metadata?.timeframe || '15m',
                   qualityScore: updatedSignal.quality_score || updatedSignal.confidence,
-                  tier: updatedSignal.tier,
-                  outcome: null
+                  tier: updatedSignal.tier
                 };
 
                 setAllSignalHistory(prev => prev.map(sig => sig.id === updatedSignal.id ? hubSignal : sig));
