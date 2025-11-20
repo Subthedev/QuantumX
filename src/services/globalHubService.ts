@@ -101,6 +101,11 @@ class GlobalHubService {
     };
   }
 
+  getCurrentMonthStats(): MonthlyStats {
+    // Alias for getMonthlyStats for compatibility
+    return this.getMonthlyStats();
+  }
+
   getState() {
     return {
       signalHistory: this.signals,
