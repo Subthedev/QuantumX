@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Clock, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,10 +16,12 @@ interface SignalDropTimerProps {
  * ✅ TRUE BACKEND SYNC - Reads actual signal generation timestamps
  * ✅ WORKS 24/7 - Even when browser was closed
  * ✅ NO FRONTEND SCHEDULER - Pure database-driven
+ * ✅ COUNTS DOWN - Even before first signal (shows time until first drop)
  */
 export function SignalDropTimer({ tier }: SignalDropTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [dropIntervalSeconds, setDropIntervalSeconds] = useState(60); // Default to 1 minute
+  const mountTimeRef = useRef<number>(Date.now()); // Track when component mounted
 
   // ✅ PRODUCTION TIERED INTERVALS - Database-synced timer
   // Matches production tiered signal distribution:
@@ -36,9 +38,11 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
   useEffect(() => {
     console.log(`[SignalDropTimer] 🚀 Starting DATABASE-SYNCED timer for ${tier} tier`);
     console.log(`[SignalDropTimer] ✅ Reading from database - NO frontend scheduler!`);
+    console.log(`[SignalDropTimer] 🎯 Will count down even before first signal`);
 
     const interval = DROP_INTERVALS[tier];
     setDropIntervalSeconds(interval);
+    mountTimeRef.current = Date.now(); // Reset mount time when tier changes
 
     const tickInterval = setInterval(async () => {
       try {
@@ -46,7 +50,10 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           console.warn('[SignalDropTimer] ⚠️ No user logged in');
-          setTimeRemaining(interval);
+          // Still count down from mount time even without user
+          const elapsed = Math.floor((Date.now() - mountTimeRef.current) / 1000);
+          const remaining = Math.max(0, interval - elapsed);
+          setTimeRemaining(remaining);
           return;
         }
 
@@ -66,8 +73,15 @@ export function SignalDropTimer({ tier }: SignalDropTimerProps) {
         }
 
         if (!data) {
-          // No signals yet - show full interval
-          setTimeRemaining(interval);
+          // ✅ FIX: No signals yet - count down from component mount time
+          // This makes timer count down immediately, showing time until first signal
+          const elapsed = Math.floor((Date.now() - mountTimeRef.current) / 1000);
+          const remaining = Math.max(0, interval - elapsed);
+          setTimeRemaining(remaining);
+
+          if (remaining % 30 === 0 && remaining > 0) {
+            console.log(`[SignalDropTimer] ⏱️  ${tier} tier: ${remaining}s until first signal (counting from page load)`);
+          }
           return;
         }
 
