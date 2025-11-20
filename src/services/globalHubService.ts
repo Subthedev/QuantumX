@@ -258,6 +258,23 @@ class GlobalHubService extends SimpleEventEmitter {
   private currentMonth: string = '';
   private monthlyHistory: MonthlyStats[] = [];
 
+  // ✅ RATE LIMITING - Drop only 1 best signal per tier interval
+  private lastPublishTime: Record<UserTier, number> = {
+    FREE: 0,
+    PRO: 0,
+    MAX: 0
+  };
+
+  // Signal drop intervals in milliseconds (matches scheduledSignalDropper)
+  private readonly DROP_INTERVALS: Record<UserTier, number> = {
+    FREE: 8 * 60 * 60 * 1000,    // 8 hours
+    PRO: 96 * 60 * 1000,          // 96 minutes
+    MAX: 48 * 60 * 1000           // 48 minutes
+  };
+
+  // Buffer to hold approved signals until rate limit allows publishing
+  private signalBuffer: HubSignal[] = [];
+
   constructor() {
     super();
 
@@ -275,6 +292,112 @@ class GlobalHubService extends SimpleEventEmitter {
     if (typeof window !== 'undefined') {
       window.addEventListener('beta-v5-consensus', this.handleBetaConsensus.bind(this));
     }
+  }
+
+  // ===== RATE LIMITING METHODS =====
+
+  /**
+   * Check if enough time has elapsed to publish a signal for the given tier
+   */
+  private canPublishForTier(tier: UserTier): boolean {
+    const now = Date.now();
+    const lastPublish = this.lastPublishTime[tier];
+    const interval = this.DROP_INTERVALS[tier];
+
+    const elapsed = now - lastPublish;
+    return elapsed >= interval;
+  }
+
+  /**
+   * Add a signal to the buffer and attempt to publish if rate limit allows
+   */
+  private async bufferAndPublishSignal(signal: HubSignal, tier: UserTier = 'MAX'): Promise<void> {
+    console.log(`\n${'─'.repeat(80)}`);
+    console.log(`🎯 [RATE LIMITING] Signal approved - checking rate limits`);
+    console.log(`${'─'.repeat(80)}`);
+    console.log(`   Signal: ${signal.symbol} ${signal.direction}`);
+    console.log(`   Confidence: ${signal.confidence?.toFixed(1)}%`);
+    console.log(`   Quality: ${signal.qualityScore?.toFixed(1)}`);
+    console.log(`   Target Tier: ${tier}`);
+
+    // Add signal to buffer
+    this.signalBuffer.push(signal);
+    console.log(`📥 Signal added to buffer (buffer size: ${this.signalBuffer.length})`);
+
+    // Attempt to publish from buffer (checks rate limits internally)
+    await this.processSignalBuffer(tier);
+  }
+
+  /**
+   * Process buffered signals and publish if rate limit allows
+   * Called both when new signals arrive and periodically to check for expired rate limits
+   */
+  private async processSignalBuffer(tier: UserTier = 'MAX'): Promise<void> {
+    // Check if buffer is empty
+    if (this.signalBuffer.length === 0) {
+      return;
+    }
+
+    // Check if we can publish for this tier
+    const now = Date.now();
+    const lastPublish = this.lastPublishTime[tier];
+    const interval = this.DROP_INTERVALS[tier];
+    const elapsed = now - lastPublish;
+    const remaining = interval - elapsed;
+
+    if (!this.canPublishForTier(tier)) {
+      const remainingMinutes = Math.ceil(remaining / (60 * 1000));
+      console.log(`⏳ Rate limit active for ${tier} tier`);
+      console.log(`   Last signal: ${lastPublish === 0 ? 'Never' : new Date(lastPublish).toLocaleTimeString()}`);
+      console.log(`   Next allowed: ${remainingMinutes} minutes from now`);
+      console.log(`   Buffer size: ${this.signalBuffer.length} signals waiting`);
+      console.log(`${'='.repeat(80)}\n`);
+      return;
+    }
+
+    // Rate limit allows - publish the BEST signal from buffer
+    console.log(`✅ Rate limit allows publishing for ${tier} tier`);
+    console.log(`📊 Selecting BEST signal from buffer (${this.signalBuffer.length} signals)`);
+
+    // Sort buffer by confidence (highest first)
+    this.signalBuffer.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+
+    // Take the best signal
+    const bestSignal = this.signalBuffer.shift()!;
+    console.log(`\n🏆 BEST SIGNAL SELECTED:`);
+    console.log(`   ${bestSignal.symbol} ${bestSignal.direction}`);
+    console.log(`   Confidence: ${bestSignal.confidence?.toFixed(1)}%`);
+    console.log(`   Quality: ${bestSignal.qualityScore?.toFixed(1)}`);
+
+    // Clear remaining buffer signals (keep only top signal per interval)
+    if (this.signalBuffer.length > 0) {
+      console.log(`🗑️  Discarding ${this.signalBuffer.length} lower-confidence signals from buffer`);
+      this.signalBuffer = [];
+    }
+
+    // Update last publish time for this tier
+    this.lastPublishTime[tier] = now;
+
+    // Publish the best signal
+    console.log(`\n🚀 Publishing BEST signal to database...`);
+    await this.publishApprovedSignal(bestSignal);
+
+    console.log(`✅ Signal published and distributed to users!`);
+    console.log(`⏰ Next signal for ${tier} tier in ${Math.ceil(interval / (60 * 1000))} minutes`);
+    console.log(`${'='.repeat(80)}\n`);
+  }
+
+  /**
+   * Periodically check and process buffered signals (runs every 10 seconds)
+   * This ensures signals are published as soon as rate limit expires
+   */
+  private startBufferProcessor() {
+    setInterval(async () => {
+      if (this.signalBuffer.length > 0) {
+        console.log(`[Buffer Processor] Checking rate limits (${this.signalBuffer.length} signals in buffer)...`);
+        await this.processSignalBuffer('MAX');
+      }
+    }, 10000); // Check every 10 seconds
   }
 
   // ===== INITIALIZATION =====
@@ -704,11 +827,15 @@ class GlobalHubService extends SimpleEventEmitter {
       });
 
       console.log('[GlobalHub] ✅ Scheduled Signal Dropper started');
-      console.log('[GlobalHub]    🚀 TESTING MODE - FAST INTERVALS:');
-      console.log('[GlobalHub]    FREE: Drop every 60 seconds');
-      console.log('[GlobalHub]    PRO: Drop every 45 seconds');
-      console.log('[GlobalHub]    MAX: Drop every 30 seconds');
-      console.log('[GlobalHub]    📢 Signals will appear automatically within 30 seconds!');
+      console.log('[GlobalHub]    🚀 PRODUCTION MODE - TIER-BASED RATE LIMITING:');
+      console.log('[GlobalHub]    FREE: 1 signal every 8 hours (3 signals/day)');
+      console.log('[GlobalHub]    PRO: 1 signal every 96 minutes (15 signals/day)');
+      console.log('[GlobalHub]    MAX: 1 signal every 48 minutes (30 signals/day)');
+      console.log('[GlobalHub]    📢 Only BEST signal (highest confidence) published per interval!');
+
+      // ✅ Start Buffer Processor (checks every 10 seconds for expired rate limits)
+      this.startBufferProcessor();
+      console.log('[GlobalHub] ✅ Signal Buffer Processor started (checks every 10 seconds)');
 
       // Emit initial state
       this.emit('state:update', this.getState());
@@ -2640,24 +2767,22 @@ class GlobalHubService extends SimpleEventEmitter {
         };
 
         console.log(`${'─'.repeat(80)}`);
-        console.log(`🎯 [SIGNAL FLOW] STAGE 4: PUBLISH SIGNAL IMMEDIATELY`);
+        console.log(`🎯 [SIGNAL FLOW] STAGE 4: BUFFER AND RATE-LIMITED PUBLISH`);
         console.log(`${'─'.repeat(80)}`);
 
-        // ✅ INSTANT PUBLISH MODE: Publish signal immediately to database
-        // No buffering, no scheduler delays - signals appear in real-time
-        // This ensures users see signals as soon as they're generated
+        // ✅ RATE-LIMITED PUBLISHING: Buffer signal and publish only BEST per interval
+        // - Buffers all approved signals
+        // - Respects tier-based intervals (MAX: 48min, PRO: 96min, FREE: 8h)
+        // - Publishes only highest confidence signal when rate limit allows
+        // - Ensures consistent signal drops matching timer display
 
-        console.log(`\n🚀 Publishing signal IMMEDIATELY to database...`);
+        console.log(`\n📥 Buffering approved signal for rate-limited publishing...`);
         console.log(`   Signal: ${displaySignal.symbol} ${displaySignal.direction}`);
-        console.log(`   Confidence: ${displaySignal.confidence?.toFixed(1)}`);
+        console.log(`   Confidence: ${displaySignal.confidence?.toFixed(1)}%`);
         console.log(`   Quality: ${displaySignal.qualityScore?.toFixed(1)}`);
 
-        // ✅ PUBLISH IMMEDIATELY - No buffering, no delays!
-        await this.publishApprovedSignal(displaySignal);
-
-        console.log(`✅ Signal published and distributed to users!`);
-        console.log(`📊 Signal is now live in database and will appear in UI within 3 seconds`);
-        console.log(`${'='.repeat(80)}\n`);
+        // ✅ Buffer and publish with rate limiting (default: MAX tier)
+        await this.bufferAndPublishSignal(displaySignal, 'MAX');
 
       } else {
         // Signal rejected by Delta
