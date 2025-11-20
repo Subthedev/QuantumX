@@ -2043,9 +2043,11 @@ export default function IntelligenceHub() {
                 </button>
                 <button
                   onClick={() => {
-                    const latestHistory = globalHubService.getSignalHistory();
-                    setAllSignalHistory(latestHistory);
-                    console.log('[Hub UI] 🔄 Manual refresh - Loaded', latestHistory.length, 'signals');
+                    // ✅ Trigger re-fetch from database, not from stub service
+                    if (fetchUserSignalsRef.current) {
+                      fetchUserSignalsRef.current();
+                      console.log('[Hub UI] 🔄 Manual refresh - Fetching from database');
+                    }
                   }}
                   className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-semibold text-slate-700 transition-colors"
                 >
