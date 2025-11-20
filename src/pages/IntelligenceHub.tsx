@@ -164,6 +164,7 @@ export default function IntelligenceHub() {
         // Get current user with null safety
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
+          console.warn('[Hub] ⚠️ No authenticated user - skipping signal fetch');
           setLoadingUserSignals(false);
           isInitialLoadRef.current = false;
           return;
@@ -171,6 +172,9 @@ export default function IntelligenceHub() {
 
         // Fetch user's tier-based signals from database (last 24 hours)
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        console.log(`[Hub] 🔍 Fetching signals for user: ${user.id}`);
+        console.log(`[Hub] 🔍 Query filters: created_at >= ${twentyFourHoursAgo}, limit: ${quotaLimit}`);
+
         const { data, error } = await supabase
           .from('user_signals')
           .select('*')
@@ -180,10 +184,15 @@ export default function IntelligenceHub() {
           .limit(quotaLimit); // ✅ FIX: Limit to tier quota
 
         if (error) {
-          console.error('[Hub] Error fetching user signals:', error);
+          console.error('[Hub] ❌ Error fetching user signals:', error);
           setLoadingUserSignals(false);
           isInitialLoadRef.current = false;
           return;
+        }
+
+        console.log(`[Hub] 📊 Database returned ${data?.length || 0} signals`);
+        if (data && data.length > 0) {
+          console.log('[Hub] 📝 Sample signal:', data[0]);
         }
 
         // Map database signals to extract image URL from metadata
