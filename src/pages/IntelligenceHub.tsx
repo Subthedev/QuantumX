@@ -1127,8 +1127,20 @@ export default function IntelligenceHub() {
     return 'text-xs';
   };
 
-  const fmt = (num: number) => num.toLocaleString();
-  const fmtDec = (num: number) => num.toFixed(1);
+  const fmt = (num: number | undefined) => {
+    // 🛡️ SAFETY: Handle undefined/null numbers
+    if (num === undefined || num === null || isNaN(num)) {
+      return '0';
+    }
+    return num.toLocaleString();
+  };
+  const fmtDec = (num: number | undefined) => {
+    // 🛡️ SAFETY: Handle undefined/null numbers
+    if (num === undefined || num === null || isNaN(num)) {
+      return '0.0';
+    }
+    return num.toFixed(1);
+  };
 
   const formatUptime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -2294,7 +2306,7 @@ export default function IntelligenceHub() {
                                   <div className={`text-xs font-bold mt-1 ${
                                     sig.actualReturn > 0 ? 'text-emerald-600' : 'text-rose-600'
                                   }`}>
-                                    {sig.actualReturn > 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
+                                    {(sig.actualReturn ?? 0) > 0 ? '+' : ''}{sig.actualReturn?.toFixed(2) || '0.00'}%
                                   </div>
                                 )}
                                 {sig.outcomeReason && (
@@ -2322,25 +2334,25 @@ export default function IntelligenceHub() {
                                 {sig.entry && (
                                   <div className="p-2 bg-white rounded border border-slate-200">
                                     <div className="text-[10px] text-slate-600 font-semibold uppercase mb-0.5">Entry</div>
-                                    <div className="text-sm font-bold text-slate-900">${sig.entry.toFixed(2)}</div>
+                                    <div className="text-sm font-bold text-slate-900">${sig.entry?.toFixed(2) || '0.00'}</div>
                                   </div>
                                 )}
                                 {sig.stopLoss && (
                                   <div className="p-2 bg-white rounded border border-rose-200">
                                     <div className="text-[10px] text-rose-600 font-semibold uppercase mb-0.5">Stop Loss</div>
-                                    <div className="text-sm font-bold text-rose-700">${sig.stopLoss.toFixed(2)}</div>
+                                    <div className="text-sm font-bold text-rose-700">${sig.stopLoss?.toFixed(2) || '0.00'}</div>
                                   </div>
                                 )}
                                 {sig.riskRewardRatio && (
                                   <div className="p-2 bg-white rounded border border-blue-200">
                                     <div className="text-[10px] text-blue-600 font-semibold uppercase mb-0.5">R:R</div>
-                                    <div className="text-sm font-bold text-blue-700">{sig.riskRewardRatio.toFixed(1)}:1</div>
+                                    <div className="text-sm font-bold text-blue-700">{sig.riskRewardRatio?.toFixed(1) || '0.0'}:1</div>
                                   </div>
                                 )}
                                 {sig.qualityScore && (
                                   <div className="p-2 bg-white rounded border border-emerald-200">
                                     <div className="text-[10px] text-emerald-600 font-semibold uppercase mb-0.5">Quality</div>
-                                    <div className="text-sm font-bold text-emerald-700">{sig.qualityScore.toFixed(0)}</div>
+                                    <div className="text-sm font-bold text-emerald-700">{sig.qualityScore?.toFixed(0) || '0'}</div>
                                   </div>
                                 )}
                               </div>
@@ -2357,7 +2369,7 @@ export default function IntelligenceHub() {
                                       <div className={`text-sm font-bold ${
                                         sig.actualReturn > 0 ? 'text-emerald-600' : 'text-rose-600'
                                       }`}>
-                                        {sig.actualReturn > 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
+                                        {(sig.actualReturn ?? 0) > 0 ? '+' : ''}{sig.actualReturn?.toFixed(2) || '0.00'}%
                                       </div>
                                     </div>
                                   )}
@@ -2442,7 +2454,7 @@ export default function IntelligenceHub() {
                                         <div className={`text-sm font-bold ${
                                           sig.actualReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'
                                         }`}>
-                                          {sig.actualReturn >= 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
+                                          {(sig.actualReturn ?? 0) >= 0 ? '+' : ''}{sig.actualReturn?.toFixed(2) || '0.00'}%
                                         </div>
                                       </div>
                                     )}
