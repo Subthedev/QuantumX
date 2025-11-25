@@ -463,20 +463,45 @@ class MockTradingService {
     const updates = await Promise.all(positions.map(async (position) => {
       let newPrice = position.current_price;
 
-      try {
-        // Get REAL current market price from Data Engine (WebSocket - no CORS issues)
-        const marketData = await multiExchangeAggregatorV4.getAggregatedData(position.symbol);
+      // ✅ RETRY LOGIC: Exponential backoff for price fetching
+      const maxRetries = 3;
+      const retryDelays = [1000, 2000, 4000]; // 1s, 2s, 4s
+      let priceUpdated = false;
 
-        if (marketData && marketData.currentPrice) {
-          newPrice = marketData.currentPrice;
-          console.log(`[MockTrading] 📊 Real-time price for ${position.symbol}: $${newPrice.toFixed(2)} - WebSocket`);
-        } else {
-          // ✅ CORS FIX: Keep last known price if Data Engine unavailable (no Binance REST call)
-          console.warn(`[MockTrading] ⚠️ Data Engine unavailable for ${position.symbol}, using last price: $${newPrice.toFixed(2)}`);
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          // Get REAL current market price from Data Engine (WebSocket - no CORS issues)
+          const marketData = await multiExchangeAggregatorV4.getAggregatedData(position.symbol);
+
+          if (marketData && marketData.currentPrice) {
+            newPrice = marketData.currentPrice;
+            priceUpdated = true;
+
+            if (attempt > 0) {
+              console.log(`[MockTrading] ✅ Price fetched after ${attempt} ${attempt === 1 ? 'retry' : 'retries'} for ${position.symbol}: $${newPrice.toFixed(2)}`);
+            } else {
+              console.log(`[MockTrading] 📊 Real-time price for ${position.symbol}: $${newPrice.toFixed(2)} - WebSocket`);
+            }
+
+            break; // Success - exit retry loop
+          } else if (attempt < maxRetries) {
+            // No price data, but we can retry
+            console.warn(`[MockTrading] ⚠️ No price data for ${position.symbol} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelays[attempt]}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+          }
+        } catch (error) {
+          if (attempt < maxRetries) {
+            console.warn(`[MockTrading] ⚠️ Error fetching price for ${position.symbol} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelays[attempt]}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+          } else {
+            console.error(`[MockTrading] ❌ All ${maxRetries + 1} attempts failed for ${position.symbol}:`, error);
+          }
         }
-      } catch (error) {
-        console.error(`[MockTrading] ❌ Error fetching real price for ${position.symbol}:`, error);
-        // Keep current price on error
+      }
+
+      // After all retries exhausted, use last known price
+      if (!priceUpdated) {
+        console.warn(`[MockTrading] 🔄 Using last known price for ${position.symbol}: $${newPrice.toFixed(2)} (Data Engine unavailable after ${maxRetries + 1} attempts)`);
       }
 
       // Calculate P&L with current price (either real-time or last known)
@@ -618,6 +643,86 @@ class MockTradingService {
       winRate: account.total_trades > 0 ? (account.winning_trades / account.total_trades) * 100 : 0,
       totalTrades: account.total_trades
     }));
+  }
+
+  /**
+   * ✅ BATCH METHOD: Get multiple accounts in a single query (eliminates N+1)
+   * Used by Arena to fetch all agent accounts at once
+   */
+  async getBatchAccounts(userIds: string[]): Promise<Map<string, MockTradingAccount>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    const { data, error } = await supabase
+      .from('mock_trading_accounts')
+      .select('*')
+      .in('user_id', userIds);
+
+    if (error) {
+      console.error('[MockTrading] ❌ Error fetching batch accounts:', error);
+      return new Map();
+    }
+
+    // Convert to Map for O(1) lookup
+    const accountMap = new Map<string, MockTradingAccount>();
+    (data || []).forEach((account: any) => {
+      accountMap.set(account.user_id, account as MockTradingAccount);
+    });
+
+    // For any missing accounts, create them
+    for (const userId of userIds) {
+      if (!accountMap.has(userId)) {
+        try {
+          const newAccount = await this.getOrCreateAccount(userId);
+          accountMap.set(userId, newAccount);
+        } catch (error) {
+          console.error(`[MockTrading] ❌ Error creating account for ${userId}:`, error);
+        }
+      }
+    }
+
+    return accountMap;
+  }
+
+  /**
+   * ✅ BATCH METHOD: Get multiple users' open positions in a single query (eliminates N+1)
+   * Used by Arena to fetch all agents' positions at once
+   */
+  async getBatchOpenPositions(userIds: string[]): Promise<Map<string, MockTradingPosition[]>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    const { data, error } = await supabase
+      .from('mock_trading_positions')
+      .select('*')
+      .in('user_id', userIds)
+      .eq('status', 'OPEN')
+      .order('opened_at', { ascending: false });
+
+    if (error) {
+      console.error('[MockTrading] ❌ Error fetching batch positions:', error);
+      return new Map();
+    }
+
+    const positions = (data || []) as MockTradingPosition[];
+
+    // Update current prices for all positions in batch
+    await this.updateBatchPositionPrices(positions);
+
+    // Group positions by user_id for O(1) lookup
+    const positionMap = new Map<string, MockTradingPosition[]>();
+    userIds.forEach(userId => positionMap.set(userId, []));
+
+    positions.forEach(position => {
+      const userPositions = positionMap.get(position.user_id);
+      if (userPositions) {
+        userPositions.push(position);
+      }
+    });
+
+    return positionMap;
   }
 }
 

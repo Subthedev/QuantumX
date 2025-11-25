@@ -166,6 +166,16 @@ All colors MUST be HSL.
   from { width: 0%; }
 }
 
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes slide-in-from-left-full {
+  0% { transform: translateX(-100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
 /* Professional Utility Classes */
 @layer utilities {
   .animate-pulse-glow {
@@ -179,7 +189,11 @@ All colors MUST be HSL.
   .animate-fade-in {
     animation: fade-in 0.3s ease-out;
   }
-  
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
+  }
+
   .bg-gradient-premium {
     background: var(--gradient-premium);
   }
