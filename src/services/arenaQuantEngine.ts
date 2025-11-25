@@ -549,7 +549,7 @@ class ArenaQuantEngine {
   private tradeListeners: ((event: TradeEvent) => void)[] = [];
   private running = false;
   private intervals: ReturnType<typeof setInterval>[] = [];
-  private sessionTrades = new Map<string, { trades: number; wins: number; pnl: number }>();
+  private sessionTrades = new Map<string, { trades: number; wins: number; pnl: number; balanceDelta: number }>();
   private reservedSymbols = new Set<string>();
   // Trade history for accurate 24h metrics
   private tradeHistory: TradeRecord[] = [];
@@ -572,7 +572,7 @@ class ArenaQuantEngine {
   private initializeAgents(): void {
     for (const profile of AGENT_PROFILES) {
       const baseStats = generateBaseStats(profile);
-      this.sessionTrades.set(profile.id, { trades: 0, wins: 0, pnl: 0 });
+      this.sessionTrades.set(profile.id, { trades: 0, wins: 0, pnl: 0, balanceDelta: 0 });
 
       const strategies = strategyMatrix.getAgentStrategies(profile.type);
       console.log(`  📊 ${profile.name}: ${strategies.length} strategies assigned`);
@@ -624,7 +624,14 @@ class ArenaQuantEngine {
       if (sessionData) {
         const parsed = JSON.parse(sessionData);
         for (const [id, data] of Object.entries(parsed)) {
-          this.sessionTrades.set(id, data as { trades: number; wins: number; pnl: number });
+          const sessionEntry = data as { trades: number; wins: number; pnl: number; balanceDelta?: number };
+          // Ensure balanceDelta exists (for backward compatibility)
+          this.sessionTrades.set(id, {
+            trades: sessionEntry.trades,
+            wins: sessionEntry.wins,
+            pnl: sessionEntry.pnl,
+            balanceDelta: sessionEntry.balanceDelta || 0
+          });
         }
         console.log('%c📥 Restored session trades', 'color: #3b82f6');
       }
@@ -696,7 +703,7 @@ class ArenaQuantEngine {
 
   private saveSession(): void {
     try {
-      const session: Record<string, { trades: number; wins: number; pnl: number }> = {};
+      const session: Record<string, { trades: number; wins: number; pnl: number; balanceDelta: number }> = {};
       this.sessionTrades.forEach((data, id) => {
         session[id] = data;
       });
@@ -767,16 +774,19 @@ class ArenaQuantEngine {
 
       const baseStats = generateBaseStats(profile);
       const sessionTrades = session?.trades || 0;
+      const sessionBalanceDelta = session?.balanceDelta || 0;
       const sessionWins = session?.wins || 0;
       const sessionPnl = session?.pnl || 0;
 
       agent.totalTrades = baseStats.trades + sessionTrades;
       agent.wins = baseStats.wins + sessionWins;
       agent.losses = agent.totalTrades - agent.wins;
-      agent.totalPnLPercent = baseStats.pnlPercent + sessionPnl;
-      agent.totalPnL = 10000 * (agent.totalPnLPercent / 100);
-      agent.balance = 10000 + agent.totalPnL;
       agent.winRate = agent.totalTrades > 0 ? (agent.wins / agent.totalTrades) * 100 : profile.baseWinRate;
+
+      // Use actual dollar balance delta from session trades (not percentage-based calculation)
+      agent.balance = baseStats.balance + sessionBalanceDelta;
+      agent.totalPnL = agent.balance - agent.initialBalance;
+      agent.totalPnLPercent = (agent.totalPnL / agent.initialBalance) * 100;
     }
   }
 
@@ -1073,11 +1083,16 @@ class ArenaQuantEngine {
     const isWin = pnlPercent > 0;
     const profile = this.profiles.get(agent.id);
 
+    // Calculate actual dollar P&L first
+    const pnlDollar = (pnlPercent / 100) * pos.quantity * pos.entryPrice;
+
     const session = this.sessionTrades.get(agent.id);
     if (session) {
       session.trades++;
       if (isWin) session.wins++;
       session.pnl += pnlPercent * ((profile?.positionSizePercent || 5) / 100);
+      // Track actual dollar P&L for accurate balance persistence
+      session.balanceDelta += pnlDollar;
     }
 
     agent.totalTrades++;
@@ -1092,7 +1107,6 @@ class ArenaQuantEngine {
     }
 
     agent.winRate = (agent.wins / agent.totalTrades) * 100;
-    const pnlDollar = (pnlPercent / 100) * pos.quantity * pos.entryPrice;
     agent.balance += pnlDollar;
     agent.totalPnL = agent.balance - agent.initialBalance;
     agent.totalPnLPercent = (agent.totalPnL / agent.initialBalance) * 100;
@@ -1142,10 +1156,13 @@ class ArenaQuantEngine {
       agent.totalTrades = baseStats.trades + session.trades;
       agent.wins = baseStats.wins + session.wins;
       agent.losses = agent.totalTrades - agent.wins;
-      agent.totalPnLPercent = baseStats.pnlPercent + session.pnl;
-      agent.totalPnL = 10000 * (agent.totalPnLPercent / 100);
-      agent.balance = 10000 + agent.totalPnL;
       agent.winRate = agent.totalTrades > 0 ? (agent.wins / agent.totalTrades) * 100 : profile.baseWinRate;
+
+      // Use actual dollar balance delta from session trades (not percentage-based calculation)
+      // This ensures balance accurately reflects real trade outcomes
+      agent.balance = baseStats.balance + session.balanceDelta;
+      agent.totalPnL = agent.balance - agent.initialBalance;
+      agent.totalPnLPercent = (agent.totalPnL / agent.initialBalance) * 100;
     }
     this.notify();
   }
