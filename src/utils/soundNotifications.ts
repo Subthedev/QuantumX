@@ -3,7 +3,7 @@
  * Provides audio feedback for order fills, alerts, and other trading events
  */
 
-export type SoundType = 'order_buy' | 'order_sell' | 'order_filled' | 'price_alert' | 'error';
+export type SoundType = 'order_buy' | 'order_sell' | 'order_filled' | 'price_alert' | 'error' | 'arena_big_win' | 'arena_small_win' | 'arena_loss';
 
 class SoundNotificationManager {
   private sounds: Map<SoundType, HTMLAudioElement> = new Map();
@@ -48,6 +48,11 @@ class SoundNotificationManager {
     this.sounds.set('order_filled', this.createAudioElement('filled'));
     this.sounds.set('price_alert', this.createAudioElement('alert'));
     this.sounds.set('error', this.createAudioElement('error'));
+
+    // ✅ ARENA SOUNDS: Position close notifications
+    this.sounds.set('arena_big_win', this.createAudioElement('arena_big_win'));
+    this.sounds.set('arena_small_win', this.createAudioElement('arena_small_win'));
+    this.sounds.set('arena_loss', this.createAudioElement('arena_loss'));
   }
 
   private createAudioElement(type: string): HTMLAudioElement {
@@ -76,6 +81,18 @@ class SoundNotificationManager {
       case 'error':
         // Error sound - lower and longer
         this.generateTone(audio, [400, 300], 0.2);
+        break;
+      case 'arena_big_win':
+        // 🔥 BIG WIN - Triple ascending celebration
+        this.generateTone(audio, [523, 659, 784], 0.15);
+        break;
+      case 'arena_small_win':
+        // ✅ SMALL WIN - Double ascending positive
+        this.generateTone(audio, [523, 659], 0.12);
+        break;
+      case 'arena_loss':
+        // 🛡️ LOSS - Single gentle tone (non-alarming)
+        this.generateTone(audio, [392], 0.2);
         break;
     }
     
@@ -143,7 +160,10 @@ class SoundNotificationManager {
       order_sell: [600, 400],
       order_filled: [800, 1000, 1200],
       price_alert: [1200, 900, 1200],
-      error: [400, 300]
+      error: [400, 300],
+      arena_big_win: [523, 659, 784],
+      arena_small_win: [523, 659],
+      arena_loss: [392]
     };
     
     const freq = frequencies[soundType] || [800];

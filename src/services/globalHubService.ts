@@ -268,7 +268,15 @@ class GlobalHubService extends SimpleEventEmitter {
   };
 
   // Signal drop intervals in milliseconds (matches scheduledSignalDropper)
-  private readonly DROP_INTERVALS: Record<UserTier, number> = {
+  // Made mutable to allow frequency control via Control Center
+  private DROP_INTERVALS: Record<UserTier, number> = {
+    FREE: 8 * 60 * 60 * 1000,    // 8 hours (default)
+    PRO: 96 * 60 * 1000,          // 96 minutes (default)
+    MAX: 48 * 60 * 1000           // 48 minutes (default)
+  };
+
+  // Default intervals for reset functionality
+  private readonly DEFAULT_DROP_INTERVALS: Record<UserTier, number> = {
     FREE: 8 * 60 * 60 * 1000,    // 8 hours
     PRO: 96 * 60 * 1000,          // 96 minutes
     MAX: 48 * 60 * 1000           // 48 minutes
@@ -296,6 +304,9 @@ class GlobalHubService extends SimpleEventEmitter {
 
     // Load monthly tracking data
     this.loadMonthlyData();
+
+    // Load saved drop intervals (signal frequency settings)
+    this.loadDropIntervals();
 
     // ✅ Wire SignalQueue to process Gamma's filtered signals automatically
     signalQueue.onSignal(this.processGammaFilteredSignal.bind(this));
@@ -585,6 +596,90 @@ class GlobalHubService extends SimpleEventEmitter {
    */
   public getBufferSize(tier: UserTier): number {
     return this.signalBuffers[tier].length;
+  }
+
+  /**
+   * Update signal drop interval for a specific tier
+   * Used by IGX Control Center to adjust signal frequency
+   *
+   * @param tier - User tier (FREE, PRO, MAX)
+   * @param milliseconds - New interval in milliseconds
+   */
+  public updateDropInterval(tier: UserTier, milliseconds: number): void {
+    // Validation ranges (in milliseconds)
+    const MIN_INTERVALS = {
+      FREE: 1 * 60 * 60 * 1000,     // Minimum 1 hour
+      PRO: 30 * 60 * 1000,           // Minimum 30 minutes
+      MAX: 15 * 60 * 1000            // Minimum 15 minutes
+    };
+
+    const MAX_INTERVALS = {
+      FREE: 24 * 60 * 60 * 1000,    // Maximum 24 hours
+      PRO: 4 * 60 * 60 * 1000,       // Maximum 4 hours
+      MAX: 2 * 60 * 60 * 1000        // Maximum 2 hours
+    };
+
+    // Clamp to valid range
+    const clampedValue = Math.max(
+      MIN_INTERVALS[tier],
+      Math.min(MAX_INTERVALS[tier], milliseconds)
+    );
+
+    this.DROP_INTERVALS[tier] = clampedValue;
+
+    // Save to localStorage for persistence
+    this.saveDropIntervals();
+
+    // Calculate signals per day
+    const signalsPerDay = (24 * 60 * 60 * 1000) / clampedValue;
+
+    console.log(`[GlobalHub] 🚀 ${tier} interval updated to ${clampedValue}ms (~${signalsPerDay.toFixed(1)} signals/day)`);
+  }
+
+  /**
+   * Reset drop interval for a specific tier to default
+   */
+  public resetDropInterval(tier: UserTier): void {
+    this.DROP_INTERVALS[tier] = this.DEFAULT_DROP_INTERVALS[tier];
+    this.saveDropIntervals();
+    console.log(`[GlobalHub] ♻️ ${tier} interval reset to default`);
+  }
+
+  /**
+   * Reset all drop intervals to defaults
+   */
+  public resetAllDropIntervals(): void {
+    this.DROP_INTERVALS = { ...this.DEFAULT_DROP_INTERVALS };
+    this.saveDropIntervals();
+    console.log('[GlobalHub] ♻️ All intervals reset to defaults');
+  }
+
+  /**
+   * Save drop intervals to localStorage for persistence across sessions
+   */
+  private saveDropIntervals(): void {
+    try {
+      localStorage.setItem('igx_drop_intervals', JSON.stringify(this.DROP_INTERVALS));
+    } catch (error) {
+      console.warn('[GlobalHub] Failed to save drop intervals:', error);
+    }
+  }
+
+  /**
+   * Load drop intervals from localStorage (called in constructor)
+   */
+  private loadDropIntervals(): void {
+    try {
+      const saved = localStorage.getItem('igx_drop_intervals');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Merge with current intervals (keeps defaults for missing keys)
+        Object.assign(this.DROP_INTERVALS, parsed);
+        console.log('[GlobalHub] ✅ Loaded saved drop intervals from localStorage');
+      }
+    } catch (error) {
+      console.warn('[GlobalHub] Failed to load drop intervals, using defaults:', error);
+    }
   }
 
   /**

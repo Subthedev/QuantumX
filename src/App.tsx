@@ -16,6 +16,11 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 // ENABLED - PHASE 1-4 PIPELINE AUTO-STARTS
 import "@/services/igx/IGXBackgroundService";
 
+// Development: Load agent test suite
+if (import.meta.env.DEV) {
+  import("./test-agents");
+}
+
 // ✅ 24/7 AUTONOMOUS OPERATION
 // Signal generation now handled by Supabase Edge Functions (server-side)
 // Client-side monitors disabled - no longer needed with server-side architecture
@@ -78,8 +83,9 @@ const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 // const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
 
 // Arena features (require full client-side system)
-// const Arena = lazy(() => import("./pages/Arena"));
-// const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
+const Arena = lazy(() => import("./pages/Arena"));
+const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
+const ArenaClean = lazy(() => import("./pages/ArenaClean")); // ✅ NEW: Clean, conversion-focused Arena
 // const ArenaTest = lazy(() => import("./pages/ArenaTest"));
 // const ArenaDiagnostic = lazy(() => import("./pages/ArenaDiagnostic"));
 
@@ -132,11 +138,13 @@ const App = () => {
               {/* Public routes */}
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              {/* Arena routes disabled - require globalHubService */}
-              {/* <Route path="/arena" element={<ArenaEnhanced />} /> */}
+              {/* Arena routes - Production Arena with all Phase 1-3 optimizations */}
+              <Route path="/arena" element={<ArenaClean />} /> {/* ✅ NEW: Clean conversion-focused UI */}
+              <Route path="/arena-clean" element={<ArenaClean />} /> {/* Alias for arena-clean URL */}
+              <Route path="/arena-enhanced" element={<ArenaEnhanced />} />
+              <Route path="/arena-classic" element={<Arena />} />
               {/* <Route path="/arena-diagnostic" element={<ArenaDiagnostic />} /> */}
               {/* <Route path="/arena-test" element={<ArenaTest />} /> */}
-              {/* <Route path="/arena-classic" element={<Arena />} /> */}
               <Route path="/about" element={<About />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/email-verified" element={<EmailVerified />} />
@@ -163,7 +171,8 @@ const App = () => {
                 Intelligence Hub - Server-Side Signal Generation
                 Main production route reading from user_signals table via signalDatabaseService
               */}
-              <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
+              <Route path="/flux" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
+              <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} /> {/* Legacy route */}
               <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
               <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />

@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { AppHeader } from '@/components/AppHeader';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Activity,
   Database,
@@ -751,6 +752,9 @@ export default function IntelligenceHub() {
 
   // Quality Gate Budget Status
   const [budgetStatus, setBudgetStatus] = useState(signalQualityGate.getBudgetStatus());
+
+  // Signal Tabs State
+  const [activeTab, setActiveTab] = useState<'top-picks' | 'all-signals' | 'history' | 'performance'>('all-signals');
 
   // ===== TIMER UPDATE FOR COUNTDOWN =====
   useEffect(() => {
@@ -1878,7 +1882,179 @@ export default function IntelligenceHub() {
           </Card>
         )}
 
-        {/* 🎯 YOUR TIER SIGNALS - Tier-based signal distribution from database */}
+        {/* 🎯 SIGNAL TABS - Professional Tab System */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="space-y-6">
+          {/* Professional Tab Navigation */}
+          <Card className="border-2 border-emerald-600 bg-slate-800 shadow-lg">
+            <div className="p-4">
+              <TabsList className="grid w-full grid-cols-4 bg-slate-700 p-1 h-auto gap-1">
+                <TabsTrigger
+                  value="top-picks"
+                  className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-all py-3 px-4 text-sm font-bold"
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  🔥 TOP PICKS
+                </TabsTrigger>
+                <TabsTrigger
+                  value="all-signals"
+                  className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-all py-3 px-4 text-sm font-bold"
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  📊 ALL SIGNALS
+                </TabsTrigger>
+                <TabsTrigger
+                  value="history"
+                  className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-all py-3 px-4 text-sm font-bold"
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  📜 HISTORY
+                </TabsTrigger>
+                <TabsTrigger
+                  value="performance"
+                  className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-all py-3 px-4 text-sm font-bold"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  📈 PERFORMANCE
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </Card>
+
+          {/* TOP PICKS TAB - Highest Confidence Signals */}
+          <TabsContent value="top-picks" className="mt-0">
+            <Card className={`border-2 shadow-lg hover:shadow-xl transition-shadow ${
+              tier === 'MAX' ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-white' :
+              tier === 'PRO' ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-white' :
+              'border-slate-200 bg-gradient-to-br from-slate-50 to-white'
+            }`}>
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <Crown className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold flex items-center gap-2 text-emerald-900">
+                        Top Confidence Picks
+                        <Badge className="bg-emerald-600 text-white border-0">
+                          {tier === 'MAX' ? 'Top 5' : tier === 'PRO' ? 'Top 3' : 'Top 2'}
+                        </Badge>
+                      </h2>
+                      <p className="text-xs mt-0.5 text-emerald-700">
+                        Highest confidence signals • Best risk/reward ratios
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <SignalDropTimer tier={tier} />
+
+                <div className="space-y-3 mt-4">
+                  {loadingUserSignals ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-5 rounded-lg border-2 border-slate-200 bg-white animate-pulse">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="w-12 h-12 rounded-full bg-slate-200" />
+                              <div className="flex-1">
+                                <div className="h-6 w-32 bg-slate-200 rounded mb-2" />
+                                <div className="h-4 w-48 bg-slate-200 rounded" />
+                              </div>
+                            </div>
+                            <div className="h-10 w-16 bg-slate-200 rounded" />
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="h-20 bg-slate-100 rounded-lg" />
+                            <div className="h-20 bg-slate-100 rounded-lg" />
+                            <div className="h-20 bg-slate-100 rounded-lg" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (() => {
+                    const now = new Date();
+                    const activeSignals = userSignals.filter(signal => {
+                      const hasOutcome = signal.metadata?.mlOutcome || signal.metadata?.outcome;
+                      const expiresAt = signal.expires_at ? new Date(signal.expires_at) : null;
+                      const isExpired = expiresAt && expiresAt < now;
+                      return !hasOutcome && !isExpired;
+                    });
+
+                    // Sort by confidence and take top N based on tier
+                    const topLimit = tier === 'MAX' ? 5 : tier === 'PRO' ? 3 : 2;
+                    const topSignals = activeSignals
+                      .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+                      .slice(0, topLimit);
+
+                    if (topSignals.length === 0) {
+                      return (
+                        <div className="text-center py-8 text-gray-500">
+                          <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                          <p className="font-semibold">No active signals</p>
+                          <p className="text-sm mt-1">
+                            Waiting for high-confidence opportunities
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return topSignals.map((signal, index) => {
+                      const signalImageUrl = signal.image || signal.metadata?.image || '';
+                      return (
+                        <div key={signal.id} className="relative">
+                          {index === 0 && (
+                            <div className="absolute -top-2 -right-2 z-10">
+                              <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border-0 shadow-lg">
+                                🏆 BEST PICK
+                              </Badge>
+                            </div>
+                          )}
+                          <PremiumSignalCard
+                            symbol={signal.symbol}
+                            direction={signal.signal_type}
+                            confidence={signal.confidence || 0}
+                            tier={tier}
+                            rank={signal.metadata?.rank}
+                            isLocked={!signal.full_details}
+                            entryPrice={signal.entry_price}
+                            stopLoss={signal.stop_loss}
+                            takeProfit={signal.take_profit}
+                            strategyName={signal.metadata?.strategy}
+                            timestamp={new Date(signal.created_at).getTime()}
+                            expiresAt={signal.expires_at}
+                            image={signalImageUrl}
+                            status='ACTIVE'
+                            onUpgrade={() => navigate('/upgrade')}
+                          />
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {tier === 'FREE' && userSignals.length > 0 && (
+                  <div className="mt-4 p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg border border-purple-300">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-purple-900">Want more signals?</p>
+                        <p className="text-sm text-purple-700">Upgrade to PRO for 3 top picks or MAX for 5 top picks!</p>
+                      </div>
+                      <button
+                        onClick={() => navigate('/upgrade')}
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transition-shadow"
+                      >
+                        Upgrade Now
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* ALL SIGNALS TAB - All Active Signals */}
+          <TabsContent value="all-signals" className="mt-0">
         <Card className={`border-2 shadow-lg mb-6 hover:shadow-xl transition-shadow ${
           tier === 'MAX' ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-white' :
           tier === 'PRO' ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-white' :
@@ -2020,9 +2196,11 @@ export default function IntelligenceHub() {
             )}
           </div>
         </Card>
+          </TabsContent>
 
-        {/* Signal History - Last 24 Hours */}
-        <Card className="border border-slate-200 shadow-sm bg-white mb-6 hover:shadow-md transition-shadow">
+          {/* HISTORY TAB - Signal History with Outcomes */}
+          <TabsContent value="history" className="mt-0">
+        <Card className="border border-slate-200 shadow-sm bg-white hover:shadow-md transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -2539,9 +2717,12 @@ export default function IntelligenceHub() {
             )}
           </div>
         </Card>
+          </TabsContent>
 
+          {/* PERFORMANCE TAB - Analytics and Metrics */}
+          <TabsContent value="performance" className="mt-0 space-y-6">
         {/* Rejected Signals - Institutional Transparency */}
-        <Card className="border border-orange-200 shadow-sm bg-white mb-6 hover:shadow-md transition-shadow">
+        <Card className="border border-orange-200 shadow-sm bg-white hover:shadow-md transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -2721,6 +2902,8 @@ export default function IntelligenceHub() {
             </div>
           </div>
         </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Footer */}
         <div className="mt-6 text-center pb-6">
