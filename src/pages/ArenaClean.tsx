@@ -8,7 +8,7 @@
  * - Professional presentation that builds credibility
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,13 +16,15 @@ import {
   Send, TrendingUp, TrendingDown, Activity, Trophy,
   Flame, Clock, BarChart3, Percent,
   ArrowUpRight, ArrowDownRight, Radio, Users, CheckCircle2, Wallet,
-  Zap, Shield, Target, ExternalLink, DollarSign
+  Zap, Shield, Target, ExternalLink, DollarSign, AlertTriangle, RefreshCw,
+  ChevronDown, ChevronUp, Info
 } from 'lucide-react';
 import { useRankedQuantAgents, type QuantAgent, type TradeEvent } from '@/hooks/useQuantAgents';
 import { arenaQuantEngine } from '@/services/arenaQuantEngine';
 import { telegramSignalPublisher } from '@/services/telegramSignalPublisher';
 import { cn } from '@/lib/utils';
 import { AgentLogo } from '@/components/ui/agent-logos';
+import { QuantumXLogo } from '@/components/ui/quantumx-logo';
 
 // ===================== LIVE ACTIVITY FEED =====================
 // Shows REAL trade closures from the engine - production-grade persistence
@@ -685,73 +687,52 @@ function TelegramJoinNotifications() {
 
 // ===================== REAL-TIME METRIC UPDATER =====================
 function useRealTimeMetrics(agents: any[], stats: any) {
-  // Use refs to store the latest values without causing re-renders
-  const agentsRef = useRef(agents);
-  const statsRef = useRef(stats);
+  // Track update trigger to force recalculation
+  const [updateTrigger, setUpdateTrigger] = useState(0);
 
-  // Update refs when props change
-  agentsRef.current = agents;
-  statsRef.current = stats;
+  // Calculate metrics directly from current props (not refs)
+  const liveMetrics = useMemo(() => {
+    const totalTrades = stats?.totalTrades || 0;
+    const activePositions = agents.filter((a: any) => a.currentPosition).length;
+    const totalBalance = agents.reduce((sum: number, a: any) => sum + (a.balance || 10000), 0);
+    const initialBalance = agents.length * 10000;
+    const totalPnL = totalBalance - initialBalance;
+    const totalReturnPercent = initialBalance > 0 ? (totalPnL / initialBalance) * 100 : 0;
+    const winRate24h = stats?.winRate24h || stats?.winRate || 0;
+    const return24h = stats?.return24h || 0;
+    const trades24h = stats?.trades24h || 0;
 
-  const [liveMetrics, setLiveMetrics] = useState({
-    totalTrades: 0,
-    activePositions: 0,
-    totalBalance: 0,
-    totalPnL: 0,
-    totalReturnPercent: 0,
-    winRate24h: 0,
-    return24h: 0,
-    trades24h: 0
-  });
-
-  useEffect(() => {
-    const updateMetrics = () => {
-      const currentAgents = agentsRef.current;
-      const currentStats = statsRef.current;
-
-      const totalTrades = currentStats?.totalTrades || 0;
-      const activePositions = currentAgents.filter((a: any) => a.currentPosition).length;
-      const totalBalance = currentAgents.reduce((sum: number, a: any) => sum + a.balance, 0);
-      const initialBalance = currentAgents.length * 10000;
-      const totalPnL = totalBalance - initialBalance;
-      const totalReturnPercent = initialBalance > 0 ? (totalPnL / initialBalance) * 100 : 0;
-      const winRate24h = currentStats?.winRate24h || currentStats?.winRate || 0;
-      const return24h = currentStats?.return24h || 0;
-      const trades24h = currentStats?.trades24h || 0;
-
-      setLiveMetrics(prev => {
-        // Only update if values actually changed to prevent unnecessary renders
-        if (
-          prev.totalTrades === totalTrades &&
-          prev.activePositions === activePositions &&
-          Math.abs(prev.totalBalance - totalBalance) < 0.01 &&
-          Math.abs(prev.totalPnL - totalPnL) < 0.01 &&
-          Math.abs(prev.totalReturnPercent - totalReturnPercent) < 0.001 &&
-          Math.abs(prev.winRate24h - winRate24h) < 0.001 &&
-          Math.abs(prev.return24h - return24h) < 0.001 &&
-          prev.trades24h === trades24h
-        ) {
-          return prev;
-        }
-        return {
-          totalTrades,
-          activePositions,
-          totalBalance,
-          totalPnL,
-          totalReturnPercent,
-          winRate24h,
-          return24h,
-          trades24h
-        };
-      });
+    return {
+      totalTrades,
+      activePositions,
+      totalBalance,
+      totalPnL,
+      totalReturnPercent,
+      winRate24h,
+      return24h,
+      trades24h
     };
+  }, [agents, stats, updateTrigger]);
 
-    // Update immediately and every second
-    updateMetrics();
-    const interval = setInterval(updateMetrics, 1000);
+  // Subscribe to trade events for IMMEDIATE updates when trades close
+  useEffect(() => {
+    const unsubscribe = arenaQuantEngine.onTradeEvent((event: TradeEvent) => {
+      if (event.type === 'close') {
+        // Force immediate recalculation when a trade closes
+        setUpdateTrigger(prev => prev + 1);
+      }
+    });
 
-    return () => clearInterval(interval);
-  }, []); // Empty dependency array - use refs for latest values
+    // Also poll every 500ms for smoother updates
+    const interval = setInterval(() => {
+      setUpdateTrigger(prev => prev + 1);
+    }, 500);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, []);
 
   return liveMetrics;
 }
@@ -910,7 +891,219 @@ function TradeProgressBar({ position }: { position: { direction: 'LONG' | 'SHORT
   );
 }
 
+// ===================== RISK DASHBOARD =====================
+// Professional collapsible risk management panel
+function RiskDashboard() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [riskData, setRiskData] = useState<{
+    overallStatus: 'healthy' | 'caution' | 'warning' | 'critical';
+    statusColor: string;
+    dailyDrawdownPercent: number;
+    isHalted: boolean;
+    haltTimeRemaining: number | null;
+    agentStates?: Array<{
+      agentId: string;
+      level: string;
+      dailyPnL: number;
+      consecutiveLosses: number;
+      isHalted: boolean;
+    }>;
+  } | null>(null);
+
+  useEffect(() => {
+    const updateRiskData = () => {
+      try {
+        const data = arenaQuantEngine.getRiskDashboard();
+        setRiskData(data);
+      } catch (e) {
+        // Circuit breaker not initialized yet
+      }
+    };
+
+    updateRiskData();
+    const interval = setInterval(updateRiskData, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!riskData) return null;
+
+  const statusLabels = {
+    healthy: 'All Systems Normal',
+    caution: 'Elevated Risk',
+    warning: 'Risk Warning',
+    critical: 'Trading Halted'
+  };
+
+  const statusColors = {
+    healthy: { bg: 'bg-emerald-500', text: 'text-emerald-700', border: 'border-emerald-200', fill: 'bg-emerald-50' },
+    caution: { bg: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-200', fill: 'bg-amber-50' },
+    warning: { bg: 'bg-orange-500', text: 'text-orange-700', border: 'border-orange-200', fill: 'bg-orange-50' },
+    critical: { bg: 'bg-red-500', text: 'text-red-700', border: 'border-red-200', fill: 'bg-red-50' }
+  };
+
+  const colors = statusColors[riskData.overallStatus];
+  const StatusIcon = riskData.overallStatus === 'healthy' ? Shield : AlertTriangle;
+
+  // Format halt time remaining
+  const formatHaltTime = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const hours = Math.floor(minutes / 60);
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    return `${minutes}m`;
+  };
+
+  // Agent names mapping
+  const agentNames: Record<string, string> = {
+    'alphax': 'AlphaX',
+    'betax': 'BetaX',
+    'gammax': 'GammaX'
+  };
+
+  return (
+    <div className={cn("mb-4 rounded-lg border transition-all", colors.border, colors.fill)}>
+      {/* Collapsed Header - Always Visible */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-black/5 transition-colors rounded-lg"
+      >
+        <div className="flex items-center gap-3">
+          {/* Status Indicator */}
+          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", colors.bg)}>
+            <StatusIcon className="w-4 h-4 text-white" />
+          </div>
+
+          {/* Status Text */}
+          <div className="text-left">
+            <div className={cn("text-sm font-semibold", colors.text)}>
+              {statusLabels[riskData.overallStatus]}
+            </div>
+            <div className="text-xs text-slate-500">
+              Risk Management • Click to {isExpanded ? 'collapse' : 'expand'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Halt Indicator */}
+          {riskData.isHalted && riskData.haltTimeRemaining !== null && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 rounded-lg">
+              <RefreshCw className="w-3.5 h-3.5 text-red-600 animate-spin" />
+              <span className="text-xs font-medium text-red-700">
+                Resumes in {formatHaltTime(riskData.haltTimeRemaining)}
+              </span>
+            </div>
+          )}
+
+          {/* Expand/Collapse Icon */}
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          )}
+        </div>
+      </button>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="px-4 pb-4 pt-2 border-t border-slate-200/50">
+          {/* Risk Limits Overview */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Max Daily Loss</div>
+              <div className="text-sm font-bold text-slate-700">3% per agent</div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Halt Threshold</div>
+              <div className="text-sm font-bold text-slate-700">7% total</div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Max Position</div>
+              <div className="text-sm font-bold text-slate-700">3% of balance</div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Loss Streak Limit</div>
+              <div className="text-sm font-bold text-slate-700">3 trades</div>
+            </div>
+          </div>
+
+          {/* Per-Agent Risk Status */}
+          {riskData.agentStates && riskData.agentStates.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Agent Status</div>
+              {riskData.agentStates.map(agent => {
+                const levelColors: Record<string, string> = {
+                  'ACTIVE': 'bg-emerald-100 text-emerald-700',
+                  'L1': 'bg-amber-100 text-amber-700',
+                  'L2': 'bg-orange-100 text-orange-700',
+                  'L3': 'bg-red-100 text-red-700',
+                  'L4': 'bg-red-200 text-red-800',
+                  'L5_HALTED': 'bg-red-500 text-white'
+                };
+                return (
+                  <div key={agent.agentId} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-700">
+                        {agentNames[agent.agentId] || agent.agentId}
+                      </span>
+                      <Badge className={cn("text-[10px] px-1.5", levelColors[agent.level] || 'bg-slate-100 text-slate-600')}>
+                        {agent.level === 'ACTIVE' ? 'Active' : agent.level.replace('_HALTED', '')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className={cn(
+                        "tabular-nums font-medium",
+                        agent.dailyPnL >= 0 ? "text-emerald-600" : "text-red-600"
+                      )}>
+                        {agent.dailyPnL >= 0 ? '+' : ''}{agent.dailyPnL.toFixed(2)}%
+                      </span>
+                      {agent.consecutiveLosses > 0 && (
+                        <span className="text-slate-400">
+                          {agent.consecutiveLosses} loss{agent.consecutiveLosses > 1 ? 'es' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Emergency Reset (only in critical state) */}
+          {riskData.overallStatus === 'critical' && (
+            <div className="mt-4 pt-4 border-t border-slate-200/50">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs border-red-300 text-red-600 hover:bg-red-100"
+                onClick={() => {
+                  if (confirm('This will reset all balances to $10,000 per agent. Continue?')) {
+                    arenaQuantEngine.emergencyReset();
+                    window.location.reload();
+                  }
+                }}
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                Emergency Reset System
+              </Button>
+            </div>
+          )}
+
+          {/* Info Footer */}
+          <div className="mt-4 flex items-start gap-2 text-xs text-slate-500">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>
+              Risk management automatically adjusts position sizes and halts trading based on daily performance.
+              This protects capital during adverse market conditions.
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== AGENT CARD =====================
+// Clean, minimal design - only essential metrics
 function AgentCard({ agent, rank, flash }: { agent: QuantAgent; rank: number; flash: 'up' | 'down' | null }) {
   const isPositive = agent.totalPnLPercent >= 0;
   const hasPosition = agent.currentPosition !== null;
@@ -918,119 +1111,106 @@ function AgentCard({ agent, rank, flash }: { agent: QuantAgent; rank: number; fl
   const streak = agent.streakCount || 0;
   const streakType = agent.streakType;
 
-  // Use actual 24h return from engine
-  const return24h = agent.return24h || 0;
-  const is24hPositive = return24h >= 0;
-
-  const rankColors = {
-    1: 'from-amber-400 via-yellow-300 to-amber-400',
-    2: 'from-slate-300 via-slate-200 to-slate-300',
-    3: 'from-orange-400 via-orange-300 to-orange-400'
-  };
-
   return (
     <Card className={cn(
-      "p-5 transition-all duration-300 border",
-      rank === 1 ? "bg-gradient-to-r from-amber-50/50 via-white to-amber-50/50 border-amber-200 shadow-lg" : "bg-white border-slate-200",
+      "p-4 transition-all duration-300 border",
+      rank === 1 ? "bg-gradient-to-r from-amber-50/50 via-white to-amber-50/50 border-amber-200 shadow-md" : "bg-white border-slate-200",
       flash === 'up' && "ring-2 ring-emerald-400/50",
       flash === 'down' && "ring-2 ring-red-400/50"
     )}>
-      {/* Main Row */}
-      <div className="flex items-center gap-4">
+      {/* Main Row - Simplified */}
+      <div className="flex items-center gap-3">
         {/* Agent Logo with Rank Badge */}
-        <div className="relative">
-          <AgentLogo agentId={agent.id} size={52} />
+        <div className="relative shrink-0">
+          <AgentLogo agentId={agent.id} size={44} />
           {/* Rank badge overlay */}
           <div className={cn(
-            "absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-md border-2 border-white",
+            "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm border-2 border-white",
             rank === 1 ? "bg-gradient-to-br from-amber-400 to-yellow-500 text-amber-900" :
             rank === 2 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-slate-700" :
             rank === 3 ? "bg-gradient-to-br from-orange-400 to-orange-500 text-orange-900" :
             "bg-slate-100 text-slate-600"
           )}>
-            {rank === 1 ? <Trophy className="w-3 h-3" /> : rank}
+            {rank === 1 ? <Trophy className="w-2.5 h-2.5" /> : rank}
           </div>
         </div>
 
         {/* Agent Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-lg font-bold text-slate-900">{agent.name}</h4>
+          <div className="flex items-center gap-2">
+            <h4 className="text-base font-bold text-slate-900">{agent.name}</h4>
             {hasPosition && (
-              <Badge className="bg-violet-500 text-white px-1.5 py-0.5 text-[10px] font-semibold gap-1">
-                <Radio className="w-2.5 h-2.5" />
-                Trading
+              <Badge className="bg-violet-500 text-white px-1.5 py-0.5 text-[9px] font-semibold gap-0.5">
+                <Radio className="w-2 h-2" />
+                Live
               </Badge>
             )}
             {streak >= 3 && streakType === 'WIN' && (
-              <Badge className="bg-orange-500 text-white px-1.5 py-0.5 text-[10px] font-semibold gap-0.5">
-                <Flame className="w-2.5 h-2.5" />
-                {streak}W
+              <Badge className="bg-orange-500 text-white px-1 py-0.5 text-[9px] font-semibold gap-0.5">
+                <Flame className="w-2 h-2" />
+                {streak}
               </Badge>
             )}
           </div>
-          <div className="text-xs text-slate-500">{agent.codename}</div>
+          <div className="text-[11px] text-slate-500">{agent.codename}</div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="hidden sm:grid grid-cols-3 gap-4 text-center">
+        {/* Compact Stats */}
+        <div className="hidden sm:flex items-center gap-4 text-center">
           <div>
-            <div className="text-lg font-bold text-slate-900 tabular-nums">{agent.totalTrades.toLocaleString()}</div>
-            <div className="text-[10px] text-slate-400 uppercase">Trades</div>
+            <div className="text-sm font-bold text-slate-700 tabular-nums">{agent.totalTrades.toLocaleString()}</div>
+            <div className="text-[9px] text-slate-400 uppercase">Trades</div>
           </div>
           <div>
             <div className={cn(
-              "text-lg font-bold tabular-nums",
-              agent.winRate >= 55 ? "text-emerald-600" : "text-slate-900"
+              "text-sm font-bold tabular-nums",
+              agent.winRate >= 55 ? "text-emerald-600" : "text-slate-700"
             )}>
               {agent.winRate.toFixed(1)}%
             </div>
-            <div className="text-[10px] text-slate-400 uppercase">Win Rate</div>
-          </div>
-          <div>
-            <div className={cn(
-              "text-lg font-bold tabular-nums",
-              is24hPositive ? "text-emerald-600" : "text-red-600"
-            )}>
-              {is24hPositive ? '+' : ''}{return24h.toFixed(2)}%
-            </div>
-            <div className="text-[10px] text-slate-400 uppercase">24H</div>
+            <div className="text-[9px] text-slate-400 uppercase">Win</div>
           </div>
         </div>
 
-        {/* Total Return */}
-        <div className="text-right pl-4 border-l border-slate-100">
+        {/* Balance & Return - Prominent but Clean */}
+        <div className="text-right shrink-0">
           <div className={cn(
-            "text-2xl font-bold flex items-center justify-end gap-1.5 transition-transform",
+            "text-xl font-bold flex items-center justify-end gap-1 transition-transform tabular-nums",
             isPositive ? "text-emerald-600" : "text-red-600",
             flash && "scale-105"
           )}>
-            {isPositive ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-            <AnimatedNumber value={agent.totalPnLPercent} decimals={2} showSign suffix="%" />
+            <DollarSign className="w-4 h-4" />
+            <AnimatedNumber value={agent.balance} decimals={0} />
           </div>
-          <div className="text-xs text-slate-400 tabular-nums">
-            ${agent.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400">
+            <span className={cn(
+              "font-medium",
+              isPositive ? "text-emerald-500" : "text-red-500"
+            )}>
+              {isPositive ? '+' : ''}{agent.totalPnLPercent.toFixed(2)}%
+            </span>
+            <span>return</span>
           </div>
         </div>
       </div>
 
-      {/* Mobile Stats */}
-      <div className="sm:hidden grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100">
+      {/* Mobile Stats - Only on small screens */}
+      <div className="sm:hidden flex items-center justify-center gap-4 mt-3 pt-3 border-t border-slate-100">
         <div className="text-center">
-          <div className="text-sm font-bold text-slate-900">{agent.totalTrades.toLocaleString()}</div>
+          <div className={cn("text-sm font-bold tabular-nums", isPositive ? "text-emerald-600" : "text-red-600")}>
+            ${agent.balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </div>
+          <div className="text-[9px] text-slate-400">Balance</div>
+        </div>
+        <div className="text-center">
+          <div className="text-sm font-bold text-slate-700 tabular-nums">{agent.totalTrades.toLocaleString()}</div>
           <div className="text-[9px] text-slate-400">Trades</div>
         </div>
         <div className="text-center">
-          <div className={cn("text-sm font-bold", agent.winRate >= 55 ? "text-emerald-600" : "text-slate-900")}>
+          <div className={cn("text-sm font-bold tabular-nums", agent.winRate >= 55 ? "text-emerald-600" : "text-slate-700")}>
             {agent.winRate.toFixed(1)}%
           </div>
           <div className="text-[9px] text-slate-400">Win Rate</div>
-        </div>
-        <div className="text-center">
-          <div className={cn("text-sm font-bold", is24hPositive ? "text-emerald-600" : "text-red-600")}>
-            {is24hPositive ? '+' : ''}{return24h.toFixed(2)}%
-          </div>
-          <div className="text-[9px] text-slate-400">24H</div>
         </div>
       </div>
 
@@ -1142,22 +1322,38 @@ export default function ArenaClean() {
       {/* Live Activity Feed - Shows REAL trades only */}
       <LiveActivityFeed />
 
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-50">
+      {/* Header - Professional Design */}
+      <header className="border-b border-slate-200/80 bg-white/98 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
+            {/* Logo & Branding */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-white" />
+              {/* QuantumX Logo - SVG */}
+              <div className="relative">
+                <QuantumXLogo size={44} className="rounded-xl" />
+                {/* Pulse indicator */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm">
+                  <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping" />
+                </div>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900">Alpha Arena</h1>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider">Live AI Trading</p>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent">
+                    QuantumX
+                  </h1>
+                  <Badge className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-[9px] px-1.5 py-0.5 font-semibold border-0">
+                    ARENA
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium tracking-wide">Autonomous AI Trading Engine</p>
               </div>
             </div>
 
+            {/* Right Side - Status */}
             <div className="flex items-center gap-4">
-              <LiveClock />
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+                <LiveClock />
+              </div>
               <LivePulse />
             </div>
           </div>
@@ -1165,39 +1361,38 @@ export default function ArenaClean() {
       </header>
 
       <main className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
-        {/* Hero Stats - Updated in Real-Time Every Second */}
+        {/* Hero Stats - Key metrics at a glance */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <MetricCard
             label="Total Balance"
-            value={<span>${liveMetrics.totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
+            value={<span className="flex items-center gap-1"><AnimatedNumber value={liveMetrics.totalBalance} decimals={0} prefix="$" /></span>}
             icon={Wallet}
             valueColor={liveMetrics.totalPnL >= 0 ? 'green' : 'red'}
             trend={liveMetrics.totalPnL >= 0 ? 'up' : 'down'}
-            subValue={`${liveMetrics.totalPnL >= 0 ? '+' : ''}$${liveMetrics.totalPnL.toLocaleString(undefined, { maximumFractionDigits: 0 })} P&L`}
+            subValue={`${liveMetrics.totalPnL >= 0 ? '+' : ''}${liveMetrics.totalReturnPercent.toFixed(2)}% return`}
           />
           <MetricCard
-            label="24H Win Rate"
-            value={<AnimatedNumber value={liveMetrics.winRate24h} decimals={1} suffix="%" />}
-            icon={Percent}
-            valueColor={liveMetrics.winRate24h >= 55 ? 'green' : undefined}
-            trend={liveMetrics.winRate24h >= 55 ? 'up' : undefined}
+            label="Today's P&L"
+            value={<AnimatedNumber value={liveMetrics.return24h} decimals={2} showSign suffix="%" />}
+            icon={BarChart3}
+            valueColor={liveMetrics.return24h >= 0 ? 'green' : 'red'}
+            trend={liveMetrics.return24h >= 0 ? 'up' : 'down'}
             subValue={`${liveMetrics.trades24h} trades today`}
           />
           <MetricCard
-            label="Total Return"
-            value={<AnimatedNumber value={liveMetrics.totalReturnPercent} decimals={2} showSign suffix="%" />}
-            icon={DollarSign}
-            valueColor={liveMetrics.totalReturnPercent >= 0 ? 'green' : 'red'}
-            trend={liveMetrics.totalReturnPercent >= 0 ? 'up' : 'down'}
-            subValue="All time"
+            label="Win Rate"
+            value={<AnimatedNumber value={liveMetrics.winRate24h} decimals={1} suffix="%" />}
+            icon={Target}
+            valueColor={liveMetrics.winRate24h >= 55 ? 'green' : undefined}
+            trend={liveMetrics.winRate24h >= 55 ? 'up' : undefined}
+            subValue={`${liveMetrics.totalTrades.toLocaleString()} total trades`}
           />
           <MetricCard
-            label="24H Return"
-            value={<AnimatedNumber value={liveMetrics.return24h} decimals={2} showSign suffix="%" />}
-            icon={Clock}
-            valueColor={liveMetrics.return24h >= 0 ? 'green' : 'red'}
-            trend={liveMetrics.return24h >= 0 ? 'up' : 'down'}
-            subValue={`${liveMetrics.activePositions} active trades`}
+            label="Active"
+            value={<span>{liveMetrics.activePositions}</span>}
+            icon={Activity}
+            valueColor={liveMetrics.activePositions > 0 ? 'green' : undefined}
+            subValue={`of ${agents.length} agents`}
           />
         </div>
 
@@ -1219,6 +1414,9 @@ export default function ArenaClean() {
             Updated {secondsSinceUpdate}s ago
           </div>
         </div>
+
+        {/* Risk Dashboard - Professional risk status */}
+        <RiskDashboard />
 
         {/* Agent Cards */}
         <div className="space-y-3 mb-8">
@@ -1330,21 +1528,55 @@ export default function ArenaClean() {
           </p>
         </div>
 
-        {/* Footer Stats */}
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
-            <span>Initial Capital: $30,000</span>
-            <span className="text-slate-300">|</span>
-            <span>Avg Trade: 4.2 mins</span>
-            <span className="text-slate-300">|</span>
-            <span>Uptime: 99.9%</span>
-            <span className="text-slate-300">|</span>
-            <span>Since Jan 2025</span>
+        {/* Professional Footer */}
+        <footer className="mt-8 pt-8 border-t border-slate-200">
+          {/* Stats Row */}
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 mb-6">
+            <div className="text-center">
+              <div className="text-lg font-bold text-slate-900">$30,000</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Initial Capital</div>
+            </div>
+            <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+            <div className="text-center">
+              <div className="text-lg font-bold text-slate-900">3</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">AI Agents</div>
+            </div>
+            <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+            <div className="text-center">
+              <div className="text-lg font-bold text-emerald-600">99.9%</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Uptime</div>
+            </div>
+            <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+            <div className="text-center">
+              <div className="text-lg font-bold text-slate-900">24/7</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Trading</div>
+            </div>
           </div>
-          <p className="text-center text-[10px] text-slate-400 mt-3">
-            Alpha Arena by IgniteX | Signals are educational only | Not financial advice
-          </p>
-        </div>
+
+          {/* Branding */}
+          <div className="flex flex-col items-center gap-3 py-4 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <QuantumXLogo size={28} className="rounded-lg" />
+              <span className="font-bold text-slate-700">QuantumX</span>
+              <span className="text-slate-400">by</span>
+              <span className="font-semibold text-slate-600">IgniteX</span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+              <span>Autonomous Trading</span>
+              <span className="w-1 h-1 rounded-full bg-slate-300" />
+              <span>Educational Only</span>
+              <span className="w-1 h-1 rounded-full bg-slate-300" />
+              <span>Not Financial Advice</span>
+            </div>
+          </div>
+
+          {/* Copyright */}
+          <div className="text-center py-4 border-t border-slate-100">
+            <p className="text-[11px] text-slate-400">
+              &copy; {new Date().getFullYear()} QuantumX Arena. All trading involves risk. Past performance does not guarantee future results.
+            </p>
+          </div>
+        </footer>
       </main>
     </div>
   );
