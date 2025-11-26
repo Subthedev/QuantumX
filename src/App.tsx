@@ -85,7 +85,9 @@ const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 // Arena features (require full client-side system)
 const Arena = lazy(() => import("./pages/Arena"));
 const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
-const ArenaClean = lazy(() => import("./pages/ArenaClean")); // ✅ NEW: Clean, conversion-focused Arena
+const ArenaClean = lazy(() => import("./pages/ArenaClean")); // ✅ Arena with integrated Oracle tab
+const QXOracle = lazy(() => import("./pages/QXOracle")); // ✅ QX Oracle Challenge - Prediction Market
+// OraclePage removed - Oracle is now integrated as a tab inside ArenaClean
 // const ArenaTest = lazy(() => import("./pages/ArenaTest"));
 // const ArenaDiagnostic = lazy(() => import("./pages/ArenaDiagnostic"));
 
@@ -143,6 +145,10 @@ const App = () => {
               <Route path="/arena-clean" element={<ArenaClean />} /> {/* Alias for arena-clean URL */}
               <Route path="/arena-enhanced" element={<ArenaEnhanced />} />
               <Route path="/arena-classic" element={<Arena />} />
+              {/* QX Oracle - Prediction Market */}
+              <Route path="/qx-oracle" element={<QXOracle />} />
+              <Route path="/predict" element={<QXOracle />} /> {/* Short alias */}
+              {/* Oracle Challenge now integrated into ArenaClean as a tab - no separate route needed */}
               {/* <Route path="/arena-diagnostic" element={<ArenaDiagnostic />} /> */}
               {/* <Route path="/arena-test" element={<ArenaTest />} /> */}
               <Route path="/about" element={<About />} />

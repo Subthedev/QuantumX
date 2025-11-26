@@ -17,14 +17,18 @@ import {
   Flame, Clock, BarChart3, Percent,
   ArrowUpRight, ArrowDownRight, Radio, Users, CheckCircle2, Wallet,
   Zap, Shield, Target, ExternalLink, DollarSign, AlertTriangle, RefreshCw,
-  ChevronDown, ChevronUp, Info
+  ChevronDown, ChevronUp, Info, ChevronRight
 } from 'lucide-react';
 import { useRankedQuantAgents, type QuantAgent, type TradeEvent } from '@/hooks/useQuantAgents';
 import { arenaQuantEngine } from '@/services/arenaQuantEngine';
 import { telegramSignalPublisher } from '@/services/telegramSignalPublisher';
+import { oracleQuestionEngine, type OracleQuestion, type UserStats } from '@/services/oracleQuestionEngine';
 import { cn } from '@/lib/utils';
 import { AgentLogo } from '@/components/ui/agent-logos';
 import { QuantumXLogo } from '@/components/ui/quantumx-logo';
+
+// ===================== VIEW TYPE =====================
+type ActiveView = 'arena' | 'oracle';
 
 // ===================== LIVE ACTIVITY FEED =====================
 // Shows REAL trade closures from the engine - production-grade persistence
@@ -796,25 +800,45 @@ function AnimatedNumber({ value, decimals = 0, prefix = '', suffix = '', showSig
 }
 
 // ===================== METRIC CARD =====================
-function MetricCard({ label, value, icon: Icon, trend, valueColor, subValue }: {
+function MetricCard({ label, value, icon: Icon, trend, valueColor, subValue, accentColor }: {
   label: string;
   value: string | React.ReactNode;
   icon: React.ElementType;
   trend?: 'up' | 'down' | null;
   valueColor?: string;
   subValue?: string;
+  accentColor?: 'violet' | 'emerald';
 }) {
+  // Icon background and text colors based on accentColor and valueColor
+  const getIconBgClass = () => {
+    if (accentColor === 'violet') return 'bg-violet-100';
+    if (valueColor === 'green') return 'bg-emerald-100';
+    if (valueColor === 'red') return 'bg-red-100';
+    return 'bg-slate-100';
+  };
+
+  const getIconTextClass = () => {
+    if (accentColor === 'violet') return 'text-violet-600';
+    if (valueColor === 'green') return 'text-emerald-600';
+    if (valueColor === 'red') return 'text-red-600';
+    return 'text-slate-600';
+  };
+
+  const getValueTextClass = () => {
+    if (valueColor === 'green') return 'text-emerald-600';
+    if (valueColor === 'red') return 'text-red-600';
+    if (accentColor === 'violet') return 'text-violet-700';
+    return 'text-slate-900';
+  };
+
   return (
-    <Card className="bg-white/80 backdrop-blur border-slate-200/60 p-4 hover:shadow-lg transition-all duration-300">
+    <Card className={cn(
+      "backdrop-blur border-slate-200/60 p-4 hover:shadow-lg transition-all duration-300",
+      accentColor === 'violet' ? "bg-gradient-to-br from-violet-50/80 to-purple-50/60 border-violet-200/60" : "bg-white/80"
+    )}>
       <div className="flex items-start justify-between mb-2">
-        <div className={cn(
-          "w-9 h-9 rounded-lg flex items-center justify-center",
-          valueColor === 'green' ? 'bg-emerald-100' : valueColor === 'red' ? 'bg-red-100' : 'bg-slate-100'
-        )}>
-          <Icon className={cn(
-            "w-4.5 h-4.5",
-            valueColor === 'green' ? 'text-emerald-600' : valueColor === 'red' ? 'text-red-600' : 'text-slate-600'
-          )} />
+        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", getIconBgClass())}>
+          <Icon className={cn("w-4.5 h-4.5", getIconTextClass())} />
         </div>
         {trend && (
           <div className={cn(
@@ -825,10 +849,7 @@ function MetricCard({ label, value, icon: Icon, trend, valueColor, subValue }: {
           </div>
         )}
       </div>
-      <div className={cn(
-        "text-2xl font-bold mb-0.5 tabular-nums",
-        valueColor === 'green' ? 'text-emerald-600' : valueColor === 'red' ? 'text-red-600' : 'text-slate-900'
-      )}>
+      <div className={cn("text-2xl font-bold mb-0.5 tabular-nums", getValueTextClass())}>
         {value}
       </div>
       <div className="text-xs text-slate-500 font-medium">{label}</div>
@@ -1251,12 +1272,318 @@ function AgentCard({ agent, rank, flash }: { agent: QuantAgent; rank: number; fl
   );
 }
 
+// ===================== ORACLE COMPONENTS =====================
+
+function OracleCountdownTimer({ countdown }: { countdown: { hours: number; minutes: number; seconds: number } }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-200/50">
+      <div className="flex items-center gap-1.5">
+        <Clock className="w-4 h-4 text-violet-500" />
+        <span className="text-xs font-medium text-violet-600 uppercase tracking-wider">Next Slot</span>
+      </div>
+      <div className="flex items-center gap-1 font-mono tabular-nums">
+        <span className="bg-white px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-violet-100">
+          {String(countdown.hours).padStart(2, '0')}
+        </span>
+        <span className="text-violet-400 font-bold">:</span>
+        <span className="bg-white px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-violet-100">
+          {String(countdown.minutes).padStart(2, '0')}
+        </span>
+        <span className="text-violet-400 font-bold">:</span>
+        <span className="bg-white px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-violet-100">
+          {String(countdown.seconds).padStart(2, '0')}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+interface OraclePredictionCardProps {
+  question: OracleQuestion;
+  selectedOption: string | null;
+  isLocked: boolean;
+  onSelect: (optionId: string) => void;
+  onLock: () => void;
+}
+
+function OraclePredictionCard({ question, selectedOption, isLocked, onSelect, onLock }: OraclePredictionCardProps) {
+  const canSelect = question.status === 'OPEN' && !isLocked;
+  const showResult = question.status === 'RESOLVED';
+
+  const statusConfig = {
+    UPCOMING: { label: 'Upcoming', bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+    OPEN: { label: 'Open', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    CLOSED: { label: 'Closed', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+    RESOLVED: { label: 'Resolved', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
+  };
+
+  const status = statusConfig[question.status];
+
+  return (
+    <Card className="overflow-hidden bg-white border-slate-200/80 shadow-lg hover:shadow-xl transition-all duration-300">
+      {/* Status Bar - Gradient accent */}
+      <div className={cn(
+        "h-1.5",
+        question.status === 'OPEN' && "bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500",
+        question.status === 'CLOSED' && "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500",
+        question.status === 'RESOLVED' && "bg-gradient-to-r from-violet-500 via-purple-500 to-violet-500",
+        question.status === 'UPCOMING' && "bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300"
+      )} />
+
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Slot {question.slot + 1} / 48
+              </span>
+              <Badge className={cn("text-xs border-0 px-2.5 py-1 flex items-center gap-1.5", status.bg, status.text)}>
+                <div className={cn("w-1.5 h-1.5 rounded-full", status.dot, question.status === 'OPEN' && "animate-pulse")} />
+                {status.label}
+              </Badge>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">{question.title}</h3>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border border-amber-200/50">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span className="font-bold text-amber-700">{question.baseReward}</span>
+              <span className="text-xs font-semibold text-amber-600">QX</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Question */}
+        <div className="mb-6">
+          <p className="text-slate-800 font-medium text-base leading-relaxed mb-3">{question.question}</p>
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 border border-slate-200/60 rounded-xl px-4 py-3">
+            <p className="text-sm text-slate-600 leading-relaxed">{question.context}</p>
+          </div>
+        </div>
+
+        {/* Options Section */}
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Make Your Prediction
+            </p>
+            {canSelect && (
+              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Select below
+              </span>
+            )}
+          </div>
+
+          {question.options.map((option) => {
+            const isSelected = selectedOption === option.id;
+            const isCorrectAnswer = showResult && question.correctAnswer === option.id;
+            const wasSelectedAndWrong = showResult && isLocked && selectedOption === option.id && !isCorrectAnswer;
+            const wasSelectedAndCorrect = showResult && isLocked && selectedOption === option.id && isCorrectAnswer;
+
+            return (
+              <button
+                key={option.id}
+                onClick={() => canSelect && onSelect(option.id)}
+                disabled={!canSelect}
+                className={cn(
+                  "w-full px-5 py-4 rounded-xl border-2 transition-all duration-200 text-left group",
+                  "flex items-center justify-between",
+                  isCorrectAnswer && "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-400 shadow-sm",
+                  wasSelectedAndWrong && "bg-gradient-to-r from-red-50 to-rose-50 border-red-400",
+                  !showResult && isLocked && isSelected && "bg-gradient-to-r from-violet-50 to-purple-50 border-violet-400 shadow-sm",
+                  !showResult && !isLocked && isSelected && "bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-400 shadow-md ring-2 ring-cyan-200/50",
+                  !isSelected && !isCorrectAnswer && "bg-white border-slate-200 hover:border-slate-300",
+                  canSelect && !isSelected && "hover:bg-slate-50 hover:shadow-sm cursor-pointer",
+                  !canSelect && !isSelected && !isCorrectAnswer && "opacity-60"
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl">{option.emoji}</span>
+                  <span className={cn(
+                    "font-semibold text-base",
+                    (isSelected || isCorrectAnswer) ? "text-slate-900" : "text-slate-700"
+                  )}>
+                    {option.text}
+                  </span>
+                </div>
+
+                {/* Selection Indicator */}
+                <div className="flex-shrink-0">
+                  {wasSelectedAndCorrect && (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+                    </div>
+                  )}
+                  {wasSelectedAndWrong && (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-sm">
+                      <span className="text-white text-sm font-bold">✕</span>
+                    </div>
+                  )}
+                  {isCorrectAnswer && !isSelected && (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+                    </div>
+                  )}
+                  {!showResult && isLocked && isSelected && (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+                    </div>
+                  )}
+                  {!showResult && !isLocked && isSelected && (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+                    </div>
+                  )}
+                  {!isSelected && !isCorrectAnswer && (
+                    <div className="w-7 h-7 rounded-full border-2 border-slate-300 group-hover:border-slate-400 transition-colors" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Action Button */}
+        {question.status === 'OPEN' && !isLocked && (
+          <Button
+            onClick={onLock}
+            disabled={!selectedOption}
+            className={cn(
+              "w-full h-13 text-base font-semibold rounded-xl transition-all duration-300",
+              selectedOption
+                ? "bg-gradient-to-r from-violet-600 via-purple-600 to-violet-600 hover:from-violet-500 hover:via-purple-500 hover:to-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40"
+                : "bg-slate-200 text-slate-500 cursor-not-allowed"
+            )}
+          >
+            {selectedOption ? "Lock My Prediction" : "Select an Option to Continue"}
+          </Button>
+        )}
+
+        {/* Locked State */}
+        {isLocked && !showResult && (
+          <div className="flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-200/50">
+            <CheckCircle2 className="w-5 h-5 text-violet-600" />
+            <span className="font-semibold text-violet-700">Prediction Locked - Awaiting Result</span>
+          </div>
+        )}
+
+        {/* Result */}
+        {showResult && (
+          <div className={cn(
+            "flex items-center justify-center gap-2.5 py-4 rounded-xl",
+            question.correctAnswer === selectedOption && isLocked
+              ? "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/50"
+              : isLocked
+              ? "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/50"
+              : "bg-slate-50 border border-slate-200/50"
+          )}>
+            {question.correctAnswer === selectedOption && isLocked ? (
+              <>
+                <Trophy className="w-5 h-5 text-emerald-600" />
+                <span className="font-bold text-emerald-700">Correct Prediction!</span>
+              </>
+            ) : isLocked ? (
+              <span className="font-medium text-red-600">Incorrect - Better luck next time</span>
+            ) : (
+              <span className="font-medium text-slate-500">No prediction made</span>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function OracleTodaysQuestions({ questions, currentSlot }: { questions: OracleQuestion[]; currentSlot: number }) {
+  return (
+    <Card className="bg-white border-slate-200/80 shadow-md overflow-hidden">
+      {/* Header with gradient accent */}
+      <div className="h-1 bg-gradient-to-r from-violet-500 via-purple-500 to-violet-500" />
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+            Today's Schedule
+          </h3>
+          <span className="text-xs text-slate-500">{questions.length} slots</span>
+        </div>
+        <div className="space-y-2">
+          {questions.map((q) => {
+            const isCurrent = q.slot === currentSlot;
+            return (
+              <div
+                key={q.id}
+                className={cn(
+                  "flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200",
+                  isCurrent ? "bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 shadow-sm" : "bg-slate-50/80 hover:bg-slate-100/80"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    "text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+                    q.status === 'RESOLVED' ? "bg-violet-100 text-violet-600" :
+                    q.status === 'OPEN' ? "bg-emerald-100 text-emerald-600" :
+                    q.status === 'CLOSED' ? "bg-amber-100 text-amber-600" :
+                    "bg-slate-200 text-slate-500"
+                  )}>
+                    {q.slot + 1}
+                  </span>
+                  <span className={cn(
+                    "text-sm font-medium truncate max-w-[140px]",
+                    isCurrent ? "text-violet-900" : "text-slate-700"
+                  )}>
+                    {q.title}
+                  </span>
+                </div>
+                <Badge className={cn(
+                  "text-[10px] border-0 px-2 py-0.5",
+                  q.status === 'OPEN' ? "bg-emerald-100 text-emerald-700" :
+                  q.status === 'CLOSED' ? "bg-amber-100 text-amber-700" :
+                  q.status === 'RESOLVED' ? "bg-violet-100 text-violet-700" :
+                  "bg-slate-100 text-slate-500"
+                )}>
+                  {q.status}
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // ===================== MAIN COMPONENT =====================
 export default function ArenaClean() {
   const { agents, stats, loading, lastUpdate } = useRankedQuantAgents(500);
   const [pnlFlash, setPnlFlash] = useState<Record<string, 'up' | 'down' | null>>({});
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState(0);
   const prevPnLRef = useRef<Record<string, number>>({});
+
+  // View state - Arena or Oracle
+  const [activeView, setActiveView] = useState<ActiveView>('arena');
+
+  // Oracle state
+  const [oracleQuestion, setOracleQuestion] = useState<OracleQuestion | null>(null);
+  const [oracleTodaysQuestions, setOracleTodaysQuestions] = useState<OracleQuestion[]>([]);
+  const [oracleSelectedOption, setOracleSelectedOption] = useState<string | null>(null);
+  const [oracleIsLocked, setOracleIsLocked] = useState(false);
+  const [oracleCountdown, setOracleCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const currentQuestionIdRef = useRef<string | null>(null);
+
+  // Oracle user stats - calculated from localStorage predictions
+  const [oracleUserStats, setOracleUserStats] = useState<UserStats>({
+    totalQXEarned: 0,
+    totalPredictions: 0,
+    correctPredictions: 0,
+    currentStreak: 0,
+    bestStreak: 0,
+    accuracy: 0,
+  });
+
+  // Oracle user predictions - track all predictions for slot colors
+  const [oracleUserPredictions, setOracleUserPredictions] = useState<Map<string, { selectedOption: string; isCorrect: boolean | null }>>(new Map());
 
   // Update seconds counter
   useEffect(() => {
@@ -1297,6 +1624,117 @@ export default function ArenaClean() {
       telegramSignalPublisher.stop();
     };
   }, []);
+
+  // Oracle data management - with proper timer sync and slot change detection
+  useEffect(() => {
+    oracleQuestionEngine.start();
+
+    // Track last known slot for change detection
+    let lastKnownSlot = oracleQuestionEngine.getCurrentSlot();
+
+    const updateOracleData = () => {
+      // Get current slot to detect changes
+      const currentSlot = oracleQuestionEngine.getCurrentSlot();
+      const slotChanged = currentSlot !== lastKnownSlot;
+
+      if (slotChanged) {
+        console.log(`[Arena Oracle] SLOT CHANGED: ${lastKnownSlot} -> ${currentSlot}`);
+        lastKnownSlot = currentSlot;
+      }
+
+      // Get current question (now uses time-based slot calculation)
+      const current = oracleQuestionEngine.getCurrentQuestion();
+      const todays = oracleQuestionEngine.getTodaysQuestions();
+      const countdown = oracleQuestionEngine.getTimeUntilNextSlot();
+
+      // Update countdown always
+      setOracleCountdown(countdown);
+
+      // Update questions list
+      setOracleTodaysQuestions(todays);
+
+      // Update user stats from localStorage
+      const stats = oracleQuestionEngine.getUserStats();
+      setOracleUserStats(stats);
+
+      // Update user predictions map for slot colors
+      const allPredictions = oracleQuestionEngine.getAllUserPredictions();
+      const predictionsMap = new Map<string, { selectedOption: string; isCorrect: boolean | null }>();
+      allPredictions.forEach(({ prediction, question }) => {
+        if (question) {
+          const isCorrect = question.status === 'RESOLVED' && question.correctAnswer
+            ? prediction.selectedOption === question.correctAnswer
+            : null; // null means not yet resolved
+          predictionsMap.set(question.id, { selectedOption: prediction.selectedOption, isCorrect });
+        }
+      });
+      setOracleUserPredictions(predictionsMap);
+
+      // Detect question change (slot change OR status change)
+      if (current) {
+        const questionChanged = current.id !== currentQuestionIdRef.current;
+        const statusChanged = oracleQuestion && current.status !== oracleQuestion.status;
+
+        if (questionChanged || statusChanged || slotChanged) {
+          currentQuestionIdRef.current = current.id;
+          setOracleQuestion(current);
+
+          // Reset prediction state for new question
+          const savedPrediction = oracleQuestionEngine.getUserPrediction(current.id);
+          if (savedPrediction) {
+            setOracleSelectedOption(savedPrediction.selectedOption);
+            setOracleIsLocked(true);
+          } else {
+            setOracleSelectedOption(null);
+            setOracleIsLocked(false);
+          }
+
+          console.log('[Oracle] Question updated:', current.id, current.status, current.title);
+        } else if (!oracleQuestion) {
+          // Initial load
+          setOracleQuestion(current);
+          currentQuestionIdRef.current = current.id;
+        }
+      } else if (!current && oracleQuestion) {
+        // No current question available
+        setOracleQuestion(null);
+        currentQuestionIdRef.current = null;
+      }
+    };
+
+    // Initial update
+    updateOracleData();
+
+    // Register for slot change callbacks for immediate updates
+    const unsubscribe = oracleQuestionEngine.onSlotChange((newSlot) => {
+      console.log('[Arena Oracle] Slot change callback triggered:', newSlot);
+      updateOracleData();
+    });
+
+    // Update frequently for smooth countdown (every 250ms)
+    const interval = setInterval(updateOracleData, 250);
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+      oracleQuestionEngine.stop();
+    };
+  }, [oracleQuestion]);
+
+  // Oracle handlers
+  const handleOracleSelect = (optionId: string) => {
+    if (!oracleIsLocked && oracleQuestion?.status === 'OPEN') {
+      setOracleSelectedOption(optionId);
+    }
+  };
+
+  const handleOracleLock = () => {
+    if (!oracleSelectedOption || !oracleQuestion || oracleQuestion.status !== 'OPEN') return;
+    const result = oracleQuestionEngine.makePrediction(oracleQuestion.id, oracleSelectedOption);
+    if (result.success) {
+      setOracleIsLocked(true);
+    }
+  };
 
   // IMPORTANT: All hooks must be called BEFORE any conditional returns
   // Use real-time metrics hook - must be called unconditionally
@@ -1350,7 +1788,7 @@ export default function ArenaClean() {
             </div>
 
             {/* Right Side - Status */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
                 <LiveClock />
               </div>
@@ -1361,42 +1799,138 @@ export default function ArenaClean() {
       </header>
 
       <main className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
-        {/* Hero Stats - Key metrics at a glance */}
+        {/* ========== ALWAYS VISIBLE: Hero Stats - Context Aware ========== */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <MetricCard
-            label="Total Balance"
-            value={<span className="flex items-center gap-1"><AnimatedNumber value={liveMetrics.totalBalance} decimals={0} prefix="$" /></span>}
-            icon={Wallet}
-            valueColor={liveMetrics.totalPnL >= 0 ? 'green' : 'red'}
-            trend={liveMetrics.totalPnL >= 0 ? 'up' : 'down'}
-            subValue={`${liveMetrics.totalPnL >= 0 ? '+' : ''}${liveMetrics.totalReturnPercent.toFixed(2)}% return`}
-          />
-          <MetricCard
-            label="Today's P&L"
-            value={<AnimatedNumber value={liveMetrics.return24h} decimals={2} showSign suffix="%" />}
-            icon={BarChart3}
-            valueColor={liveMetrics.return24h >= 0 ? 'green' : 'red'}
-            trend={liveMetrics.return24h >= 0 ? 'up' : 'down'}
-            subValue={`${liveMetrics.trades24h} trades today`}
-          />
-          <MetricCard
-            label="Win Rate"
-            value={<AnimatedNumber value={liveMetrics.winRate24h} decimals={1} suffix="%" />}
-            icon={Target}
-            valueColor={liveMetrics.winRate24h >= 55 ? 'green' : undefined}
-            trend={liveMetrics.winRate24h >= 55 ? 'up' : undefined}
-            subValue={`${liveMetrics.totalTrades.toLocaleString()} total trades`}
-          />
-          <MetricCard
-            label="Active"
-            value={<span>{liveMetrics.activePositions}</span>}
-            icon={Activity}
-            valueColor={liveMetrics.activePositions > 0 ? 'green' : undefined}
-            subValue={`of ${agents.length} agents`}
-          />
+          {activeView === 'arena' ? (
+            <>
+              {/* Arena Metrics */}
+              <MetricCard
+                label="Total Balance"
+                value={<span className="flex items-center gap-1"><AnimatedNumber value={liveMetrics.totalBalance} decimals={0} prefix="$" /></span>}
+                icon={Wallet}
+                valueColor={liveMetrics.totalPnL >= 0 ? 'green' : 'red'}
+                trend={liveMetrics.totalPnL >= 0 ? 'up' : 'down'}
+                subValue={`${liveMetrics.totalPnL >= 0 ? '+' : ''}${liveMetrics.totalReturnPercent.toFixed(2)}% return`}
+              />
+              <MetricCard
+                label="Today's P&L"
+                value={<AnimatedNumber value={liveMetrics.return24h} decimals={2} showSign suffix="%" />}
+                icon={BarChart3}
+                valueColor={liveMetrics.return24h >= 0 ? 'green' : 'red'}
+                trend={liveMetrics.return24h >= 0 ? 'up' : 'down'}
+                subValue={`${liveMetrics.trades24h} trades today`}
+              />
+              <MetricCard
+                label="Win Rate"
+                value={<AnimatedNumber value={liveMetrics.winRate24h} decimals={1} suffix="%" />}
+                icon={Target}
+                valueColor={liveMetrics.winRate24h >= 55 ? 'green' : undefined}
+                trend={liveMetrics.winRate24h >= 55 ? 'up' : undefined}
+                subValue={`${liveMetrics.totalTrades.toLocaleString()} total trades`}
+              />
+              <MetricCard
+                label="Active"
+                value={<span>{liveMetrics.activePositions}</span>}
+                icon={Activity}
+                valueColor={liveMetrics.activePositions > 0 ? 'green' : undefined}
+                subValue={`of ${agents.length} agents`}
+              />
+            </>
+          ) : (
+            <>
+              {/* Oracle Metrics - QX Specific */}
+              <MetricCard
+                label="Total QX Earned"
+                value={<span className="flex items-center gap-1"><AnimatedNumber value={oracleUserStats.totalQXEarned} decimals={0} /></span>}
+                icon={Flame}
+                valueColor={oracleUserStats.totalQXEarned > 0 ? 'green' : undefined}
+                subValue="QX tokens earned"
+                accentColor="violet"
+              />
+              <MetricCard
+                label="Accuracy"
+                value={<AnimatedNumber value={oracleUserStats.accuracy} decimals={1} suffix="%" />}
+                icon={Target}
+                valueColor={oracleUserStats.accuracy >= 50 ? 'green' : oracleUserStats.accuracy > 0 ? 'red' : undefined}
+                trend={oracleUserStats.accuracy >= 50 ? 'up' : undefined}
+                subValue={`${oracleUserStats.correctPredictions}/${oracleUserStats.totalPredictions} correct`}
+                accentColor="violet"
+              />
+              <MetricCard
+                label="Current Streak"
+                value={<span>{oracleUserStats.currentStreak}</span>}
+                icon={Zap}
+                valueColor={oracleUserStats.currentStreak > 0 ? 'green' : undefined}
+                subValue={`Best: ${oracleUserStats.bestStreak}`}
+                accentColor="violet"
+              />
+              <MetricCard
+                label="Predictions"
+                value={<span>{oracleUserStats.totalPredictions}</span>}
+                icon={BarChart3}
+                subValue={`Today: ${oracleTodaysQuestions.filter(q => q.status === 'RESOLVED').length} resolved`}
+                accentColor="violet"
+              />
+            </>
+          )}
         </div>
 
-        {/* Live Status Bar - Real-time Updates */}
+        {/* ========== VIEW SWITCHER - Professional Tab Design ========== */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex items-center p-1.5 bg-slate-100/80 backdrop-blur rounded-2xl border border-slate-200/60 shadow-sm">
+            <button
+              onClick={() => setActiveView('arena')}
+              className={cn(
+                "relative flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
+                activeView === 'arena'
+                  ? "bg-white text-slate-900 shadow-md"
+                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+              )}
+            >
+              {activeView === 'arena' && (
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10" />
+              )}
+              <BarChart3 className={cn(
+                "w-4.5 h-4.5 transition-colors",
+                activeView === 'arena' ? "text-emerald-600" : "text-slate-400"
+              )} />
+              <span className="relative">Arena</span>
+              {activeView === 'arena' && (
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+            </button>
+
+            <div className="w-px h-6 bg-slate-300/60 mx-1" />
+
+            <button
+              onClick={() => setActiveView('oracle')}
+              className={cn(
+                "relative flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
+                activeView === 'oracle'
+                  ? "bg-white text-slate-900 shadow-md"
+                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+              )}
+            >
+              {activeView === 'oracle' && (
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-violet-500/10" />
+              )}
+              <Target className={cn(
+                "w-4.5 h-4.5 transition-colors",
+                activeView === 'oracle' ? "text-violet-600" : "text-slate-400"
+              )} />
+              <span className="relative">Oracle</span>
+              {activeView === 'oracle' && (
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ========== CONDITIONAL VIEW CONTENT ========== */}
+        {activeView === 'arena' ? (
+          <>
+            {/* ========== ARENA VIEW ========== */}
+            {/* Live Status Bar - Real-time Updates */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 rounded-lg mb-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -1577,6 +2111,198 @@ export default function ArenaClean() {
             </p>
           </div>
         </footer>
+          </>
+        ) : (
+          <>
+            {/* ========== ORACLE VIEW - Compact Professional Layout ========== */}
+            {oracleQuestion ? (
+              <div className="space-y-4">
+                {/* Compact Header Bar with Timer */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-violet-600 via-purple-600 to-violet-700 rounded-xl shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                      <Target className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Oracle Challenge</h2>
+                      <p className="text-xs text-violet-200">Slot {oracleQuestion.slot + 1}/48 • {oracleQuestion.title}</p>
+                    </div>
+                  </div>
+                  <OracleCountdownTimer countdown={oracleCountdown} />
+                </div>
+
+                {/* Main Prediction Card - Full Width */}
+                <OraclePredictionCard
+                  question={oracleQuestion}
+                  selectedOption={oracleSelectedOption}
+                  isLocked={oracleIsLocked}
+                  onSelect={handleOracleSelect}
+                  onLock={handleOracleLock}
+                />
+
+                {/* Today's Progress - Full Width with 48 Slots */}
+                <Card className="bg-white border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="h-1 bg-gradient-to-r from-violet-500 via-purple-500 to-violet-500" />
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Today's Progress</h3>
+                      <div className="flex items-center gap-4">
+                        {/* Legend */}
+                        <div className="hidden sm:flex items-center gap-3 text-[10px]">
+                          <div className="flex items-center gap-1">
+                            <div className="w-2.5 h-2.5 rounded bg-emerald-500" />
+                            <span className="text-slate-500">Win</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2.5 h-2.5 rounded bg-red-500" />
+                            <span className="text-slate-500">Loss</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2.5 h-2.5 rounded bg-violet-500" />
+                            <span className="text-slate-500">Skipped</span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-violet-600 font-semibold">
+                          {oracleTodaysQuestions.filter(q => q.status === 'RESOLVED').length}/48 Completed
+                        </span>
+                      </div>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-4">
+                      <div
+                        className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full transition-all duration-500"
+                        style={{ width: `${(oracleTodaysQuestions.filter(q => q.status === 'RESOLVED').length / 48) * 100}%` }}
+                      />
+                    </div>
+                    {/* All 48 Slot Pills - Grid Layout */}
+                    <div className="grid grid-cols-12 sm:grid-cols-16 md:grid-cols-24 gap-1">
+                      {Array.from({ length: 48 }, (_, i) => {
+                        const q = oracleTodaysQuestions.find(question => question.slot === i);
+                        const prediction = q ? oracleUserPredictions.get(q.id) : null;
+                        const isCurrentSlot = q && oracleQuestion && q.slot === oracleQuestion.slot;
+
+                        // Determine slot color based on prediction status
+                        let slotColor = "bg-slate-100 text-slate-400"; // Default: future/upcoming
+                        let tooltipText = `Slot ${i + 1}`;
+
+                        if (isCurrentSlot) {
+                          slotColor = "bg-violet-600 text-white ring-2 ring-violet-300 ring-offset-1";
+                          tooltipText = `Slot ${i + 1}: Current`;
+                        } else if (q && q.status === 'RESOLVED') {
+                          if (prediction) {
+                            // User made a prediction
+                            if (prediction.isCorrect === true) {
+                              slotColor = "bg-emerald-500 text-white"; // Win
+                              tooltipText = `Slot ${i + 1}: Won +500 QX`;
+                            } else if (prediction.isCorrect === false) {
+                              slotColor = "bg-red-500 text-white"; // Loss
+                              tooltipText = `Slot ${i + 1}: Lost (+100 QX for trying)`;
+                            }
+                          } else {
+                            // User didn't predict - skipped
+                            slotColor = "bg-violet-200 text-violet-600"; // Skipped
+                            tooltipText = `Slot ${i + 1}: Skipped`;
+                          }
+                        } else if (q && (q.status === 'OPEN' || q.status === 'CLOSED')) {
+                          if (prediction) {
+                            slotColor = "bg-amber-100 text-amber-700 ring-1 ring-amber-300"; // Predicted, waiting
+                            tooltipText = `Slot ${i + 1}: Prediction locked`;
+                          } else {
+                            slotColor = "bg-amber-50 text-amber-500"; // Open/Closed, not predicted
+                            tooltipText = `Slot ${i + 1}: ${q.status}`;
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={i}
+                            className={cn(
+                              "aspect-square rounded flex items-center justify-center text-[9px] sm:text-[10px] font-bold transition-all cursor-default",
+                              slotColor
+                            )}
+                            title={tooltipText}
+                          >
+                            {i + 1}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Professional Footer */}
+                <div className="bg-gradient-to-b from-slate-50 to-slate-100 border border-slate-200/80 rounded-xl p-5 mt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Rewards Info */}
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Rewards</h4>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span><strong className="text-emerald-600">500 QX</strong> for correct prediction</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          <span><strong className="text-amber-600">100 QX</strong> for participation</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                          <span><strong className="text-violet-600">50 QX</strong> bonus for 3 consecutive wins</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Token Info */}
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">QX Token</h4>
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-slate-600">
+                          Earn QX tokens by making accurate predictions on Arena agent performance.
+                        </p>
+                        <p className="text-xs font-semibold text-violet-600">
+                          Token listing coming soon
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Disclaimer</h4>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Oracle Challenge is for entertainment purposes only. Past performance does not guarantee future results.
+                        Trade responsibly and never invest more than you can afford to lose.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Bar */}
+                  <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2">
+                    <div className="flex items-center gap-4 text-[10px] text-slate-400">
+                      <span>48 predictions daily</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span>30 min intervals</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span>24/7 operation</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      © 2024 QuantumX Oracle. All rights reserved.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
+                    <Target className="w-8 h-8 text-violet-500" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 mb-1">Loading Predictions...</h2>
+                  <p className="text-sm text-slate-500">Please wait</p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   );
