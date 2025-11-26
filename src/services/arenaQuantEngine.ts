@@ -12,6 +12,8 @@
 
 import { MarketState, marketStateDetectionEngine } from './marketStateDetectionEngine';
 import { strategyMatrix, AgentType, type StrategyProfile } from './strategyMatrix';
+import { arenaCircuitBreaker, CircuitBreakerLevel } from './arenaCircuitBreaker';
+import { arenaSupabaseStorage, type AgentSessionData } from './arenaSupabaseStorage';
 
 // ===================== CONSTANTS =====================
 
@@ -25,6 +27,32 @@ const TRADING_PAIRS = [
   { symbol: 'XRPUSDT', display: 'XRP/USD', tier: 'mid' },
   { symbol: 'DOGEUSDT', display: 'DOGE/USD', tier: 'volatile' }
 ];
+
+// ===================== RISK MANAGEMENT CONSTANTS =====================
+// Based on professional quant firm practices (Citadel/Millennium)
+
+const RISK_LIMITS = {
+  // Position sizing limits
+  MAX_POSITION_PERCENT: 3,      // Max 3% of balance per trade
+  MIN_POSITION_USD: 50,         // Min $50 position
+  MAX_POSITION_USD: 300,        // Max $300 per position
+
+  // Strategy suitability
+  MIN_STRATEGY_SUITABILITY: 60, // Block strategies below 60% suitability
+
+  // Drawdown-scaled position sizing
+  DRAWDOWN_ADJUSTMENTS: [
+    { threshold: 5, multiplier: 0.85 },   // 5% drawdown = 85% size
+    { threshold: 10, multiplier: 0.70 },  // 10% drawdown = 70% size
+    { threshold: 15, multiplier: 0.50 },  // 15% drawdown = 50% size
+    { threshold: 20, multiplier: 0.25 },  // 20% drawdown = 25% size
+    { threshold: 25, multiplier: 0 },     // 25%+ drawdown = halt trading
+  ],
+
+  // Market confidence scaling
+  LOW_CONFIDENCE_THRESHOLD: 70,
+  LOW_CONFIDENCE_SIZE_MULTIPLIER: 0.5,
+};
 
 // ===================== AGENT PROFILES =====================
 
@@ -63,7 +91,7 @@ const AGENT_PROFILES: AgentProfile[] = [
     description: 'Momentum & trend-following specialist',
     followers: 1243,
     primaryRegimes: [MarketState.BULLISH_HIGH_VOL, MarketState.BULLISH_LOW_VOL],
-    tradeIntervalMs: 45000,
+    tradeIntervalMs: 15000,  // Trade every 15 seconds for active trading
     positionSizePercent: 5,
     maxConcurrentTrades: 2,
     baseWinRate: 62,
@@ -82,7 +110,7 @@ const AGENT_PROFILES: AgentProfile[] = [
     description: 'Mean reversion & contrarian specialist',
     followers: 847,
     primaryRegimes: [MarketState.RANGEBOUND, MarketState.BEARISH_LOW_VOL],
-    tradeIntervalMs: 60000,
+    tradeIntervalMs: 20000,  // Trade every 20 seconds for active trading
     positionSizePercent: 4,
     maxConcurrentTrades: 3,
     baseWinRate: 58,
@@ -101,7 +129,7 @@ const AGENT_PROFILES: AgentProfile[] = [
     description: 'Volatility & chaos specialist',
     followers: 2156,
     primaryRegimes: [MarketState.BEARISH_HIGH_VOL, MarketState.BULLISH_HIGH_VOL, MarketState.RANGEBOUND],
-    tradeIntervalMs: 90000,
+    tradeIntervalMs: 25000,  // Trade every 25 seconds for active trading
     positionSizePercent: 3,
     maxConcurrentTrades: 1,
     baseWinRate: 68,
@@ -205,36 +233,16 @@ function generateBaseStats(profile: AgentProfile): {
   pnlPercent: number;
   balance: number;
 } {
-  const launchDate = new Date('2025-01-01').getTime();
-  const now = Date.now();
-  const daysSinceLaunch = Math.floor((now - launchDate) / (24 * 60 * 60 * 1000));
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const hoursToday = (now - todayStart.getTime()) / (60 * 60 * 1000);
-
-  const historicalTrades = daysSinceLaunch * profile.baseTradesPerDay;
-  const todayTrades = Math.floor((hoursToday / 24) * profile.baseTradesPerDay);
-  const totalTrades = historicalTrades + todayTrades;
-
-  const variance = Math.sin(daysSinceLaunch * 0.1) * 3;
-  const effectiveWinRate = (profile.baseWinRate + variance) / 100;
-  const wins = Math.floor(totalTrades * effectiveWinRate);
-  const losses = totalTrades - wins;
-
-  const dailyPnL = profile.basePnLPercent / 30;
-  const pnlVariance = Math.sin(daysSinceLaunch * 0.3) * 0.5;
-  const totalPnLPercent = (daysSinceLaunch * (dailyPnL + pnlVariance)) + (hoursToday / 24 * dailyPnL);
-
+  // RESET: Start fresh with $10,000 per agent ($30,000 total)
+  // Balance grows only from actual trading, not simulated historical data
   const initialBalance = 10000;
-  const balance = initialBalance * (1 + totalPnLPercent / 100);
 
   return {
-    trades: totalTrades,
-    wins,
-    losses,
-    pnlPercent: Math.max(totalPnLPercent, 0.5),
-    balance
+    trades: 0,        // Start with 0 trades - actual trades will be tracked
+    wins: 0,          // Start with 0 wins
+    losses: 0,        // Start with 0 losses
+    pnlPercent: 0,    // Start at 0% - P&L comes from actual trading
+    balance: initialBalance  // Start at exactly $10,000
   };
 }
 
@@ -529,7 +537,8 @@ function generateStrategySignal(
 }
 
 // ===================== PERSISTENCE =====================
-
+// Now using Supabase for production-grade storage (see arenaSupabaseStorage.ts)
+// localStorage keys kept only for migration cleanup
 const STORAGE_KEY_POSITIONS = 'arena_v8_positions';
 const STORAGE_KEY_SESSION = 'arena_v8_session';
 const STORAGE_KEY_STATE = 'arena_v8_state';
@@ -553,14 +562,88 @@ class ArenaQuantEngine {
   private reservedSymbols = new Set<string>();
   // Trade history for accurate 24h metrics
   private tradeHistory: TradeRecord[] = [];
+  // Supabase initialization state
+  private storageInitialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
-    console.log('%c🎯 ARENA QUANT ENGINE V8 - STRATEGY-DRIVEN',
+    console.log('%c🎯 ARENA QUANT ENGINE V8 - STRATEGY-DRIVEN (Supabase Storage)',
       'background: linear-gradient(90deg, #10b981, #3b82f6); color: white; padding: 6px 16px; border-radius: 4px; font-size: 14px; font-weight: bold;');
 
     this.initializeProfiles();
     this.initializeAgents();
-    this.loadPersistedData();
+    // Don't await here - initialization happens in start()
+    this.initPromise = this.initializeStorage();
+  }
+
+  /**
+   * Initialize Supabase storage and load persisted data
+   */
+  private async initializeStorage(): Promise<void> {
+    if (this.storageInitialized) return;
+
+    try {
+      // Initialize Supabase storage
+      await arenaSupabaseStorage.initialize();
+
+      // Load data from Supabase
+      await this.loadPersistedData();
+
+      this.storageInitialized = true;
+      console.log('%c✅ Supabase storage initialized',
+        'background: #10b981; color: white; padding: 2px 8px;');
+
+      // Clean up legacy localStorage data
+      this.cleanupLocalStorage();
+    } catch (error) {
+      console.error('❌ Failed to initialize Supabase storage:', error);
+      // Fallback: try to load from localStorage
+      this.loadFromLocalStorageFallback();
+      this.storageInitialized = true;
+    }
+  }
+
+  /**
+   * Clean up legacy localStorage data after Supabase migration
+   */
+  private cleanupLocalStorage(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEY_POSITIONS);
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      localStorage.removeItem(STORAGE_KEY_STATE);
+      localStorage.removeItem(STORAGE_KEY_TRADE_HISTORY);
+      console.log('🧹 Cleaned up legacy localStorage data');
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
+
+  /**
+   * Fallback to localStorage if Supabase fails
+   */
+  private loadFromLocalStorageFallback(): void {
+    console.warn('⚠️ Using localStorage fallback...');
+    try {
+      const sessionData = localStorage.getItem(STORAGE_KEY_SESSION);
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData);
+        for (const [id, data] of Object.entries(parsed)) {
+          const sessionEntry = data as { trades: number; wins: number; pnl: number; balanceDelta?: number };
+          const rawBalanceDelta = sessionEntry.balanceDelta || 0;
+          const validatedBalanceDelta = arenaSupabaseStorage.validateBalanceDelta(id, rawBalanceDelta);
+
+          this.sessionTrades.set(id, {
+            trades: sessionEntry.trades,
+            wins: sessionEntry.wins,
+            pnl: sessionEntry.pnl,
+            balanceDelta: validatedBalanceDelta
+          });
+        }
+      }
+      this.recalculateStats();
+    } catch (e) {
+      console.error('Failed to load from localStorage fallback:', e);
+    }
   }
 
   private initializeProfiles(): void {
@@ -617,62 +700,72 @@ class ArenaQuantEngine {
     }
   }
 
-  private loadPersistedData(): void {
+  private async loadPersistedData(): Promise<void> {
     try {
-      // Load session trades
-      const sessionData = localStorage.getItem(STORAGE_KEY_SESSION);
-      if (sessionData) {
-        const parsed = JSON.parse(sessionData);
-        for (const [id, data] of Object.entries(parsed)) {
-          const sessionEntry = data as { trades: number; wins: number; pnl: number; balanceDelta?: number };
-          // Ensure balanceDelta exists (for backward compatibility)
-          this.sessionTrades.set(id, {
-            trades: sessionEntry.trades,
-            wins: sessionEntry.wins,
-            pnl: sessionEntry.pnl,
-            balanceDelta: sessionEntry.balanceDelta || 0
-          });
-        }
-        console.log('%c📥 Restored session trades', 'color: #3b82f6');
+      // Load session trades from Supabase with BALANCE VALIDATION
+      const sessions = arenaSupabaseStorage.getAllSessions();
+      for (const [id, data] of sessions) {
+        // CRITICAL: Validate balanceDelta to prevent loading corrupted data
+        const rawBalanceDelta = data.balanceDelta || 0;
+        const validatedBalanceDelta = arenaSupabaseStorage.validateBalanceDelta(id, rawBalanceDelta);
+
+        this.sessionTrades.set(id, {
+          trades: data.trades,
+          wins: data.wins,
+          pnl: data.pnl,
+          balanceDelta: validatedBalanceDelta
+        });
+
+        // Initialize circuit breaker for this agent
+        arenaCircuitBreaker.initializeAgent(id);
       }
 
-      // Load trade history for 24h metrics
-      const historyData = localStorage.getItem(STORAGE_KEY_TRADE_HISTORY);
-      if (historyData) {
-        const allTrades = JSON.parse(historyData) as TradeRecord[];
-        // Filter to only keep trades from last 24 hours
+      if (sessions.size > 0) {
+        console.log('%c📥 Restored session trades from Supabase (validated)', 'color: #3b82f6');
+      }
+
+      // Load trade history from Supabase for 24h metrics
+      const tradeHistoryRecords = await arenaSupabaseStorage.get24hTradeHistory();
+      if (tradeHistoryRecords.length > 0) {
+        // Convert to internal format
         const cutoff = Date.now() - HOURS_24;
-        this.tradeHistory = allTrades.filter(t => t.timestamp >= cutoff);
-        console.log(`%c📥 Restored ${this.tradeHistory.length} trades from last 24h`, 'color: #8b5cf6');
+        this.tradeHistory = tradeHistoryRecords
+          .filter(t => t.timestamp >= cutoff)
+          .map(t => ({
+            agentId: t.agentId,
+            timestamp: t.timestamp,
+            pnlPercent: t.pnlPercent || 0,
+            isWin: t.isWin || false,
+            strategy: t.strategy,
+            symbol: t.symbol
+          }));
+        console.log(`%c📥 Restored ${this.tradeHistory.length} trades from last 24h (Supabase)`, 'color: #8b5cf6');
       }
 
-      // Load active positions
-      const positionsData = localStorage.getItem(STORAGE_KEY_POSITIONS);
-      if (positionsData) {
-        const positions = JSON.parse(positionsData);
-        let restoredCount = 0;
+      // Load active positions from Supabase
+      const positions = arenaSupabaseStorage.getAllPositions();
+      let restoredCount = 0;
 
-        for (const [agentId, position] of Object.entries(positions)) {
-          const agent = this.agents.get(agentId);
-          if (agent && position) {
-            agent.currentPosition = position as QuantPosition;
-            agent.lastTradeTime = (position as QuantPosition).entryTime;
-            agent.activeStrategy = (position as QuantPosition).strategy;
-            restoredCount++;
-            console.log(`  ✅ Restored ${agent.name}'s position: ${(position as QuantPosition).displaySymbol} via ${(position as QuantPosition).strategy}`);
-          }
-        }
-
-        if (restoredCount > 0) {
-          console.log(`%c📥 Restored ${restoredCount} active positions`, 'background: #10b981; color: white; padding: 2px 8px;');
+      for (const [agentId, position] of positions) {
+        const agent = this.agents.get(agentId);
+        if (agent && position) {
+          agent.currentPosition = position;
+          agent.lastTradeTime = position.entryTime;
+          agent.activeStrategy = position.strategy;
+          restoredCount++;
+          console.log(`  ✅ Restored ${agent.name}'s position: ${position.displaySymbol} via ${position.strategy}`);
         }
       }
 
-      // Load last market state
-      const stateData = localStorage.getItem(STORAGE_KEY_STATE);
-      if (stateData) {
-        this.currentMarketState = JSON.parse(stateData).state as MarketState;
-        console.log(`%c📊 Restored market state: ${this.currentMarketState}`, 'color: #8b5cf6');
+      if (restoredCount > 0) {
+        console.log(`%c📥 Restored ${restoredCount} active positions (Supabase)`, 'background: #10b981; color: white; padding: 2px 8px;');
+      }
+
+      // Load last market state from Supabase
+      const marketState = arenaSupabaseStorage.getMarketState();
+      if (marketState) {
+        this.currentMarketState = marketState.state as MarketState;
+        console.log(`%c📊 Restored market state: ${this.currentMarketState} (Supabase)`, 'color: #8b5cf6');
       }
 
       this.recalculateStats();
@@ -683,56 +776,49 @@ class ArenaQuantEngine {
   }
 
   private savePositions(): void {
-    try {
-      const positions: Record<string, QuantPosition | null> = {};
-      this.agents.forEach((agent, id) => {
-        if (agent.currentPosition) {
-          positions[id] = agent.currentPosition;
-        }
-      });
-
-      if (Object.keys(positions).length > 0) {
-        localStorage.setItem(STORAGE_KEY_POSITIONS, JSON.stringify(positions));
+    // Save to Supabase (debounced internally)
+    this.agents.forEach((agent, id) => {
+      if (agent.currentPosition) {
+        arenaSupabaseStorage.savePosition(id, agent.currentPosition);
       } else {
-        localStorage.removeItem(STORAGE_KEY_POSITIONS);
+        // Position closed - delete from storage
+        arenaSupabaseStorage.deletePosition(id);
       }
-    } catch (e) {
-      console.error('Failed to save positions:', e);
-    }
+    });
   }
 
   private saveSession(): void {
-    try {
-      const session: Record<string, { trades: number; wins: number; pnl: number; balanceDelta: number }> = {};
-      this.sessionTrades.forEach((data, id) => {
-        session[id] = data;
+    // Save all session data to Supabase (debounced internally)
+    this.sessionTrades.forEach((data, id) => {
+      arenaSupabaseStorage.saveAgentSession(id, {
+        trades: data.trades,
+        wins: data.wins,
+        pnl: data.pnl,
+        balanceDelta: data.balanceDelta,
+        consecutiveLosses: 0, // Will be updated by circuit breaker
+        circuitBreakerLevel: 'ACTIVE',
+        haltedUntil: null,
+        lastTradeTime: Date.now()
       });
-      localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
-    } catch (e) {
-      console.error('Failed to save session:', e);
-    }
+    });
   }
 
   private saveState(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify({
-        state: this.currentMarketState,
-        timestamp: Date.now()
-      }));
-    } catch (e) {
-      console.error('Failed to save state:', e);
-    }
+    // Save to Supabase (debounced internally)
+    arenaSupabaseStorage.saveMarketState({
+      state: this.currentMarketState,
+      confidence: 50,
+      volatility: 20,
+      trendStrength: 0,
+      timestamp: Date.now()
+    });
   }
 
   private saveTradeHistory(): void {
-    try {
-      // Clean up old trades (keep only last 24h)
-      const cutoff = Date.now() - HOURS_24;
-      this.tradeHistory = this.tradeHistory.filter(t => t.timestamp >= cutoff);
-      localStorage.setItem(STORAGE_KEY_TRADE_HISTORY, JSON.stringify(this.tradeHistory));
-    } catch (e) {
-      console.error('Failed to save trade history:', e);
-    }
+    // Trade history is saved per-trade in closeTrade()
+    // This method just cleans up local memory
+    const cutoff = Date.now() - HOURS_24;
+    this.tradeHistory = this.tradeHistory.filter(t => t.timestamp >= cutoff);
   }
 
   private calculate24hMetrics(): void {
@@ -849,15 +935,41 @@ class ArenaQuantEngine {
       if (agent.currentPosition) continue;
       if (now - agent.lastTradeTime < profile.tradeIntervalMs) continue;
 
-      // Get suitable strategies for current market state
+      // CIRCUIT BREAKER CHECK - Must pass before opening any position
+      const circuitCheck = arenaCircuitBreaker.canAgentTrade(agentId);
+      if (!circuitCheck.allowed) {
+        console.log(`⛔ ${agent.name}: ${circuitCheck.reason}`);
+        continue;
+      }
+
+      // BALANCE VALIDATION - Don't trade if below minimum
+      if (!arenaCircuitBreaker.isBalanceValid(agent.balance)) {
+        console.log(`⛔ ${agent.name}: Balance too low ($${agent.balance.toFixed(2)})`);
+        continue;
+      }
+
+      // DRAWDOWN CHECK - Calculate and apply drawdown-based restrictions
+      const drawdownPercent = ((agent.initialBalance - agent.balance) / agent.initialBalance) * 100;
+      let drawdownMultiplier = 1.0;
+      for (const adj of RISK_LIMITS.DRAWDOWN_ADJUSTMENTS) {
+        if (drawdownPercent >= adj.threshold) {
+          drawdownMultiplier = adj.multiplier;
+        }
+      }
+      if (drawdownMultiplier === 0) {
+        console.log(`⛔ ${agent.name}: Drawdown ${drawdownPercent.toFixed(1)}% - trading halted`);
+        continue;
+      }
+
+      // Get suitable strategies with STRICTER suitability threshold (60% minimum)
       const suitableStrategies = strategyMatrix.getSuitableStrategies(
         this.currentMarketState,
-        50, // Minimum 50% suitability
+        RISK_LIMITS.MIN_STRATEGY_SUITABILITY, // 60% minimum suitability
         profile.type
       );
 
       if (suitableStrategies.length === 0) {
-        console.log(`⏸️ ${agent.name}: No suitable strategies for ${this.currentMarketState}`);
+        console.log(`⏸️ ${agent.name}: No strategies with ${RISK_LIMITS.MIN_STRATEGY_SUITABILITY}%+ suitability for ${this.currentMarketState}`);
         continue;
       }
 
@@ -878,8 +990,11 @@ class ArenaQuantEngine {
       const signal = generateStrategySignal(selectedStrategy.strategy, this.currentMarketState, priceData);
       if (!signal) continue;
 
-      // Open position with multi-confirmation direction
-      this.openStrategyPosition(agent, profile, pair, priceData, selectedStrategy.strategy, signal.direction, signal);
+      // Calculate final position size multiplier (circuit breaker × drawdown)
+      const positionMultiplier = circuitCheck.positionMultiplier * drawdownMultiplier;
+
+      // Open position with multi-confirmation direction and risk-adjusted size
+      this.openStrategyPosition(agent, profile, pair, priceData, selectedStrategy.strategy, signal.direction, signal, positionMultiplier);
     }
   }
 
@@ -890,10 +1005,35 @@ class ArenaQuantEngine {
     priceData: PriceData,
     strategy: StrategyProfile,
     direction: 'LONG' | 'SHORT',
-    signal: StrategySignal
+    signal: StrategySignal,
+    positionMultiplier: number = 1.0
   ): void {
     const entry = priceData.price;
     const isLong = direction === 'LONG';
+
+    // POSITION SIZING WITH ALL SAFEGUARDS
+    // 1. Calculate base position size
+    let notionalValue = agent.balance * (profile.positionSizePercent / 100);
+
+    // 2. Apply position multiplier (circuit breaker × drawdown)
+    notionalValue *= positionMultiplier;
+
+    // 3. Enforce maximum 3% of balance
+    const maxByPercent = agent.balance * (RISK_LIMITS.MAX_POSITION_PERCENT / 100);
+    notionalValue = Math.min(notionalValue, maxByPercent);
+
+    // 4. Enforce absolute min/max limits
+    notionalValue = Math.max(notionalValue, RISK_LIMITS.MIN_POSITION_USD);
+    notionalValue = Math.min(notionalValue, RISK_LIMITS.MAX_POSITION_USD);
+
+    // 5. Calculate final quantity
+    const quantity = notionalValue / entry;
+
+    // Skip if position size is too small
+    if (notionalValue < RISK_LIMITS.MIN_POSITION_USD) {
+      console.log(`⚠️ ${agent.name}: Position size too small ($${notionalValue.toFixed(2)})`);
+      return;
+    }
 
     const position: QuantPosition = {
       id: `${agent.id}-${Date.now()}`,
@@ -902,7 +1042,7 @@ class ArenaQuantEngine {
       direction,
       entryPrice: entry,
       currentPrice: entry,
-      quantity: (agent.balance * (profile.positionSizePercent / 100)) / entry,
+      quantity,
       pnl: 0,
       pnlPercent: 0,
       entryTime: Date.now(),
@@ -939,8 +1079,13 @@ class ArenaQuantEngine {
     if (this.running) return;
     this.running = true;
 
+    // Ensure Supabase storage is initialized before starting
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+
     const totalTrades = Array.from(this.agents.values()).reduce((s, a) => s + a.totalTrades, 0);
-    console.log(`%c▶️ QUANT ENGINE V8 STARTED with ${totalTrades} historical trades`,
+    console.log(`%c▶️ QUANT ENGINE V8 STARTED with ${totalTrades} historical trades (Supabase)`,
       'background: #10b981; color: white; padding: 4px 12px;');
 
     // Initial data fetch
@@ -1083,8 +1228,27 @@ class ArenaQuantEngine {
     const isWin = pnlPercent > 0;
     const profile = this.profiles.get(agent.id);
 
-    // Calculate actual dollar P&L first
-    const pnlDollar = (pnlPercent / 100) * pos.quantity * pos.entryPrice;
+    // Calculate notional value of position
+    const positionNotional = pos.quantity * pos.entryPrice;
+
+    // Calculate raw P&L in dollars
+    const rawPnlDollar = (pnlPercent / 100) * positionNotional;
+
+    // VALIDATE AND CAP P&L - Prevents catastrophic single-trade losses
+    const pnlValidation = arenaCircuitBreaker.validateAndCapPnL(
+      agent.id,
+      rawPnlDollar,
+      positionNotional
+    );
+
+    // Use capped P&L
+    const pnlDollar = pnlValidation.cappedPnL;
+
+    // Log if P&L was capped (indicates risk limit triggered)
+    if (pnlValidation.wasCapped) {
+      console.log(`%c⚠️ P&L CAPPED: ${agent.name} raw=$${rawPnlDollar.toFixed(2)} → capped=$${pnlDollar.toFixed(2)}`,
+        'background: #f59e0b; color: black; padding: 2px 8px;');
+    }
 
     const session = this.sessionTrades.get(agent.id);
     if (session) {
@@ -1094,6 +1258,9 @@ class ArenaQuantEngine {
       // Track actual dollar P&L for accurate balance persistence
       session.balanceDelta += pnlDollar;
     }
+
+    // RECORD WITH CIRCUIT BREAKER - This updates risk state and may trigger protections
+    arenaCircuitBreaker.recordTradeOutcome(agent.id, pnlDollar, pnlPercent, isWin);
 
     agent.totalTrades++;
     if (isWin) {
@@ -1118,7 +1285,7 @@ class ArenaQuantEngine {
     agent.currentPosition = null;
     agent.activeStrategy = null;
 
-    // Record trade to history for 24h metrics
+    // Record trade to history for 24h metrics (local cache)
     this.tradeHistory.push({
       agentId: agent.id,
       timestamp: Date.now(),
@@ -1126,6 +1293,23 @@ class ArenaQuantEngine {
       isWin,
       strategy: closedPos.strategy,
       symbol: closedPos.displaySymbol
+    });
+
+    // Record trade to Supabase for persistence
+    arenaSupabaseStorage.recordTrade({
+      agentId: agent.id,
+      timestamp: Date.now(),
+      symbol: closedPos.symbol,
+      direction: closedPos.direction,
+      entryPrice: closedPos.entryPrice,
+      exitPrice: exitPrice,
+      quantity: closedPos.quantity,
+      pnlPercent,
+      pnlDollar,
+      isWin,
+      strategy: closedPos.strategy,
+      marketState: closedPos.marketStateAtEntry,
+      reason
     });
 
     // Record strategy outcome for intelligent rotation
@@ -1247,6 +1431,92 @@ class ArenaQuantEngine {
       .filter(t => t.timestamp >= cutoff)
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
+  }
+
+  // ===================== RISK MANAGEMENT API =====================
+
+  /**
+   * Get risk dashboard data for UI display
+   */
+  getRiskDashboard() {
+    return arenaCircuitBreaker.getRiskDashboardData();
+  }
+
+  /**
+   * Emergency reset - clears all corrupted state and restores balances
+   * USE WITH CAUTION: This resets everything to initial state
+   */
+  emergencyReset(options: {
+    resetBalances?: boolean;
+    clearHistory?: boolean;
+    resetCircuitBreakers?: boolean;
+  } = { resetBalances: true, clearHistory: true, resetCircuitBreakers: true }): void {
+    console.log('%c EMERGENCY RESET INITIATED',
+      'background: #dc2626; color: white; padding: 6px 16px; font-weight: bold;');
+
+    if (options.resetBalances) {
+      // Reset all agents to initial $10,000
+      for (const profile of AGENT_PROFILES) {
+        const agent = this.agents.get(profile.id);
+        if (agent) {
+          agent.balance = 10000;
+          agent.initialBalance = 10000;
+          agent.totalPnL = 0;
+          agent.totalPnLPercent = 0;
+          agent.currentPosition = null;
+          agent.activeStrategy = null;
+        }
+
+        // Clear session trades
+        this.sessionTrades.set(profile.id, {
+          trades: 0,
+          wins: 0,
+          pnl: 0,
+          balanceDelta: 0
+        });
+      }
+
+      // Clear reserved symbols
+      this.reservedSymbols.clear();
+
+      console.log('  ✅ Balances reset to $10,000 per agent ($30,000 total)');
+    }
+
+    if (options.clearHistory) {
+      // Clear legacy localStorage data
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      localStorage.removeItem(STORAGE_KEY_POSITIONS);
+      localStorage.removeItem(STORAGE_KEY_TRADE_HISTORY);
+      localStorage.removeItem(STORAGE_KEY_STATE);
+
+      // Clear Supabase data (production storage)
+      arenaSupabaseStorage.clearAllData();
+
+      // Clear trade history
+      this.tradeHistory = [];
+
+      console.log('  ✅ Trade history cleared (Supabase + localStorage)');
+    }
+
+    if (options.resetCircuitBreakers) {
+      arenaCircuitBreaker.emergencyReset();
+      console.log('  ✅ Circuit breakers reset');
+    }
+
+    // Save clean state
+    this.saveSession();
+    this.savePositions();
+    this.notify();
+
+    console.log('%c EMERGENCY RESET COMPLETE - System ready for fresh start',
+      'background: #10b981; color: white; padding: 6px 16px; font-weight: bold;');
+  }
+
+  /**
+   * Get circuit breaker status for a specific agent
+   */
+  getAgentRiskState(agentId: string) {
+    return arenaCircuitBreaker.getAgentState(agentId);
   }
 }
 
