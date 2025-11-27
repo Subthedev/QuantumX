@@ -385,7 +385,8 @@ class QXPredictionService {
       const count = distribution[opt.id] || 0;
       const percentage = (count / totalPredictions) * 100;
       // Odds calculation: inverse of probability (higher = less popular = higher payout)
-      const odds = percentage > 0 ? Math.max(1.1, (100 / percentage).toFixed(2) as unknown as number) : 10;
+      // Fixed: Use Math.round instead of toFixed to ensure proper number type
+      const odds = percentage > 0 ? Math.max(1.1, Math.round((100 / percentage) * 100) / 100) : 10;
 
       return {
         ...opt,

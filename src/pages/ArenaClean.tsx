@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Send, TrendingUp, TrendingDown, Activity, Trophy,
-  Flame, Clock, BarChart3, Percent,
+  Flame, Clock, BarChart3, Percent, Coins,
   ArrowUpRight, ArrowDownRight, Radio, Users, CheckCircle2, Wallet,
   Zap, Shield, Target, ExternalLink, DollarSign, AlertTriangle, RefreshCw,
   ChevronDown, ChevronUp, Info, ChevronRight
@@ -22,7 +22,10 @@ import {
 import { useRankedQuantAgents, type QuantAgent, type TradeEvent } from '@/hooks/useQuantAgents';
 import { arenaQuantEngine } from '@/services/arenaQuantEngine';
 import { telegramSignalPublisher } from '@/services/telegramSignalPublisher';
-import { oracleQuestionEngine, type OracleQuestion, type UserStats } from '@/services/oracleQuestionEngine';
+import { oracleQuestionEngine, type OracleQuestion, type UserStats, type LiveHintData, type QuestionTier, type MarketData } from '@/services/oracleQuestionEngine';
+import { useAuth } from '@/hooks/useAuth';
+import { qxPredictionService } from '@/services/qxPredictionService';
+import { qxBalanceService, type QXBalance } from '@/services/qxBalanceService';
 import { cn } from '@/lib/utils';
 import { AgentLogo } from '@/components/ui/agent-logos';
 import { QuantumXLogo } from '@/components/ui/quantumx-logo';
@@ -1275,19 +1278,17 @@ function AgentCard({ agent, rank, flash }: { agent: QuantAgent; rank: number; fl
 // ===================== ORACLE COMPONENTS =====================
 
 function OracleCountdownTimer({ countdown }: { countdown: { hours: number; minutes: number; seconds: number } }) {
+  // Convert hours to total minutes for mm:ss display
+  const totalMinutes = countdown.hours * 60 + countdown.minutes;
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-200/50">
       <div className="flex items-center gap-1.5">
         <Clock className="w-4 h-4 text-violet-500" />
-        <span className="text-xs font-medium text-violet-600 uppercase tracking-wider">Next Slot</span>
+        <span className="text-xs font-medium text-violet-600 uppercase tracking-wider">Next Question</span>
       </div>
       <div className="flex items-center gap-1 font-mono tabular-nums">
         <span className="bg-white px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-violet-100">
-          {String(countdown.hours).padStart(2, '0')}
-        </span>
-        <span className="text-violet-400 font-bold">:</span>
-        <span className="bg-white px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-violet-100">
-          {String(countdown.minutes).padStart(2, '0')}
+          {String(totalMinutes).padStart(2, '0')}
         </span>
         <span className="text-violet-400 font-bold">:</span>
         <span className="bg-white px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 shadow-sm border border-violet-100">
@@ -1304,190 +1305,330 @@ interface OraclePredictionCardProps {
   isLocked: boolean;
   onSelect: (optionId: string) => void;
   onLock: () => void;
+  liveHints?: LiveHintData[];
 }
 
-function OraclePredictionCard({ question, selectedOption, isLocked, onSelect, onLock }: OraclePredictionCardProps) {
+// Tier color configurations - Green, Blue, Purple for visual distinction
+const TIER_COLORS: Record<QuestionTier, { bg: string; text: string; border: string; gradient: string; name: string; slotRange: string; dotColor: string }> = {
+  AGENTIC: {
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    border: 'border-emerald-200',
+    gradient: 'from-emerald-500 to-green-500',
+    name: 'Tier 1: Agentic Trading',
+    slotRange: 'Q1-16',
+    dotColor: 'bg-emerald-500',
+  },
+  MARKET: {
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-200',
+    gradient: 'from-blue-500 to-cyan-500',
+    name: 'Tier 2: Crypto Market',
+    slotRange: 'Q17-32',
+    dotColor: 'bg-blue-500',
+  },
+  AGENTS_VS_MARKET: {
+    bg: 'bg-purple-50',
+    text: 'text-purple-700',
+    border: 'border-purple-200',
+    gradient: 'from-purple-500 to-violet-500',
+    name: 'Tier 3: Agents vs Market',
+    slotRange: 'Q33-48',
+    dotColor: 'bg-purple-500',
+  },
+};
+
+// Live Hint Value Component - Re-renders on every update for real-time data
+// NOTE: Removed React.memo to ensure re-renders when values change
+function LiveHintValue({
+  value,
+  unit,
+  trend,
+  isLive
+}: {
+  value: string | number;
+  unit?: string;
+  trend?: 'up' | 'down' | 'neutral';
+  isLive?: boolean;
+}) {
+  return (
+    <div className={cn(
+      "text-sm font-bold tabular-nums flex items-center gap-1 transition-colors duration-75",
+      trend === 'up' && "text-emerald-600",
+      trend === 'down' && "text-red-500",
+      trend === 'neutral' && "text-slate-700",
+      !trend && "text-slate-800",
+      isLive && "animate-pulse-subtle" // Subtle animation for live values
+    )}>
+      {trend === 'up' && <TrendingUp className="w-3 h-3 text-emerald-500" />}
+      {trend === 'down' && <TrendingDown className="w-3 h-3 text-red-400" />}
+      <span className="font-mono">{value}{unit || ''}</span>
+      {isLive && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse ml-0.5" />}
+    </div>
+  );
+}
+
+// Live Hint Box Component - Stable structure, values update at 1 second
+// Boxes 1-2 are static, Boxes 3-4 update in real-time with live data
+function LiveHintBox({ hints, tier }: { hints: LiveHintData[]; tier: QuestionTier }) {
+  const tierColor = TIER_COLORS[tier];
+
+  return (
+    <div className={cn(
+      "rounded-xl border p-4 mb-5",
+      tierColor.bg,
+      tierColor.border
+    )}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {hints.map((hint, index) => (
+          <div
+            // Use _tick in key for live hints (boxes 3-4) to force React re-render
+            key={hint.isLive ? `${hint.label}-${hint._tick || index}` : hint.label}
+            className={cn(
+              "bg-white/80 rounded-lg px-3 py-2 transition-all duration-150",
+              hint.highlight && "ring-2 ring-offset-1 ring-violet-300",
+              hint.isLive && "bg-gradient-to-br from-white/90 to-emerald-50/80" // Live indicator
+            )}
+          >
+            {/* Label - Static, never changes */}
+            <div className={cn(
+              "text-[10px] font-medium uppercase tracking-wider mb-0.5",
+              hint.isLive ? "text-emerald-600" : "text-slate-400"
+            )}>
+              {hint.label}
+              {hint.isLive && <span className="ml-1 text-emerald-500">●</span>}
+            </div>
+            {/* Value - Live hints update every second */}
+            <LiveHintValue
+              value={hint.value}
+              unit={hint.unit}
+              trend={hint.trend}
+              isLive={hint.isLive}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OraclePredictionCard({ question, selectedOption, isLocked, onSelect, onLock, liveHints }: OraclePredictionCardProps) {
   const canSelect = question.status === 'OPEN' && !isLocked;
   const showResult = question.status === 'RESOLVED';
+  const tierColor = TIER_COLORS[question.tier];
+
+  // Debug: Log render state (throttled to every ~2 seconds)
+  if (Math.random() < 0.125) {
+    console.log('[OraclePredictionCard] Render state:', {
+      questionId: question.id,
+      status: question.status,
+      canSelect,
+      isLocked,
+      hintsCount: liveHints?.length || 0,
+      questionHintsCount: question.liveHints?.length || 0,
+    });
+  }
 
   const statusConfig = {
     UPCOMING: { label: 'Upcoming', bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
-    OPEN: { label: 'Open', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-    CLOSED: { label: 'Closed', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-    RESOLVED: { label: 'Resolved', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
+    OPEN: { label: 'Live', bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
+    CLOSED: { label: 'Locked', bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
+    RESOLVED: { label: 'Resolved', bg: 'bg-indigo-50', text: 'text-indigo-700', dot: 'bg-indigo-500' },
   };
 
   const status = statusConfig[question.status];
+  // Fix: Check array length, not just truthy value (empty array is truthy)
+  const displayHints = (liveHints && liveHints.length > 0) ? liveHints : (question.liveHints || []);
 
   return (
     <Card className="overflow-hidden bg-white border-slate-200/80 shadow-lg hover:shadow-xl transition-all duration-300">
-      {/* Status Bar - Gradient accent */}
-      <div className={cn(
-        "h-1.5",
-        question.status === 'OPEN' && "bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500",
-        question.status === 'CLOSED' && "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500",
-        question.status === 'RESOLVED' && "bg-gradient-to-r from-violet-500 via-purple-500 to-violet-500",
-        question.status === 'UPCOMING' && "bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300"
-      )} />
+      {/* Tier-colored Status Bar */}
+      <div className={cn("h-1.5 bg-gradient-to-r", tierColor.gradient)} />
 
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Slot {question.slot + 1} / 48
-              </span>
-              <Badge className={cn("text-xs border-0 px-2.5 py-1 flex items-center gap-1.5", status.bg, status.text)}>
-                <div className={cn("w-1.5 h-1.5 rounded-full", status.dot, question.status === 'OPEN' && "animate-pulse")} />
+      <div className="p-5 sm:p-6">
+        {/* Question Paper Header - Professional Tier + Slot Layout */}
+        <div className="mb-5">
+          {/* Tier Name - Prominent at Top */}
+          <div className={cn(
+            "text-center pb-3 mb-3 border-b",
+            tierColor.border
+          )}>
+            <span className={cn(
+              "text-sm font-bold uppercase tracking-wider",
+              tierColor.text
+            )}>
+              {tierColor.name}
+            </span>
+          </div>
+
+          {/* Question Number + Status Row */}
+          <div className="flex items-center justify-between">
+            {/* Left: Question Number (1-48) */}
+            <div className="text-slate-600">
+              <span className="text-sm font-medium">Question </span>
+              <span className="text-lg font-bold text-slate-900">{question.slot + 1}</span>
+              <span className="text-sm text-slate-500"> of 48</span>
+            </div>
+
+            {/* Right: Status + Reward */}
+            <div className="flex items-center gap-2">
+              <Badge className={cn("text-xs border-0 px-2 py-1 flex items-center gap-1.5", status.bg, status.text)}>
+                <div className={cn("w-1.5 h-1.5 rounded-full", status.dot)} />
                 {status.label}
               </Badge>
-            </div>
-            <h3 className="text-xl font-bold text-slate-900">{question.title}</h3>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border border-amber-200/50">
-              <Zap className="w-4 h-4 text-amber-500" />
-              <span className="font-bold text-amber-700">{question.baseReward}</span>
-              <span className="text-xs font-semibold text-amber-600">QX</span>
+              <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-200/50">
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span className="font-bold text-sm text-amber-700">{question.baseReward}</span>
+                <span className="text-xs text-amber-600">QX</span>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Title */}
+        <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-3">{question.title}</h3>
 
         {/* Question */}
-        <div className="mb-6">
-          <p className="text-slate-800 font-medium text-base leading-relaxed mb-3">{question.question}</p>
-          <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 border border-slate-200/60 rounded-xl px-4 py-3">
-            <p className="text-sm text-slate-600 leading-relaxed">{question.context}</p>
-          </div>
-        </div>
+        <p className="text-slate-700 font-medium text-base leading-relaxed mb-4">{question.question}</p>
 
-        {/* Options Section */}
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Make Your Prediction
-            </p>
+        {/* Live Hint Box - Real-time updating data */}
+        {/* Always show hint box - use defaults if no live hints available */}
+        <LiveHintBox
+          hints={displayHints.length > 0 ? displayHints : [
+            { label: 'Loading...', value: '---', trend: 'neutral' as const },
+            { label: 'Loading...', value: '---', trend: 'neutral' as const },
+            { label: 'Loading...', value: '---', trend: 'neutral' as const },
+            { label: 'Loading...', value: '---', trend: 'neutral' as const },
+          ]}
+          tier={question.tier}
+        />
+
+        {/* Learning Insight */}
+        {question.learningInsight && (
+          <div className="mb-5 p-3 bg-slate-50 rounded-lg border border-slate-200/60">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-slate-500 leading-relaxed">{question.learningInsight}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Prediction Options - Minimal Design */}
+        <div className="space-y-2.5 mb-5">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Your Prediction</span>
             {canSelect && (
-              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Select below
+              <span className="text-xs text-violet-600 font-medium flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                Tap to select
               </span>
             )}
           </div>
 
-          {question.options.map((option) => {
-            const isSelected = selectedOption === option.id;
-            const isCorrectAnswer = showResult && question.correctAnswer === option.id;
-            const wasSelectedAndWrong = showResult && isLocked && selectedOption === option.id && !isCorrectAnswer;
-            const wasSelectedAndCorrect = showResult && isLocked && selectedOption === option.id && isCorrectAnswer;
+          <div className="grid grid-cols-2 gap-3">
+            {question.options.map((option) => {
+              const isSelected = selectedOption === option.id;
+              const isCorrectAnswer = showResult && question.correctAnswer === option.id;
+              const wasSelectedAndWrong = showResult && isLocked && selectedOption === option.id && !isCorrectAnswer;
+              const wasSelectedAndCorrect = showResult && isLocked && selectedOption === option.id && isCorrectAnswer;
 
-            return (
-              <button
-                key={option.id}
-                onClick={() => canSelect && onSelect(option.id)}
-                disabled={!canSelect}
-                className={cn(
-                  "w-full px-5 py-4 rounded-xl border-2 transition-all duration-200 text-left group",
-                  "flex items-center justify-between",
-                  isCorrectAnswer && "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-400 shadow-sm",
-                  wasSelectedAndWrong && "bg-gradient-to-r from-red-50 to-rose-50 border-red-400",
-                  !showResult && isLocked && isSelected && "bg-gradient-to-r from-violet-50 to-purple-50 border-violet-400 shadow-sm",
-                  !showResult && !isLocked && isSelected && "bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-400 shadow-md ring-2 ring-cyan-200/50",
-                  !isSelected && !isCorrectAnswer && "bg-white border-slate-200 hover:border-slate-300",
-                  canSelect && !isSelected && "hover:bg-slate-50 hover:shadow-sm cursor-pointer",
-                  !canSelect && !isSelected && !isCorrectAnswer && "opacity-60"
-                )}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-2xl">{option.emoji}</span>
-                  <span className={cn(
-                    "font-semibold text-base",
-                    (isSelected || isCorrectAnswer) ? "text-slate-900" : "text-slate-700"
-                  )}>
-                    {option.text}
-                  </span>
-                </div>
-
-                {/* Selection Indicator */}
-                <div className="flex-shrink-0">
-                  {wasSelectedAndCorrect && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => {
+                    if (canSelect) {
+                      console.log('[Oracle] Option selected:', option.id);
+                      onSelect(option.id);
+                    }
+                  }}
+                  disabled={!canSelect}
+                  type="button"
+                  className={cn(
+                    "relative px-4 py-3.5 rounded-xl border-2 transition-all duration-200 text-center select-none",
+                    isCorrectAnswer && "bg-emerald-50 border-emerald-400 shadow-sm",
+                    wasSelectedAndWrong && "bg-red-50 border-red-400",
+                    !showResult && isLocked && isSelected && "bg-violet-50 border-violet-400 shadow-sm",
+                    !showResult && !isLocked && isSelected && "bg-slate-900 border-slate-900 shadow-lg",
+                    !isSelected && !isCorrectAnswer && "bg-white border-slate-200 hover:border-slate-300",
+                    canSelect && !isSelected && "hover:bg-slate-50 hover:shadow-sm cursor-pointer active:scale-[0.98]",
+                    !canSelect && !isSelected && !isCorrectAnswer && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {/* Result indicator */}
+                  {(wasSelectedAndCorrect || (isCorrectAnswer && !isSelected)) && (
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
                     </div>
                   )}
                   {wasSelectedAndWrong && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-sm">
-                      <span className="text-white text-sm font-bold">✕</span>
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shadow-sm">
+                      <span className="text-white text-xs font-bold">✕</span>
                     </div>
                   )}
-                  {isCorrectAnswer && !isSelected && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
-                    </div>
-                  )}
-                  {!showResult && isLocked && isSelected && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
-                    </div>
-                  )}
-                  {!showResult && !isLocked && isSelected && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-4.5 h-4.5 text-white" />
-                    </div>
-                  )}
-                  {!isSelected && !isCorrectAnswer && (
-                    <div className="w-7 h-7 rounded-full border-2 border-slate-300 group-hover:border-slate-400 transition-colors" />
-                  )}
-                </div>
-              </button>
-            );
-          })}
+
+                  <div className={cn(
+                    "text-sm font-semibold",
+                    !showResult && !isLocked && isSelected && "text-white",
+                    (isSelected && isLocked && !showResult) && "text-violet-800",
+                    isCorrectAnswer && "text-emerald-800",
+                    wasSelectedAndWrong && "text-red-800",
+                    (!isSelected && !isCorrectAnswer) && "text-slate-700"
+                  )}>
+                    {option.text.split(' - ')[0]}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button - Minimal */}
         {question.status === 'OPEN' && !isLocked && (
           <Button
             onClick={onLock}
             disabled={!selectedOption}
             className={cn(
-              "w-full h-13 text-base font-semibold rounded-xl transition-all duration-300",
+              "w-full h-12 text-sm font-semibold rounded-xl transition-all duration-300",
               selectedOption
-                ? "bg-gradient-to-r from-violet-600 via-purple-600 to-violet-600 hover:from-violet-500 hover:via-purple-500 hover:to-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40"
-                : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                ? cn("bg-gradient-to-r text-white shadow-lg", tierColor.gradient)
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
             )}
           >
-            {selectedOption ? "Lock My Prediction" : "Select an Option to Continue"}
+            {selectedOption ? "Lock Prediction" : "Select an option above"}
           </Button>
         )}
 
-        {/* Locked State */}
+        {/* Locked State - Compact */}
         {isLocked && !showResult && (
-          <div className="flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-200/50">
-            <CheckCircle2 className="w-5 h-5 text-violet-600" />
-            <span className="font-semibold text-violet-700">Prediction Locked - Awaiting Result</span>
+          <div className="flex items-center justify-center gap-2 py-3 bg-violet-50 rounded-xl border border-violet-200/50">
+            <Clock className="w-4 h-4 text-violet-500" />
+            <span className="text-sm font-medium text-violet-700">Awaiting outcome...</span>
           </div>
         )}
 
-        {/* Result */}
+        {/* Result - Compact */}
         {showResult && (
           <div className={cn(
-            "flex items-center justify-center gap-2.5 py-4 rounded-xl",
+            "flex items-center justify-center gap-2 py-3 rounded-xl",
             question.correctAnswer === selectedOption && isLocked
-              ? "bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/50"
+              ? "bg-emerald-50 border border-emerald-200/50"
               : isLocked
-              ? "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/50"
+              ? "bg-red-50 border border-red-200/50"
               : "bg-slate-50 border border-slate-200/50"
           )}>
             {question.correctAnswer === selectedOption && isLocked ? (
               <>
-                <Trophy className="w-5 h-5 text-emerald-600" />
-                <span className="font-bold text-emerald-700">Correct Prediction!</span>
+                <Trophy className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-emerald-700">+{question.baseReward + 100} QX Earned!</span>
               </>
             ) : isLocked ? (
-              <span className="font-medium text-red-600">Incorrect - Better luck next time</span>
+              <>
+                <span className="text-sm font-medium text-red-600">Incorrect</span>
+                <span className="text-xs text-red-400">+100 QX (participation)</span>
+              </>
             ) : (
-              <span className="font-medium text-slate-500">No prediction made</span>
+              <span className="text-sm text-slate-500">No prediction made</span>
             )}
           </div>
         )}
@@ -1557,9 +1698,13 @@ function OracleTodaysQuestions({ questions, currentSlot }: { questions: OracleQu
 // ===================== MAIN COMPONENT =====================
 export default function ArenaClean() {
   const { agents, stats, loading, lastUpdate } = useRankedQuantAgents(500);
+  const { user } = useAuth(); // Get current user for Supabase persistence
   const [pnlFlash, setPnlFlash] = useState<Record<string, 'up' | 'down' | null>>({});
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState(0);
   const prevPnLRef = useRef<Record<string, number>>({});
+
+  // Supabase QX balance for logged-in users
+  const [qxBalance, setQxBalance] = useState<QXBalance | null>(null);
 
   // View state - Arena or Oracle
   const [activeView, setActiveView] = useState<ActiveView>('arena');
@@ -1570,13 +1715,16 @@ export default function ArenaClean() {
   const [oracleSelectedOption, setOracleSelectedOption] = useState<string | null>(null);
   const [oracleIsLocked, setOracleIsLocked] = useState(false);
   const [oracleCountdown, setOracleCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [oracleLiveHints, setOracleLiveHints] = useState<LiveHintData[]>([]);
   const currentQuestionIdRef = useRef<string | null>(null);
+  const lastStatusRef = useRef<string | null>(null); // Track status changes without triggering effect re-runs
 
   // Oracle user stats - calculated from localStorage predictions
   const [oracleUserStats, setOracleUserStats] = useState<UserStats>({
     totalQXEarned: 0,
     totalPredictions: 0,
     correctPredictions: 0,
+    resolvedPredictions: 0,
     currentStreak: 0,
     bestStreak: 0,
     accuracy: 0,
@@ -1584,6 +1732,50 @@ export default function ArenaClean() {
 
   // Oracle user predictions - track all predictions for slot colors
   const [oracleUserPredictions, setOracleUserPredictions] = useState<Map<string, { selectedOption: string; isCorrect: boolean | null }>>(new Map());
+
+  // Real-time market data (1 second updates) - kept for potential future use
+  const [oracleMarketData, setOracleMarketData] = useState<MarketData>({
+    btcPrice: 97500,
+    btcChange24h: 1.25,
+    ethPrice: 3705,
+    marketCap: 3.45,
+    dominance: 54.2,
+    fearGreedIndex: 62,
+    volume24h: 125,
+  });
+
+  // Subscribe to real-time market data updates (1 second)
+  useEffect(() => {
+    if (activeView !== 'oracle') return;
+
+    const unsubscribe = oracleQuestionEngine.onMarketDataUpdate((data) => {
+      setOracleMarketData(data);
+    });
+
+    return () => unsubscribe();
+  }, [activeView]);
+
+  // Load QX balance from Supabase when user logs in
+  useEffect(() => {
+    if (!user?.id) {
+      setQxBalance(null);
+      return;
+    }
+
+    const loadBalance = async () => {
+      try {
+        const balance = await qxBalanceService.getBalance(user.id);
+        if (balance) {
+          setQxBalance(balance);
+          console.log('[Oracle] Loaded QX balance from Supabase:', balance.balance);
+        }
+      } catch (err) {
+        console.error('[Oracle] Failed to load QX balance:', err);
+      }
+    };
+
+    loadBalance();
+  }, [user?.id]);
 
   // Update seconds counter
   useEffect(() => {
@@ -1626,10 +1818,12 @@ export default function ArenaClean() {
   }, []);
 
   // Oracle data management - with proper timer sync and slot change detection
+  // IMPORTANT: Empty deps [] - runs once on mount only to prevent infinite loops
   useEffect(() => {
+    console.log('[Oracle] Starting engine (mount only - no deps)');
     oracleQuestionEngine.start();
 
-    // Track last known slot for change detection
+    // Track last known slot for change detection (local to effect)
     let lastKnownSlot = oracleQuestionEngine.getCurrentSlot();
 
     const updateOracleData = () => {
@@ -1642,12 +1836,12 @@ export default function ArenaClean() {
         lastKnownSlot = currentSlot;
       }
 
-      // Get current question (now uses time-based slot calculation)
+      // Get current question (returns a clone from engine)
       const current = oracleQuestionEngine.getCurrentQuestion();
       const todays = oracleQuestionEngine.getTodaysQuestions();
       const countdown = oracleQuestionEngine.getTimeUntilNextSlot();
 
-      // Update countdown always
+      // Update countdown always (lightweight state)
       setOracleCountdown(countdown);
 
       // Update questions list
@@ -1658,47 +1852,81 @@ export default function ArenaClean() {
       setOracleUserStats(stats);
 
       // Update user predictions map for slot colors
+      // CRITICAL FIX: Use persisted isCorrect from prediction, not calculated from question
       const allPredictions = oracleQuestionEngine.getAllUserPredictions();
       const predictionsMap = new Map<string, { selectedOption: string; isCorrect: boolean | null }>();
       allPredictions.forEach(({ prediction, question }) => {
         if (question) {
-          const isCorrect = question.status === 'RESOLVED' && question.correctAnswer
-            ? prediction.selectedOption === question.correctAnswer
-            : null; // null means not yet resolved
+          // Use persisted isCorrect from localStorage (survives refresh)
+          // Only fall back to calculation if prediction.isCorrect is undefined
+          let isCorrect: boolean | null = null;
+          if (prediction.isCorrect !== undefined && prediction.isCorrect !== null) {
+            isCorrect = prediction.isCorrect;
+          } else if (question.status === 'RESOLVED' && question.correctAnswer) {
+            isCorrect = prediction.selectedOption === question.correctAnswer;
+          }
           predictionsMap.set(question.id, { selectedOption: prediction.selectedOption, isCorrect });
         }
       });
       setOracleUserPredictions(predictionsMap);
 
-      // Detect question change (slot change OR status change)
+      // Update question state when there's an actual change
       if (current) {
         const questionChanged = current.id !== currentQuestionIdRef.current;
-        const statusChanged = oracleQuestion && current.status !== oracleQuestion.status;
+        const statusChanged = lastStatusRef.current !== null && current.status !== lastStatusRef.current;
 
-        if (questionChanged || statusChanged || slotChanged) {
+        // Debug: Log status changes
+        if (statusChanged) {
+          console.log('[Oracle] 📊 STATUS CHANGED:', {
+            from: lastStatusRef.current,
+            to: current.status,
+            questionId: current.id,
+            canSelectNow: current.status === 'OPEN',
+          });
+        }
+
+        // Update state only when question or status changes, or on initial load
+        if (questionChanged || statusChanged || !currentQuestionIdRef.current) {
+          // Debug logging
+          if (questionChanged) {
+            console.log('[Oracle] 🔄 QUESTION CHANGED:', {
+              from: currentQuestionIdRef.current,
+              to: current.id,
+              status: current.status,
+              title: current.title,
+            });
+          }
+
+          // Update refs FIRST
           currentQuestionIdRef.current = current.id;
+          lastStatusRef.current = current.status;
+
+          // Then update state (triggers re-render)
           setOracleQuestion(current);
 
           // Reset prediction state for new question
-          const savedPrediction = oracleQuestionEngine.getUserPrediction(current.id);
-          if (savedPrediction) {
-            setOracleSelectedOption(savedPrediction.selectedOption);
-            setOracleIsLocked(true);
-          } else {
-            setOracleSelectedOption(null);
-            setOracleIsLocked(false);
+          if (questionChanged || !currentQuestionIdRef.current) {
+            const savedPrediction = oracleQuestionEngine.getUserPrediction(current.id);
+            if (savedPrediction) {
+              setOracleSelectedOption(savedPrediction.selectedOption);
+              setOracleIsLocked(true);
+              console.log('[Oracle] Restored saved prediction:', savedPrediction.selectedOption);
+            } else {
+              setOracleSelectedOption(null);
+              setOracleIsLocked(false);
+            }
           }
-
-          console.log('[Oracle] Question updated:', current.id, current.status, current.title);
-        } else if (!oracleQuestion) {
-          // Initial load
-          setOracleQuestion(current);
-          currentQuestionIdRef.current = current.id;
         }
-      } else if (!current && oracleQuestion) {
-        // No current question available
+
+        // Always update live hints (lightweight)
+        if (current.liveHints && current.liveHints.length > 0) {
+          setOracleLiveHints(current.liveHints);
+        }
+      } else if (!current && currentQuestionIdRef.current) {
+        console.log('[Oracle] No question available - clearing state');
         setOracleQuestion(null);
         currentQuestionIdRef.current = null;
+        lastStatusRef.current = null;
       }
     };
 
@@ -1706,8 +1934,27 @@ export default function ArenaClean() {
     updateOracleData();
 
     // Register for slot change callbacks for immediate updates
-    const unsubscribe = oracleQuestionEngine.onSlotChange((newSlot) => {
+    const unsubscribeSlot = oracleQuestionEngine.onSlotChange((newSlot) => {
       console.log('[Arena Oracle] Slot change callback triggered:', newSlot);
+      updateOracleData();
+    });
+
+    // Register for live hint updates (real-time data updates every second)
+    const unsubscribeHints = oracleQuestionEngine.onLiveHintUpdate((questionId, hints) => {
+      if (currentQuestionIdRef.current === questionId && hints && hints.length > 0) {
+        setOracleLiveHints(hints);
+      }
+    });
+
+    // Register for day change events
+    const unsubscribeDayChange = oracleQuestionEngine.onDayChange(() => {
+      console.log('[Arena Oracle] Day changed - resetting UI state');
+      currentQuestionIdRef.current = null;
+      lastStatusRef.current = null;
+      setOracleQuestion(null);
+      setOracleSelectedOption(null);
+      setOracleIsLocked(false);
+      setOracleLiveHints([]);
       updateOracleData();
     });
 
@@ -1715,24 +1962,70 @@ export default function ArenaClean() {
     const interval = setInterval(updateOracleData, 250);
 
     return () => {
+      console.log('[Oracle] Stopping engine (unmount)');
       clearInterval(interval);
-      unsubscribe();
+      unsubscribeSlot();
+      unsubscribeHints();
+      unsubscribeDayChange();
       oracleQuestionEngine.stop();
     };
-  }, [oracleQuestion]);
+  }, []); // EMPTY DEPS - runs once on mount only
 
   // Oracle handlers
   const handleOracleSelect = (optionId: string) => {
+    console.log('[Oracle] 🎯 handleOracleSelect called:', {
+      optionId,
+      isLocked: oracleIsLocked,
+      questionStatus: oracleQuestion?.status,
+      questionId: oracleQuestion?.id,
+      canSelect: !oracleIsLocked && oracleQuestion?.status === 'OPEN',
+    });
+
     if (!oracleIsLocked && oracleQuestion?.status === 'OPEN') {
+      console.log('[Oracle] ✅ Selection allowed - updating state');
       setOracleSelectedOption(optionId);
+    } else {
+      console.log('[Oracle] ❌ Selection blocked:', {
+        reason: oracleIsLocked ? 'Already locked' : `Status is ${oracleQuestion?.status}, not OPEN`,
+      });
     }
   };
 
-  const handleOracleLock = () => {
+  const handleOracleLock = async () => {
     if (!oracleSelectedOption || !oracleQuestion || oracleQuestion.status !== 'OPEN') return;
+
+    // Save to localStorage (always works, instant feedback)
     const result = oracleQuestionEngine.makePrediction(oracleQuestion.id, oracleSelectedOption);
+
     if (result.success) {
       setOracleIsLocked(true);
+
+      // Immediately update user stats for responsive UI (cards update instantly)
+      const updatedStats = oracleQuestionEngine.getUserStats();
+      setOracleUserStats(updatedStats);
+
+      // Also save to Supabase for logged-in users (persistence across devices)
+      if (user?.id) {
+        try {
+          const supabaseResult = await qxPredictionService.makePrediction(
+            user.id,
+            oracleQuestion.id,
+            oracleSelectedOption
+          );
+          if (supabaseResult.success) {
+            console.log('[Oracle] Prediction saved to Supabase:', {
+              questionId: oracleQuestion.id,
+              option: oracleSelectedOption,
+              isEarlyBird: supabaseResult.isEarlyBird,
+            });
+            // Refresh QX balance from Supabase
+            const newBalance = await qxBalanceService.getBalance(user.id);
+            if (newBalance) setQxBalance(newBalance);
+          }
+        } catch (err) {
+          console.error('[Oracle] Failed to save to Supabase (localStorage still saved):', err);
+        }
+      }
     }
   };
 
@@ -1760,7 +2053,7 @@ export default function ArenaClean() {
       {/* Live Activity Feed - Shows REAL trades only */}
       <LiveActivityFeed />
 
-      {/* Header - Professional Design */}
+      {/* Header - Professional Design with Integrated Switcher */}
       <header className="border-b border-slate-200/80 bg-white/98 backdrop-blur-md sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
@@ -1768,27 +2061,77 @@ export default function ArenaClean() {
             <div className="flex items-center gap-3">
               {/* QuantumX Logo - SVG */}
               <div className="relative">
-                <QuantumXLogo size={44} className="rounded-xl" />
-                {/* Pulse indicator */}
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm">
-                  <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping" />
+                <QuantumXLogo size={40} className="rounded-xl" />
+                {/* Pulse indicator - color changes based on active view */}
+                <div className={cn(
+                  "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm transition-colors duration-300",
+                  activeView === 'arena' ? "bg-emerald-500" : "bg-violet-500"
+                )}>
+                  <div className={cn(
+                    "absolute inset-0 rounded-full animate-ping transition-colors duration-300",
+                    activeView === 'arena' ? "bg-emerald-400" : "bg-violet-400"
+                  )} />
                 </div>
               </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent">
-                    QuantumX
-                  </h1>
-                  <Badge className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-[9px] px-1.5 py-0.5 font-semibold border-0">
-                    ARENA
-                  </Badge>
-                </div>
-                <p className="text-[10px] text-slate-500 font-medium tracking-wide">Autonomous AI Trading Engine</p>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent">
+                  QuantumX
+                </h1>
+                <p className="text-[9px] text-slate-500 font-medium tracking-wide">Autonomous AI Engine</p>
+              </div>
+            </div>
+
+            {/* Center - Smooth Tab Switcher */}
+            <div className="flex items-center">
+              <div className="inline-flex items-center p-1 bg-slate-100/90 backdrop-blur rounded-xl border border-slate-200/60">
+                <button
+                  onClick={() => setActiveView('arena')}
+                  className={cn(
+                    "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
+                    activeView === 'arena'
+                      ? "bg-white text-slate-900 shadow-md"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  {activeView === 'arena' && (
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10 transition-opacity duration-300" />
+                  )}
+                  <BarChart3 className={cn(
+                    "w-4 h-4 transition-colors duration-300",
+                    activeView === 'arena' ? "text-emerald-600" : "text-slate-400"
+                  )} />
+                  <span className="relative hidden sm:inline">Arena</span>
+                  {activeView === 'arena' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveView('oracle')}
+                  className={cn(
+                    "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
+                    activeView === 'oracle'
+                      ? "bg-white text-slate-900 shadow-md"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  {activeView === 'oracle' && (
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-violet-500/10 transition-opacity duration-300" />
+                  )}
+                  <Target className={cn(
+                    "w-4 h-4 transition-colors duration-300",
+                    activeView === 'oracle' ? "text-violet-600" : "text-slate-400"
+                  )} />
+                  <span className="relative hidden sm:inline">Oracle</span>
+                  {activeView === 'oracle' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                  )}
+                </button>
               </div>
             </div>
 
             {/* Right Side - Status */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
                 <LiveClock />
               </div>
@@ -1838,92 +2181,44 @@ export default function ArenaClean() {
             </>
           ) : (
             <>
-              {/* Oracle Metrics - QX Specific */}
+              {/* Oracle QX Metrics - Purple theme, updates when prediction outcomes are achieved */}
               <MetricCard
                 label="Total QX Earned"
-                value={<span className="flex items-center gap-1"><AnimatedNumber value={oracleUserStats.totalQXEarned} decimals={0} /></span>}
-                icon={Flame}
-                valueColor={oracleUserStats.totalQXEarned > 0 ? 'green' : undefined}
-                subValue="QX tokens earned"
+                value={<span className="flex items-center gap-1 font-mono text-violet-600"><AnimatedNumber value={qxBalance?.balance || oracleUserStats.totalQXEarned} decimals={0} /></span>}
+                icon={Coins}
+                valueColor="violet"
+                trend={(qxBalance?.balance || oracleUserStats.totalQXEarned) > 0 ? 'up' : undefined}
+                subValue={`${oracleUserStats.correctPredictions} correct predictions`}
                 accentColor="violet"
               />
               <MetricCard
                 label="Accuracy"
-                value={<AnimatedNumber value={oracleUserStats.accuracy} decimals={1} suffix="%" />}
+                value={<span className="font-mono text-violet-600"><AnimatedNumber value={oracleUserStats.accuracy} decimals={1} suffix="%" /></span>}
                 icon={Target}
-                valueColor={oracleUserStats.accuracy >= 50 ? 'green' : oracleUserStats.accuracy > 0 ? 'red' : undefined}
-                trend={oracleUserStats.accuracy >= 50 ? 'up' : undefined}
-                subValue={`${oracleUserStats.correctPredictions}/${oracleUserStats.totalPredictions} correct`}
+                valueColor="violet"
+                trend={oracleUserStats.accuracy >= 60 ? 'up' : oracleUserStats.accuracy < 40 ? 'down' : undefined}
+                subValue={oracleUserStats.resolvedPredictions > 0 ? `${oracleUserStats.correctPredictions}/${oracleUserStats.resolvedPredictions} resolved` : `${oracleUserStats.totalPredictions} pending`}
                 accentColor="violet"
               />
               <MetricCard
                 label="Current Streak"
-                value={<span>{oracleUserStats.currentStreak}</span>}
-                icon={Zap}
-                valueColor={oracleUserStats.currentStreak > 0 ? 'green' : undefined}
-                subValue={`Best: ${oracleUserStats.bestStreak}`}
+                value={<span className="font-mono flex items-center gap-1 text-violet-600"><Flame className="w-4 h-4 text-orange-500" />{oracleUserStats.currentStreak}</span>}
+                icon={Activity}
+                valueColor="violet"
+                trend={oracleUserStats.currentStreak >= 3 ? 'up' : undefined}
+                subValue={`Best: ${oracleUserStats.bestStreak} streak`}
                 accentColor="violet"
               />
               <MetricCard
-                label="Predictions"
-                value={<span>{oracleUserStats.totalPredictions}</span>}
+                label="Total Predictions"
+                value={<span className="font-mono text-violet-600">{oracleUserStats.totalPredictions}</span>}
                 icon={BarChart3}
-                subValue={`Today: ${oracleTodaysQuestions.filter(q => q.status === 'RESOLVED').length} resolved`}
+                valueColor="violet"
+                subValue={oracleTodaysQuestions.length > 0 ? `${oracleTodaysQuestions.filter(q => q.status === 'OPEN').length} active today` : 'Start predicting!'}
                 accentColor="violet"
               />
             </>
           )}
-        </div>
-
-        {/* ========== VIEW SWITCHER - Professional Tab Design ========== */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center p-1.5 bg-slate-100/80 backdrop-blur rounded-2xl border border-slate-200/60 shadow-sm">
-            <button
-              onClick={() => setActiveView('arena')}
-              className={cn(
-                "relative flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
-                activeView === 'arena'
-                  ? "bg-white text-slate-900 shadow-md"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-              )}
-            >
-              {activeView === 'arena' && (
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10" />
-              )}
-              <BarChart3 className={cn(
-                "w-4.5 h-4.5 transition-colors",
-                activeView === 'arena' ? "text-emerald-600" : "text-slate-400"
-              )} />
-              <span className="relative">Arena</span>
-              {activeView === 'arena' && (
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              )}
-            </button>
-
-            <div className="w-px h-6 bg-slate-300/60 mx-1" />
-
-            <button
-              onClick={() => setActiveView('oracle')}
-              className={cn(
-                "relative flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
-                activeView === 'oracle'
-                  ? "bg-white text-slate-900 shadow-md"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-              )}
-            >
-              {activeView === 'oracle' && (
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-violet-500/10" />
-              )}
-              <Target className={cn(
-                "w-4.5 h-4.5 transition-colors",
-                activeView === 'oracle' ? "text-violet-600" : "text-slate-400"
-              )} />
-              <span className="relative">Oracle</span>
-              {activeView === 'oracle' && (
-                <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-              )}
-            </button>
-          </div>
         </div>
 
         {/* ========== CONDITIONAL VIEW CONTENT ========== */}
@@ -2062,50 +2357,9 @@ export default function ArenaClean() {
           </p>
         </div>
 
-        {/* Professional Footer */}
-        <footer className="mt-8 pt-8 border-t border-slate-200">
-          {/* Stats Row */}
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 mb-6">
-            <div className="text-center">
-              <div className="text-lg font-bold text-slate-900">$30,000</div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Initial Capital</div>
-            </div>
-            <div className="h-8 w-px bg-slate-200 hidden sm:block" />
-            <div className="text-center">
-              <div className="text-lg font-bold text-slate-900">3</div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider">AI Agents</div>
-            </div>
-            <div className="h-8 w-px bg-slate-200 hidden sm:block" />
-            <div className="text-center">
-              <div className="text-lg font-bold text-emerald-600">99.9%</div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Uptime</div>
-            </div>
-            <div className="h-8 w-px bg-slate-200 hidden sm:block" />
-            <div className="text-center">
-              <div className="text-lg font-bold text-slate-900">24/7</div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Trading</div>
-            </div>
-          </div>
-
-          {/* Branding */}
-          <div className="flex flex-col items-center gap-3 py-4 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <QuantumXLogo size={28} className="rounded-lg" />
-              <span className="font-bold text-slate-700">QuantumX</span>
-              <span className="text-slate-400">by</span>
-              <span className="font-semibold text-slate-600">IgniteX</span>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-slate-400">
-              <span>Autonomous Trading</span>
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
-              <span>Educational Only</span>
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
-              <span>Not Financial Advice</span>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="text-center py-4 border-t border-slate-100">
+        {/* Footer - Copyright Only */}
+        <footer className="mt-8 pt-6 border-t border-slate-200">
+          <div className="text-center py-4">
             <p className="text-[11px] text-slate-400">
               &copy; {new Date().getFullYear()} QuantumX Arena. All trading involves risk. Past performance does not guarantee future results.
             </p>
@@ -2125,7 +2379,7 @@ export default function ArenaClean() {
                     </div>
                     <div>
                       <h2 className="text-lg font-bold text-white">Oracle Challenge</h2>
-                      <p className="text-xs text-violet-200">Slot {oracleQuestion.slot + 1}/48 • {oracleQuestion.title}</p>
+                      <p className="text-xs text-violet-200">Question {oracleQuestion.slot + 1}/48 • {oracleQuestion.title}</p>
                     </div>
                   </div>
                   <OracleCountdownTimer countdown={oracleCountdown} />
@@ -2138,6 +2392,7 @@ export default function ArenaClean() {
                   isLocked={oracleIsLocked}
                   onSelect={handleOracleSelect}
                   onLock={handleOracleLock}
+                  liveHints={oracleLiveHints}
                 />
 
                 {/* Today's Progress - Full Width with 48 Slots */}
@@ -2232,22 +2487,41 @@ export default function ArenaClean() {
 
                 {/* Professional Footer */}
                 <div className="bg-gradient-to-b from-slate-50 to-slate-100 border border-slate-200/80 rounded-xl p-5 mt-2">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {/* Rewards Info */}
                     <div>
                       <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Rewards</h4>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span><strong className="text-emerald-600">500 QX</strong> for correct prediction</span>
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-600" />
+                          <span><strong className="text-violet-600">500 QX</strong> correct prediction</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          <span><strong className="text-amber-600">100 QX</strong> for participation</span>
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-600" />
+                          <span><strong className="text-violet-600">100 QX</strong> participation</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-600">
-                          <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                          <span><strong className="text-violet-600">50 QX</strong> bonus for 3 consecutive wins</span>
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-600" />
+                          <span><strong className="text-violet-600">50 QX</strong> streak bonus</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progressive Tiers Info - Green, Blue, Purple */}
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Daily Tiers</h4>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span><strong className="text-emerald-700">Q1-16</strong> Agentic Trading</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span><strong className="text-blue-700">Q17-32</strong> Crypto Market</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <div className="w-2 h-2 rounded-full bg-purple-500" />
+                          <span><strong className="text-purple-700">Q33-48</strong> Agents vs Market</span>
                         </div>
                       </div>
                     </div>
@@ -2257,7 +2531,7 @@ export default function ArenaClean() {
                       <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">QX Token</h4>
                       <div className="space-y-1.5">
                         <p className="text-xs text-slate-600">
-                          Earn QX tokens by making accurate predictions on Arena agent performance.
+                          Earn QX by predicting agent and market outcomes.
                         </p>
                         <p className="text-xs font-semibold text-violet-600">
                           Token listing coming soon
@@ -2269,8 +2543,7 @@ export default function ArenaClean() {
                     <div>
                       <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">Disclaimer</h4>
                       <p className="text-[11px] text-slate-500 leading-relaxed">
-                        Oracle Challenge is for entertainment purposes only. Past performance does not guarantee future results.
-                        Trade responsibly and never invest more than you can afford to lose.
+                        For entertainment only. Past performance doesn't guarantee future results.
                       </p>
                     </div>
                   </div>
@@ -2278,7 +2551,7 @@ export default function ArenaClean() {
                   {/* Bottom Bar */}
                   <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2">
                     <div className="flex items-center gap-4 text-[10px] text-slate-400">
-                      <span>48 predictions daily</span>
+                      <span>48 questions daily</span>
                       <span className="hidden sm:inline">•</span>
                       <span>30 min intervals</span>
                       <span className="hidden sm:inline">•</span>
