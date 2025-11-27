@@ -14,92 +14,45 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
-    // PWA Service Worker for offline support and caching
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'favicon.webp', '*.webp'],
-      manifest: {
-        name: 'IgniteX - AI Crypto Trading Signals',
-        short_name: 'IgniteX',
-        description: 'Professional AI-powered cryptocurrency trading signals and market analysis',
-        theme_color: '#FF5F6D',
-        background_color: '#0B0C10',
-        display: 'standalone',
-        orientation: 'portrait-primary',
-        start_url: '/',
-        scope: '/',
-        categories: ['finance', 'productivity', 'business'],
-        screenshots: [],
-        icons: [
-          {
-            src: '/favicon.webp',
-            sizes: '192x192',
-            type: 'image/webp',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/favicon.webp',
-            sizes: '512x512',
-            type: 'image/webp',
-            purpose: 'any maskable'
-          }
-        ],
-        share_target: {
-          action: '/share',
-          method: 'POST',
-          enctype: 'multipart/form-data',
-          params: {
-            title: 'title',
-            text: 'text',
-            url: 'url'
-          }
-        }
-      },
-      devOptions: {
-        enabled: true
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,webp,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/api\.coingecko\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'coingecko-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 5, // 5 minutes
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 2, // 2 minutes
-              },
-            },
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|webp|gif)$/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-              },
-            },
-          },
-        ],
-      },
-    }),
+    // PWA temporarily disabled for Vercel build compatibility
+    // Will re-enable after fixing tsconfig.app.json path resolution
+    // VitePWA({
+    //   registerType: 'autoUpdate',
+    //   includeAssets: ['favicon.svg', 'favicon.webp', '*.webp'],
+    //   manifest: {
+    //     name: 'QuantumX Oracle Challenge',
+    //     short_name: 'QuantumX',
+    //     description: 'AI-Powered Crypto Prediction Market - Make predictions, earn QX tokens',
+    //     theme_color: '#8B5CF6',
+    //     background_color: '#0B0C10',
+    //     display: 'standalone',
+    //     orientation: 'portrait-primary',
+    //     start_url: '/',
+    //     scope: '/',
+    //     categories: ['finance', 'productivity', 'business'],
+    //     screenshots: [],
+    //     icons: [
+    //       {
+    //         src: '/favicon.webp',
+    //         sizes: '192x192',
+    //         type: 'image/webp',
+    //         purpose: 'any maskable'
+    //       },
+    //       {
+    //         src: '/favicon.webp',
+    //         sizes: '512x512',
+    //         type: 'image/webp',
+    //         purpose: 'any maskable'
+    //       }
+    //     ],
+    //   },
+    //   devOptions: {
+    //     enabled: false
+    //   },
+    //   workbox: {
+    //     globPatterns: ['**/*.{js,css,html,webp,svg,woff2}'],
+    //   },
+    // }),
     // Add Brotli and Gzip compression for production
     mode === 'production' && compression({
       algorithms: ['brotliCompress'],
