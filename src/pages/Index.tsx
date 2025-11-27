@@ -18,9 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Clock, Trophy, Zap, Target, Users, TrendingUp, Gift,
-  ChevronRight, Star, Flame, Crown, AlertCircle, CheckCircle2,
-  XCircle, Timer, Coins, Award, BarChart3, Bot, Sparkles
+  Clock, Trophy, Zap, Target, Users,
+  Gift, Star, Flame, CheckCircle2,
+  XCircle, Timer, Coins, Bot, Sparkles
 } from 'lucide-react';
 import type { QXQuestion } from '@/services/qxQuestionService';
 
@@ -110,7 +110,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
 
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          {question.options.map((option) => {
+          {(question.options || []).map((option) => {
             const isSelected = selectedOption === option.id;
             const isPredicted = userPrediction?.selectedOption === option.id;
             const isCorrectAnswer = question.correctAnswer === option.id;
@@ -147,7 +147,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
           <div className="flex items-center gap-4 text-sm text-slate-400">
             <span className="flex items-center gap-1">
               <Users className="w-4 h-4" />
-              {question.totalPredictions} predictions
+              {question.totalPredictions || 0} predictions
             </span>
             {question.status === 'OPEN' && (
               <span className="flex items-center gap-1 text-amber-400">
@@ -191,11 +191,11 @@ const Index: React.FC = () => {
     balance,
     userStats,
     userRank,
-    activeQuestions,
-    resolvedQuestions,
-    leaderboard,
-    globalStats,
-    countdown,
+    activeQuestions = [],
+    resolvedQuestions = [],
+    leaderboard = [],
+    globalStats = { totalUsers: 0, totalQXDistributed: 0, totalPredictions: 0, avgAccuracy: 0 },
+    countdown = { hours: 0, minutes: 0, seconds: 0 },
     phase,
     loading,
     makePrediction,
@@ -219,7 +219,7 @@ const Index: React.FC = () => {
     if (result.success) {
       toast({
         title: result.isEarlyBird ? 'Early Bird Prediction!' : 'Prediction Submitted!',
-        description: `Potential reward: ${result.potentialReward?.toLocaleString()} QX`,
+        description: `Potential reward: ${result.potentialReward?.toLocaleString() || 0} QX`,
       });
     } else {
       toast({
@@ -248,13 +248,13 @@ const Index: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-amber-400 font-bold text-lg font-mono">
-                    {balance.balance.toLocaleString()} QX
+                    {(balance.balance || 0).toLocaleString()} QX
                   </p>
                   <p className="text-xs text-slate-400">
                     Rank #{userRank || '-'}
                   </p>
                 </div>
-                {userStats && userStats.currentStreak > 0 && (
+                {userStats && (userStats.currentStreak || 0) > 0 && (
                   <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
                     <Flame className="w-3 h-3 mr-1" />
                     {userStats.currentStreak}x streak
@@ -317,26 +317,26 @@ const Index: React.FC = () => {
                     <Gift className="w-6 h-6 text-purple-400" />
                   </div>
                   <div>
-                    <h3 className="text-white font-bold">{phase.name}</h3>
+                    <h3 className="text-white font-bold">{phase.name || 'Current Phase'}</h3>
                     <p className="text-sm text-slate-400">
-                      {phase.dailyPool.toLocaleString()} QX distributed daily
+                      {(phase.dailyPool || 0).toLocaleString()} QX distributed daily
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-white">{phase.daysRemaining}</p>
+                    <p className="text-2xl font-bold text-white">{phase.daysRemaining || 0}</p>
                     <p className="text-xs text-slate-400">Days Left</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-amber-400">
-                      {globalStats.totalQXDistributed.toLocaleString()}
+                      {(globalStats.totalQXDistributed || 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-slate-400">QX Distributed</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-400">
-                      {globalStats.totalUsers.toLocaleString()}
+                      {(globalStats.totalUsers || 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-slate-400">Predictors</p>
                   </div>
@@ -351,15 +351,15 @@ const Index: React.FC = () => {
             <span className="text-slate-400">Next prediction opens in:</span>
             <div className="flex items-center gap-2">
               <div className="bg-slate-900 px-3 py-1 rounded font-mono text-white">
-                {String(countdown.hours).padStart(2, '0')}
+                {String(countdown.hours || 0).padStart(2, '0')}
               </div>
               <span className="text-slate-500">:</span>
               <div className="bg-slate-900 px-3 py-1 rounded font-mono text-white">
-                {String(countdown.minutes).padStart(2, '0')}
+                {String(countdown.minutes || 0).padStart(2, '0')}
               </div>
               <span className="text-slate-500">:</span>
               <div className="bg-slate-900 px-3 py-1 rounded font-mono text-white">
-                {String(countdown.seconds).padStart(2, '0')}
+                {String(countdown.seconds || 0).padStart(2, '0')}
               </div>
             </div>
           </div>
@@ -393,7 +393,7 @@ const Index: React.FC = () => {
                         <Clock className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                         <h3 className="text-white font-medium mb-2">No Active Predictions</h3>
                         <p className="text-slate-400 text-sm">
-                          Next prediction opens in {countdown.hours}h {countdown.minutes}m
+                          Next prediction opens in {countdown.hours || 0}h {countdown.minutes || 0}m
                         </p>
                       </CardContent>
                     </Card>
@@ -448,21 +448,21 @@ const Index: React.FC = () => {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-                        <p className="text-2xl font-bold text-white">{userStats.totalPredictions}</p>
+                        <p className="text-2xl font-bold text-white">{userStats.totalPredictions || 0}</p>
                         <p className="text-xs text-slate-400">Predictions</p>
                       </div>
                       <div className="text-center p-3 bg-slate-800/50 rounded-lg">
                         <p className="text-2xl font-bold text-green-400">
-                          {userStats.accuracyPercent.toFixed(1)}%
+                          {(userStats.accuracyPercent || 0).toFixed(1)}%
                         </p>
                         <p className="text-xs text-slate-400">Accuracy</p>
                       </div>
                       <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-                        <p className="text-2xl font-bold text-orange-400">{userStats.currentStreak}</p>
+                        <p className="text-2xl font-bold text-orange-400">{userStats.currentStreak || 0}</p>
                         <p className="text-xs text-slate-400">Current Streak</p>
                       </div>
                       <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-                        <p className="text-2xl font-bold text-purple-400">{userStats.maxStreak}</p>
+                        <p className="text-2xl font-bold text-purple-400">{userStats.maxStreak || 0}</p>
                         <p className="text-xs text-slate-400">Best Streak</p>
                       </div>
                     </div>
@@ -479,28 +479,32 @@ const Index: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {leaderboard.slice(0, 5).map((entry) => (
-                      <div
-                        key={entry.rank}
-                        className={`flex items-center justify-between p-3 rounded-lg ${
-                          entry.rank <= 3
-                            ? 'bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20'
-                            : 'bg-slate-800/50 border border-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">
-                            {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+                  {leaderboard.length === 0 ? (
+                    <p className="text-slate-400 text-center py-4">No rankings yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {leaderboard.slice(0, 5).map((entry) => (
+                        <div
+                          key={entry.rank}
+                          className={`flex items-center justify-between p-3 rounded-lg ${
+                            entry.rank <= 3
+                              ? 'bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20'
+                              : 'bg-slate-800/50 border border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">
+                              {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+                            </span>
+                            <span className="text-white font-medium">{entry.username || 'Anonymous'}</span>
+                          </div>
+                          <span className="text-amber-400 font-bold font-mono">
+                            {(entry.balance || 0).toLocaleString()} QX
                           </span>
-                          <span className="text-white font-medium">{entry.username}</span>
                         </div>
-                        <span className="text-amber-400 font-bold font-mono">
-                          {entry.balance.toLocaleString()} QX
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
