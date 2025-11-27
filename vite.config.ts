@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { compression } from 'vite-plugin-compression2';
-import { VitePWA } from 'vite-plugin-pwa';
+// import { VitePWA } from 'vite-plugin-pwa'; // Disabled for Vercel compatibility
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
