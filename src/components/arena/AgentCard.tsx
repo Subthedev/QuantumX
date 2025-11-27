@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Zap, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target } from 'lucide-react';
 import type { ArenaAgent } from '@/services/arenaService';
 
 interface AgentCardProps {
@@ -17,8 +17,10 @@ interface AgentCardProps {
 }
 
 export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
-  const isProfitable = agent.totalPnLPercent >= 0;
-  const isTrading = agent.isActive && agent.lastTrade;
+  // Safe defaults for all agent properties
+  const totalPnLPercent = agent?.totalPnLPercent ?? 0;
+  const isProfitable = totalPnLPercent >= 0;
+  const isTrading = agent?.isActive && agent?.lastTrade;
   const [pulse, setPulse] = useState(false);
 
   // Pulse animation on P&L change
@@ -26,13 +28,13 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
     setPulse(true);
     const timer = setTimeout(() => setPulse(false), 300);
     return () => clearTimeout(timer);
-  }, [agent.totalPnLPercent]);
+  }, [totalPnLPercent]);
 
   // Generate agent personality elements
   const getAgentMood = () => {
-    if (!agent.lastTrade) return { emoji: '🤔', text: 'ANALYZING', color: 'text-gray-600' };
+    if (!agent?.lastTrade) return { emoji: '🤔', text: 'ANALYZING', color: 'text-gray-600' };
 
-    const pnl = agent.lastTrade.pnlPercent;
+    const pnl = agent.lastTrade.pnlPercent ?? 0;
     if (pnl > 5) return { emoji: '🔥', text: 'AGGRESSIVE', color: 'text-red-600' };
     if (pnl > 2) return { emoji: '😎', text: 'CONFIDENT', color: 'text-green-600' };
     if (pnl > 0) return { emoji: '✅', text: 'STEADY', color: 'text-blue-600' };
@@ -42,46 +44,57 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
   };
 
   const getAgentThought = () => {
-    if (!agent.lastTrade) {
+    if (!agent?.lastTrade) {
       const thoughts = [
-        '🎯 Scanning for high-probability setups...',
-        '📊 Analyzing market microstructure...',
-        '🔍 Waiting for the perfect entry...',
-        '⏱️ Patience is my edge...'
+        'Scanning for high-probability setups...',
+        'Analyzing market microstructure...',
+        'Waiting for the perfect entry...',
+        'Patience is my edge...'
       ];
       return thoughts[Math.floor(Date.now() / 10000) % thoughts.length];
     }
 
-    const pnl = agent.lastTrade.pnlPercent;
+    const pnl = agent.lastTrade.pnlPercent ?? 0;
     const strategy = agent.lastTrade.strategyUsed || '';
 
     if (pnl > 5) {
-      return `🚀 ${strategy} signal paying off massively!`;
+      return `${strategy} signal paying off massively!`;
     }
     if (pnl > 2) {
-      return `✨ Position moving in our favor...`;
+      return `Position moving in our favor...`;
     }
     if (pnl > 0) {
-      return `📈 Letting winners run...`;
+      return `Letting winners run...`;
     }
     if (pnl > -2) {
-      return `⚖️ Managing risk, staying patient...`;
+      return `Managing risk, staying patient...`;
     }
     if (pnl > -5) {
-      return `🛡️ Holding for reversal signal...`;
+      return `Holding for reversal signal...`;
     }
-    return `💪 This is where discipline matters...`;
+    return `This is where discipline matters...`;
   };
 
   const getRiskLevel = () => {
-    if (!agent.lastTrade) return 0;
-    const pnl = Math.abs(agent.lastTrade.pnlPercent);
+    if (!agent?.lastTrade) return 0;
+    const pnl = Math.abs(agent.lastTrade.pnlPercent ?? 0);
     return Math.min(100, Math.floor(pnl * 10));
   };
 
   const mood = getAgentMood();
   const thought = getAgentThought();
   const riskLevel = getRiskLevel();
+
+  // Safe formatting helpers
+  const formatBalance = (value: number | undefined) => {
+    const num = value ?? 0;
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const formatPercent = (value: number | undefined, decimals: number = 1) => {
+    const num = value ?? 0;
+    return num.toFixed(decimals);
+  };
 
   return (
     <Card className={`relative overflow-hidden bg-white border-2 transition-all duration-300 hover:shadow-2xl ${
@@ -102,17 +115,17 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
       <div className="p-6 space-y-4">
         {/* Agent Header */}
         <div className="flex items-center gap-3">
-          <div className="text-4xl">{agent.avatar}</div>
+          <div className="text-4xl">{agent?.avatar || '🤖'}</div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold text-gray-900">{agent.name}</h3>
-              {agent.isActive && (
+              <h3 className="text-xl font-bold text-gray-900">{agent?.name || 'Agent'}</h3>
+              {agent?.isActive && (
                 <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5">
                   LIVE
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-gray-500 font-medium">{agent.codename}</p>
+            <p className="text-xs text-gray-500 font-medium">{agent?.codename || ''}</p>
           </div>
         </div>
 
@@ -150,7 +163,7 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
         </div>
 
         {/* Active Trade - THE HOOK */}
-        {isTrading && agent.lastTrade && (
+        {isTrading && agent?.lastTrade && (
           <div className={`relative p-4 rounded-xl border-2 transition-all ${
             agent.lastTrade.direction === 'LONG'
               ? 'bg-green-50 border-green-500'
@@ -170,7 +183,7 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
                     <><TrendingDown className="w-4 h-4 mr-1" /> SELL</>
                   )}
                 </Badge>
-                <span className="font-bold text-lg text-gray-900">{agent.lastTrade.symbol}</span>
+                <span className="font-bold text-lg text-gray-900">{agent.lastTrade.symbol || ''}</span>
               </div>
             </div>
 
@@ -178,34 +191,34 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="bg-white/60 backdrop-blur rounded-lg p-2">
                 <div className="text-xs text-gray-600 mb-1">Entry</div>
-                <div className="text-base font-bold text-gray-900">${agent.lastTrade.entry.toFixed(2)}</div>
+                <div className="text-base font-bold text-gray-900">${(agent.lastTrade.entry ?? 0).toFixed(2)}</div>
               </div>
               <div className="bg-white/60 backdrop-blur rounded-lg p-2">
                 <div className="text-xs text-gray-600 mb-1">Now</div>
                 <div className={`text-base font-bold ${pulse ? 'scale-110' : 'scale-100'} transition-transform`}>
-                  ${agent.lastTrade.current.toFixed(2)}
+                  ${(agent.lastTrade.current ?? 0).toFixed(2)}
                 </div>
               </div>
             </div>
 
             {/* P&L - THE MONEY SHOT */}
             <div className={`text-center py-3 rounded-lg ${
-              agent.lastTrade.pnlPercent >= 0
+              (agent.lastTrade.pnlPercent ?? 0) >= 0
                 ? 'bg-green-500 text-white'
                 : 'bg-red-500 text-white'
             }`}>
               <div className={`text-3xl font-black ${pulse ? 'scale-110' : 'scale-100'} transition-transform`}>
-                {agent.lastTrade.pnlPercent >= 0 ? '+' : ''}{agent.lastTrade.pnlPercent.toFixed(2)}%
+                {(agent.lastTrade.pnlPercent ?? 0) >= 0 ? '+' : ''}{(agent.lastTrade.pnlPercent ?? 0).toFixed(2)}%
               </div>
               <div className="text-sm font-semibold opacity-90">
-                ${Math.abs(agent.lastTrade.pnl || 0).toFixed(2)} {agent.lastTrade.pnlPercent >= 0 ? 'PROFIT' : 'LOSS'}
+                ${Math.abs(agent.lastTrade.pnl ?? 0).toFixed(2)} {(agent.lastTrade.pnlPercent ?? 0) >= 0 ? 'PROFIT' : 'LOSS'}
               </div>
             </div>
 
             {/* Strategy Tag */}
             <div className="mt-3 text-center">
               <span className="text-xs font-semibold text-gray-700 bg-white/60 px-3 py-1 rounded-full">
-                {agent.lastTrade.strategyUsed}
+                {agent.lastTrade.strategyUsed || 'Strategy'}
               </span>
             </div>
           </div>
@@ -218,9 +231,9 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
               <Target className="w-10 h-10 mx-auto text-orange-500" />
               <div className="font-bold text-gray-900">Scanning for signals...</div>
               <div className="flex items-center justify-center gap-1.5">
-                <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
               </div>
             </div>
           </div>
@@ -233,16 +246,16 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
             <div className={`text-lg font-black ${
               isProfitable ? 'text-green-600' : 'text-red-600'
             }`}>
-              {isProfitable ? '+' : ''}{agent.totalPnLPercent.toFixed(1)}%
+              {isProfitable ? '+' : ''}{formatPercent(agent?.totalPnLPercent)}%
             </div>
           </div>
           <div className="text-center border-x border-gray-100">
             <div className="text-xs text-gray-500 mb-1">Win Rate</div>
-            <div className="text-lg font-black text-orange-500">{agent.winRate.toFixed(0)}%</div>
+            <div className="text-lg font-black text-orange-500">{formatPercent(agent?.winRate, 0)}%</div>
           </div>
           <div className="text-center">
             <div className="text-xs text-gray-500 mb-1">Trades</div>
-            <div className="text-lg font-black text-gray-900">{agent.totalTrades}</div>
+            <div className="text-lg font-black text-gray-900">{agent?.totalTrades ?? 0}</div>
           </div>
         </div>
 
@@ -250,7 +263,7 @@ export const AgentCard = React.memo(({ agent, rank }: AgentCardProps) => {
         <div className="text-center p-3 bg-gray-50 rounded-lg">
           <div className="text-xs text-gray-500 mb-1">Portfolio Value</div>
           <div className="text-2xl font-black text-gray-900">
-            ${agent.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${formatBalance(agent?.balance)}
           </div>
         </div>
       </div>
