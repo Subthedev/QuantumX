@@ -280,27 +280,27 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ entries, userRank, loading })
         <div
           key={entry.rank}
           className={`flex items-center justify-between p-3 rounded-lg ${
-            entry.rank <= 3
+            (entry.rank ?? 99) <= 3
               ? 'bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20'
               : 'bg-slate-800/50 border border-slate-700'
           }`}
         >
           <div className="flex items-center gap-3">
             <div className="w-8 flex justify-center">
-              {getRankIcon(entry.rank)}
+              {getRankIcon(entry.rank ?? 99)}
             </div>
             <div>
-              <p className="text-white font-medium">{entry.username}</p>
+              <p className="text-white font-medium">{entry.username || 'Anonymous'}</p>
               <p className="text-xs text-slate-400">
-                {entry.accuracyPercent.toFixed(1)}% accuracy
+                {(entry.accuracyPercent ?? 0).toFixed(1)}% accuracy
               </p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-amber-400 font-bold font-mono">
-              {entry.balance.toLocaleString()} QX
+              {(entry.balance ?? 0).toLocaleString()} QX
             </p>
-            {entry.currentStreak > 0 && (
+            {(entry.currentStreak ?? 0) > 0 && (
               <p className="text-xs text-orange-400 flex items-center justify-end gap-1">
                 <Flame className="w-3 h-3" />
                 {entry.currentStreak} streak
@@ -403,13 +403,13 @@ const QXOracle: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="text-amber-400 font-bold text-lg font-mono">
-                    {balance.balance.toLocaleString()} QX
+                    {(balance.balance ?? 0).toLocaleString()} QX
                   </p>
                   <p className="text-xs text-slate-400">
                     Rank #{userRank || '-'}
                   </p>
                 </div>
-                {userStats && userStats.currentStreak > 0 && (
+                {userStats && (userStats.currentStreak ?? 0) > 0 && (
                   <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
                     <Flame className="w-3 h-3 mr-1" />
                     {userStats.currentStreak}x streak
@@ -431,26 +431,26 @@ const QXOracle: React.FC = () => {
                   <Gift className="w-6 h-6 text-purple-400" />
                 </div>
                 <div>
-                  <h2 className="text-white font-bold">{phase.name}</h2>
+                  <h2 className="text-white font-bold">{phase.name || 'Current Phase'}</h2>
                   <p className="text-sm text-slate-400">
-                    {phase.dailyPool.toLocaleString()} QX distributed daily
+                    {(phase.dailyPool ?? 0).toLocaleString()} QX distributed daily
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-white">{phase.daysRemaining}</p>
+                  <p className="text-2xl font-bold text-white">{phase.daysRemaining ?? 0}</p>
                   <p className="text-xs text-slate-400">Days Left</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-amber-400">
-                    {globalStats.totalQXDistributed.toLocaleString()}
+                    {(globalStats?.totalQXDistributed ?? 0).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-400">QX Distributed</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-400">
-                    {globalStats.totalUsers.toLocaleString()}
+                    {(globalStats?.totalUsers ?? 0).toLocaleString()}
                   </p>
                   <p className="text-xs text-slate-400">Predictors</p>
                 </div>
@@ -465,15 +465,15 @@ const QXOracle: React.FC = () => {
           <span className="text-slate-400">Next prediction opens in:</span>
           <div className="flex items-center gap-2">
             <div className="bg-slate-900 px-3 py-1 rounded font-mono text-white">
-              {String(countdown.hours).padStart(2, '0')}
+              {String(countdown?.hours ?? 0).padStart(2, '0')}
             </div>
             <span className="text-slate-500">:</span>
             <div className="bg-slate-900 px-3 py-1 rounded font-mono text-white">
-              {String(countdown.minutes).padStart(2, '0')}
+              {String(countdown?.minutes ?? 0).padStart(2, '0')}
             </div>
             <span className="text-slate-500">:</span>
             <div className="bg-slate-900 px-3 py-1 rounded font-mono text-white">
-              {String(countdown.seconds).padStart(2, '0')}
+              {String(countdown?.seconds ?? 0).padStart(2, '0')}
             </div>
           </div>
         </div>
