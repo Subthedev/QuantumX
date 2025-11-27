@@ -1352,7 +1352,14 @@ class ArenaQuantEngine {
   }
 
   private notify(): void {
-    const agents = Array.from(this.agents.values());
+    // Create new object references so React detects state changes
+    // Without spreading, React's shallow comparison won't detect balance updates
+    const agents = Array.from(this.agents.values()).map(agent => ({
+      ...agent,
+      // Also spread nested objects to ensure deep reactivity
+      currentPosition: agent.currentPosition ? { ...agent.currentPosition } : null,
+      performance: [...agent.performance]
+    }));
     this.stateListeners.forEach(cb => cb(agents));
   }
 
