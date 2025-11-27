@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Index from './pages/Index';
 import QXOracle from './pages/QXOracle';
 import { AuthProvider } from './hooks/useAuth';
 
@@ -28,8 +29,9 @@ const App = () => {
             <Toaster />
             <Sonner />
             <Routes>
-              {/* Main route - QuantumX Oracle */}
-              <Route path="/" element={<QXOracle />} />
+              {/* Main route - QuantumX Arena + Oracle */}
+              <Route path="/" element={<Index />} />
+              <Route path="/arena" element={<Index />} />
               <Route path="/oracle" element={<QXOracle />} />
               <Route path="/predict" element={<QXOracle />} />
 
