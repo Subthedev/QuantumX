@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /auth
+Disallow: /dashboard
+Sitemap: https://ignitexagency.com/sitemap.xml
+
+# Crawl-delay for respectful crawling
+User-agent: *
+Crawl-delay: 1
