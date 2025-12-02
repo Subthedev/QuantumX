@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { injectSpeedInsights } from '@vercel/speed-insights'
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -14,6 +15,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       });
   });
 }
+
+// Initialize Vercel Speed Insights (client-side only)
+injectSpeedInsights();
 
 // Initialize Web Vitals monitoring (optional)
 if (import.meta.env.PROD) {
