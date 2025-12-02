@@ -16,6 +16,7 @@ import { strategyPerformanceML } from './ml/StrategyPerformancePredictorML';
 import { supabase } from '@/integrations/supabase/client';
 import { positionMonitorService } from './positionMonitorService';
 import { fluxController, type FluxMode } from './fluxController';
+import { monitoringService } from './monitoringService';
 
 // ===== RISK PROFILES =====
 
@@ -132,6 +133,13 @@ class ArenaService {
 
   // ✅ MUTEX LOCKS: Prevent concurrent signal assignment to same agent
   private agentAssignmentLocks: Map<string, boolean> = new Map();
+
+  // ✅ ERROR RECOVERY: Track failed trades for retry with circuit breaker
+  private failedTrades: Map<string, { signal: HubSignal; attempts: number; lastAttempt: number }> = new Map();
+  private readonly MAX_RETRY_ATTEMPTS = 3;
+  private readonly RETRY_DELAY_MS = 30000; // 30 seconds between retries
+  private readonly CIRCUIT_BREAKER_THRESHOLD = 5; // Disable agent after 5 consecutive failures
+  private agentFailureCount: Map<string, number> = new Map();
 
   // Event emitter for real-time updates
   private listeners: ((agents: ArenaAgent[], stats: ArenaStats) => void)[] = [];
@@ -329,17 +337,18 @@ class ArenaService {
       const history = await mockTradingService.getTradeHistory(config.userId, 50);
 
       // Calculate performance metrics
+      // ✅ PRECISION FIX: Round to prevent floating-point display issues
       const wins = history.filter(t => t.profit_loss > 0).length;
       const losses = history.filter(t => t.profit_loss < 0).length;
-      const winRate = history.length > 0 ? (wins / history.length) * 100 : 0;
+      const winRate = history.length > 0 ? Math.round((wins / history.length) * 1000) / 10 : 0;
 
       // Calculate unrealized P&L from all open positions
       const unrealizedPnL = positions.reduce((total, pos) => total + (pos.unrealized_pnl || 0), 0);
 
       // Calculate total P&L (including unrealized)
       const currentBalance = account.balance + unrealizedPnL;
-      const totalPnL = currentBalance - account.initial_balance;
-      const totalPnLPercent = ((currentBalance - account.initial_balance) / account.initial_balance) * 100;
+      const totalPnL = Math.round((currentBalance - account.initial_balance) * 100) / 100;
+      const totalPnLPercent = Math.round(((currentBalance - account.initial_balance) / account.initial_balance) * 10000) / 100;
 
       // Calculate Sharpe ratio (simplified)
       const returns = history.map(t => t.profit_loss_percent);
@@ -688,6 +697,8 @@ class ArenaService {
             console.log(`[Arena] 🔒 Agent will HOLD current position until profit/loss outcome`);
             console.log(`[Arena] ⏭️ Skipping this signal for ${agent.name}`);
             console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+            // ✅ FIX: Release lock immediately on early return (prevents deadlock)
+            this.agentAssignmentLocks.set(agent.id, false);
             return;
           }
 
@@ -705,9 +716,11 @@ class ArenaService {
               this.agentAssignmentLocks.set(agent.id, false);
             });
 
-        } finally {
-          // Lock will be released by the async trade execution
-          // No need to release here as it would be premature
+        } catch (error) {
+          // ✅ FIX: Release lock on any synchronous error (prevents deadlock)
+          this.agentAssignmentLocks.set(agent.id, false);
+          console.error(`[Arena] ❌ Error in signal processing for ${agent.name}:`, error);
+          throw error;
         }
       });
 
@@ -750,12 +763,18 @@ class ArenaService {
     console.log(`[Arena] 📊 FLUX Mode: ${activeFluxMode} | Agent prefers: ${agent.riskConfig.preferredFluxMode}`);
     console.log(`[Arena] 🎯 Signal confidence: ${confidence}% | Agent min threshold: ${agent.riskConfig.minConfidenceThreshold}%`);
 
-    // ✅ DEMO MODE: Accept ALL signals (no confidence threshold check)
-    // This ensures agents are ALWAYS trading for maximum engagement
-    // Original threshold was: agent.riskConfig.minConfidenceThreshold
-    const minThreshold = 40; // Very low threshold to accept most signals
+    // ✅ PRODUCTION FIX: Respect agent-specific confidence thresholds
+    // Each agent has its own risk profile with appropriate thresholds:
+    // - Aggressive agents (AlphaX): Lower threshold (~45%) - more trades
+    // - Balanced agents (BetaX): Medium threshold (~55%) - selective
+    // - Conservative agents (GammaX): Higher threshold (~70%) - very selective
+    // Note: Set ARENA_DEMO_MODE=true to use lower threshold (40%) for testing
+    const isDemoMode = typeof window !== 'undefined' && (window as any).__ARENA_DEMO_MODE__;
+    const minThreshold = isDemoMode ? 40 : agent.riskConfig.minConfidenceThreshold;
+
     if (confidence < minThreshold) {
-      console.log(`[Arena] ⚠️ SKIPPED: Signal confidence ${confidence}% below minimum ${minThreshold}%`);
+      console.log(`[Arena] ⏭️ SKIP: Signal confidence ${confidence}% below ${agent.name}'s threshold (${minThreshold}%)`);
+      console.log(`[Arena] 📊 Agent ${agent.name} (${agent.riskProfile}) requires ${agent.riskConfig.minConfidenceThreshold}% confidence`);
       return;
     }
 
@@ -877,20 +896,131 @@ class ArenaService {
 
       console.log(`[Arena] 🎬 TRADE COMPLETE - Agent should now show LIVE state\n`);
 
-    } catch (error) {
-      console.error(`[Arena] ❌❌❌ CRITICAL ERROR executing trade for ${agent.name}:`);
-      console.error(`[Arena] Error type:`, error instanceof Error ? error.name : typeof error);
-      console.error(`[Arena] Error message:`, error instanceof Error ? error.message : String(error));
-      console.error(`[Arena] Stack trace:`, error instanceof Error ? error.stack : 'No stack trace');
-      console.error(`[Arena] Signal that failed:`, signal);
-      console.error(`[Arena] Agent that failed:`, {
-        id: agent.id,
-        name: agent.name,
-        userId: agent.userId,
-        balance: agent.balance
+      // ✅ MONITORING: Track successful trade
+      const tradeEndTime = Date.now();
+      monitoringService.trackTrade({
+        agentId: agent.id,
+        symbol: signal.symbol,
+        side: direction,
+        profitLoss: 0, // Will be calculated on close
+        success: true,
+        durationMs: tradeEndTime - signal.timestamp,
       });
-      console.log(`[Arena] 🎬 === TRADE EXECUTION FAILED ===\n`);
+
+    } catch (error) {
+      console.error(`[Arena] ❌ Trade execution failed for ${agent.name}:`, error instanceof Error ? error.message : String(error));
+
+      // ✅ MONITORING: Track failed trade
+      monitoringService.trackTrade({
+        agentId: agent.id,
+        symbol: signal.symbol,
+        side: signal.direction === 'BULLISH' ? 'BUY' : 'SELL',
+        profitLoss: 0,
+        success: false,
+        durationMs: Date.now() - signal.timestamp,
+      });
+
+      monitoringService.trackError({
+        source: 'arena',
+        error: `Trade failed: ${error instanceof Error ? error.message : String(error)}`,
+        context: { agentId: agent.id, symbol: signal.symbol },
+      });
+
+      // ✅ ERROR RECOVERY: Implement retry logic with circuit breaker
+      const tradeKey = `${agent.id}-${signal.symbol}`;
+      const failedTrade = this.failedTrades.get(tradeKey) || { signal, attempts: 0, lastAttempt: 0 };
+
+      failedTrade.attempts++;
+      failedTrade.lastAttempt = Date.now();
+
+      // Update agent failure count for circuit breaker
+      const currentFailures = (this.agentFailureCount.get(agent.id) || 0) + 1;
+      this.agentFailureCount.set(agent.id, currentFailures);
+
+      // Check circuit breaker threshold
+      if (currentFailures >= this.CIRCUIT_BREAKER_THRESHOLD) {
+        console.error(`[Arena] ⚡ CIRCUIT BREAKER: ${agent.name} disabled after ${currentFailures} consecutive failures`);
+        console.error(`[Arena] Agent will skip signals until manual reset or success`);
+        this.failedTrades.delete(tradeKey);
+        return;
+      }
+
+      if (failedTrade.attempts < this.MAX_RETRY_ATTEMPTS) {
+        // Schedule retry
+        this.failedTrades.set(tradeKey, failedTrade);
+        console.log(`[Arena] 🔄 Scheduling retry ${failedTrade.attempts}/${this.MAX_RETRY_ATTEMPTS} for ${agent.name} in ${this.RETRY_DELAY_MS / 1000}s`);
+
+        setTimeout(() => {
+          this.retryFailedTrade(agent.id, tradeKey);
+        }, this.RETRY_DELAY_MS);
+      } else {
+        // Max retries reached - give up on this trade
+        console.error(`[Arena] ❌ Trade permanently failed after ${this.MAX_RETRY_ATTEMPTS} attempts for ${agent.name}`);
+        console.error(`[Arena] Failed signal:`, { symbol: signal.symbol, direction: signal.direction });
+        this.failedTrades.delete(tradeKey);
+      }
     }
+  }
+
+  /**
+   * Retry a failed trade
+   */
+  private async retryFailedTrade(agentId: string, tradeKey: string): Promise<void> {
+    const failedTrade = this.failedTrades.get(tradeKey);
+    if (!failedTrade) return;
+
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      this.failedTrades.delete(tradeKey);
+      return;
+    }
+
+    console.log(`[Arena] 🔄 Retrying trade for ${agent.name}: ${failedTrade.signal.symbol} (attempt ${failedTrade.attempts})`);
+
+    try {
+      // Check if agent is circuit-broken
+      const failures = this.agentFailureCount.get(agentId) || 0;
+      if (failures >= this.CIRCUIT_BREAKER_THRESHOLD) {
+        console.log(`[Arena] ⚡ Agent ${agent.name} is circuit-broken, skipping retry`);
+        this.failedTrades.delete(tradeKey);
+        return;
+      }
+
+      // Execute the trade again
+      await this.executeAgentTrade(agent, failedTrade.signal);
+
+      // Success! Reset failure count and remove from failed trades
+      this.agentFailureCount.set(agentId, 0);
+      this.failedTrades.delete(tradeKey);
+      console.log(`[Arena] ✅ Retry successful for ${agent.name}!`);
+    } catch (error) {
+      // Will be handled by executeAgentTrade's catch block
+      console.error(`[Arena] Retry failed for ${agent.name}:`, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Reset circuit breaker for an agent (manual recovery)
+   */
+  public resetAgentCircuitBreaker(agentId: string): void {
+    this.agentFailureCount.set(agentId, 0);
+    const agent = this.agents.get(agentId);
+    console.log(`[Arena] ⚡ Circuit breaker reset for ${agent?.name || agentId}`);
+  }
+
+  /**
+   * Get failed trades status (for debugging/monitoring)
+   */
+  public getFailedTradesStatus(): { agentId: string; symbol: string; attempts: number; lastAttempt: Date }[] {
+    return Array.from(this.failedTrades.entries()).map(([key, value]) => {
+      const [agentId, symbol] = key.split('-');
+      return {
+        agentId,
+        symbol,
+        attempts: value.attempts,
+        lastAttempt: new Date(value.lastAttempt)
+      };
+    });
   }
 
   /**
@@ -913,16 +1043,18 @@ class ArenaService {
       // Calculate metrics
       const wins = history.filter(t => t.profit_loss > 0).length;
       const losses = history.filter(t => t.profit_loss < 0).length;
-      const winRate = history.length > 0 ? (wins / history.length) * 100 : 0;
+      // ✅ PRECISION FIX: Round win rate to 1 decimal place
+      const winRate = history.length > 0 ? Math.round((wins / history.length) * 1000) / 10 : 0;
 
       // Calculate unrealized P&L from all open positions
       const unrealizedPnL = positions.reduce((total, pos) => total + (pos.unrealized_pnl || 0), 0);
 
       // Update agent - include unrealized P&L in balance
+      // ✅ PRECISION FIX: Round to 2 decimal places
       const currentBalance = account.balance + unrealizedPnL;
-      agent.balance = currentBalance;
-      agent.totalPnL = currentBalance - account.initial_balance;
-      agent.totalPnLPercent = ((currentBalance - account.initial_balance) / account.initial_balance) * 100;
+      agent.balance = Math.round(currentBalance * 100) / 100;
+      agent.totalPnL = Math.round((currentBalance - account.initial_balance) * 100) / 100;
+      agent.totalPnLPercent = Math.round(((currentBalance - account.initial_balance) / account.initial_balance) * 10000) / 100;
       agent.winRate = winRate;
       agent.totalTrades = account.total_trades;
       agent.wins = wins;
@@ -942,8 +1074,18 @@ class ArenaService {
 
       this.agents.set(agentId, agent);
 
+      // ✅ MONITORING: Check for P&L discrepancy
+      const calculatedPnL = history.reduce((sum, t) => sum + (t.profit_loss || 0), 0);
+      const recordedPnL = account.total_profit_loss || 0;
+      monitoringService.checkPnLDiscrepancy(agent.id, recordedPnL, calculatedPnL);
+
     } catch (error) {
       console.error(`[Arena] Error refreshing ${agent.name}:`, error);
+      monitoringService.trackError({
+        source: 'arena',
+        error: `Failed to refresh agent: ${error instanceof Error ? error.message : String(error)}`,
+        context: { agentId },
+      });
     }
   }
 
@@ -1007,10 +1149,11 @@ class ArenaService {
           const unrealizedPnL = positions.reduce((total, pos) => total + (pos.unrealized_pnl || 0), 0);
 
           // Update agent - include unrealized P&L in balance
+          // ✅ PRECISION FIX: Round to 2 decimal places to prevent floating-point display issues
           const currentBalance = account.balance + unrealizedPnL;
-          agent.balance = currentBalance;
-          agent.totalPnL = currentBalance - account.initial_balance;
-          agent.totalPnLPercent = ((currentBalance - account.initial_balance) / account.initial_balance) * 100;
+          agent.balance = Math.round(currentBalance * 100) / 100;
+          agent.totalPnL = Math.round((currentBalance - account.initial_balance) * 100) / 100;
+          agent.totalPnLPercent = Math.round(((currentBalance - account.initial_balance) / account.initial_balance) * 10000) / 100;
           agent.isActive = positions.length > 0;
           agent.openPositions = positions.length;
 
