@@ -1,6 +1,10 @@
 import { createRoot } from 'react-dom/client'
+import { inject } from '@vercel/analytics'
 import App from './App.tsx'
 import './index.css'
+
+// Initialize Vercel Web Analytics
+inject()
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
