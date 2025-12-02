@@ -926,24 +926,119 @@ class QXQuestionService {
     }
   }
 
+  /**
+   * Get current price with multi-source fallback chain
+   * Priority: 1. Cache → 2. Binance API → 3. CoinGecko API → 4. Historical DB → 5. Cached/Default
+   *
+   * ✅ FIX: Production-grade price resolution that doesn't fail silently
+   */
   private async getCurrentPrice(symbol: string): Promise<number> {
-    // Check cache
+    // Check cache first
     const cached = this.priceCache.get(symbol);
     if (cached && Date.now() - cached.timestamp < this.PRICE_CACHE_TTL) {
       return cached.price;
     }
 
+    // Source 1: Try Binance API (primary)
     try {
-      const response = await fetch(`${BINANCE_API}?symbol=${symbol}`);
-      const data = await response.json();
-      const price = parseFloat(data.lastPrice);
-
-      this.priceCache.set(symbol, { price, timestamp: Date.now() });
-      return price;
+      const response = await fetch(`${BINANCE_API}?symbol=${symbol}`, {
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const price = parseFloat(data.lastPrice);
+        if (price > 0) {
+          this.priceCache.set(symbol, { price, timestamp: Date.now() });
+          console.log(`[QX Questions] Price from Binance: ${symbol} = $${price}`);
+          return price;
+        }
+      }
     } catch (err) {
-      console.error('[QX Questions] Error fetching price:', err);
-      return cached?.price || 0;
+      console.warn('[QX Questions] Binance API failed, trying fallback:', err);
     }
+
+    // Source 2: Try CoinGecko API (fallback)
+    try {
+      // Map symbol to CoinGecko ID
+      const coinId = this.symbolToCoinGeckoId(symbol);
+      if (coinId) {
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const price = data[coinId]?.usd;
+          if (price && price > 0) {
+            this.priceCache.set(symbol, { price, timestamp: Date.now() });
+            console.log(`[QX Questions] Price from CoinGecko: ${symbol} = $${price}`);
+            return price;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[QX Questions] CoinGecko API failed, trying database fallback:', err);
+    }
+
+    // Source 3: Try historical trade data from database
+    try {
+      const baseSymbol = symbol.replace('USDT', '');
+      const { data: trades } = await supabase
+        .from('arena_trade_history')
+        .select('exit_price, entry_price, timestamp')
+        .or(`symbol.ilike.%${baseSymbol}%`)
+        .order('timestamp', { ascending: false })
+        .limit(5);
+
+      if (trades && trades.length > 0) {
+        const prices = trades
+          .map(t => t.exit_price || t.entry_price)
+          .filter(p => p && p > 0);
+        if (prices.length > 0) {
+          const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+          this.priceCache.set(symbol, { price: avgPrice, timestamp: Date.now() });
+          console.log(`[QX Questions] Price from DB historical: ${symbol} = $${avgPrice}`);
+          return avgPrice;
+        }
+      }
+    } catch (err) {
+      console.warn('[QX Questions] Database fallback failed:', err);
+    }
+
+    // Source 4: Return cached value if available (even if stale)
+    if (cached?.price && cached.price > 0) {
+      console.warn(`[QX Questions] Using stale cached price for ${symbol}: $${cached.price}`);
+      return cached.price;
+    }
+
+    // Source 5: Critical failure - no price available
+    console.error(`[QX Questions] ❌ CRITICAL: All price sources failed for ${symbol}`);
+    // Return 0 to signal failure - calling code should handle this
+    return 0;
+  }
+
+  /**
+   * Map Binance symbol to CoinGecko ID for fallback
+   */
+  private symbolToCoinGeckoId(symbol: string): string | null {
+    const mapping: Record<string, string> = {
+      'BTCUSDT': 'bitcoin',
+      'ETHUSDT': 'ethereum',
+      'SOLUSDT': 'solana',
+      'BNBUSDT': 'binancecoin',
+      'XRPUSDT': 'ripple',
+      'ADAUSDT': 'cardano',
+      'DOGEUSDT': 'dogecoin',
+      'DOTUSDT': 'polkadot',
+      'MATICUSDT': 'matic-network',
+      'AVAXUSDT': 'avalanche-2',
+      'LINKUSDT': 'chainlink',
+      'ATOMUSDT': 'cosmos',
+      'LTCUSDT': 'litecoin',
+      'UNIUSDT': 'uniswap',
+      'AAVEUSDT': 'aave',
+    };
+    return mapping[symbol] || null;
   }
 
   private async get24hData(symbol: string): Promise<{ price: number; high: number; low: number; volume: number }> {

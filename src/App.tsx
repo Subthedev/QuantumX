@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
-// Analytics removed to fix loading issues
+import { Analytics } from "@vercel/analytics/react";
 // V2 Real-Time Engine removed - now using V3 Adaptive System in IntelligenceHubAuto page
 
 // Import IGX background service for 24/7 autonomous operation
@@ -133,6 +133,7 @@ const App = () => {
       <Toaster />
       <Sonner />
       <PWAInstallPrompt />
+      <Analytics />
       <BrowserRouter>
         <AuthProvider>
           <Suspense fallback={<PageLoader />}>
@@ -195,6 +196,7 @@ const App = () => {
           </Suspense>
         </AuthProvider>
       </BrowserRouter>
+      <Analytics />
     </TooltipProvider>
   </QueryClientProvider>
   );
