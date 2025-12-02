@@ -9,6 +9,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 // V2 Real-Time Engine removed - now using V3 Adaptive System in IntelligenceHubAuto page
 
 // Import IGX background service for 24/7 autonomous operation
@@ -197,6 +198,7 @@ const App = () => {
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
+      <SpeedInsights />
     </TooltipProvider>
   </QueryClientProvider>
   );
