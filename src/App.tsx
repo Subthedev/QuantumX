@@ -32,19 +32,19 @@ if (import.meta.env.DEV) {
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     console.log('\n' + '🚀'.repeat(40));
-    console.log('[App] 🚀 IGNITEX PRODUCTION SYSTEM INITIALIZED');
+    console.log('[QuantumX] 🚀 QUANTUMX ARENA SYSTEM INITIALIZED');
     console.log('🚀'.repeat(40) + '\n');
 
-    console.log('[App] ✅ Client-Side Engine Generation: ACTIVE');
-    console.log('[App] ✅ Market Analysis Engines: RUNNING');
-    console.log('[App] ✅ Autonomous Signal Drops: ENABLED');
+    console.log('[QuantumX] ✅ Arena Trading Engine: ACTIVE');
+    console.log('[QuantumX] ✅ Oracle Prediction Engine: RUNNING');
+    console.log('[QuantumX] ✅ Autonomous Agent Trading: ENABLED');
 
     console.log('\n' + '✅'.repeat(40));
-    console.log('[App] ✅✅✅ PRODUCTION SYSTEM OPERATIONAL! ✅✅✅');
-    console.log('[App] System Architecture:');
-    console.log('[App]   • Signal Generation: Client-side (18+ trading strategies)');
-    console.log('[App]   • Timer: Triggers signal drops when countdown hits 0');
-    console.log('[App]   • Engines: Continuously analyze top 50 cryptos 24/7');
+    console.log('[QuantumX] ✅✅✅ QUANTUMX OPERATIONAL! ✅✅✅');
+    console.log('[QuantumX] System Architecture:');
+    console.log('[QuantumX]   • Arena: 3 AI agents trading 24/7 with 17+ strategies');
+    console.log('[QuantumX]   • Oracle: Prediction challenges with live market data');
+    console.log('[QuantumX]   • Engines: Real-time analysis across 50+ cryptocurrencies');
     console.log('✅'.repeat(40) + '\n');
   }, 500); // Short delay to ensure DOM is ready
 }
@@ -138,10 +138,11 @@ const App = () => {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<Dashboard />} />
+              {/* QuantumX: ArenaClean with Arena/Oracle switcher is the landing page */}
+              <Route path="/" element={<ArenaClean />} />
               <Route path="/dashboard" element={<Dashboard />} />
               {/* Arena routes - Production Arena with all Phase 1-3 optimizations */}
-              <Route path="/arena" element={<ArenaClean />} /> {/* ✅ NEW: Clean conversion-focused UI */}
+              <Route path="/arena" element={<ArenaClean />} /> {/* ✅ Arena with integrated Oracle tab */}
               <Route path="/arena-clean" element={<ArenaClean />} /> {/* Alias for arena-clean URL */}
               <Route path="/arena-enhanced" element={<ArenaEnhanced />} />
               <Route path="/arena-classic" element={<Arena />} />

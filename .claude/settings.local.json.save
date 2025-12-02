@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(supabase functions deploy:*)",
+      "Bash(supabase status:*)",
+      "Bash(supabase functions list:*)",
+      "Bash(supabase functions logs:*)"
+    ],
+    "deny": [],\
+     "mcpServers":]
+  }
+}
