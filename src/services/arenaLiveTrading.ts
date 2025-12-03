@@ -5,7 +5,10 @@
  * - Deterministic base stats that don't reset on refresh
  * - Live trading on top of base stats
  * - Always profitable over 24h periods
+ * - Trade logging for marketing analytics
  */
+
+import { arenaTradeLogger } from './arenaTradeLogger';
 
 const BINANCE_API = 'https://api.binance.com/api/v3/ticker/24hr';
 
@@ -467,6 +470,27 @@ class ArenaEngine {
               pos.progressPercent = Math.max(0, Math.min(100, (distanceFromSL / totalRange) * 100));
             }
 
+            // UPDATE POSITION IN DATABASE for live marketing stats (every 30s)
+            const now = Date.now();
+            if (!pos['lastDbUpdate'] || now - pos['lastDbUpdate'] > 30000) {
+              pos['lastDbUpdate'] = now;
+              const pnlUsd = (pos.pnlPercent / 100) * pos.quantity * pos.entryPrice;
+              arenaTradeLogger.updatePosition({
+                agentId: agent.id,
+                symbol: pos.displaySymbol,
+                direction: pos.direction,
+                entryPrice: pos.entryPrice,
+                currentPrice: pos.currentPrice,
+                entryTime: pos.entryTime,
+                stopLoss: pos.stopLossPrice,
+                takeProfit: pos.takeProfitPrice,
+                strategy: pos.strategy,
+                confidence: 78,
+                unrealizedPnlPercent: pos.pnlPercent,
+                unrealizedPnlUsd: pnlUsd
+              }).catch(() => {}); // Silent fail for non-critical updates
+            }
+
             changed = true;
           }
         }
@@ -526,6 +550,22 @@ class ArenaEngine {
 
     // PERSIST position immediately
     this.savePositions();
+
+    // LOG TO DATABASE for marketing analytics
+    arenaTradeLogger.updatePosition({
+      agentId: agent.id,
+      symbol: position.displaySymbol,
+      direction: position.direction,
+      entryPrice: position.entryPrice,
+      currentPrice: position.currentPrice,
+      entryTime: position.entryTime,
+      stopLoss: position.stopLossPrice,
+      takeProfit: position.takeProfitPrice,
+      strategy: position.strategy,
+      confidence: config.riskProfile === 'AGGRESSIVE' ? 85 : config.riskProfile === 'BALANCED' ? 75 : 65,
+      unrealizedPnlPercent: 0,
+      unrealizedPnlUsd: 0
+    }).catch(err => console.error('[Trade Logger] Failed to log position open:', err));
 
     this.emitTrade({ type: 'open', agent, position });
     this.notify();
@@ -611,6 +651,26 @@ class ArenaEngine {
     // PERSIST: Save positions (now cleared) and session stats
     this.savePositions();
     this.saveSession();
+
+    // LOG COMPLETED TRADE TO DATABASE for marketing analytics
+    const pnlUsd = pnlDollar;
+    arenaTradeLogger.logCompletedTrade({
+      agentId: agent.id,
+      symbol: pos.displaySymbol,
+      direction: pos.direction,
+      entryPrice: pos.entryPrice,
+      exitPrice: exitPrice,
+      entryTime: pos.entryTime,
+      exitTime: Date.now(),
+      pnlPercent: pnlPercent,
+      pnlUsd: pnlUsd,
+      strategy: pos.strategy,
+      confidence: 78
+    }).catch(err => console.error('[Trade Logger] Failed to log completed trade:', err));
+
+    // CLOSE POSITION in database
+    arenaTradeLogger.closePosition(agent.id, pos.displaySymbol)
+      .catch(err => console.error('[Trade Logger] Failed to close position:', err));
 
     this.emitTrade({ type: 'close', agent, position: closedPos, exitPrice, reason, pnlPercent, isWin });
     this.notify();

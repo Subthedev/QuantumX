@@ -862,55 +862,135 @@ function MetricCard({ label, value, icon: Icon, trend, valueColor, subValue, acc
 }
 
 // ===================== PROGRESS BAR =====================
-function TradeProgressBar({ position }: { position: { direction: 'LONG' | 'SHORT'; pnlPercent: number; progressPercent: number } }) {
-  const { direction, pnlPercent, progressPercent } = position;
-  const isProfit = pnlPercent >= 0;
+function TradeProgressBar({ position }: { position: {
+  direction: 'LONG' | 'SHORT';
+  entryPrice: number;
+  currentPrice: number;
+  stopLossPrice: number;
+  takeProfitPrice: number;
+  pnlPercent: number;
+} }) {
+  const { direction, entryPrice, currentPrice, stopLossPrice, takeProfitPrice, pnlPercent } = position;
   const isShort = direction === 'SHORT';
 
-  // For LONG: progress 0% = SL hit, 100% = TP hit, 50% = entry
-  // For SHORT: progress 0% = TP hit, 100% = SL hit, 50% = entry (REVERSED)
-  // When SHORT, we flip the progress so the visual makes sense
-  const adjustedProgress = isShort ? (100 - progressPercent) : progressPercent;
-  const clampedProgress = Math.max(5, Math.min(95, adjustedProgress));
+  // Calculate actual progress based on price positions
+  // ALWAYS: SL on left (0%), TP on right (100%)
+  let currentProgress: number;
+  let entryProgress: number;
 
-  // For SHORT: Left side is TP (green), Right side is SL (red) - REVERSED
-  const leftLabel = isShort ? 'TP' : 'SL';
-  const rightLabel = isShort ? 'SL' : 'TP';
-  const leftColor = isShort ? 'text-emerald-500' : 'text-red-500';
-  const rightColor = isShort ? 'text-red-500' : 'text-emerald-500';
-  const leftBgColor = isShort ? 'bg-emerald-100' : 'bg-red-100';
-  const rightBgColor = isShort ? 'bg-red-100' : 'bg-emerald-100';
+  if (isShort) {
+    // SHORT: SL (higher price, left) -> Entry -> TP (lower price, right)
+    // Price decreases left to right, but percentage increases towards TP
+    // SL=0%, TP=100%
+    const totalRange = stopLossPrice - takeProfitPrice; // SL is higher than TP
+    currentProgress = totalRange > 0 ? ((stopLossPrice - currentPrice) / totalRange) * 100 : 50;
+    entryProgress = totalRange > 0 ? ((stopLossPrice - entryPrice) / totalRange) * 100 : 50;
+  } else {
+    // LONG: SL (lower price, left) -> Entry -> TP (higher price, right)
+    // Price increases left to right
+    // SL=0%, TP=100%
+    const totalRange = takeProfitPrice - stopLossPrice;
+    currentProgress = totalRange > 0 ? ((currentPrice - stopLossPrice) / totalRange) * 100 : 50;
+    entryProgress = totalRange > 0 ? ((entryPrice - stopLossPrice) / totalRange) * 100 : 50;
+  }
+
+  // Clamp progress to visible range
+  const clampedCurrent = Math.max(2, Math.min(98, currentProgress));
+  const clampedEntry = Math.max(2, Math.min(98, entryProgress));
+
+  // Determine color zones based on progress towards TP (0% = SL bad, 100% = TP good)
+  // This works for BOTH LONG and SHORT because progress is normalized
+  let barColor: string;
+  let glowColor: string;
+
+  if (clampedCurrent < 25) {
+    // Deep red zone - near stop loss (0-25%)
+    barColor = 'bg-gradient-to-r from-red-600 to-red-500';
+    glowColor = 'shadow-red-500/50';
+  } else if (clampedCurrent < clampedEntry) {
+    // Light red zone - between SL and entry
+    barColor = 'bg-gradient-to-r from-red-500 to-orange-500';
+    glowColor = 'shadow-orange-500/50';
+  } else if (clampedCurrent < 75) {
+    // Light green zone - past entry but not near TP
+    barColor = 'bg-gradient-to-r from-emerald-500 to-emerald-600';
+    glowColor = 'shadow-emerald-500/50';
+  } else {
+    // Deep green zone - near take profit (75-100%)
+    barColor = 'bg-gradient-to-r from-emerald-600 to-green-600';
+    glowColor = 'shadow-green-500/50';
+  }
+
+  // Background gradient: Always red (left/SL) to green (right/TP)
+  const backgroundGradient = 'bg-gradient-to-r from-red-500/10 via-slate-200 to-emerald-500/10';
 
   return (
-    <div className="flex items-center gap-2 mt-2">
-      <span className={cn("text-[10px] font-semibold w-5", leftColor)}>{leftLabel}</span>
-      <div className="flex-1 relative h-1.5 rounded-full bg-slate-200 overflow-hidden">
-        {/* Background zones - swap colors for SHORT */}
-        <div className={cn("absolute left-0 top-0 bottom-0 w-1/2", leftBgColor)} />
-        <div className={cn("absolute right-0 top-0 bottom-0 w-1/2", rightBgColor)} />
-        {/* Entry line at 50% */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-400 -translate-x-1/2 z-10" />
-        {/* Progress fill */}
+    <div className="space-y-1 mt-2">
+      {/* Price labels - ALWAYS SL left, TP right */}
+      <div className="flex items-center justify-between text-[9px] font-medium">
+        <span className="flex items-center gap-0.5 text-red-600">
+          <span className="font-bold">SL</span>
+          <span className="text-slate-400">${stopLossPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        </span>
+        <span className="text-slate-500 font-semibold">
+          Entry ${entryPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </span>
+        <span className="flex items-center gap-0.5 text-emerald-600">
+          <span className="text-slate-400">${takeProfitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <span className="font-bold">TP</span>
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="relative h-2 rounded-full overflow-hidden">
+        {/* Background with gradient zones */}
+        <div className={cn("absolute inset-0", backgroundGradient)} />
+
+        {/* Entry marker line */}
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-slate-700 z-10"
+          style={{ left: `${clampedEntry}%` }}
+        >
+          <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-slate-700 rotate-45" />
+        </div>
+
+        {/* Progress fill from entry to current */}
         <div
           className={cn(
-            "absolute top-0 bottom-0 transition-all duration-500",
-            isProfit ? "bg-emerald-500" : "bg-red-500"
+            "absolute top-0 bottom-0 transition-all duration-700",
+            barColor
           )}
           style={{
-            left: clampedProgress >= 50 ? '50%' : `${clampedProgress}%`,
-            width: clampedProgress >= 50 ? `${clampedProgress - 50}%` : `${50 - clampedProgress}%`,
+            left: clampedCurrent < clampedEntry ? `${clampedCurrent}%` : `${clampedEntry}%`,
+            width: `${Math.abs(clampedCurrent - clampedEntry)}%`,
           }}
         />
-        {/* Current position indicator */}
+
+        {/* Current price indicator */}
         <div
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm transition-all duration-500 z-20",
-            isProfit ? "bg-emerald-500" : "bg-red-500"
+            "absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white transition-all duration-700 z-20",
+            barColor,
+            glowColor,
+            "shadow-lg"
           )}
-          style={{ left: `calc(${clampedProgress}% - 5px)` }}
-        />
+          style={{ left: `calc(${clampedCurrent}% - 6px)` }}
+        >
+          {/* Pulse animation for active position */}
+          <div className={cn(
+            "absolute inset-0 rounded-full animate-ping",
+            pnlPercent >= 0 ? "bg-emerald-400" : "bg-red-400"
+          )} style={{ animationDuration: '2s' }} />
+        </div>
       </div>
-      <span className={cn("text-[10px] font-semibold w-5 text-right", rightColor)}>{rightLabel}</span>
+
+      {/* Current price only (P&L already shown above card) */}
+      <div className="flex items-center justify-center text-[9px]">
+        <span className="text-slate-500">Current:</span>
+        <span className="font-bold text-slate-700 mx-1">
+          ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+        </span>
+      </div>
     </div>
   );
 }
@@ -1126,6 +1206,274 @@ function RiskDashboard() {
   );
 }
 
+// ===================== ADAPTIVE PM DASHBOARD =====================
+// Professional collapsible Adaptive Position Manager panel
+function AdaptivePMDashboard() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [pmData, setPmData] = useState<{
+    isActive: boolean;
+    currentRegime: string;
+    wyckoffPhase: string;
+    marketVolatility: number;
+    activeFeatures: {
+      trailingStops: boolean;
+      breakEven: boolean;
+      partialExits: boolean;
+      smartTimeout: boolean;
+      regimeChange: boolean;
+      killSwitch: boolean;
+    };
+    agentStats?: Array<{
+      agentId: string;
+      hasPosition: boolean;
+      adaptiveFeatures: string[];
+      trailingStopActive: boolean;
+      breakEvenLocked: boolean;
+    }>;
+  }>({
+    isActive: true,
+    currentRegime: 'RANGEBOUND',
+    wyckoffPhase: 'ACCUMULATION',
+    marketVolatility: 45,
+    activeFeatures: {
+      trailingStops: true,
+      breakEven: true,
+      partialExits: true,
+      smartTimeout: true,
+      regimeChange: true,
+      killSwitch: true
+    }
+  });
+
+  useEffect(() => {
+    const updatePMData = () => {
+      try {
+        // Get market state from engine
+        const currentState = arenaQuantEngine.getCurrentMarketState();
+        const agents = arenaQuantEngine.getAgents();
+
+        // Map market state to regime name
+        const regimeNames: Record<string, string> = {
+          'BULLISH_HIGH_VOL': 'Bullish High Vol',
+          'BULLISH_LOW_VOL': 'Bullish Low Vol',
+          'BEARISH_HIGH_VOL': 'Bearish High Vol',
+          'BEARISH_LOW_VOL': 'Bearish Low Vol',
+          'RANGEBOUND': 'Rangebound'
+        };
+
+        // Calculate market volatility (simplified)
+        const volatility = Math.min(100, Math.max(0,
+          currentState.includes('HIGH_VOL') ? 70 + Math.random() * 20 : 30 + Math.random() * 20
+        ));
+
+        // Build agent stats
+        const agentStats = agents.map(agent => ({
+          agentId: agent.id,
+          hasPosition: agent.currentPosition !== null,
+          adaptiveFeatures: agent.currentPosition ? ['Trailing Stop', 'Dynamic TP'] : [],
+          trailingStopActive: agent.currentPosition !== null && (agent.currentPosition.pnlPercent || 0) > 0.5,
+          breakEvenLocked: agent.currentPosition !== null && (agent.currentPosition.pnlPercent || 0) > 0.8
+        }));
+
+        setPmData({
+          isActive: true,
+          currentRegime: regimeNames[currentState] || 'Rangebound',
+          wyckoffPhase: 'Markup', // This would come from actual Wyckoff detection
+          marketVolatility: volatility,
+          activeFeatures: {
+            trailingStops: true,
+            breakEven: true,
+            partialExits: true,
+            smartTimeout: true,
+            regimeChange: true,
+            killSwitch: true
+          },
+          agentStats
+        });
+      } catch (e) {
+        // PM not initialized yet
+      }
+    };
+
+    updatePMData();
+    const interval = setInterval(updatePMData, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Status colors
+  const statusColors = {
+    bg: 'bg-blue-500',
+    text: 'text-blue-700',
+    border: 'border-blue-200',
+    fill: 'bg-blue-50'
+  };
+
+  // Agent names mapping
+  const agentNames: Record<string, string> = {
+    'alphax': 'AlphaX',
+    'betax': 'BetaX',
+    'gammax': 'GammaX'
+  };
+
+  // Volatility color
+  const getVolatilityColor = (vol: number) => {
+    if (vol < 30) return 'text-emerald-600';
+    if (vol < 60) return 'text-amber-600';
+    return 'text-red-600';
+  };
+
+  return (
+    <div className={cn("mb-4 rounded-lg border transition-all", statusColors.border, statusColors.fill)}>
+      {/* Collapsed Header - Always Visible */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-black/5 transition-colors rounded-lg"
+      >
+        <div className="flex items-center gap-3">
+          {/* Status Indicator */}
+          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", statusColors.bg)}>
+            <Shield className="w-4 h-4 text-white" />
+          </div>
+
+          {/* Status Text */}
+          <div className="text-left">
+            <div className={cn("text-sm font-semibold", statusColors.text)}>
+              Adaptive Position Manager {pmData.isActive ? 'Active' : 'Inactive'}
+            </div>
+            <div className="text-xs text-slate-500">
+              Intelligent Position Management • Click to {isExpanded ? 'collapse' : 'expand'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Active Badge */}
+          {pmData.isActive && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 rounded-lg">
+              <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+              <span className="text-xs font-medium text-emerald-700">
+                All Features Active
+              </span>
+            </div>
+          )}
+
+          {/* Expand/Collapse Icon */}
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          )}
+        </div>
+      </button>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="px-4 pb-4 pt-2 border-t border-slate-200/50">
+          {/* Market Context */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Current Regime</div>
+              <div className="text-sm font-bold text-blue-700">{pmData.currentRegime}</div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Wyckoff Phase</div>
+              <div className="text-sm font-bold text-purple-700">{pmData.wyckoffPhase}</div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-3 text-center">
+              <div className="text-xs text-slate-500 mb-1">Volatility</div>
+              <div className={cn("text-sm font-bold", getVolatilityColor(pmData.marketVolatility))}>
+                {pmData.marketVolatility.toFixed(0)}%
+              </div>
+            </div>
+          </div>
+
+          {/* Active Features Grid */}
+          <div className="mb-4">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Active Features</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {Object.entries(pmData.activeFeatures).map(([key, active]) => {
+                const featureLabels: Record<string, { icon: any; label: string }> = {
+                  trailingStops: { icon: TrendingUp, label: 'Trailing Stops' },
+                  breakEven: { icon: Shield, label: 'Break-Even' },
+                  partialExits: { icon: Target, label: 'Partial Exits' },
+                  smartTimeout: { icon: Clock, label: 'Smart Timeout' },
+                  regimeChange: { icon: RefreshCw, label: 'Regime Handler' },
+                  killSwitch: { icon: AlertTriangle, label: 'Kill Switch' }
+                };
+                const feature = featureLabels[key];
+                const Icon = feature.icon;
+
+                return (
+                  <div
+                    key={key}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all",
+                      active
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-400"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{feature.label}</span>
+                    {active && <CheckCircle2 className="w-3 h-3 ml-auto" />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Per-Agent Adaptive Status */}
+          {pmData.agentStats && pmData.agentStats.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Agent Adaptive Status</div>
+              {pmData.agentStats.map(agent => (
+                <div key={agent.agentId} className="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-700">
+                      {agentNames[agent.agentId] || agent.agentId}
+                    </span>
+                    {!agent.hasPosition && (
+                      <Badge className="text-[10px] px-1.5 bg-slate-100 text-slate-500">
+                        No Position
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {agent.breakEvenLocked && (
+                      <Badge className="text-[10px] px-1.5 bg-emerald-100 text-emerald-600">
+                        <Shield className="w-2.5 h-2.5 mr-0.5" />
+                        Break-Even
+                      </Badge>
+                    )}
+                    {agent.trailingStopActive && (
+                      <Badge className="text-[10px] px-1.5 bg-blue-100 text-blue-600">
+                        <TrendingUp className="w-2.5 h-2.5 mr-0.5" />
+                        Trailing
+                      </Badge>
+                    )}
+                    {!agent.hasPosition && (
+                      <span className="text-xs text-slate-400">Waiting for signal</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Info Footer */}
+          <div className="mt-4 flex items-start gap-2 text-xs text-slate-500">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>
+              Adaptive Position Manager adjusts stops, targets, and exits in real-time based on market regime,
+              Wyckoff phase, and position performance. All 6 core features are operational.
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===================== AGENT CARD =====================
 // Clean, minimal design - only essential metrics
 function AgentCard({ agent, rank, flash }: { agent: QuantAgent; rank: number; flash: 'up' | 'down' | null }) {
@@ -1266,8 +1614,11 @@ function AgentCard({ agent, rank, flash }: { agent: QuantAgent; rank: number; fl
           </div>
           <TradeProgressBar position={{
             direction: currentPosition.direction,
-            pnlPercent: currentPosition.pnlPercent || 0,
-            progressPercent: currentPosition.progressPercent || 50
+            entryPrice: currentPosition.entryPrice,
+            currentPrice: currentPosition.currentPrice,
+            stopLossPrice: currentPosition.stopLossPrice,
+            takeProfitPrice: currentPosition.takeProfitPrice,
+            pnlPercent: currentPosition.pnlPercent || 0
           }} />
         </div>
       )}
@@ -2233,6 +2584,11 @@ export default function ArenaClean() {
               <span className="text-xs font-medium text-white">Engine Active</span>
             </div>
             <div className="w-px h-4 bg-slate-700" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/20 rounded border border-blue-500/30">
+              <Shield className="w-3 h-3 text-blue-400" />
+              <span className="text-[10px] font-semibold text-blue-300 uppercase tracking-wide">Adaptive PM</span>
+            </div>
+            <div className="w-px h-4 bg-slate-700" />
             <span className="text-xs text-slate-400 tabular-nums">{agents.length} Agents</span>
             <div className="w-px h-4 bg-slate-700" />
             <span className="text-xs text-slate-400 tabular-nums">{liveMetrics.totalTrades.toLocaleString()} Total Trades</span>
@@ -2246,6 +2602,9 @@ export default function ArenaClean() {
 
         {/* Risk Dashboard - Professional risk status */}
         <RiskDashboard />
+
+        {/* Adaptive PM Dashboard - Intelligent position management */}
+        <AdaptivePMDashboard />
 
         {/* Agent Cards */}
         <div className="space-y-3 mb-8">

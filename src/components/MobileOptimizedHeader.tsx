@@ -33,7 +33,8 @@ import { toast } from 'sonner';
 
 const featureLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Market overview' },
-  { href: '/intelligence-hub', label: 'Intelligence Hub', icon: Brain, description: 'AI-powered unified intelligence' },
+  // Intelligence Hub removed - now accessible via Flux control center (dev only)
+  // { href: '/intelligence-hub', label: 'Intelligence Hub', icon: Brain, description: 'AI-powered unified intelligence' },
   { href: '/titan10', label: 'Titan 10', icon: Crown, description: 'Expert portfolio' },
   { href: '/ai-analysis', label: 'AI Analysis', icon: Brain, description: 'Smart insights' },
   { href: '/market-sentiment', label: 'Market Sentiment', icon: TrendingUp, description: 'Fear & Greed' },

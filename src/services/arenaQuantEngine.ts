@@ -14,6 +14,14 @@ import { MarketState, marketStateDetectionEngine } from './marketStateDetectionE
 import { strategyMatrix, AgentType, type StrategyProfile } from './strategyMatrix';
 import { arenaCircuitBreaker, CircuitBreakerLevel } from './arenaCircuitBreaker';
 import { arenaSupabaseStorage, type AgentSessionData } from './arenaSupabaseStorage';
+import { arenaTradeLogger } from './arenaTradeLogger';
+
+// Adaptive Position Manager - Regime-aware position management
+import {
+  arenaIntegrationBridge,
+  MarketRegime,
+  WyckoffPhase,
+} from './adaptivePositionManager';
 
 // ===================== CONSTANTS =====================
 
@@ -1065,10 +1073,37 @@ class ArenaQuantEngine {
     // Reserve symbol to prevent other agents from trading same pair
     this.reservedSymbols.add(pair.symbol);
 
+    // REGISTER WITH ADAPTIVE POSITION MANAGER for intelligent management
+    const marketContext = arenaIntegrationBridge.getMarketContext(this.currentMarketState);
+    arenaIntegrationBridge.createAdaptiveFromArena(
+      position,
+      agent.id,
+      Math.round(signal.confidence * 100),
+      marketContext.regime,
+      marketContext.wyckoff
+    );
+
     console.log(`📈 ${agent.name} [${strategy.name}] ${direction} ${pair.display} @ $${entry.toFixed(2)}`);
-    console.log(`   └─ ${signal.reasoning}`);
+    console.log(`   └─ ${signal.reasoning} | Regime: ${marketContext.regime}`);
 
     this.savePositions();
+
+    // LOG TO DATABASE for marketing analytics
+    arenaTradeLogger.updatePosition({
+      agentId: agent.id,
+      symbol: pair.display,
+      direction: position.direction,
+      entryPrice: position.entryPrice,
+      currentPrice: position.currentPrice,
+      entryTime: position.entryTime,
+      stopLoss: position.stopLossPrice,
+      takeProfit: position.takeProfitPrice,
+      strategy: strategy.name,
+      confidence: Math.round(signal.confidence * 100),
+      unrealizedPnlPercent: 0,
+      unrealizedPnlUsd: 0
+    }).catch(err => console.error('[Trade Logger] Failed to log position open:', err));
+
     this.emitTrade({ type: 'open', agent, position });
     this.notify();
   }
@@ -1185,9 +1220,6 @@ class ArenaQuantEngine {
   }
 
   private checkPositions(): void {
-    const now = Date.now();
-    const maxHoldTime = 300000; // 5 minutes max hold
-
     this.agents.forEach(agent => {
       if (!agent.currentPosition) return;
 
@@ -1195,25 +1227,126 @@ class ArenaQuantEngine {
       const price = this.prices.get(pos.symbol);
       if (!price) return;
 
-      let close = false;
-      let reason: 'TP' | 'SL' | 'TIMEOUT' | 'REGIME_CHANGE' = 'TIMEOUT';
+      // Get market context for adaptive evaluation
+      const marketContext = arenaIntegrationBridge.getMarketContext(pos.marketStateAtEntry);
 
-      const isLong = pos.direction === 'LONG';
-      if (isLong) {
-        if (price.price >= pos.takeProfitPrice) { close = true; reason = 'TP'; }
-        else if (price.price <= pos.stopLossPrice) { close = true; reason = 'SL'; }
-      } else {
-        if (price.price <= pos.takeProfitPrice) { close = true; reason = 'TP'; }
-        else if (price.price >= pos.stopLossPrice) { close = true; reason = 'SL'; }
+      // Use adaptive position manager for intelligent evaluation
+      const evalResult = arenaIntegrationBridge.evaluateArenaPosition(
+        pos.id,
+        price.price,
+        pos.symbol,
+        marketContext.regime,
+        marketContext.wyckoff
+      );
+
+      // Convert adaptive result to arena action
+      const arenaAction = arenaIntegrationBridge.convertToArenaAction(evalResult);
+
+      // Update stop loss if trailing stop moved
+      if (arenaAction.newStopLoss && arenaAction.newStopLoss !== pos.stopLossPrice) {
+        pos.stopLossPrice = arenaAction.newStopLoss;
+        console.log(`📈 [${agent.name}] Trailing stop updated to $${arenaAction.newStopLoss.toFixed(2)}`);
       }
 
-      if (now - pos.entryTime >= maxHoldTime) {
-        close = true;
-        reason = 'TIMEOUT';
+      // Handle partial exits
+      if (arenaAction.isPartialExit && arenaAction.exitQuantityPercent > 0) {
+        this.executePartialExit(agent, price.price, arenaAction.exitQuantityPercent, arenaAction.reason);
+        return;
       }
 
-      if (close) this.closeTrade(agent, price.price, reason);
+      // Handle full exits
+      if (arenaAction.shouldClose) {
+        const reason = this.mapAdaptiveReasonToArena(arenaAction.reason);
+        this.closeTrade(agent, price.price, reason);
+      }
     });
+  }
+
+  /**
+   * Execute a partial exit (sell portion of position)
+   */
+  private executePartialExit(
+    agent: QuantAgent,
+    exitPrice: number,
+    exitPercent: number,
+    reason: string
+  ): void {
+    const pos = agent.currentPosition;
+    if (!pos) return;
+
+    const exitQuantity = pos.quantity * (exitPercent / 100);
+    const remainingQuantity = pos.quantity - exitQuantity;
+
+    const isLong = pos.direction === 'LONG';
+    const pnlPercent = isLong
+      ? ((exitPrice - pos.entryPrice) / pos.entryPrice) * 100
+      : ((pos.entryPrice - exitPrice) / pos.entryPrice) * 100;
+
+    // Calculate P&L for partial exit
+    const positionNotional = exitQuantity * pos.entryPrice;
+    const pnlDollar = (pnlPercent / 100) * positionNotional;
+
+    // Record partial profit
+    const session = this.sessionTrades.get(agent.id);
+    if (session) {
+      session.balanceDelta += pnlDollar;
+    }
+
+    // Update agent balance
+    agent.balance += pnlDollar;
+    agent.totalPnL = agent.balance - agent.initialBalance;
+    agent.totalPnLPercent = (agent.totalPnL / agent.initialBalance) * 100;
+
+    // Update remaining position quantity
+    pos.quantity = remainingQuantity;
+
+    // If position fully exited, close it
+    if (remainingQuantity <= 0.0001) {
+      this.closeTrade(agent, exitPrice, 'TP');
+      return;
+    }
+
+    console.log(
+      `%c⚡ PARTIAL EXIT: ${agent.name} ${reason} | ${exitPercent.toFixed(0)}% @ $${exitPrice.toFixed(2)} | +$${pnlDollar.toFixed(2)}`,
+      'background: #22c55e; color: white; padding: 2px 8px;'
+    );
+
+    // Record partial to trade logger
+    arenaTradeLogger.logCompletedTrade({
+      agentId: agent.id,
+      symbol: pos.displaySymbol,
+      direction: pos.direction,
+      entryPrice: pos.entryPrice,
+      exitPrice: exitPrice,
+      entryTime: pos.entryTime,
+      exitTime: Date.now(),
+      pnlPercent: pnlPercent,
+      pnlUsd: pnlDollar,
+      strategy: pos.strategy,
+      confidence: 78
+    }).catch(err => console.error('[Partial Exit] Failed to log:', err));
+
+    this.savePositions();
+    this.notify();
+  }
+
+  /**
+   * Map adaptive reason to arena reason type
+   */
+  private mapAdaptiveReasonToArena(reason: string): 'TP' | 'SL' | 'TIMEOUT' | 'REGIME_CHANGE' {
+    switch (reason) {
+      case 'TRAILING':
+      case 'SL':
+        return 'SL';
+      case 'TP':
+      case 'PARTIAL':
+        return 'TP';
+      case 'REGIME_CHANGE':
+        return 'REGIME_CHANGE';
+      case 'TIMEOUT':
+      default:
+        return 'TIMEOUT';
+    }
   }
 
   private closeTrade(agent: QuantAgent, exitPrice: number, reason: 'TP' | 'SL' | 'TIMEOUT' | 'REGIME_CHANGE'): void {
@@ -1261,6 +1394,12 @@ class ArenaQuantEngine {
 
     // RECORD WITH CIRCUIT BREAKER - This updates risk state and may trigger protections
     arenaCircuitBreaker.recordTradeOutcome(agent.id, pnlDollar, pnlPercent, isWin);
+
+    // RECORD WITH ADAPTIVE POSITION MANAGER - Updates trading stats for kill switch
+    arenaIntegrationBridge.recordTradeOutcome(pnlPercent, isWin, agent.id);
+
+    // Close position in adaptive system
+    arenaIntegrationBridge.closeAdaptivePosition(pos.id, exitPrice, reason);
 
     agent.totalTrades++;
     if (isWin) {
@@ -1324,6 +1463,25 @@ class ArenaQuantEngine {
     this.saveSession();
     this.saveTradeHistory();
     this.calculate24hMetrics();
+
+    // LOG COMPLETED TRADE TO DATABASE for marketing analytics
+    arenaTradeLogger.logCompletedTrade({
+      agentId: agent.id,
+      symbol: closedPos.displaySymbol,
+      direction: closedPos.direction,
+      entryPrice: closedPos.entryPrice,
+      exitPrice: exitPrice,
+      entryTime: closedPos.entryTime,
+      exitTime: Date.now(),
+      pnlPercent: pnlPercent,
+      pnlUsd: pnlDollar,
+      strategy: closedPos.strategy,
+      confidence: 78
+    }).catch(err => console.error('[Trade Logger] Failed to log completed trade:', err));
+
+    // CLOSE POSITION in database
+    arenaTradeLogger.closePosition(agent.id, closedPos.displaySymbol)
+      .catch(err => console.error('[Trade Logger] Failed to close position:', err));
 
     this.emitTrade({ type: 'close', agent, position: closedPos, exitPrice, reason, pnlPercent, isWin });
     this.notify();
