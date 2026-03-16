@@ -54,15 +54,23 @@ class OHLCDataManager {
 
     const binanceSymbolMap = this.mapCoinGeckoToBinance(coinGeckoIds);
 
-    // Fetch all coins in parallel (Binance allows 1000 req/min)
-    const fetchPromises = Array.from(binanceSymbolMap.entries()).map(([coinGeckoId, binanceSymbol]) =>
-      this.fetchHistoricalCandles(coinGeckoId, binanceSymbol)
-    );
+    // Fetch in batches of 10 to avoid overwhelming browser connections & rate limits
+    const entries = Array.from(binanceSymbolMap.entries());
+    const BATCH_SIZE = 10;
+    let successful = 0;
+    let failed = 0;
 
-    const results = await Promise.allSettled(fetchPromises);
-
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map(([coinGeckoId, binanceSymbol]) =>
+          this.fetchHistoricalCandles(coinGeckoId, binanceSymbol)
+        )
+      );
+      successful += batchResults.filter(r => r.status === 'fulfilled').length;
+      failed += batchResults.filter(r => r.status === 'rejected').length;
+      console.log(`[OHLCManager] Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(entries.length / BATCH_SIZE)} complete`);
+    }
 
     console.log(`[OHLCManager] ✅ Initialization complete: ${successful} successful, ${failed} failed`);
     console.log(`[OHLCManager] Cache size: ${this.candleCache.size} coins`);
@@ -80,7 +88,10 @@ class OHLCDataManager {
       // Params: symbol, interval, limit
       const url = `${this.BINANCE_API_BASE}/klines?symbol=${binanceSymbol}&interval=${this.CANDLE_INTERVAL}&limit=${this.MAX_CANDLES}`;
 
-      const response = await fetch(url);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         console.warn(`[OHLCManager] ⚠️ ${coinGeckoId}: Binance API error ${response.status}`);
@@ -297,7 +308,17 @@ class OHLCDataManager {
       'omisego': 'OMGUSDT',
       'bancor': 'BNTUSDT',
       'loopring': 'LRCUSDT',
-      'render-token': 'RNNDRUSDT',
+      'render-token': 'RNDRUSDT',
+      'sui': 'SUIUSDT',
+      'sei-network': 'SEIUSDT',
+      'celestia': 'TIAUSDT',
+      'fetch-ai': 'FETUSDT',
+      'worldcoin-wld': 'WLDUSDT',
+      'pepe': 'PEPEUSDT',
+      'shiba-inu': 'SHIBUSDT',
+      'bonk': 'BONKUSDT',
+      'jupiter-exchange-solana': 'JUPUSDT',
+      'ondo-finance': 'ONDOUSDT',
       'injective-protocol': 'INJUSDT'
     };
 

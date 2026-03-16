@@ -92,22 +92,50 @@ export class DataEnrichmentServiceV2 {
         return cached;
       }
 
-      // Parallel data fetching for speed
+      // Parallel data fetching with individual timeouts (prevents hanging)
+      const FETCH_TIMEOUT = 8000; // 8 seconds max per data source
+      const timeoutPromise = <T>(p: Promise<T>, label: string, fallback: T): Promise<T> => {
+        let timer: ReturnType<typeof setTimeout>;
+        const timeout = new Promise<T>((resolve) => {
+          timer = setTimeout(() => {
+            console.warn(`[EnrichmentV2] TIMEOUT: ${label} exceeded ${FETCH_TIMEOUT}ms, using fallback`);
+            resolve(fallback);
+          }, FETCH_TIMEOUT);
+        });
+        return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+      };
+
+      const defaultOrderBook = {
+        buyPressure: this.calculateBuyPressure(ticker), bidAskRatio: this.calculateBidAskRatio(ticker),
+        bidAskImbalance: this.calculateBidAskImbalance(ticker), spread: ticker.ask - ticker.bid,
+        spreadPercent: ticker.bid ? ((ticker.ask - ticker.bid) / ticker.bid) * 100 : 0,
+        bidVolume: 0, askVolume: 0, totalVolume: 0, largeOrders: [], depth: { bids: [], asks: [] },
+        sources: 0, timestamp: Date.now()
+      };
+      const defaultFunding = { binance: 0, bybit: 0, okx: 0, average: 0, sources: 0 };
+      const defaultOnChain = { exchangeFlowRatio: 0, smartMoneyFlow: 0, activeAddresses: 0, largeTransactions: 0, whaleAccumulation: 0, retailActivity: 0.5, marketCap: 0, circulatingSupply: 0, maxSupply: 0 };
+      const defaultOhlc = { symbol, candles: [], lastUpdate: Date.now(), interval: '15m' };
+
+      // ✅ FIX: Fetch data in parallel WITHOUT detectMarketPhase
+      // detectMarketPhase was re-fetching all 4 data sources, doubling API calls!
       const [
         orderBookData,
         fundingRates,
         onChainData,
         fearGreed,
-        marketPhase,
         ohlcData
       ] = await Promise.all([
-        this.fetchOrderBookData(symbol, ticker),
-        this.fetchFundingRates(symbol),
-        this.fetchOnChainData(symbol),
-        this.getFearGreedIndex(),
-        this.detectMarketPhase(symbol, ticker),
-        this.getOHLCData(symbol)
+        timeoutPromise(this.fetchOrderBookData(symbol, ticker), `orderBook(${symbol})`, defaultOrderBook),
+        timeoutPromise(this.fetchFundingRates(symbol), `fundingRates(${symbol})`, defaultFunding),
+        timeoutPromise(this.fetchOnChainData(symbol), `onChain(${symbol})`, defaultOnChain),
+        timeoutPromise(this.getFearGreedIndex(), 'fearGreed', 50),
+        timeoutPromise(this.getOHLCData(symbol), `ohlc(${symbol})`, defaultOhlc)
       ]);
+
+      // ✅ Detect market phase using ALREADY-FETCHED data (no redundant API calls)
+      const marketPhase = this.detectMarketPhaseFromData(
+        ticker, fearGreed, onChainData, fundingRates, orderBookData
+      );
 
       // Calculate technical indicators with OHLC bootstrapping
       const technicalData = this.calculateAdvancedTechnicals(symbol, ticker, ohlcData);
@@ -139,6 +167,7 @@ export class DataEnrichmentServiceV2 {
         marketData: {
           current_price: ticker.price, // Always populated
           priceChangePercentage24h: ticker.priceChangePercent24h,
+          price_change_percentage_24h: ticker.priceChangePercent24h, // snake_case alias for strategies
           marketCap: onChainData.marketCap || 0,
           totalVolume: ticker.volume24h,
           circulatingSupply: onChainData.circulatingSupply || 0,
@@ -396,57 +425,47 @@ export class DataEnrichmentServiceV2 {
   /**
    * Detect market phase using advanced analysis
    */
-  private async detectMarketPhase(symbol: string, ticker: CanonicalTicker): Promise<MarketPhase> {
+  /**
+   * Detect market phase using already-fetched data (no redundant API calls)
+   */
+  private detectMarketPhaseFromData(
+    ticker: CanonicalTicker,
+    fearGreed: number,
+    onChainData: any,
+    fundingRates: any,
+    orderBookData: any
+  ): MarketPhase {
     try {
-      // Get current fear & greed index
-      const fearGreed = await this.getFearGreedIndex();
-
-      // Get exchange flow ratio
-      const onChainData = await this.fetchOnChainData(symbol);
-      const exchangeFlowRatio = onChainData.exchangeFlowRatio;
-
-      // Get funding rate
-      const fundingRates = await this.fetchFundingRates(symbol);
-      const avgFundingRate = fundingRates.average || 0;
-
-      // Get order book imbalance
-      const orderBookData = await this.fetchOrderBookData(symbol, ticker);
-      const orderBookImbalance = orderBookData.bidAskRatio;
-
-      // ✅ FIX: Calculate priceVolatility (required by PhaseIndicators)
-      // Use 24h price change as volatility proxy
-      const priceVolatility = Math.abs(ticker.priceChangePercent24h || 0);
-
-      // ✅ FIX: Determine volumeTrend (required by PhaseIndicators)
-      // If we don't have historical volume, use 'stable' as default
-      const volumeTrend: 'increasing' | 'decreasing' | 'stable' = 'stable';
-
-      // ✅ CRITICAL FIX: marketPhaseDetector.detectPhase() expects a SINGLE object parameter
-      // NOT 5 separate parameters!
       const phaseIndicators = {
         fearGreedIndex: fearGreed,
-        exchangeFlowRatio: exchangeFlowRatio,
-        fundingRate: avgFundingRate,
-        priceVolatility: priceVolatility,
-        volumeTrend: volumeTrend,
+        exchangeFlowRatio: onChainData.exchangeFlowRatio || 0,
+        fundingRate: fundingRates.average || 0,
+        priceVolatility: Math.abs(ticker.priceChangePercent24h || 0),
+        volumeTrend: 'stable' as const,
         priceMomentum: ticker.priceChangePercent24h || 0,
-        orderBookImbalance: orderBookImbalance
+        orderBookImbalance: orderBookData.bidAskRatio || 1
       };
 
-      // ✅ CRITICAL FIX: Method returns PhaseDetectionResult object, not just the phase string
-      // Must access .phase property from the result
       const phaseResult = marketPhaseDetector.detectPhase(phaseIndicators);
-
-      console.log(
-        `[EnrichmentV2] 📊 Market Phase Detection: ${phaseResult.phase} ` +
-        `(${phaseResult.confidence}% confidence) | ${symbol}`
-      );
-
       return phaseResult.phase;
-
     } catch (error) {
-      console.warn(`[EnrichmentV2] Error detecting market phase:`, error);
-      return 'ACCUMULATION' as MarketPhase; // Default to ACCUMULATION (safer than NORMAL)
+      return 'ACCUMULATION' as MarketPhase;
+    }
+  }
+
+  /**
+   * Legacy async detectMarketPhase - kept for backward compatibility
+   */
+  private async detectMarketPhase(symbol: string, ticker: CanonicalTicker): Promise<MarketPhase> {
+    try {
+      const fearGreed = await this.getFearGreedIndex();
+      const onChainData = await this.fetchOnChainData(symbol);
+      const fundingRates = await this.fetchFundingRates(symbol);
+      const orderBookData = await this.fetchOrderBookData(symbol, ticker);
+
+      return this.detectMarketPhaseFromData(ticker, fearGreed, onChainData, fundingRates, orderBookData);
+    } catch (error) {
+      return 'ACCUMULATION' as MarketPhase;
     }
   }
 
@@ -459,27 +478,74 @@ export class DataEnrichmentServiceV2 {
     // But we receive ticker symbols (BTCUSDT, ETHUSDT, etc.)
     const coinGeckoId = this.symbolToCoinGeckoId(symbol);
 
-    console.log(`[EnrichmentV2] 🔍 OHLC lookup: ${symbol} → ${coinGeckoId}`);
-
     // Try to get from OHLC manager first
     const ohlcData = ohlcDataManager.getDataset(coinGeckoId);
 
     if (ohlcData && ohlcData.candles && ohlcData.candles.length > 0) {
-      console.log(`[EnrichmentV2] ✅ Found ${ohlcData.candles.length} OHLC candles for ${coinGeckoId}`);
       return ohlcData;
     }
 
-    // ✅ INSTITUTIONAL-GRADE: NO SYNTHETIC DATA - Reject if no real OHLC
-    console.log(`[EnrichmentV2] ❌ NO REAL OHLC DATA for ${symbol} (${coinGeckoId}) - Signal will be rejected`);
-    console.warn(`[EnrichmentV2] ⚠️ QUALITY ALERT: ${symbol} missing real OHLC candles from Binance`);
+    // ✅ JUST-IN-TIME FETCH: If OHLC cache is empty, fetch directly from Binance
+    // This is the critical fix - without OHLC data, ALL 17 strategies reject
+    console.log(`[EnrichmentV2] ⚠️ OHLC cache miss for ${symbol} (${coinGeckoId}), fetching just-in-time...`);
+    try {
+      // Convert symbol to proper Binance format
+      // Input could be: 'BTCUSDT', 'BTC', 'bitcoin' — all need to become 'BTCUSDT'
+      let binanceSymbol: string;
+      if (symbol.endsWith('USDT')) {
+        binanceSymbol = symbol.toUpperCase();
+      } else {
+        // Could be a short ticker ('BTC') or CoinGecko ID ('bitcoin')
+        // Use the reverse mapping from CoinGecko ID to get the proper symbol
+        const cgToTicker: Record<string, string> = {
+          'bitcoin': 'BTC', 'ethereum': 'ETH', 'solana': 'SOL', 'binancecoin': 'BNB',
+          'ripple': 'XRP', 'cardano': 'ADA', 'polkadot': 'DOT', 'avalanche-2': 'AVAX',
+          'dogecoin': 'DOGE', 'chainlink': 'LINK', 'cosmos': 'ATOM', 'uniswap': 'UNI',
+          'litecoin': 'LTC', 'near': 'NEAR', 'aptos': 'APT', 'optimism': 'OP',
+          'arbitrum': 'ARB', 'tron': 'TRX', 'aave': 'AAVE', 'maker': 'MKR',
+          'filecoin': 'FIL', 'injective-protocol': 'INJ', 'sui': 'SUI', 'sei-network': 'SEI',
+          'celestia': 'TIA', 'render-token': 'RNDR', 'fetch-ai': 'FET', 'worldcoin-wld': 'WLD',
+          'pepe': 'PEPE', 'shiba-inu': 'SHIB', 'bonk': 'BONK',
+        };
+        const ticker = cgToTicker[symbol.toLowerCase()] || symbol.replace(/USDT$/, '').toUpperCase();
+        binanceSymbol = ticker + 'USDT';
+      }
 
-    // Return empty dataset
-    return {
-      symbol,
-      candles: [],
-      lastUpdate: Date.now(),
-      interval: '15m'
-    };
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 6000);
+      const response = await fetch(
+        `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=15m&limit=200`,
+        { signal: ctrl.signal }
+      );
+      clearTimeout(t);
+
+      if (response.ok) {
+        const rawCandles = await response.json();
+        const candles = rawCandles.map((c: any) => ({
+          timestamp: c[0],
+          open: parseFloat(c[1]),
+          high: parseFloat(c[2]),
+          low: parseFloat(c[3]),
+          close: parseFloat(c[4]),
+          volume: parseFloat(c[5])
+        }));
+
+        if (candles.length > 0) {
+          console.log(`[EnrichmentV2] ✅ JIT fetch: ${candles.length} OHLC candles for ${binanceSymbol}`);
+
+          // Also trigger background OHLC init for future lookups
+          ohlcDataManager.initializeCoins([coinGeckoId]).catch(() => {});
+
+          return { symbol: coinGeckoId, candles, lastUpdate: Date.now(), interval: '15m' };
+        }
+      }
+    } catch (jitError) {
+      console.warn(`[EnrichmentV2] JIT OHLC fetch failed for ${symbol}:`, (jitError as Error).message);
+    }
+
+    // Last resort: return empty dataset - strategies will reject but pipeline continues
+    console.warn(`[EnrichmentV2] ❌ No OHLC data available for ${symbol} (${coinGeckoId})`);
+    return { symbol, candles: [], lastUpdate: Date.now(), interval: '15m' };
   }
 
   /**
@@ -545,11 +611,31 @@ export class DataEnrichmentServiceV2 {
       'BNT': 'bancor',
       'LRC': 'loopring',
       'RNDR': 'render-token',
-      'INJ': 'injective-protocol'
+      'INJ': 'injective-protocol',
+      'SUI': 'sui',
+      'SEI': 'sei-network',
+      'TIA': 'celestia',
+      'FET': 'fetch-ai',
+      'WLD': 'worldcoin-wld',
+      'PEPE': 'pepe',
+      'SHIB': 'shiba-inu',
+      'BONK': 'bonk',
+      'JUP': 'jupiter-exchange-solana',
+      'ONDO': 'ondo-finance',
+      'WIF': 'dogwifcoin',
+      'FLOKI': 'floki',
+      'TON': 'the-open-network',
+      'STX': 'blockstack',
+      'HBAR': 'hedera-hashgraph',
+      'RUNE': 'thorchain',
+      'THETA': 'theta-token',
+      'KAS': 'kaspa',
+      'TAO': 'bittensor',
+      'RENDER': 'render-token'
     };
 
     // Return mapped ID or fallback to lowercase symbol
-    return mappings[baseSymbol] || symbol.toLowerCase();
+    return mappings[baseSymbol] || baseSymbol.toLowerCase();
   }
 
   /**

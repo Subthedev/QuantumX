@@ -8,13 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
-// Analytics removed to fix loading issues
-// V2 Real-Time Engine removed - now using V3 Adaptive System in IntelligenceHubAuto page
-
-// Import IGX background service for 24/7 autonomous operation
-// Service auto-starts on import and runs independently of page navigation
-// ENABLED - PHASE 1-4 PIPELINE AUTO-STARTS
-import "@/services/igx/IGXBackgroundService";
+// IGX Background Service - 24/7 autonomous signal pipeline
+// Explicitly reference the singleton to prevent tree-shaking
+import { igxBackgroundService } from "@/services/igx/IGXBackgroundService";
+console.log('[App] IGXBackgroundService loaded, running:', igxBackgroundService.getStatus().running);
 
 // Development: Load agent test suite
 if (import.meta.env.DEV) {
@@ -78,10 +75,6 @@ const MockTrading = lazy(() => import("./pages/MockTrading"));
 const MLAdmin = lazy(() => import("./pages/MLAdmin"));
 const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 
-// Alternative Intelligence Hub variants (available but not primary)
-// const IntelligenceHubTiered = lazy(() => import("./pages/IntelligenceHubTiered"));
-// const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
-
 // Arena features (require full client-side system)
 const Arena = lazy(() => import("./pages/Arena"));
 const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
@@ -89,13 +82,6 @@ const ArenaClean = lazy(() => import("./pages/ArenaClean")); // ✅ Arena with i
 // QXOracle removed - Oracle is now integrated as a tab inside ArenaClean
 // const ArenaTest = lazy(() => import("./pages/ArenaTest"));
 // const ArenaDiagnostic = lazy(() => import("./pages/ArenaDiagnostic"));
-
-// Disabled in production - diagnostic/test pages
-// const IntelligenceHubV3 = lazy(() => import("./pages/IntelligenceHubV3"));
-// const IntelligenceHubAuto = lazy(() => import("./pages/IntelligenceHubAuto"));
-// const PipelineMonitor = lazy(() => import("./pages/PipelineMonitor"));
-// const IGXTestRunner = lazy(() => import("./pages/IGXTestRunner"));
-// const BetaV5Test = lazy(() => import("./pages/BetaV5Test"));
 
 // Production-grade React Query configuration with optimized caching
 const queryClient = new QueryClient({
@@ -122,10 +108,6 @@ const PageLoader = () => (
 );
 
 const App = () => {
-  // V2 Real-Time Engine initialization removed
-  // V3 Adaptive Monitoring System now starts automatically in IntelligenceHubAuto page
-  // This prevents dual-system conflicts and ensures clean production operation
-
   return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -182,10 +164,6 @@ const App = () => {
               <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
               <Route path="/ml-admin" element={<ProtectedRoute><MLAdmin /></ProtectedRoute>} />
-
-              {/* Alternative Intelligence Hub variants */}
-              {/* <Route path="/intelligence-hub-tiered" element={<ProtectedRoute><IntelligenceHubTiered /></ProtectedRoute>} /> */}
-              {/* <Route path="/intelligence-hub/monthly" element={<ProtectedRoute><IntelligenceHubMonthly /></ProtectedRoute>} /> */}
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
