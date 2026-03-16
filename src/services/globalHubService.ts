@@ -30,6 +30,16 @@ import { stabilityMonitor } from './stabilityMonitor';
 import type { QualityFactors } from './signalQualityGate';
 import { scheduledSignalDropper, type UserTier } from './scheduledSignalDropper';
 
+// ===== TIMEOUT UTILITY =====
+// Prevents any async operation from hanging the pipeline forever
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`TIMEOUT: ${label} exceeded ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // Simple EventEmitter for browser
 class SimpleEventEmitter {
   private events: Map<string, Function[]> = new Map();
@@ -168,6 +178,11 @@ export interface HubSignal {
   // Smart time limit based on market regime
   timeLimit?: number;              // milliseconds until signal expires
   expiresAt?: number;              // timestamp when signal expires
+  // Top-level outcome fields for UI display
+  actualReturn?: number;           // P&L percentage
+  exitPrice?: number;              // Price at exit
+  holdDuration?: number;           // Duration in ms
+  exitReason?: string;             // TP1/TP2/TP3/STOP_LOSS/TIMEOUT
   // Detailed outcome tracking for ML learning
   outcomeReason?: string;          // Human-readable reason for outcome
   outcomeDetails?: {
@@ -214,7 +229,7 @@ const SIGNAL_GENERATION_MAX = 60000; // 60 seconds (quality over quantity)
 const SIGNAL_LIVE_DURATION = 120000; // 2 minutes in live view (longer visibility)
 const SIGNAL_OUTCOME_MIN = 60000; // 1 minute
 const SIGNAL_OUTCOME_MAX = 120000; // 2 minutes
-const MAX_HISTORY_SIZE = 10000; // Keep up to 10k signals per month
+const MAX_HISTORY_SIZE = 50000; // Keep up to 50k signals for long-term learning
 const CLEANUP_INTERVAL = 5 * 60 * 1000; // Check for month rollover every 5 minutes
 const WIN_RATE_TARGET = 0.68; // 68% win rate
 const STORAGE_KEY_MONTHLY_STATS = 'ignitex-monthly-stats';
@@ -1009,251 +1024,119 @@ class GlobalHubService extends SimpleEventEmitter {
       return;
     }
 
-    console.log('[GlobalHub] 🚀 Starting background service...');
-    console.log('[GlobalHub] 📊 Loaded state from localStorage:', {
-      totalSignals: this.state.metrics.totalSignals,
-      totalWins: this.state.metrics.totalWins,
-      totalLosses: this.state.metrics.totalLosses,
-      activeSignals: this.state.activeSignals.length,
-      startTime: this.state.metrics.startTime
-    });
+    console.log('[GlobalHub] Starting background service...');
 
-    // ✅ CRITICAL: Initialize service start time for rate limiting
+    // =====================================================================
+    // PHASE 1: IMMEDIATE SETUP (synchronous, cannot fail)
+    // =====================================================================
     this.serviceStartTime = Date.now();
-
-    // ✅ INDEPENDENT TIER TIMERS: Check database for last signal per tier
-    // This ensures each tier operates completely independently with 24/7 resilience
-    await this.initializeIndependentTierTimers();
-
-    console.log('[GlobalHub] ⏰ Independent tier timers initialized!');
-    console.log('[GlobalHub]    Each tier operates on its own schedule 24/7');
-
-    // ✅ LOG INITIAL TIER STATES for debugging autonomous operation
-    this.logTierStates();
-
-    // Only set startTime if this is the first start (not a reload)
     if (this.state.metrics.startTime === 0) {
       this.state.metrics.startTime = Date.now();
-      console.log('[GlobalHub] ⏰ First start - setting startTime');
-    } else {
-      console.log('[GlobalHub] ⏰ Resuming from previous session - preserving startTime');
+    }
+    this.state.isRunning = true;
+    this.saveMetrics();
+
+    // Start synchronous subsystems (these never throw)
+    try { this.betaV5.start(); } catch(e) { console.warn('[GlobalHub] Beta start error:', e); }
+    try {
+      this.gammaV2.setActiveSignalsProvider(() => this.state.activeSignals);
+      this.gammaV2.start();
+    } catch(e) { console.warn('[GlobalHub] Gamma start error:', e); }
+    try { zetaLearningEngine.start(); } catch(e) { console.warn('[GlobalHub] Zeta start error:', e); }
+    try { stabilityMonitor.start(); } catch(e) { console.warn('[GlobalHub] Stability monitor error:', e); }
+    try { this.startRealTimeUpdates(); } catch(e) { console.warn('[GlobalHub] Real-time updates error:', e); }
+    try { this.startSignalCleanup(); } catch(e) { console.warn('[GlobalHub] Signal cleanup error:', e); }
+    try { this.resumeLocalStorageSignalTracking(); } catch(e) { console.warn('[GlobalHub] Signal tracking error:', e); }
+    try {
+      scheduledSignalDropper.start();
+      scheduledSignalDropper.onDrop((signal, tier) => {
+        this.publishApprovedSignal(signal).catch(() => {});
+      });
+    } catch(e) { console.warn('[GlobalHub] Signal dropper error:', e); }
+    try { this.startBufferProcessor(); } catch(e) { console.warn('[GlobalHub] Buffer processor error:', e); }
+
+    console.log('[GlobalHub] Phase 1 complete: all synchronous subsystems started');
+
+    // =====================================================================
+    // PHASE 2: START SIGNAL GENERATION IMMEDIATELY (the critical loop)
+    // Uses DEFAULT_UNIVERSE fallback if Binance API is slow/blocked.
+    // JIT OHLC fetch in enrichment handles missing candle data per-coin.
+    // =====================================================================
+    console.log('[GlobalHub] Phase 2: Starting signal generation loop...');
+    this.startSignalGeneration().then(() => {
+      console.log('[GlobalHub] Signal generation loop is LIVE');
+    }).catch(err => {
+      console.error('[GlobalHub] Signal generation failed, retrying in 3s:', (err as Error).message);
+      setTimeout(() => {
+        this.startSignalGeneration().catch(e => {
+          console.error('[GlobalHub] Signal generation retry also failed:', (e as Error).message);
+        });
+      }, 3000);
+    });
+
+    // =====================================================================
+    // PHASE 3: BACKGROUND INITIALIZATION (non-blocking, enhances pipeline)
+    // These improve performance but are NOT required for signal generation.
+    // =====================================================================
+    this._initializeBackgroundSystems().catch(err => {
+      console.warn('[GlobalHub] Background initialization warning:', (err as Error).message);
+    });
+
+    this.emit('state:update', this.getState());
+    console.log('[GlobalHub] All systems operational - Hub is LIVE!');
+  }
+
+  /**
+   * Background initialization: OHLC pre-loading, WebSocket, database signals, tier timers.
+   * All operations are individually timeout-wrapped so none can block the others.
+   */
+  private async _initializeBackgroundSystems(): Promise<void> {
+    // 1. Tier timers from database (Supabase - might be slow/fail)
+    try {
+      await withTimeout(this.initializeIndependentTierTimers(), 8000, 'tierTimerInit');
+      this.logTierStates();
+    } catch(e) {
+      console.warn('[GlobalHub] Tier timer init failed (using staggered defaults):', (e as Error).message);
     }
 
-    this.state.isRunning = true;
-    this.saveMetrics(); // Save immediately after setting isRunning
-
+    // 2. Load signals from database (Supabase - might be slow/fail)
     try {
-      // ✅ CRITICAL: Initialize OHLC Data Manager FIRST (Production-Grade Data Pipeline)
-      // Wrapped in try-catch for proper error handling
-      // This ensures ALL strategies have the historical candlestick data they need
-      // before any signal generation begins
-      console.log('[GlobalHub] 📊 Initializing OHLC Data Manager for institutional-grade 24/7 data flow...');
+      await withTimeout(this.loadSignalsFromDatabase(), 10000, 'loadSignalsDB');
+      console.log(`[GlobalHub] DB signals loaded: ${this.state.activeSignals.length} active, ${this.state.signalHistory.length} history`);
+    } catch(e) {
+      console.warn('[GlobalHub] DB signal load failed (using localStorage):', (e as Error).message);
+    }
 
-      // ✅ Build dynamic coin universe FIRST, then pre-initialize OHLC
-      const dynamicUniverse = await this.buildDynamicCoinUniverse();
-      console.log(`[GlobalHub] 🎯 Pre-initializing OHLC for ${dynamicUniverse.length} coins...`);
+    try { this.cleanupOldSignalHistory(); } catch(e) { /* ignore */ }
 
-      // Convert symbols to CoinGecko IDs using the same mapping from dataEnrichmentServiceV2
-      const SCAN_COINGECKO_IDS = dynamicUniverse.map(symbol => this.symbolToCoinGeckoId(symbol));
+    // 3. Pre-load OHLC candle data (Binance API - makes strategies faster)
+    try {
+      const universe = await withTimeout(this.buildDynamicCoinUniverse(), 12000, 'buildUniverse');
+      const coinGeckoIds = universe.map(s => this.symbolToCoinGeckoId(s));
 
-      // ✅ PRODUCTION-GRADE: Retry logic for unstoppable 24/7 operations
-      let retryCount = 0;
-      const MAX_RETRIES = 3;
-      const RETRY_DELAY = 5000; // 5 seconds
+      console.log(`[GlobalHub] Pre-loading OHLC for ${coinGeckoIds.length} coins...`);
+      await withTimeout(ohlcDataManager.initializeCoins(coinGeckoIds), 45000, 'ohlcPreload');
 
-      while (retryCount < MAX_RETRIES) {
-        try {
-          await ohlcDataManager.initializeCoins(SCAN_COINGECKO_IDS);
+      const stats = ohlcDataManager.getStats();
+      console.log(`[GlobalHub] OHLC pre-loaded: ${stats.coinsWithData}/${stats.totalCoins} coins with data`);
 
-          // ✅ FIX #4: Verify initialization success and identify missing coins
-          const stats = ohlcDataManager.getStats();
-          console.log('[GlobalHub] ✅ OHLC Data Manager initialized successfully');
-          console.log(`[GlobalHub] 📊 Data Status: ${stats.coinsWithData}/${stats.totalCoins} coins with data`);
-          console.log(`[GlobalHub] 📊 Average candles per coin: ${stats.avgCandlesPerCoin.toFixed(0)}`);
-
-          // Check which coins have data and which don't
-          const coinsWithData: string[] = [];
-          const coinsMissingData: string[] = [];
-
-          for (const coinId of SCAN_COINGECKO_IDS) {
-            const dataset = ohlcDataManager.getDataset(coinId);
-            if (dataset && dataset.candles && dataset.candles.length > 0) {
-              coinsWithData.push(coinId);
-            } else {
-              coinsMissingData.push(coinId);
-            }
-          }
-
-          console.log(`[GlobalHub] ✅ Coins WITH OHLC data (${coinsWithData.length}): ${coinsWithData.join(', ')}`);
-
-          if (coinsMissingData.length > 0) {
-            console.warn(`[GlobalHub] ⚠️ Coins MISSING OHLC data (${coinsMissingData.length}): ${coinsMissingData.join(', ')}`);
-
-            // ✅ FIX #4: Retry individual missing coins (not the whole batch)
-            if (retryCount === 0) { // Only retry missing coins on first attempt
-              console.log(`[GlobalHub] 🔄 Retrying ${coinsMissingData.length} missing coins individually...`);
-
-              for (const missingCoin of coinsMissingData) {
-                try {
-                  await ohlcDataManager.initializeCoins([missingCoin]);
-                  const retryDataset = ohlcDataManager.getDataset(missingCoin);
-
-                  if (retryDataset && retryDataset.candles && retryDataset.candles.length > 0) {
-                    console.log(`[GlobalHub] ✅ Individual retry succeeded for ${missingCoin}: ${retryDataset.candles.length} candles`);
-                    coinsWithData.push(missingCoin);
-                  } else {
-                    console.warn(`[GlobalHub] ❌ Individual retry failed for ${missingCoin} - no data returned`);
-                  }
-                } catch (retryError) {
-                  console.error(`[GlobalHub] ❌ Individual retry error for ${missingCoin}:`, retryError);
-                }
-              }
-
-              // Refresh stats after individual retries
-              const newStats = ohlcDataManager.getStats();
-              console.log(`[GlobalHub] 📊 After individual retries: ${newStats.coinsWithData}/${newStats.totalCoins} coins with data`);
-            }
-          }
-
-          if (coinsWithData.length === 0) {
-            throw new Error('OHLC initialization succeeded but no data available for any coin');
-          }
-
-          console.log(`[GlobalHub] 🎯 OHLC Initialization Complete: ${coinsWithData.length}/${SCAN_COINGECKO_IDS.length} coins ready for strategies`);
-          break; // Success - exit retry loop
-
-        } catch (error) {
-          retryCount++;
-          console.error(`[GlobalHub] ❌ OHLC initialization failed (attempt ${retryCount}/${MAX_RETRIES}):`, error);
-
-          if (retryCount >= MAX_RETRIES) {
-            console.error('[GlobalHub] ❌ CRITICAL: OHLC Data Manager initialization failed after all retries');
-            console.error('[GlobalHub] ❌ Strategies will not have historical data - signal generation will be degraded');
-            console.error('[GlobalHub] ❌ Continuing with limited functionality...');
-            break;
-          }
-
-          console.log(`[GlobalHub] ⏳ Retrying OHLC initialization in ${RETRY_DELAY/1000}s...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        }
-      }
-
-      // ✅ Start Beta V5 and Gamma V2 engines
-      this.betaV5.start();
-
-      // ✅ P0.1: Enable institutional-grade deduplication (one signal per coin)
-      this.gammaV2.setActiveSignalsProvider(() => this.state.activeSignals);
-
-      this.gammaV2.start();
-      console.log('[GlobalHub] ✅ Beta V5 and Gamma V2 engines started');
-      console.log('[GlobalHub] 🔒 Deduplication enabled: ONE signal per coin (institutional discipline)');
-
-      // ✅ Start WebSocket Real-Time Data Aggregator (Sub-100ms latency)
-      console.log('[GlobalHub] 🌐 Starting WebSocket real-time data aggregator...');
+      // 4. Start WebSocket with the coin universe
       try {
-        this.wsAggregator.start(SCAN_COINGECKO_IDS, (ticker: EnrichedCanonicalTicker) => {
-          // Cache ticker data from WebSocket
+        this.wsAggregator.start(coinGeckoIds, (ticker: EnrichedCanonicalTicker) => {
           const symbol = ticker.symbol.replace('USDT', '');
           this.wsTickerCache.set(symbol, ticker);
           this.wsActive = true;
         });
-        console.log('[GlobalHub] ✅ WebSocket aggregator started - Real-time data streaming');
-      } catch (error) {
-        console.error('[GlobalHub] ⚠️ WebSocket failed to start, will use REST fallback:', error);
+        console.log('[GlobalHub] WebSocket aggregator started');
+      } catch(e) {
+        console.warn('[GlobalHub] WebSocket failed (using REST fallback):', (e as Error).message);
         this.wsActive = false;
       }
-
-      // Start Zeta Learning Engine
-      zetaLearningEngine.start();
-
-      // ✅ Start Stability Monitor (Production-Grade Health Tracking)
-      stabilityMonitor.start();
-      console.log('[GlobalHub] ✅ Stability monitor started - Tracking WebSocket, Memory, Rate Limits');
-
-      // Start real-time updates
-      this.startRealTimeUpdates();
-      console.log('[GlobalHub] ✅ Real-time metric updates started (1s interval)');
-
-      // Start monthly signal cleanup
-      this.startSignalCleanup();
-      console.log('[GlobalHub] ✅ Monthly signal cleanup started (checks every 5 minutes)');
-
-      // ✅ CRITICAL: Resume tracking for localStorage signals FIRST (loaded during constructor)
-      // This ensures signals persist their lifecycle across page refreshes
-      this.resumeLocalStorageSignalTracking();
-
-      // ✅ CRITICAL: Load persisted signals from database AFTER resuming localStorage signals
-      // This prevents database from overwriting localStorage signals
-      await this.loadSignalsFromDatabase();
-
-      // ✅ AGGRESSIVE FIX: Clear ALL active signals on startup
-      // This prevents any old signals with expired timestamps from interfering
-      console.log('[GlobalHub] 🧹 CLEARING ALL ACTIVE SIGNALS (fresh start)...');
-      const beforeCount = this.state.activeSignals.length;
-      if (beforeCount > 0) {
-        console.log(`[GlobalHub] 🗑️  Removing ${beforeCount} old signals from localStorage`);
-        this.state.activeSignals = []; // Clear everything
-        this.saveSignals();
-        console.log('[GlobalHub] ✅ Active signals cleared - starting fresh');
-        console.log('[GlobalHub] 📢 New signals will be dropped by scheduler and stay in Signals tab');
-      } else {
-        console.log('[GlobalHub] ✅ No old signals found - clean start');
-      }
-
-      // ✅ CRITICAL: Clean up old signal history (keep only recent signals with outcomes)
-      this.cleanupOldSignalHistory();
-
-      // ✅ DIRECT PUBLISHING MODE - No callbacks, no queuing, no scheduling
-      console.log(`\n${'='.repeat(80)}`);
-      console.log(`🚀 [GlobalHub] DIRECT PUBLISHING MODE ACTIVE`);
-      console.log(`${'='.repeat(80)}`);
-      console.log(`✅ Signals published immediately after regime-aware quality check`);
-      console.log(`✅ No Quality Gate callbacks (removed blocking systems)`);
-      console.log(`✅ Flow: Delta → Regime Match → Immediate Publish`);
-      console.log(`${'='.repeat(80)}\n`);
-
-      // Start signal generation (OHLC data is now ready!)
-      this.startSignalGeneration();
-      console.log('[GlobalHub] ✅ Signal generation loop started (5s interval)');
-
-      // ✅ Start Scheduled Signal Dropper
-      scheduledSignalDropper.start();
-
-      // Register callback for when it's time to drop a signal
-      scheduledSignalDropper.onDrop((signal, tier) => {
-        console.log(`\n🎯 [SCHEDULED DROP] ${tier} tier signal ready to publish`);
-        this.publishApprovedSignal(signal).catch(err => {
-          console.error('❌ Failed to publish scheduled signal:', err);
-        });
-      });
-
-      console.log('[GlobalHub] ✅ Scheduled Signal Dropper started');
-      console.log('[GlobalHub]    🚀 PRODUCTION MODE - TIER-BASED RATE LIMITING:');
-      console.log('[GlobalHub]    FREE: 1 signal every 8 hours (3 signals/day)');
-      console.log('[GlobalHub]    PRO: 1 signal every 96 minutes (15 signals/day)');
-      console.log('[GlobalHub]    MAX: 1 signal every 48 minutes (30 signals/day)');
-      console.log('[GlobalHub]    📢 Only BEST signal (highest confidence) published per interval!');
-
-      // ✅ Start Buffer Processor (checks every 10 seconds for expired rate limits)
-      this.startBufferProcessor();
-      console.log('[GlobalHub] ✅ Signal Buffer Processor started (checks every 10 seconds)');
-
-      // Emit initial state
-      this.emit('state:update', this.getState());
-      console.log('[GlobalHub] ✅ All systems operational - Hub is LIVE! 🎯');
-      console.log('[GlobalHub] ✅ Production-grade 24/7 data pipeline active with unstoppable error-free operations');
-    } catch (error) {
-      // ✅ CRITICAL: If start() fails, reset isRunning to false
-      this.state.isRunning = false;
-      console.error('[GlobalHub] ❌ CRITICAL: Service initialization FAILED:', error);
-      console.error('[GlobalHub] Stack trace:', (error as Error).stack);
-      console.error('[GlobalHub] Service is NOT running - no signals will be generated!');
-      console.error('[GlobalHub] Please check:');
-      console.error('[GlobalHub]   1. Internet connection');
-      console.error('[GlobalHub]   2. API rate limits (CoinGecko, Binance)');
-      console.error('[GlobalHub]   3. Browser console for detailed errors');
-      throw error; // Re-throw so callers know it failed
+    } catch(e) {
+      console.warn('[GlobalHub] OHLC/WebSocket init failed (JIT fetch will handle per-coin):', (e as Error).message);
     }
+
+    console.log('[GlobalHub] Background initialization complete');
   }
 
   public stop() {
@@ -1571,8 +1454,8 @@ class GlobalHubService extends SimpleEventEmitter {
    * For ML training and continuous learning, we only want fresh completed signals
    */
   private cleanupOldSignalHistory() {
-    const MAX_AGE_HOURS = 48; // Keep signals from last 48 hours only
-    const MAX_AGE_MS = MAX_AGE_HOURS * 60 * 60 * 1000;
+    const MAX_AGE_DAYS = 30; // Keep 30 days of signal history
+    const MAX_AGE_MS = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
     const cutoffTime = Date.now() - MAX_AGE_MS;
 
     const beforeCount = this.state.signalHistory.length;
@@ -1935,42 +1818,65 @@ class GlobalHubService extends SimpleEventEmitter {
   }
 
   /**
-   * ✅ FETCH TICKER - WebSocket Primary, REST Fallback
-   * Prioritizes real-time WebSocket data (<100ms latency)
-   * Falls back to CoinGecko REST API if WebSocket unavailable
+   * ✅ FETCH TICKER - WebSocket Primary, Binance REST Secondary, CoinGecko Tertiary
    */
   private async fetchTicker(symbol: string): Promise<CanonicalTicker | EnrichedCanonicalTicker | null> {
     // ✅ PRIMARY: Try WebSocket cache first (Sub-100ms data)
-    if (this.wsActive && this.wsTickerCache.has(symbol)) {
-      const wsTicker = this.wsTickerCache.get(symbol)!;
-
-      // Verify ticker is fresh (< 10 seconds old)
-      const age = Date.now() - wsTicker.timestamp;
-      if (age < 10000) {
-        console.log(`[GlobalHub] ✅ WebSocket data: ${symbol} @ $${wsTicker.price.toFixed(2)} (${age}ms old) - REAL-TIME`);
-        return wsTicker;
-      } else {
-        console.warn(`[GlobalHub] ⚠️ WebSocket data stale for ${symbol} (${age}ms old), using REST fallback`);
+    // WebSocket cache uses CoinGecko IDs as keys (e.g., 'bitcoin') because
+    // BinanceWebSocket.normalizeToCanonical sets symbol = coinGeckoId
+    if (this.wsActive) {
+      const coinGeckoId = this.symbolToCoinGeckoId(symbol);
+      const wsTicker = this.wsTickerCache.get(coinGeckoId) || this.wsTickerCache.get(symbol);
+      if (wsTicker) {
+        const age = Date.now() - wsTicker.timestamp;
+        if (age < 30000) { // Accept data up to 30s old
+          return wsTicker;
+        }
       }
     }
 
-    // ✅ FALLBACK: CoinGecko REST API
+    // ✅ SECONDARY: Direct Binance REST API (no proxy, no Edge Function)
+    try {
+      const binanceSymbol = symbol.toUpperCase() + 'USDT';
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 5000); // 5s timeout
+      const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (response.ok) {
+        const data = await response.json();
+        const ticker: CanonicalTicker = {
+          symbol: binanceSymbol,
+          exchange: 'BINANCE',
+          price: parseFloat(data.lastPrice),
+          bid: parseFloat(data.bidPrice),
+          ask: parseFloat(data.askPrice),
+          volume24h: parseFloat(data.volume),
+          volumeQuote: parseFloat(data.quoteVolume),
+          priceChange24h: parseFloat(data.priceChange),
+          priceChangePercent24h: parseFloat(data.priceChangePercent),
+          high24h: parseFloat(data.highPrice),
+          low24h: parseFloat(data.lowPrice),
+          timestamp: Date.now(),
+          lastUpdateId: 0
+        };
+        return ticker;
+      }
+    } catch (error) {
+      // Binance failed, try CoinGecko
+    }
+
+    // ✅ TERTIARY: CoinGecko REST API via proxy
     try {
       const cryptos = await cryptoDataService.getTopCryptos(100);
       const crypto = cryptos.find(c => c.symbol.toUpperCase() === symbol.toUpperCase());
+      if (!crypto) return null;
 
-      if (!crypto) {
-        console.warn(`[GlobalHub] ${symbol} not found in CoinGecko top 100`);
-        return null;
-      }
-
-      // Convert CoinGecko CryptoData to CanonicalTicker format
       const ticker: CanonicalTicker = {
         symbol: crypto.symbol.toUpperCase() + 'USDT',
         exchange: 'COINGECKO',
         price: crypto.current_price,
-        bid: crypto.current_price * 0.9995, // Estimate: 0.05% below mid
-        ask: crypto.current_price * 1.0005, // Estimate: 0.05% above mid
+        bid: crypto.current_price * 0.9995,
+        ask: crypto.current_price * 1.0005,
         volume24h: crypto.total_volume,
         volumeQuote: crypto.total_volume,
         priceChange24h: crypto.price_change_24h,
@@ -1980,11 +1886,9 @@ class GlobalHubService extends SimpleEventEmitter {
         timestamp: Date.now(),
         lastUpdateId: 0
       };
-
-      console.log(`[GlobalHub] ✅ REST fallback: ${symbol} @ $${ticker.price.toFixed(2)} - CoinGecko API`);
       return ticker;
     } catch (error) {
-      console.error(`[GlobalHub] Error fetching ${symbol}:`, error);
+      console.error(`[GlobalHub] All data sources failed for ${symbol}:`, error);
       return null;
     }
   }
@@ -2097,7 +2001,12 @@ class GlobalHubService extends SimpleEventEmitter {
       'SUSHI': 'sushi', 'MANA': 'decentraland', 'SAND': 'the-sandbox', 'AXS': 'axie-infinity',
       'GALA': 'gala', 'ENJ': 'enjincoin', 'FLOW': 'flow', 'BAT': 'basic-attention-token',
       'ZIL': 'zilliqa', 'IOTA': 'iota', 'NEO': 'neo', 'QTUM': 'qtum', 'WAVES': 'waves',
-      'ZRX': '0x', 'OMG': 'omisego', 'BNT': 'bancor', 'LRC': 'loopring', 'RNDR': 'render-token', 'INJ': 'injective-protocol'
+      'ZRX': '0x', 'OMG': 'omisego', 'BNT': 'bancor', 'LRC': 'loopring', 'RNDR': 'render-token', 'INJ': 'injective-protocol',
+      'SUI': 'sui', 'SEI': 'sei-network', 'TIA': 'celestia', 'FET': 'fetch-ai', 'WLD': 'worldcoin-wld',
+      'PEPE': 'pepe', 'SHIB': 'shiba-inu', 'BONK': 'bonk', 'JUP': 'jupiter-exchange-solana',
+      'ONDO': 'ondo-finance', 'WIF': 'dogwifcoin', 'FLOKI': 'floki', 'TON': 'the-open-network',
+      'STX': 'blockstack', 'HBAR': 'hedera-hashgraph', 'FTT': 'ftx-token', 'RUNE': 'thorchain',
+      'THETA': 'theta-token', 'KAS': 'kaspa', 'TAO': 'bittensor', 'RENDER': 'render-token'
     };
 
     return mappings[baseSymbol] || symbol.toLowerCase();
@@ -2143,155 +2052,212 @@ class GlobalHubService extends SimpleEventEmitter {
 
   /**
    * ✅ INSTITUTIONAL-GRADE: Dynamic Top 50 Coin Selection
-   * Quant-firm approach: Scan high-liquidity coins for best signal quality
+   * Uses Binance API directly (no proxy needed) with CoinGecko fallback
    */
   private async buildDynamicCoinUniverse(): Promise<string[]> {
+    // DEFAULT UNIVERSE - always available, no API needed
+    const DEFAULT_UNIVERSE = [
+      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'ATOM',
+      'UNI', 'DOT', 'LTC', 'BCH', 'NEAR', 'APT', 'OP', 'ARB', 'TRX', 'ETC',
+      'AAVE', 'MKR', 'FIL', 'INJ', 'SUI', 'SEI', 'TIA', 'RNDR', 'FET', 'WLD'
+    ];
+
     try {
-      console.log('[GlobalHub] 🎯 Building dynamic coin universe (Top 50 by volume)...');
+      console.log('[GlobalHub] 🎯 Building dynamic coin universe via Binance API...');
 
-      // Fetch top 100 coins from CoinGecko
-      const topCoins = await cryptoDataService.getTopCryptos(100);
+      // PRIMARY: Use Binance 24hr ticker (direct, no proxy, no CORS issues)
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const response = await fetch('https://api.binance.com/api/v3/ticker/24hr', { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!response.ok) throw new Error(`Binance API error: ${response.status}`);
 
-      // Filter and select top 50 by 24h volume
-      const qualifiedCoins = topCoins
-        .filter(coin => {
-          // Exclude stablecoins (already filtered by cryptoDataService)
-          // Ensure sufficient liquidity
-          return coin.total_volume > 50_000_000 && // > $50M daily volume
-                 coin.market_cap > 500_000_000;     // > $500M market cap
+      const tickers = await response.json();
+
+      // Filter USDT pairs with high volume
+      const usdtPairs = tickers
+        .filter((t: any) => {
+          const symbol = t.symbol as string;
+          if (!symbol.endsWith('USDT')) return false;
+          const quoteVolume = parseFloat(t.quoteVolume);
+          return quoteVolume > 50_000_000; // > $50M daily volume
         })
-        .slice(0, 50) // Top 50
-        .map(coin => coin.symbol.toUpperCase());
+        .sort((a: any, b: any) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+        .slice(0, 50);
 
-      console.log(`[GlobalHub] ✅ Universe built: ${qualifiedCoins.length} high-liquidity coins`);
-      console.log(`[GlobalHub] Top 10: ${qualifiedCoins.slice(0, 10).join(', ')}`);
+      // Exclude stablecoins/wrapped tokens
+      const exclude = new Set(['USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD', 'USDD', 'WBTC', 'WETH', 'STETH']);
 
-      return qualifiedCoins;
+      const qualifiedCoins = usdtPairs
+        .map((t: any) => (t.symbol as string).replace('USDT', ''))
+        .filter((s: string) => !exclude.has(s));
+
+      if (qualifiedCoins.length >= 10) {
+        console.log(`[GlobalHub] ✅ Universe built: ${qualifiedCoins.length} high-liquidity coins from Binance`);
+        console.log(`[GlobalHub] Top 10: ${qualifiedCoins.slice(0, 10).join(', ')}`);
+        return qualifiedCoins;
+      }
+
+      throw new Error('Not enough qualified coins from Binance');
     } catch (error) {
-      console.error('[GlobalHub] ❌ Failed to build dynamic universe, falling back to default:', error);
-      // Fallback to high-quality default list
-      return ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'MATIC', 'LINK', 'ATOM',
-              'UNI', 'DOT', 'LTC', 'BCH', 'XLM', 'ALGO', 'VET', 'FIL', 'TRX', 'ETC',
-              'AAVE', 'MKR', 'SNX', 'CRV', 'COMP', 'SUSHI', 'GRT', 'FTM', 'SAND', 'MANA'];
+      console.warn('[GlobalHub] Binance universe failed, trying CoinGecko:', (error as Error).message);
+
+      try {
+        const topCoins = await cryptoDataService.getTopCryptos(100);
+        const qualifiedCoins = topCoins
+          .filter(coin => coin.total_volume > 50_000_000 && coin.market_cap > 500_000_000)
+          .slice(0, 50)
+          .map(coin => coin.symbol.toUpperCase());
+
+        if (qualifiedCoins.length >= 10) {
+          console.log(`[GlobalHub] ✅ Universe built: ${qualifiedCoins.length} coins from CoinGecko`);
+          return qualifiedCoins;
+        }
+      } catch (e) {
+        console.warn('[GlobalHub] CoinGecko also failed:', (e as Error).message);
+      }
+
+      console.log(`[GlobalHub] Using default universe: ${DEFAULT_UNIVERSE.length} coins`);
+      return DEFAULT_UNIVERSE;
     }
   }
 
   private async startSignalGeneration() {
-    console.log('\n' + '█'.repeat(80));
-    console.log('🚀 [GlobalHub] ENTERING startSignalGeneration() - SIGNAL LOOP INITIALIZATION');
-    console.log('█'.repeat(80));
+    console.log('[GlobalHub] ENTERING startSignalGeneration()');
 
+    // Use hardcoded DEFAULT_UNIVERSE immediately - no API call needed to start the loop.
+    // Background system will upgrade to dynamic universe via hourly refresh.
+    let SCAN_SYMBOLS = [
+      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'ATOM',
+      'UNI', 'DOT', 'LTC', 'BCH', 'NEAR', 'APT', 'OP', 'ARB', 'TRX', 'ETC',
+      'AAVE', 'MKR', 'FIL', 'INJ', 'SUI', 'SEI', 'TIA', 'RNDR', 'FET', 'WLD'
+    ];
+
+    // Try to upgrade to dynamic universe (with a fast timeout - don't delay the loop)
     try {
-      // ✅ Build dynamic coin universe (Top 50)
-      console.log('[GlobalHub] ⏳ Building dynamic coin universe...');
-      let SCAN_SYMBOLS = await this.buildDynamicCoinUniverse();
+      const dynamic = await withTimeout(this.buildDynamicCoinUniverse(), 8000, 'fastUniverse');
+      if (dynamic.length >= 10) {
+        SCAN_SYMBOLS = dynamic;
+        console.log(`[GlobalHub] Using dynamic universe: ${SCAN_SYMBOLS.length} coins`);
+      }
+    } catch(e) {
+      console.log(`[GlobalHub] Using default universe (${SCAN_SYMBOLS.length} coins) - dynamic build timed out`);
+    }
 
-      console.log('\n' + '█'.repeat(80));
-      console.log('✅ [GlobalHub] COIN UNIVERSE BUILT SUCCESSFULLY');
-      console.log('█'.repeat(80));
-      console.log(`📊 Total symbols: ${SCAN_SYMBOLS.length}`);
-      console.log(`📋 Symbols: ${SCAN_SYMBOLS.join(', ')}`);
-      console.log('█'.repeat(80) + '\n');
+    const ANALYSIS_INTERVAL = 5000; // 5 seconds per coin
+    let currentSymbolIndex = 0;
 
-      if (SCAN_SYMBOLS.length === 0) {
-        console.error('❌❌❌ CRITICAL: No symbols in universe! Cannot generate signals!');
+    console.log(`[GlobalHub] Signal loop starting: ${SCAN_SYMBOLS.length} coins, ${ANALYSIS_INTERVAL/1000}s interval`);
+
+    // Refresh coin universe every hour in the background
+    setInterval(async () => {
+      try {
+        const refreshed = await withTimeout(this.buildDynamicCoinUniverse(), 15000, 'universeRefresh');
+        if (refreshed.length >= 10) {
+          SCAN_SYMBOLS = refreshed;
+          console.log(`[GlobalHub] Universe refreshed: ${SCAN_SYMBOLS.length} coins`);
+        }
+      } catch(e) { /* keep current universe */ }
+    }, 3600000);
+
+    const analyzeNextCoin = async () => {
+      try {
+        if (!this.state.isRunning) return; // Stop if service was stopped
+
+        const symbol = SCAN_SYMBOLS[currentSymbolIndex];
+        console.log(`[GlobalHub] ANALYZING ${symbol} (${currentSymbolIndex + 1}/${SCAN_SYMBOLS.length})`);
+
+        await withTimeout(this._analyzeSymbol(symbol), 30000, `analyze ${symbol}`);
+
+      } catch (error) {
+        const symbol = SCAN_SYMBOLS[currentSymbolIndex];
+        console.error(`[GlobalHub] ERROR analyzing ${symbol}:`, (error as Error).message);
+        // Still increment metrics to show engine activity even on errors
+        this.state.metrics.totalTickers++;
+        this.state.metrics.dataTickersFetched = (this.state.metrics.dataTickersFetched || 0) + 1;
+        this.state.metrics.dataLastFetch = Date.now();
+        this.emit('metrics:update', this.state.metrics);
+      } finally {
+        currentSymbolIndex = (currentSymbolIndex + 1) % SCAN_SYMBOLS.length;
+        this.signalInterval = setTimeout(analyzeNextCoin, ANALYSIS_INTERVAL);
+      }
+    };
+
+    // Start analyzing immediately
+    analyzeNextCoin();
+    console.log('[GlobalHub] Signal generation loop is running');
+  }
+
+  /**
+   * ✅ EXTRACTED: Analyze a single symbol - wrapped in timeout by caller
+   * Separated so analyzeNextCoin's finally block always runs
+   */
+  private async _analyzeSymbol(symbol: string): Promise<void> {
+    try {
+      // STEP 1: Get real-time ticker data (WebSocket Primary, REST Fallback)
+      const ticker = await withTimeout(this.fetchTicker(symbol), 8000, `fetchTicker(${symbol})`);
+
+      if (!ticker) {
+        console.warn(`[GlobalHub] ⚠️ No ticker data for ${symbol} - all sources failed`);
+        // ✅ Still increment data engine metrics to show the engine is active
+        this.state.metrics.totalTickers++;
+        this.state.metrics.dataTickersFetched = (this.state.metrics.dataTickersFetched || 0) + 1;
+        this.state.metrics.dataLastFetch = Date.now();
+        this.emit('metrics:update', this.state.metrics);
         return;
       }
 
-      const ANALYSIS_INTERVAL = 5000; // Scan every 5 seconds
-      const UNIVERSE_REFRESH_INTERVAL = 3600000; // Refresh universe every 1 hour
-      let currentSymbolIndex = 0;
+      // ✅ EVENT-BASED METRIC: Increment ticker count for real data received
+      this.incrementTickerCount();
+      console.log(`[GlobalHub] ✅ Ticker received: ${symbol} $${ticker.price?.toFixed(2)} (${ticker.exchange || 'BINANCE'})`);
 
-      console.log('[GlobalHub] 🚀 Starting INSTITUTIONAL-GRADE signal generation...');
-      console.log(`[GlobalHub] Scanning ${SCAN_SYMBOLS.length} high-liquidity coins using 10 real strategies`);
-      console.log(`[GlobalHub] Analysis interval: ${ANALYSIS_INTERVAL/1000}s per coin`);
-      console.log(`[GlobalHub] Universe refresh: Every ${UNIVERSE_REFRESH_INTERVAL/60000} minutes`);
+      // STEP 2: Build complete enriched market data (timeout prevents hang)
+      const enrichedData = await withTimeout(
+        dataEnrichmentServiceV2.enrichMarketData(ticker),
+        15000,
+        `enrichMarketData(${symbol})`
+      );
 
-      // ✅ Refresh coin universe every hour (adapt to market changes)
-      setInterval(async () => {
-        console.log('[GlobalHub] 🔄 Refreshing coin universe...');
-        SCAN_SYMBOLS = await this.buildDynamicCoinUniverse();
-      }, UNIVERSE_REFRESH_INTERVAL);
+      // ✅ DIAGNOSTIC: Log enrichment results (critical for debugging)
+      const ohlcCount = enrichedData.ohlcData?.candles?.length || 0;
+      console.log(`[GlobalHub] 📊 Enriched ${symbol}: OHLC=${ohlcCount} candles, OrderBook=${enrichedData.orderBookData?.bidVolume > 0 ? 'YES' : 'NO'}, Funding=${enrichedData.fundingRates?.average !== 0 ? 'YES' : 'NO'}`);
 
-      const analyzeNextCoin = async () => {
-        try {
-          const symbol = SCAN_SYMBOLS[currentSymbolIndex];
-          console.log(`\n█████ [GlobalHub] ANALYZING ${symbol} (${currentSymbolIndex + 1}/${SCAN_SYMBOLS.length}) █████`);
-          console.log(`[Pipeline] START - ${symbol} analysis`);
+      // ✅ Update data points metric
+      this.state.metrics.dataPointsCollected = (this.state.metrics.dataPointsCollected || 0) +
+        (ohlcCount > 0 ? 1 : 0) +
+        (enrichedData.orderBookData?.bidVolume > 0 ? 1 : 0) +
+        (enrichedData.fundingRates?.average !== 0 ? 1 : 0) +
+        (enrichedData.sentimentData?.fearGreedIndex !== 50 ? 1 : 0);
 
-          // STEP 1: Get real-time ticker data (WebSocket Primary, REST Fallback)
-          // console.log(`[Verification] → Step 1: Fetching REAL-TIME ticker (WebSocket → REST fallback)...`);
-          const tickerStartTime = performance.now();
-          const ticker = await this.fetchTicker(symbol);
-          const tickerDuration = performance.now() - tickerStartTime;
+      // STEP 3: ALPHA ENGINE - Pattern Detection with 17 Real Strategies
+      console.log(`[GlobalHub] 🔬 Running 17 strategies for ${symbol}...`);
+      const strategyResults = await multiStrategyEngine.analyzeWithAllStrategies(enrichedData);
 
-          if (!ticker) {
-            // console.warn(`[GlobalHub] ⚠️ No ticker data for ${symbol}, skipping... (${tickerDuration.toFixed(0)}ms)`);
-            // console.warn(`[Verification] ✗ FAILED: ${symbol} not available from CoinGecko`);
-            // ✅ Still increment to show activity
-            this.state.metrics.totalTickers++;
-            return;
-          }
+      console.log(`[GlobalHub] 🔬 Alpha result: ${strategyResults.successfulStrategies}/${strategyResults.totalStrategiesRun} strategies fired, ${strategyResults.signals.length} signals`);
 
-          const dataSource = this.wsActive && this.wsTickerCache.has(symbol) ? 'WebSocket (REAL-TIME)' : 'CoinGecko REST';
-          // console.log(`[GlobalHub] ✅ Got real ticker: ${symbol} @ $${ticker.price.toFixed(2)} | Vol: ${ticker.volume24h.toFixed(0)} (${tickerDuration.toFixed(0)}ms)`);
-          // console.log(`[Verification] ✓ DATA SOURCE: ${dataSource} | Price: $${ticker.price.toFixed(2)} | Change 24h: ${ticker.priceChangePercent24h.toFixed(2)}%`);
+      // ✅ EVENT-BASED METRIC: Update Alpha metrics
+      this.incrementAnalysisCount();
+      this.state.metrics.alphaPatternsDetected = (this.state.metrics.alphaPatternsDetected || 0) + strategyResults.successfulStrategies;
+      this.state.metrics.alphaSignalsGenerated = (this.state.metrics.alphaSignalsGenerated || 0) + strategyResults.signals.length;
 
-          // ✅ EVENT-BASED METRIC: Increment ticker count for real data received
-          this.incrementTickerCount();
+      // Early exit if no patterns detected
+      if (strategyResults.signals.length === 0) {
+        console.log(`[GlobalHub] ✗ ${symbol}: All ${strategyResults.totalStrategiesRun} strategies rejected (OHLC: ${ohlcCount}, market quiet)`);
 
-          // STEP 2: Build complete enriched market data
-          // console.log(`[Verification] → Step 2: Enriching with REAL OHLC data from Binance API...`);
-          const enrichedData = await dataEnrichmentServiceV2.enrichMarketData(ticker);
+        // ✅ Save ALPHA rejection to database (full transparency)
+        this.saveRejectedSignal(
+          symbol,
+          'NEUTRAL',
+          'ALPHA',
+          `No tradeable patterns detected - all ${strategyResults.totalStrategiesRun} strategies rejected (OHLC: ${ohlcCount} candles)`,
+          0, // quality score
+          0, // confidence score
+          enrichedData.dataQuality?.overall,
+          undefined // no strategy votes yet
+        ).catch(() => {}); // fire-and-forget, don't block pipeline
 
-          // console.log(`[GlobalHub] Data enriched: OHLC candles: ${enrichedData.ohlcData?.candles?.length || 0}`);
-          // console.log(`[Verification] ✓ DATA SOURCE: Real Binance OHLC API | Candles: ${enrichedData.ohlcData?.candles?.length || 0} | Indicators: RSI=${enrichedData.ohlcData?.rsi?.toFixed(1)}, EMA=${enrichedData.ohlcData?.ema12?.toFixed(2)}`);
-
-          // Verify enrichment data
-          // if (enrichedData.orderBookDepth) {
-          //   console.log(`[Verification] ✓ ORDER BOOK: Real Binance API | Imbalance: ${(enrichedData.orderBookDepth.imbalance * 100).toFixed(1)}%`);
-          // }
-          // if (enrichedData.fundingRate) {
-          //   console.log(`[Verification] ✓ FUNDING RATE: Real Binance Futures API | Rate: ${(enrichedData.fundingRate.rate * 100).toFixed(4)}%`);
-          // }
-          // if (enrichedData.institutionalFlow) {
-          //   console.log(`[Verification] ✓ INSTITUTIONAL FLOW: Real Coinbase/Binance Volume | Flow: ${enrichedData.institutionalFlow.flow}`);
-          // }
-
-          // STEP 3: ALPHA ENGINE - Pattern Detection with 10 Real Strategies
-          // console.log(`[Verification] → Step 3: ALPHA ENGINE - Running 10 real strategies for pattern detection...`);
-          const strategyResults = await multiStrategyEngine.analyzeWithAllStrategies(enrichedData);
-
-          // console.log(`[Verification] ✓ ALPHA ENGINE: Pattern analysis complete`);
-          // console.log(`[Verification]   - Strategies Run: ${strategyResults.totalStrategiesRun}/10`);
-          // console.log(`[Verification]   - Patterns Detected: ${strategyResults.successfulStrategies}`);
-          // console.log(`[Verification]   - Signals Generated: ${strategyResults.signals.length}`);
-
-          // ✅ EVENT-BASED METRIC: Update Alpha metrics
-          this.incrementAnalysisCount();
-          this.state.metrics.alphaSignalsGenerated = (this.state.metrics.alphaSignalsGenerated || 0) + strategyResults.signals.length;
-
-          // console.log(`[Verification] ✓ METRIC UPDATE: Alpha patterns = ${this.state.metrics.alphaPatternsDetected} | Signals = ${this.state.metrics.alphaSignalsGenerated}`);
-
-          // Early exit if no patterns detected
-          if (strategyResults.signals.length === 0) {
-            // console.log(`[Verification] ✗ ALPHA REJECTED: No tradeable patterns detected for ${symbol}`);
-
-            // ✅ Save ALPHA rejection to database (full transparency)
-            await this.saveRejectedSignal(
-              symbol,
-              'NEUTRAL',
-              'ALPHA',
-              `No tradeable patterns detected - all ${strategyResults.totalStrategiesRun} strategies rejected`,
-              0, // quality score
-              0, // confidence score
-              enrichedData.dataQuality?.overall,
-              undefined // no strategy votes yet
-            );
-
-            // console.log(`[Verification] Pipeline checkpoint: COMPLETE - ${symbol} analysis complete, no setups found`);
-            return;
-          }
+        return;
+      }
 
           // STEP 4: Convert to IGXTicker for Beta V5 consensus scoring
           // console.log(`[Verification] → Step 4: DATA CONVERSION - Preparing for Beta consensus...`);
@@ -2314,21 +2280,21 @@ class GlobalHubService extends SimpleEventEmitter {
           if (!betaConsensus) {
             // console.log(`[Verification] ✗ BETA REJECTED: Insufficient strategy consensus for ${symbol}`);
 
-            // ✅ Save BETA rejection to database (full transparency)
-            await this.saveRejectedSignal(
+            // Save BETA rejection (fire-and-forget, don't block pipeline)
+            this.saveRejectedSignal(
               symbol,
               'NEUTRAL',
               'BETA',
               'Insufficient strategy consensus - confidence below 65% threshold or all strategies neutral',
-              undefined, // no quality score from Beta
-              0, // 0% confidence
+              undefined,
+              0,
               enrichedData.dataQuality?.overall,
               betaFormattedSignals.map(s => ({
                 strategy: s.strategyName,
                 vote: s.direction,
                 confidence: s.confidence
               }))
-            );
+            ).catch(() => {});
 
             // Count rejection as low quality
             this.state.metrics.betaLowQuality = (this.state.metrics.betaLowQuality || 0) + 1;
@@ -2403,43 +2369,13 @@ class GlobalHubService extends SimpleEventEmitter {
           console.log(`\n🎯 [GlobalHub] Calling processGammaFilteredSignal() for Delta → Publishing...`);
           await this.processGammaFilteredSignal(gammaDecision);
           console.log(`✅ [GlobalHub] Signal processing complete!\n`);
-
-        } catch (error) {
-          console.error(`[GlobalHub] ❌ ERROR analyzing ${SCAN_SYMBOLS[currentSymbolIndex]}:`, error);
-          console.error(`[GlobalHub] Error stack:`, (error as Error).stack);
-          // ✅ Still increment to show activity even on error
-          this.state.metrics.totalTickers++;
-        } finally {
-          // Move to next symbol (circular)
-          currentSymbolIndex = (currentSymbolIndex + 1) % SCAN_SYMBOLS.length;
-
-          // Schedule next analysis
-          this.signalInterval = setTimeout(analyzeNextCoin, ANALYSIS_INTERVAL);
-        }
-      };
-
-      console.log('\n' + '🔥'.repeat(80));
-      console.log('🚀🚀🚀 ABOUT TO START SIGNAL GENERATION LOOP - CALLING analyzeNextCoin() 🚀🚀🚀');
-      console.log('🔥'.repeat(80));
-      console.log(`📊 Ready to analyze ${SCAN_SYMBOLS.length} symbols`);
-      console.log(`⏰ Analysis interval: ${ANALYSIS_INTERVAL}ms (${ANALYSIS_INTERVAL/1000}s)`);
-      console.log(`🎯 Starting with: ${SCAN_SYMBOLS[0]}`);
-      console.log('🔥'.repeat(80) + '\n');
-
-      // Start analyzing immediately
-      analyzeNextCoin();
-
-      console.log('\n✅✅✅ analyzeNextCoin() HAS BEEN CALLED - LOOP IS RUNNING ✅✅✅\n');
-
     } catch (error) {
-      console.error('\n' + '❌'.repeat(80));
-      console.error('❌❌❌ CRITICAL ERROR IN startSignalGeneration() ❌❌❌');
-      console.error('❌'.repeat(80));
-      console.error('Error:', error);
-      console.error('Error message:', (error as Error).message);
-      console.error('Error stack:', (error as Error).stack);
-      console.error('❌'.repeat(80) + '\n');
-      throw error;
+      console.error(`[GlobalHub] ❌ _analyzeSymbol(${symbol}) error:`, (error as Error).message);
+      // Ensure metrics still update on error so Data Engine shows activity
+      this.state.metrics.totalTickers++;
+      this.state.metrics.dataTickersFetched = (this.state.metrics.dataTickersFetched || 0) + 1;
+      this.state.metrics.dataLastFetch = Date.now();
+      this.emit('metrics:update', this.state.metrics);
     }
   }
 
@@ -2702,17 +2638,13 @@ class GlobalHubService extends SimpleEventEmitter {
         console.log(`✅ Signal expiry OK: ${new Date(displaySignal.expiresAt).toLocaleString()}`);
       }
 
-      // ❌ DISABLED: Old localStorage system - signals now go to database only
-      // Add to active signals (live view)
-      // this.state.activeSignals.unshift(displaySignal);
+      // Add to active signals — CRITICAL for outcome tracking and history pipeline
+      this.state.activeSignals.unshift(displaySignal);
 
-      // ✅ TRACK: Signal published (not added to localStorage array anymore)
       this.state.metrics.publishingAddedToArray = (this.state.metrics.publishingAddedToArray || 0) + 1;
 
-      console.log(`✅ Signal published to DATABASE (NOT localStorage)`);
-      console.log(`📊 localStorage activeSignals bypassed: ${this.state.activeSignals.length}`);
-      console.log(`📢 Signal ONLY in database: intelligence_signals + user_signals`);
-      console.log(`[TRACKING] Publishing Published: ${this.state.metrics.publishingAddedToArray} total`);
+      console.log(`✅ Signal added to activeSignals (${this.state.activeSignals.length} total) + saved to database`);
+      console.log(`[TRACKING] Publishing count: ${this.state.metrics.publishingAddedToArray}`);
       console.log(`${'█'.repeat(80)}`);
 
       // Update metrics
@@ -2748,7 +2680,7 @@ class GlobalHubService extends SimpleEventEmitter {
       // Emit events to UI
       console.log(`\n📡📡📡 EMITTING EVENTS TO UI 📡📡📡`);
       console.log(`   1. Emitting 'signal:new' event for ${displaySignal.symbol}...`);
-      // this.emit('signal:new', displaySignal);
+      this.emit('signal:new', displaySignal);
       console.log(`   ✅ 'signal:new' emitted`);
 
       console.log(`   2. Emitting 'signal:live' event with ${this.state.activeSignals.length} signals...`);
@@ -2771,12 +2703,20 @@ class GlobalHubService extends SimpleEventEmitter {
         displaySignal,
         (result) => {
           // Signal outcome callback - Zeta learns from this
+          const outcomeCategory =
+            result.outcome === 'WIN_TP1' || result.outcome === 'WIN_TP2' || result.outcome === 'WIN_TP3' ? 'WIN' :
+            result.outcome === 'LOSS_SL' || result.outcome === 'LOSS_PARTIAL' ? 'LOSS' : 'TIMEOUT';
+
           console.log(
-            `[GlobalHub] 📊 Signal outcome: ${displaySignal.symbol} ${result.outcome} ` +
-            `(Return: ${result.returnPct.toFixed(2)}%, Duration: ${result.holdDuration}ms)`
+            `\n${'='.repeat(80)}\n` +
+            `📊 [OUTCOME] ${displaySignal.symbol} → ${outcomeCategory} (${result.outcome})\n` +
+            `   Return: ${result.returnPct >= 0 ? '+' : ''}${result.returnPct.toFixed(2)}%\n` +
+            `   Exit: $${result.exitPrice.toFixed(2)} | Reason: ${result.exitReason}\n` +
+            `   Duration: ${(result.holdDuration / 60000).toFixed(1)} minutes\n` +
+            `${'='.repeat(80)}`
           );
 
-          // Emit event for Zeta learning engine
+          // Emit event for Zeta learning engine → Delta V2 ML training
           this.emit('signal:outcome', {
             signalId: displaySignal.id,
             symbol: displaySignal.symbol,
@@ -2789,11 +2729,15 @@ class GlobalHubService extends SimpleEventEmitter {
             trainingValue: result.trainingValue
           });
 
+          console.log(`[ML FEEDBACK] Outcome sent to Zeta → Delta V2 learn() for model improvement`);
+
+          // Auto-close the corresponding paper trade
+          this.autoCloseTrade(displaySignal, result.exitPrice, outcomeCategory, result.returnPct);
+
           // Update signal with outcome
           this.updateSignalOutcome(
             displaySignal.id!,
-            result.outcome === 'WIN_TP1' || result.outcome === 'WIN_TP2' || result.outcome === 'WIN_TP3' ? 'WIN' :
-            result.outcome === 'LOSS_SL' || result.outcome === 'LOSS_PARTIAL' ? 'LOSS' : 'TIMEOUT',
+            outcomeCategory,
             result.exitPrice,
             result.targetLevel || 0,
             result.stopLossHit,
@@ -2803,6 +2747,9 @@ class GlobalHubService extends SimpleEventEmitter {
           );
         }
       );
+
+      // Auto-place paper trade for this signal
+      this.autoPlaceTrade(displaySignal);
 
       // CRITICAL: Set up timeout to remove signal when it expires
       // 🔥 FIX: Proper operator precedence - check timeLimit first, then expiryMinutes, then default
@@ -2828,6 +2775,69 @@ class GlobalHubService extends SimpleEventEmitter {
 
     } catch (error) {
       console.error('[GlobalHub] ❌ Error publishing approved signal:', error);
+    }
+  }
+
+  // ===== AUTO-TRADE EXECUTION =====
+  // Automatically places paper trades when signals are published,
+  // creating the signal → trade → outcome → learn feedback loop.
+
+  private autoTradePositions: Map<string, string> = new Map(); // signalId → positionId
+
+  private async autoPlaceTrade(signal: HubSignal): Promise<void> {
+    try {
+      const { mockTradingService } = await import('./mockTradingService');
+
+      // Use a fixed paper trading allocation per signal
+      const TRADE_SIZE_USD = 100; // $100 per auto-trade
+      const quantity = signal.entry ? TRADE_SIZE_USD / signal.entry : 0;
+
+      if (quantity <= 0 || !signal.entry) {
+        console.log(`[AutoTrade] Skipped ${signal.symbol} - no valid entry price`);
+        return;
+      }
+
+      const position = await mockTradingService.placeOrder('auto-trader', {
+        symbol: signal.symbol,
+        side: signal.direction === 'LONG' ? 'BUY' : 'SELL',
+        quantity,
+        price: signal.entry,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.targets?.[0], // TP1
+        orderType: 'MARKET'
+      });
+
+      // Track the position so we can close it on outcome
+      if (position && 'id' in position) {
+        this.autoTradePositions.set(signal.id, position.id);
+      }
+
+      console.log(
+        `[AutoTrade] Paper trade placed: ${signal.direction} ${signal.symbol}\n` +
+        `   Entry: $${signal.entry.toFixed(2)} | Size: $${TRADE_SIZE_USD}\n` +
+        `   SL: $${signal.stopLoss?.toFixed(2)} | TP1: $${signal.targets?.[0]?.toFixed(2)}`
+      );
+    } catch (error) {
+      // Non-fatal - signal pipeline continues even if paper trade fails
+      console.warn(`[AutoTrade] Failed to place trade for ${signal.symbol}:`, (error as Error).message);
+    }
+  }
+
+  private async autoCloseTrade(signal: HubSignal, exitPrice: number, outcome: string, returnPct: number): Promise<void> {
+    try {
+      const positionId = this.autoTradePositions.get(signal.id);
+      if (!positionId) return;
+
+      const { mockTradingService } = await import('./mockTradingService');
+      await mockTradingService.closePosition('auto-trader', positionId, exitPrice);
+      this.autoTradePositions.delete(signal.id);
+
+      console.log(
+        `[AutoTrade] Position closed: ${signal.symbol} → ${outcome}\n` +
+        `   Exit: $${exitPrice.toFixed(2)} | P&L: ${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%`
+      );
+    } catch (error) {
+      console.warn(`[AutoTrade] Failed to close trade for ${signal.symbol}:`, (error as Error).message);
     }
   }
 
@@ -3193,8 +3203,8 @@ class GlobalHubService extends SimpleEventEmitter {
           `[GlobalHub] ========================================\n`
         );
 
-        // ✅ Save DELTA rejection to database (full transparency)
-        await this.saveRejectedSignal(
+        // Save DELTA rejection (fire-and-forget, don't block pipeline)
+        this.saveRejectedSignal(
           signalInput.symbol,
           signalInput.direction,
           'DELTA',
@@ -3207,7 +3217,7 @@ class GlobalHubService extends SimpleEventEmitter {
             vote: r.direction,
             confidence: r.confidence
           }))
-        );
+        ).catch(() => {});
       }
     } catch (error) {
       console.error('\n' + '='.repeat(80));
@@ -4100,11 +4110,16 @@ class GlobalHubService extends SimpleEventEmitter {
       }
 
       // ===== STEP 3: Create updated signal with outcome data =====
+      // Set outcome fields at TOP LEVEL so the UI can read them directly
       const updatedSignal: HubSignal = {
         ...signal,
         outcome,
         outcomeTimestamp: Date.now(),
         outcomeReason,
+        actualReturn: profitLossPct || 0,
+        exitPrice,
+        holdDuration: Date.now() - (signal.timestamp || Date.now()),
+        exitReason: hitTarget ? `TP${hitTarget}` : hitStopLoss ? 'STOP_LOSS' : 'TIMEOUT',
         outcomeDetails: {
           targetHit: hitTarget ? (`TP${hitTarget}` as any) : undefined,
           stopLossHit: hitStopLoss,
@@ -4119,9 +4134,9 @@ class GlobalHubService extends SimpleEventEmitter {
       this.state.activeSignals.splice(signalIndex, 1);
       this.state.signalHistory.unshift(updatedSignal);
 
-      // Keep history size reasonable (last 500 signals)
-      if (this.state.signalHistory.length > 500) {
-        this.state.signalHistory = this.state.signalHistory.slice(0, 500);
+      // Keep history size manageable (last 5000 signals for ML learning)
+      if (this.state.signalHistory.length > 5000) {
+        this.state.signalHistory = this.state.signalHistory.slice(0, 5000);
       }
 
       console.log(`[GlobalHub] ✅ Signal moved: activeSignals (${this.state.activeSignals.length}) → signalHistory (${this.state.signalHistory.length})`);
@@ -4278,20 +4293,8 @@ if (typeof window !== 'undefined') {
   console.log('[GlobalHub] 🔧 Diagnostic tools exposed to window object');
 }
 
-// Auto-start on import
-if (typeof window !== 'undefined') {
-  setTimeout(async () => {
-    if (!globalHubService.isRunning()) {
-      try {
-        await globalHubService.start();
-        console.log('[GlobalHub] ✅ Auto-started successfully');
-      } catch (error) {
-        console.error('[GlobalHub] ❌ CRITICAL: Auto-start failed:', error);
-        console.error('[GlobalHub] Stack trace:', (error as Error).stack);
-      }
-    }
-  }, 1000);
-}
+// Auto-start handled by IGXBackgroundService (imported in App.tsx)
+// This prevents double-start race conditions
 
 // Cleanup on page unload
 if (typeof window !== 'undefined') {

@@ -58,27 +58,66 @@ class CryptoDataService {
       console.log('📡 API CALL via Supabase proxy:', cacheKey);
 
       try {
-        // Fetch more coins to account for filtered stablecoins, wrapped tokens, and unsupported coins
-        const fetchLimit = limit + 70;
+        let data: CryptoData[] = [];
 
-        // Use Supabase proxy to avoid CORS issues
-        const { data: proxyData, error } = await supabase.functions.invoke('crypto-proxy', {
-          body: {
-            endpoint: 'list',
-            vs_currency: 'usd',
-            order: 'market_cap_desc',
-            per_page: fetchLimit,
-            page: 1,
-            sparkline: true
-          }
-        });
+        // Try Supabase proxy first, fall back to direct Binance API
+        try {
+          const fetchLimit = limit + 70;
+          const { data: proxyData, error } = await supabase.functions.invoke('crypto-proxy', {
+            body: {
+              endpoint: 'list',
+              vs_currency: 'usd',
+              order: 'market_cap_desc',
+              per_page: fetchLimit,
+              page: 1,
+              sparkline: true
+            }
+          });
+          if (error) throw new Error('Proxy error: ' + JSON.stringify(error));
+          data = proxyData.data;
+        } catch (proxyError) {
+          console.warn('⚠️ Supabase proxy failed, using Binance direct:', (proxyError as Error).message);
 
-        if (error) {
-          console.error('❌ Proxy error:', error);
-          throw new Error('Failed to fetch crypto data via proxy');
+          // FALLBACK: Direct Binance API (no CORS issue from browser for public endpoints)
+          const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+          if (!response.ok) throw new Error('Binance API error: ' + response.status);
+          const tickers = await response.json();
+
+          // Convert Binance tickers to CryptoData format
+          data = tickers
+            .filter((t: any) => (t.symbol as string).endsWith('USDT'))
+            .sort((a: any, b: any) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+            .slice(0, limit + 70)
+            .map((t: any, index: number) => {
+              const sym = (t.symbol as string).replace('USDT', '').toLowerCase();
+              return {
+                id: sym,
+                symbol: sym,
+                name: sym.toUpperCase(),
+                image: '',
+                current_price: parseFloat(t.lastPrice),
+                market_cap: parseFloat(t.quoteVolume) * 10, // Approximate
+                market_cap_rank: index + 1,
+                fully_diluted_valuation: null,
+                total_volume: parseFloat(t.quoteVolume),
+                high_24h: parseFloat(t.highPrice),
+                low_24h: parseFloat(t.lowPrice),
+                price_change_24h: parseFloat(t.priceChange),
+                price_change_percentage_24h: parseFloat(t.priceChangePercent),
+                market_cap_change_24h: 0,
+                market_cap_change_percentage_24h: 0,
+                circulating_supply: 0,
+                total_supply: null,
+                max_supply: null,
+                ath: parseFloat(t.highPrice),
+                ath_change_percentage: 0,
+                ath_date: '',
+                atl: parseFloat(t.lowPrice),
+                atl_change_percentage: 0,
+                atl_date: ''
+              } as CryptoData;
+            });
         }
-
-        let data: CryptoData[] = proxyData.data;
 
       // Filter out unwanted coins: stablecoins, wrapped tokens, bridged tokens, and unsupported coins
       const excludedCoins = [

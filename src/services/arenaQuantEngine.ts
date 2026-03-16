@@ -898,7 +898,38 @@ class ArenaQuantEngine {
         this.handleRegimeChange(previousState, this.currentMarketState);
       }
     } catch (error) {
-      console.warn('Market state detection failed, using cached state:', this.currentMarketState);
+      console.warn('Market state detection via CoinGecko failed, deriving from Binance prices...');
+
+      // ✅ FALLBACK: Derive market state from Binance price data we already have
+      try {
+        const btcPrice = this.prices.get('BTCUSDT');
+        const ethPrice = this.prices.get('ETHUSDT');
+        if (btcPrice && ethPrice) {
+          const avgChange = (btcPrice.change24h + ethPrice.change24h) / 2;
+          const volatility = Math.abs(btcPrice.high24h - btcPrice.low24h) / btcPrice.price * 100;
+          const isHighVol = volatility > 3;
+
+          let newState: MarketState;
+          if (avgChange > 2) {
+            newState = isHighVol ? MarketState.BULLISH_HIGH_VOL : MarketState.BULLISH_LOW_VOL;
+          } else if (avgChange < -2) {
+            newState = isHighVol ? MarketState.BEARISH_HIGH_VOL : MarketState.BEARISH_LOW_VOL;
+          } else {
+            newState = MarketState.RANGEBOUND;
+          }
+
+          const previousState = this.currentMarketState;
+          this.currentMarketState = newState;
+          this.agents.forEach(agent => { agent.marketState = newState; });
+
+          if (previousState !== newState) {
+            console.log(`%c🔄 REGIME (Binance fallback): ${previousState} → ${newState}`,
+              'background: #8b5cf6; color: white; padding: 4px 12px;');
+          }
+        }
+      } catch {
+        // Use existing cached state
+      }
     }
   }
 
@@ -938,13 +969,11 @@ class ArenaQuantEngine {
       // CIRCUIT BREAKER CHECK - Must pass before opening any position
       const circuitCheck = arenaCircuitBreaker.canAgentTrade(agentId);
       if (!circuitCheck.allowed) {
-        console.log(`⛔ ${agent.name}: ${circuitCheck.reason}`);
-        continue;
+        continue; // Silent - circuit breaker logs its own messages
       }
 
       // BALANCE VALIDATION - Don't trade if below minimum
       if (!arenaCircuitBreaker.isBalanceValid(agent.balance)) {
-        console.log(`⛔ ${agent.name}: Balance too low ($${agent.balance.toFixed(2)})`);
         continue;
       }
 
@@ -957,19 +986,28 @@ class ArenaQuantEngine {
         }
       }
       if (drawdownMultiplier === 0) {
-        console.log(`⛔ ${agent.name}: Drawdown ${drawdownPercent.toFixed(1)}% - trading halted`);
         continue;
       }
 
-      // Get suitable strategies with STRICTER suitability threshold (60% minimum)
+      // ✅ ADAPTIVE SUITABILITY: Lower threshold if agent hasn't traded recently
+      // After 2 minutes with no trade, accept 40% suitability instead of 60%
+      const timeSinceLastTrade = now - agent.lastTradeTime;
+      const adaptiveThreshold = timeSinceLastTrade > 120000
+        ? 40  // Lower threshold after 2min idle
+        : RISK_LIMITS.MIN_STRATEGY_SUITABILITY; // Normal 60%
+
+      // Get suitable strategies
       const suitableStrategies = strategyMatrix.getSuitableStrategies(
         this.currentMarketState,
-        RISK_LIMITS.MIN_STRATEGY_SUITABILITY, // 60% minimum suitability
+        adaptiveThreshold,
         profile.type
       );
 
       if (suitableStrategies.length === 0) {
-        console.log(`⏸️ ${agent.name}: No strategies with ${RISK_LIMITS.MIN_STRATEGY_SUITABILITY}%+ suitability for ${this.currentMarketState}`);
+        // Only log occasionally to avoid spam
+        if (now % 30000 < 5000) {
+          console.log(`⏸️ ${agent.name}: No strategies ≥${adaptiveThreshold}% for ${this.currentMarketState}`);
+        }
         continue;
       }
 
@@ -1079,18 +1117,36 @@ class ArenaQuantEngine {
     if (this.running) return;
     this.running = true;
 
-    // Ensure Supabase storage is initialized before starting
+    // Ensure Supabase storage is initialized before starting (with timeout)
     if (this.initPromise) {
-      await this.initPromise;
+      try {
+        await Promise.race([
+          this.initPromise,
+          new Promise(resolve => setTimeout(resolve, 5000)) // 5s timeout
+        ]);
+      } catch (e) {
+        console.warn('[Arena] Supabase init failed, continuing with defaults');
+      }
     }
 
     const totalTrades = Array.from(this.agents.values()).reduce((s, a) => s + a.totalTrades, 0);
-    console.log(`%c▶️ QUANT ENGINE V8 STARTED with ${totalTrades} historical trades (Supabase)`,
+    console.log(`%c▶️ QUANT ENGINE V8 STARTED with ${totalTrades} historical trades`,
       'background: #10b981; color: white; padding: 4px 12px;');
 
     // Initial data fetch
-    await this.fetchPrices();
-    await this.detectMarketState();
+    try {
+      await this.fetchPrices();
+      console.log(`[Arena] ✅ Prices loaded: ${this.prices.size} pairs`);
+    } catch (e) {
+      console.warn('[Arena] Initial price fetch failed, will retry in 3s');
+    }
+
+    try {
+      await this.detectMarketState();
+      console.log(`[Arena] ✅ Market state: ${this.currentMarketState}`);
+    } catch (e) {
+      console.warn('[Arena] Market state detection failed, using default:', this.currentMarketState);
+    }
 
     // Price updates every 3s
     this.intervals.push(setInterval(() => this.fetchPrices(), 3000));
@@ -1119,11 +1175,13 @@ class ArenaQuantEngine {
   private async fetchPrices(): Promise<void> {
     try {
       const responses = await Promise.all(
-        TRADING_PAIRS.map(p =>
-          fetch(`${BINANCE_API}?symbol=${p.symbol}`)
-            .then(r => r.ok ? r.json() : null)
-            .catch(() => null)
-        )
+        TRADING_PAIRS.map(p => {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 5000); // 5s timeout
+          return fetch(`${BINANCE_API}?symbol=${p.symbol}`, { signal: ctrl.signal })
+            .then(r => { clearTimeout(t); return r.ok ? r.json() : null; })
+            .catch(() => { clearTimeout(t); return null; });
+        })
       );
 
       responses.forEach((data, i) => {
