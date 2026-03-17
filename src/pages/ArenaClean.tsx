@@ -15,9 +15,21 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Lazy load Hub and Flux for performance
-const IntelligenceHubContent = lazy(() => import('./IntelligenceHub'));
-const FluxControlContent = lazy(() => import('./IGXControlCenter'));
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+// Lazy load Hub and Flux with chunk error recovery (handles stale caches after deployment)
+const lazyRetry = (importFn: () => Promise<any>) =>
+  lazy(() => importFn().catch(() => {
+    // Chunk failed to load (stale cache after deploy) - reload once
+    if (!sessionStorage.getItem('chunk_retry')) {
+      sessionStorage.setItem('chunk_retry', '1');
+      window.location.reload();
+    }
+    return importFn();
+  }));
+
+const IntelligenceHubContent = lazyRetry(() => import('./IntelligenceHub'));
+const FluxControlContent = lazyRetry(() => import('./IGXControlCenter'));
 import {
   Send, TrendingUp, TrendingDown, Activity, Trophy,
   Flame, Clock, BarChart3, Percent, Coins,
@@ -2660,21 +2672,23 @@ export default function ArenaClean() {
             </div>
 
             {/* Lazy-loaded Hub Content */}
-            <Suspense fallback={
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                    <Brain className="w-8 h-8 text-blue-500" />
+            <ErrorBoundary fallbackTitle="Hub failed to load" fallbackMessage="The Intelligence Hub encountered an error. Try reloading the page.">
+              <Suspense fallback={
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                      <Brain className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <Skeleton className="h-4 w-32 mx-auto mb-2" />
+                    <Skeleton className="h-3 w-24 mx-auto" />
                   </div>
-                  <Skeleton className="h-4 w-32 mx-auto mb-2" />
-                  <Skeleton className="h-3 w-24 mx-auto" />
                 </div>
-              </div>
-            }>
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <IntelligenceHubContent embedded={true} />
-              </div>
-            </Suspense>
+              }>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <IntelligenceHubContent embedded={true} />
+                </div>
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
 
@@ -2694,21 +2708,23 @@ export default function ArenaClean() {
             </div>
 
             {/* Lazy-loaded Flux Content */}
-            <Suspense fallback={
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
-                    <Sparkles className="w-8 h-8 text-orange-500" />
+            <ErrorBoundary fallbackTitle="Flux failed to load" fallbackMessage="The Flux Control Center encountered an error. Try reloading the page.">
+              <Suspense fallback={
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                      <Sparkles className="w-8 h-8 text-orange-500" />
+                    </div>
+                    <Skeleton className="h-4 w-32 mx-auto mb-2" />
+                    <Skeleton className="h-3 w-24 mx-auto" />
                   </div>
-                  <Skeleton className="h-4 w-32 mx-auto mb-2" />
-                  <Skeleton className="h-3 w-24 mx-auto" />
                 </div>
-              </div>
-            }>
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <FluxControlContent embedded={true} />
-              </div>
-            </Suspense>
+              }>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <FluxControlContent embedded={true} />
+                </div>
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
       </main>
