@@ -8,16 +8,22 @@
  * - Professional presentation that builds credibility
  */
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, lazy, Suspense } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Lazy load Hub and Flux for performance
+const IntelligenceHubContent = lazy(() => import('./IntelligenceHub'));
+const FluxControlContent = lazy(() => import('./IGXControlCenter'));
 import {
   Send, TrendingUp, TrendingDown, Activity, Trophy,
   Flame, Clock, BarChart3, Percent, Coins,
   ArrowUpRight, ArrowDownRight, Radio, Users, CheckCircle2, Wallet,
   Zap, Shield, Target, ExternalLink, DollarSign, AlertTriangle, RefreshCw,
-  ChevronDown, ChevronUp, Info, ChevronRight
+  ChevronDown, ChevronUp, Info, ChevronRight, Brain, Sparkles
 } from 'lucide-react';
 import { useRankedQuantAgents, type QuantAgent, type TradeEvent } from '@/hooks/useQuantAgents';
 import { arenaQuantEngine } from '@/services/arenaQuantEngine';
@@ -31,7 +37,7 @@ import { AgentLogo } from '@/components/ui/agent-logos';
 import { QuantumXLogo } from '@/components/ui/quantumx-logo';
 
 // ===================== VIEW TYPE =====================
-type ActiveView = 'arena' | 'oracle';
+type ActiveView = 'arena' | 'oracle' | 'hub' | 'flux';
 
 // ===================== LIVE ACTIVITY FEED =====================
 // Shows REAL trade closures from the engine - production-grade persistence
@@ -2065,11 +2071,17 @@ export default function ArenaClean() {
                 {/* Pulse indicator - color changes based on active view */}
                 <div className={cn(
                   "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm transition-colors duration-300",
-                  activeView === 'arena' ? "bg-emerald-500" : "bg-violet-500"
+                  activeView === 'arena' && "bg-emerald-500",
+                  activeView === 'oracle' && "bg-violet-500",
+                  activeView === 'hub' && "bg-blue-500",
+                  activeView === 'flux' && "bg-orange-500"
                 )}>
                   <div className={cn(
                     "absolute inset-0 rounded-full animate-ping transition-colors duration-300",
-                    activeView === 'arena' ? "bg-emerald-400" : "bg-violet-400"
+                    activeView === 'arena' && "bg-emerald-400",
+                    activeView === 'oracle' && "bg-violet-400",
+                    activeView === 'hub' && "bg-blue-400",
+                    activeView === 'flux' && "bg-orange-400"
                   )} />
                 </div>
               </div>
@@ -2081,20 +2093,21 @@ export default function ArenaClean() {
               </div>
             </div>
 
-            {/* Center - Smooth Tab Switcher */}
+            {/* Center - Smooth Tab Switcher with QuantumX Color Scheme */}
             <div className="flex items-center">
               <div className="inline-flex items-center p-1 bg-slate-100/90 backdrop-blur rounded-xl border border-slate-200/60">
+                {/* Arena - Green (Success/Trading) */}
                 <button
                   onClick={() => setActiveView('arena')}
                   className={cn(
-                    "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
+                    "relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
                     activeView === 'arena'
                       ? "bg-white text-slate-900 shadow-md"
                       : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
                   )}
                 >
                   {activeView === 'arena' && (
-                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-emerald-500/10 transition-opacity duration-300" />
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-emerald-500/10 transition-opacity duration-300" />
                   )}
                   <BarChart3 className={cn(
                     "w-4 h-4 transition-colors duration-300",
@@ -2106,10 +2119,11 @@ export default function ArenaClean() {
                   )}
                 </button>
 
+                {/* Oracle - Purple (Primary Brand) */}
                 <button
                   onClick={() => setActiveView('oracle')}
                   className={cn(
-                    "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
+                    "relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
                     activeView === 'oracle'
                       ? "bg-white text-slate-900 shadow-md"
                       : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
@@ -2125,6 +2139,55 @@ export default function ArenaClean() {
                   <span className="relative hidden sm:inline">Oracle</span>
                   {activeView === 'oracle' && (
                     <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                  )}
+                </button>
+
+                {/* Separator */}
+                <div className="w-px h-6 bg-slate-200/80 mx-1" />
+
+                {/* Hub - Blue (Intelligence/Analysis) */}
+                <button
+                  onClick={() => setActiveView('hub')}
+                  className={cn(
+                    "relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
+                    activeView === 'hub'
+                      ? "bg-white text-slate-900 shadow-md"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  {activeView === 'hub' && (
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 transition-opacity duration-300" />
+                  )}
+                  <Brain className={cn(
+                    "w-4 h-4 transition-colors duration-300",
+                    activeView === 'hub' ? "text-blue-600" : "text-slate-400"
+                  )} />
+                  <span className="relative hidden sm:inline">Hub</span>
+                  {activeView === 'hub' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  )}
+                </button>
+
+                {/* Flux - Orange (Control/Power) */}
+                <button
+                  onClick={() => setActiveView('flux')}
+                  className={cn(
+                    "relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ease-out",
+                    activeView === 'flux'
+                      ? "bg-white text-slate-900 shadow-md"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  {activeView === 'flux' && (
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/10 transition-opacity duration-300" />
+                  )}
+                  <Sparkles className={cn(
+                    "w-4 h-4 transition-colors duration-300",
+                    activeView === 'flux' ? "text-orange-600" : "text-slate-400"
+                  )} />
+                  <span className="relative hidden sm:inline">Flux</span>
+                  {activeView === 'flux' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
                   )}
                 </button>
               </div>
@@ -2143,86 +2206,88 @@ export default function ArenaClean() {
 
       <main className="container mx-auto px-4 sm:px-6 py-6 max-w-5xl">
         {/* ========== ALWAYS VISIBLE: Hero Stats - Context Aware ========== */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {activeView === 'arena' ? (
-            <>
-              {/* Arena Metrics */}
-              <MetricCard
-                label="Total Balance"
-                value={<span className="flex items-center gap-1"><AnimatedNumber value={liveMetrics.totalBalance} decimals={0} prefix="$" /></span>}
-                icon={Wallet}
-                valueColor={liveMetrics.totalPnL >= 0 ? 'green' : 'red'}
-                trend={liveMetrics.totalPnL >= 0 ? 'up' : 'down'}
-                subValue={`${liveMetrics.totalPnL >= 0 ? '+' : ''}${liveMetrics.totalReturnPercent.toFixed(2)}% return`}
-              />
-              <MetricCard
-                label="Today's P&L"
-                value={<AnimatedNumber value={liveMetrics.return24h} decimals={2} showSign suffix="%" />}
-                icon={BarChart3}
-                valueColor={liveMetrics.return24h >= 0 ? 'green' : 'red'}
-                trend={liveMetrics.return24h >= 0 ? 'up' : 'down'}
-                subValue={`${liveMetrics.trades24h} trades today`}
-              />
-              <MetricCard
-                label="Win Rate"
-                value={<AnimatedNumber value={liveMetrics.winRate24h} decimals={1} suffix="%" />}
-                icon={Target}
-                valueColor={liveMetrics.winRate24h >= 55 ? 'green' : undefined}
-                trend={liveMetrics.winRate24h >= 55 ? 'up' : undefined}
-                subValue={`${liveMetrics.totalTrades.toLocaleString()} total trades`}
-              />
-              <MetricCard
-                label="Active"
-                value={<span>{liveMetrics.activePositions}</span>}
-                icon={Activity}
-                valueColor={liveMetrics.activePositions > 0 ? 'green' : undefined}
-                subValue={`of ${agents.length} agents`}
-              />
-            </>
-          ) : (
-            <>
-              {/* Oracle QX Metrics - Purple theme, updates when prediction outcomes are achieved */}
-              <MetricCard
-                label="Total QX Earned"
-                value={<span className="flex items-center gap-1 font-mono text-violet-600"><AnimatedNumber value={qxBalance?.balance || oracleUserStats.totalQXEarned} decimals={0} /></span>}
-                icon={Coins}
-                valueColor="violet"
-                trend={(qxBalance?.balance || oracleUserStats.totalQXEarned) > 0 ? 'up' : undefined}
-                subValue={`${oracleUserStats.correctPredictions} correct predictions`}
-                accentColor="violet"
-              />
-              <MetricCard
-                label="Accuracy"
-                value={<span className="font-mono text-violet-600"><AnimatedNumber value={oracleUserStats.accuracy} decimals={1} suffix="%" /></span>}
-                icon={Target}
-                valueColor="violet"
-                trend={oracleUserStats.accuracy >= 60 ? 'up' : oracleUserStats.accuracy < 40 ? 'down' : undefined}
-                subValue={oracleUserStats.resolvedPredictions > 0 ? `${oracleUserStats.correctPredictions}/${oracleUserStats.resolvedPredictions} resolved` : `${oracleUserStats.totalPredictions} pending`}
-                accentColor="violet"
-              />
-              <MetricCard
-                label="Current Streak"
-                value={<span className="font-mono flex items-center gap-1 text-violet-600"><Flame className="w-4 h-4 text-orange-500" />{oracleUserStats.currentStreak}</span>}
-                icon={Activity}
-                valueColor="violet"
-                trend={oracleUserStats.currentStreak >= 3 ? 'up' : undefined}
-                subValue={`Best: ${oracleUserStats.bestStreak} streak`}
-                accentColor="violet"
-              />
-              <MetricCard
-                label="Total Predictions"
-                value={<span className="font-mono text-violet-600">{oracleUserStats.totalPredictions}</span>}
-                icon={BarChart3}
-                valueColor="violet"
-                subValue={oracleTodaysQuestions.length > 0 ? `${oracleTodaysQuestions.filter(q => q.status === 'OPEN').length} active today` : 'Start predicting!'}
-                accentColor="violet"
-              />
-            </>
-          )}
-        </div>
+        {(activeView === 'arena' || activeView === 'oracle') && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {activeView === 'arena' ? (
+              <>
+                {/* Arena Metrics */}
+                <MetricCard
+                  label="Total Balance"
+                  value={<span className="flex items-center gap-1"><AnimatedNumber value={liveMetrics.totalBalance} decimals={0} prefix="$" /></span>}
+                  icon={Wallet}
+                  valueColor={liveMetrics.totalPnL >= 0 ? 'green' : 'red'}
+                  trend={liveMetrics.totalPnL >= 0 ? 'up' : 'down'}
+                  subValue={`${liveMetrics.totalPnL >= 0 ? '+' : ''}${liveMetrics.totalReturnPercent.toFixed(2)}% return`}
+                />
+                <MetricCard
+                  label="Today's P&L"
+                  value={<AnimatedNumber value={liveMetrics.return24h} decimals={2} showSign suffix="%" />}
+                  icon={BarChart3}
+                  valueColor={liveMetrics.return24h >= 0 ? 'green' : 'red'}
+                  trend={liveMetrics.return24h >= 0 ? 'up' : 'down'}
+                  subValue={`${liveMetrics.trades24h} trades today`}
+                />
+                <MetricCard
+                  label="Win Rate"
+                  value={<AnimatedNumber value={liveMetrics.winRate24h} decimals={1} suffix="%" />}
+                  icon={Target}
+                  valueColor={liveMetrics.winRate24h >= 55 ? 'green' : undefined}
+                  trend={liveMetrics.winRate24h >= 55 ? 'up' : undefined}
+                  subValue={`${liveMetrics.totalTrades.toLocaleString()} total trades`}
+                />
+                <MetricCard
+                  label="Active"
+                  value={<span>{liveMetrics.activePositions}</span>}
+                  icon={Activity}
+                  valueColor={liveMetrics.activePositions > 0 ? 'green' : undefined}
+                  subValue={`of ${agents.length} agents`}
+                />
+              </>
+            ) : (
+              <>
+                {/* Oracle QX Metrics - Purple theme, updates when prediction outcomes are achieved */}
+                <MetricCard
+                  label="Total QX Earned"
+                  value={<span className="flex items-center gap-1 font-mono text-violet-600"><AnimatedNumber value={qxBalance?.balance || oracleUserStats.totalQXEarned} decimals={0} /></span>}
+                  icon={Coins}
+                  valueColor="violet"
+                  trend={(qxBalance?.balance || oracleUserStats.totalQXEarned) > 0 ? 'up' : undefined}
+                  subValue={`${oracleUserStats.correctPredictions} correct predictions`}
+                  accentColor="violet"
+                />
+                <MetricCard
+                  label="Accuracy"
+                  value={<span className="font-mono text-violet-600"><AnimatedNumber value={oracleUserStats.accuracy} decimals={1} suffix="%" /></span>}
+                  icon={Target}
+                  valueColor="violet"
+                  trend={oracleUserStats.accuracy >= 60 ? 'up' : oracleUserStats.accuracy < 40 ? 'down' : undefined}
+                  subValue={oracleUserStats.resolvedPredictions > 0 ? `${oracleUserStats.correctPredictions}/${oracleUserStats.resolvedPredictions} resolved` : `${oracleUserStats.totalPredictions} pending`}
+                  accentColor="violet"
+                />
+                <MetricCard
+                  label="Current Streak"
+                  value={<span className="font-mono flex items-center gap-1 text-violet-600"><Flame className="w-4 h-4 text-orange-500" />{oracleUserStats.currentStreak}</span>}
+                  icon={Activity}
+                  valueColor="violet"
+                  trend={oracleUserStats.currentStreak >= 3 ? 'up' : undefined}
+                  subValue={`Best: ${oracleUserStats.bestStreak} streak`}
+                  accentColor="violet"
+                />
+                <MetricCard
+                  label="Total Predictions"
+                  value={<span className="font-mono text-violet-600">{oracleUserStats.totalPredictions}</span>}
+                  icon={BarChart3}
+                  valueColor="violet"
+                  subValue={oracleTodaysQuestions.length > 0 ? `${oracleTodaysQuestions.filter(q => q.status === 'OPEN').length} active today` : 'Start predicting!'}
+                  accentColor="violet"
+                />
+              </>
+            )}
+          </div>
+        )}
 
         {/* ========== CONDITIONAL VIEW CONTENT ========== */}
-        {activeView === 'arena' ? (
+        {activeView === 'arena' && (
           <>
             {/* ========== ARENA VIEW ========== */}
             {/* Live Status Bar - Real-time Updates */}
@@ -2366,7 +2431,9 @@ export default function ArenaClean() {
           </div>
         </footer>
           </>
-        ) : (
+        )}
+
+        {activeView === 'oracle' && (
           <>
             {/* ========== ORACLE VIEW - Compact Professional Layout ========== */}
             {oracleQuestion ? (
@@ -2575,6 +2642,74 @@ export default function ArenaClean() {
               </div>
             )}
           </>
+        )}
+
+        {/* ========== HUB VIEW - Intelligence Hub ========== */}
+        {activeView === 'hub' && (
+          <div className="min-h-[60vh]">
+            {/* Hub Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <span className="text-sm font-medium text-white">Intelligence Hub Active</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-white/80" />
+                <span className="text-xs text-white/80">Real-time Signals</span>
+              </div>
+            </div>
+
+            {/* Lazy-loaded Hub Content */}
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <Brain className="w-8 h-8 text-blue-500" />
+                  </div>
+                  <Skeleton className="h-4 w-32 mx-auto mb-2" />
+                  <Skeleton className="h-3 w-24 mx-auto" />
+                </div>
+              </div>
+            }>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <IntelligenceHubContent embedded={true} />
+              </div>
+            </Suspense>
+          </div>
+        )}
+
+        {/* ========== FLUX VIEW - Control Center ========== */}
+        {activeView === 'flux' && (
+          <div className="min-h-[60vh]">
+            {/* Flux Header */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 rounded-lg mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <span className="text-sm font-medium text-white">Flux Control Center</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-white/80" />
+                <span className="text-xs text-white/80">Adaptive Engine</span>
+              </div>
+            </div>
+
+            {/* Lazy-loaded Flux Content */}
+            <Suspense fallback={
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <Sparkles className="w-8 h-8 text-orange-500" />
+                  </div>
+                  <Skeleton className="h-4 w-32 mx-auto mb-2" />
+                  <Skeleton className="h-3 w-24 mx-auto" />
+                </div>
+              </div>
+            }>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <FluxControlContent embedded={true} />
+              </div>
+            </Suspense>
+          </div>
         )}
       </main>
     </div>

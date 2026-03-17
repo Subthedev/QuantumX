@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { IgniteXLogo } from "@/components/ui/ignitex-logo";
+import { QuantumXLogo } from "@/components/ui/quantumx-logo";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -164,7 +164,7 @@ export default function Pricing() {
     if (plan.name === "FREE") {
       navigate("/dashboard");
     } else if (plan.name === "ENTERPRISE") {
-      window.location.href = "mailto:contact@ignitexagency.com?subject=Enterprise API Access Inquiry";
+      window.location.href = "mailto:contact@quantumx.org.in?subject=Enterprise API Access Inquiry";
     }
     // Pro plan uses the waitlist form
   };
@@ -173,8 +173,9 @@ export default function Pricing() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center cursor-pointer" onClick={() => navigate("/")}>
-            <IgniteXLogo size="sm" showText={true} />
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
+            <QuantumXLogo size={32} />
+            <span className="text-lg font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">QuantumX</span>
           </div>
           
           <nav className="flex items-center gap-4">
@@ -317,7 +318,7 @@ export default function Pricing() {
 
         {/* Additional Benefits */}
         <div className="mt-20 text-center max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-12">Why choose IgniteX Pro</h2>
+          <h2 className="text-3xl font-bold mb-12">Why choose QuantumX Pro</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-4">

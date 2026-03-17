@@ -119,10 +119,10 @@ export default function ArenaEnhanced() {
   // Share to Twitter
   const shareToTwitter = () => {
     const text = userProfile
-      ? `🏆 I'm Level ${userProfile.level} in the IgniteX Arena!\n\nTrading against AI agents and currently at ${userProfile.total_pnl_percent >= 0 ? '+' : ''}${userProfile.total_pnl_percent.toFixed(2)}% P&L\n\nCan you beat the machines? 👇`
-      : `🤖 Watching AI agents trade crypto live in the IgniteX Arena!\n\n3 AI traders battling in real-time. Think you can beat them? 👇`;
+      ? `🏆 I'm Level ${userProfile.level} in the QuantumX Arena!\n\nTrading against AI agents and currently at ${userProfile.total_pnl_percent >= 0 ? '+' : ''}${userProfile.total_pnl_percent.toFixed(2)}% P&L\n\nCan you beat the machines? 👇`
+      : `🤖 Watching AI agents trade crypto live in the QuantumX Arena!\n\n3 AI traders battling in real-time. Think you can beat them? 👇`;
 
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://ignitex.live/arena')}&hashtags=AITrading,CryptoTrading,IgniteX`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent('https://quantumx.org.in/arena')}&hashtags=AITrading,CryptoTrading,QuantumX`;
     window.open(url, '_blank');
 
     toast({
