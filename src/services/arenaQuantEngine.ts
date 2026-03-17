@@ -577,72 +577,113 @@ class ArenaQuantEngine {
   }
 
   /**
-   * Initialize Supabase storage and load persisted data
+   * Initialize storage: localStorage is PRIMARY, Supabase is best-effort backup.
+   * Supabase arena tables may not exist yet, so we never depend on them.
    */
   private async initializeStorage(): Promise<void> {
     if (this.storageInitialized) return;
 
+    // STEP 1: Always load from localStorage first (instant, reliable)
+    this.loadFromLocalStorage();
+
+    // STEP 2: Try Supabase in background (best-effort, don't block)
     try {
-      // Initialize Supabase storage
       await arenaSupabaseStorage.initialize();
-
-      // Load data from Supabase
-      await this.loadPersistedData();
-
-      this.storageInitialized = true;
-      console.log('%c✅ Supabase storage initialized',
+      await this.loadPersistedData(); // Merges Supabase data if available
+      console.log('%c✅ Storage initialized (localStorage + Supabase)',
         'background: #10b981; color: white; padding: 2px 8px;');
-
-      // Clean up legacy localStorage data
-      this.cleanupLocalStorage();
     } catch (error) {
-      console.error('❌ Failed to initialize Supabase storage:', error);
-      // Fallback: try to load from localStorage
-      this.loadFromLocalStorageFallback();
-      this.storageInitialized = true;
+      console.warn('[Arena] Supabase unavailable, using localStorage only');
     }
+
+    this.storageInitialized = true;
   }
 
   /**
-   * Clean up legacy localStorage data after Supabase migration
+   * Load all persisted state from localStorage (primary storage)
    */
-  private cleanupLocalStorage(): void {
+  private loadFromLocalStorage(): void {
     try {
-      localStorage.removeItem(STORAGE_KEY_POSITIONS);
-      localStorage.removeItem(STORAGE_KEY_SESSION);
-      localStorage.removeItem(STORAGE_KEY_STATE);
-      localStorage.removeItem(STORAGE_KEY_TRADE_HISTORY);
-      console.log('🧹 Cleaned up legacy localStorage data');
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-  }
-
-  /**
-   * Fallback to localStorage if Supabase fails
-   */
-  private loadFromLocalStorageFallback(): void {
-    console.warn('⚠️ Using localStorage fallback...');
-    try {
+      // Load sessions
       const sessionData = localStorage.getItem(STORAGE_KEY_SESSION);
       if (sessionData) {
         const parsed = JSON.parse(sessionData);
         for (const [id, data] of Object.entries(parsed)) {
-          const sessionEntry = data as { trades: number; wins: number; pnl: number; balanceDelta?: number };
-          const rawBalanceDelta = sessionEntry.balanceDelta || 0;
-          const validatedBalanceDelta = arenaSupabaseStorage.validateBalanceDelta(id, rawBalanceDelta);
-
+          const entry = data as { trades: number; wins: number; pnl: number; balanceDelta?: number };
+          const validatedDelta = arenaSupabaseStorage.validateBalanceDelta(id, entry.balanceDelta || 0);
           this.sessionTrades.set(id, {
-            trades: sessionEntry.trades,
-            wins: sessionEntry.wins,
-            pnl: sessionEntry.pnl,
-            balanceDelta: validatedBalanceDelta
+            trades: entry.trades,
+            wins: entry.wins,
+            pnl: entry.pnl,
+            balanceDelta: validatedDelta
           });
         }
+        console.log(`%c📥 Restored sessions from localStorage`, 'color: #3b82f6');
       }
+
+      // Load trade history
+      const historyData = localStorage.getItem(STORAGE_KEY_TRADE_HISTORY);
+      if (historyData) {
+        const parsed = JSON.parse(historyData) as any[];
+        const cutoff = Date.now() - HOURS_24;
+        this.tradeHistory = parsed
+          .filter((t: any) => t.timestamp >= cutoff)
+          .map((t: any) => ({
+            agentId: t.agentId,
+            timestamp: t.timestamp,
+            pnlPercent: t.pnlPercent || 0,
+            isWin: t.isWin || false,
+            strategy: t.strategy,
+            symbol: t.symbol
+          }));
+        console.log(`%c📥 Restored ${this.tradeHistory.length} trades from localStorage`, 'color: #8b5cf6');
+      }
+
+      // Load positions
+      const posData = localStorage.getItem(STORAGE_KEY_POSITIONS);
+      if (posData) {
+        const parsed = JSON.parse(posData);
+        for (const [agentId, position] of Object.entries(parsed)) {
+          const agent = this.agents.get(agentId);
+          if (agent && position) {
+            agent.currentPosition = position as any;
+            agent.activeStrategy = (position as any).strategy;
+          }
+        }
+      }
+
       this.recalculateStats();
+      this.calculate24hMetrics();
     } catch (e) {
-      console.error('Failed to load from localStorage fallback:', e);
+      console.warn('[Arena] localStorage load failed:', e);
+    }
+  }
+
+  /**
+   * Persist current state to localStorage (called after every trade)
+   */
+  private persistToLocalStorage(): void {
+    try {
+      // Save sessions
+      const sessions: Record<string, any> = {};
+      this.sessionTrades.forEach((data, id) => { sessions[id] = data; });
+      localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(sessions));
+
+      // Save trade history (last 24h only)
+      const cutoff = Date.now() - HOURS_24;
+      const recentHistory = this.tradeHistory.filter(t => t.timestamp >= cutoff);
+      localStorage.setItem(STORAGE_KEY_TRADE_HISTORY, JSON.stringify(recentHistory));
+
+      // Save positions
+      const positions: Record<string, any> = {};
+      this.agents.forEach((agent, id) => {
+        if (agent.currentPosition) {
+          positions[id] = agent.currentPosition;
+        }
+      });
+      localStorage.setItem(STORAGE_KEY_POSITIONS, JSON.stringify(positions));
+    } catch (e) {
+      // localStorage quota exceeded or unavailable - non-critical
     }
   }
 
@@ -776,31 +817,34 @@ class ArenaQuantEngine {
   }
 
   private savePositions(): void {
-    // Save to Supabase (debounced internally)
+    // Save to Supabase (debounced internally, best-effort)
     this.agents.forEach((agent, id) => {
       if (agent.currentPosition) {
         arenaSupabaseStorage.savePosition(id, agent.currentPosition);
       } else {
-        // Position closed - delete from storage
         arenaSupabaseStorage.deletePosition(id);
       }
     });
+    // Always persist to localStorage (reliable)
+    this.persistToLocalStorage();
   }
 
   private saveSession(): void {
-    // Save all session data to Supabase (debounced internally)
+    // Save to Supabase (debounced internally, best-effort)
     this.sessionTrades.forEach((data, id) => {
       arenaSupabaseStorage.saveAgentSession(id, {
         trades: data.trades,
         wins: data.wins,
         pnl: data.pnl,
         balanceDelta: data.balanceDelta,
-        consecutiveLosses: 0, // Will be updated by circuit breaker
+        consecutiveLosses: 0,
         circuitBreakerLevel: 'ACTIVE',
         haltedUntil: null,
         lastTradeTime: Date.now()
       });
     });
+    // Always persist to localStorage (reliable)
+    this.persistToLocalStorage();
   }
 
   private saveState(): void {
@@ -815,10 +859,11 @@ class ArenaQuantEngine {
   }
 
   private saveTradeHistory(): void {
-    // Trade history is saved per-trade in closeTrade()
-    // This method just cleans up local memory
+    // Clean up old trades from memory
     const cutoff = Date.now() - HOURS_24;
     this.tradeHistory = this.tradeHistory.filter(t => t.timestamp >= cutoff);
+    // Persist to localStorage
+    this.persistToLocalStorage();
   }
 
   private calculate24hMetrics(): void {
