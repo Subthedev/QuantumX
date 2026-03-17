@@ -1448,11 +1448,11 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                             <div className="text-right">
                               <div className="text-base font-semibold text-slate-800">{sig.confidence}%</div>
                               <div className={`text-xs font-medium ${
-                                sig.grade.includes('A') ? 'text-emerald-600' :
-                                sig.grade.includes('B') ? 'text-blue-600' :
+                                sig.grade?.includes('A') ? 'text-emerald-600' :
+                                sig.grade?.includes('B') ? 'text-blue-600' :
                                 'text-amber-600'
                               }`}>
-                                Grade {sig.grade}
+                                Grade {sig.grade || '-'}
                               </div>
                             </div>
                             {sig.outcome && (
