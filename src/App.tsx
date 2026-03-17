@@ -70,6 +70,7 @@ const FundingRates = lazy(() => import("./pages/FundingRates"));
 const OrderBook = lazy(() => import("./pages/OrderBook"));
 // Intelligence Hub - Server-side signal generation with database polling
 const IntelligenceHub = lazy(() => import("./pages/IntelligenceHub"));
+const IntelligenceHubMonthly = lazy(() => import("./pages/IntelligenceHubMonthly"));
 const Upgrade = lazy(() => import("./pages/Upgrade"));
 const MockTrading = lazy(() => import("./pages/MockTrading"));
 const MLAdmin = lazy(() => import("./pages/MLAdmin"));
@@ -161,6 +162,7 @@ const App = () => {
               <Route path="/flux" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
               <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} /> {/* Legacy route */}
               <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
+              <Route path="/intelligence-hub/monthly" element={<ProtectedRoute><IntelligenceHubMonthly /></ProtectedRoute>} />
               <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />
               <Route path="/ml-admin" element={<ProtectedRoute><MLAdmin /></ProtectedRoute>} />
