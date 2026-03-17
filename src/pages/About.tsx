@@ -17,13 +17,13 @@ import {
   Lock
 } from 'lucide-react';
 import { AppHeader } from '@/components/AppHeader';
-import { IgniteXLogo } from '@/components/ui/ignitex-logo';
+import { QuantumXLogo } from '@/components/ui/quantumx-logo';
 import { useEffect } from 'react';
 
 const About = () => {
   useEffect(() => {
-    document.title = 'About Us - IgniteX | Trusted AI Crypto Analytics';
-    const metaDesc = 'Learn about IgniteX - your trusted partner in AI-powered cryptocurrency analytics. Transparent, reliable, and built for traders who demand excellence.';
+    document.title = 'About Us - QuantumX | Trusted AI Crypto Analytics';
+    const metaDesc = 'Learn about QuantumX - your trusted partner in AI-powered cryptocurrency analytics. Transparent, reliable, and built for traders who demand excellence.';
     let descTag = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
     if (!descTag) {
       descTag = document.createElement('meta');
@@ -56,7 +56,7 @@ const About = () => {
             </h1>
             
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed max-w-3xl mx-auto">
-              At IgniteX, we believe every trader deserves institutional-grade analysis without the institutional price tag. 
+              At QuantumX, we believe every trader deserves institutional-grade analysis without the institutional price tag.
               Our mission is to democratize crypto intelligence through transparent, accurate, and accessible AI technology.
             </p>
 
@@ -83,7 +83,7 @@ const About = () => {
       <section className="py-20 bg-muted/20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Why Traders Trust IgniteX</h2>
+            <h2 className="text-4xl font-bold mb-4">Why Traders Trust QuantumX</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               We're not just another prediction tool. We're your partner in making informed decisions.
             </p>
@@ -196,7 +196,7 @@ const About = () => {
 
             <div className="prose prose-lg mx-auto text-muted-foreground leading-relaxed">
               <p className="mb-6">
-                IgniteX was born from a simple frustration: why should institutional-grade crypto analysis 
+                QuantumX was born from a simple frustration: why should institutional-grade crypto analysis 
                 be reserved only for hedge funds and whales? In 2023, our founding team of data scientists 
                 and veteran traders came together with a vision to level the playing field.
               </p>
@@ -208,7 +208,7 @@ const About = () => {
               </p>
 
               <p className="mb-6">
-                Today, IgniteX serves thousands of traders worldwide, from beginners taking their first steps 
+                Today, QuantumX serves thousands of traders worldwide, from beginners taking their first steps 
                 to seasoned professionals managing significant portfolios. Every prediction we generate, 
                 every feature we build, is guided by one principle: 
                 <span className="text-primary font-semibold"> empower traders with truth, not hype</span>.
@@ -222,7 +222,7 @@ const About = () => {
                   to every single user who trusts us with their trading decisions."
                 </p>
                 <p className="text-sm text-muted-foreground mt-4">
-                  - The IgniteX Team
+                  - The QuantumX Team
                 </p>
               </div>
             </div>
@@ -297,7 +297,7 @@ const About = () => {
             <div className="flex items-center gap-3">
               <div className="flex items-center">
                 <Link to="/" className="flex items-center">
-                  <IgniteXLogo size="sm" showText={true} />
+                  <QuantumXLogo size="sm" showText={true} />
                 </Link>
               </div>
             </div>
@@ -317,7 +317,7 @@ const About = () => {
           
           <div className="border-t border-border mt-8 pt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              © 2024 IgniteX. Building trust in crypto intelligence, one prediction at a time.
+              © 2024 QuantumX. Building trust in crypto intelligence, one prediction at a time.
             </p>
           </div>
         </div>

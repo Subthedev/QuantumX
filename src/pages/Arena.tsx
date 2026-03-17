@@ -841,9 +841,8 @@ Watch them compete 24/7 👇`;
 
               <div className="pt-4 border-t border-slate-800 mt-4">
                 <p className="text-[10px] text-slate-500">
-                  IgniteX is a software platform providing analytical tools. IgniteX does not provide investment advice.
+                  QuantumX is a software platform providing analytical tools. QuantumX does not provide investment advice.
                   By using this platform, you agree to our Terms of Service and acknowledge that you understand the risks involved in cryptocurrency trading.
-                  QuantumX Signals is a separate service for educational content delivery.
                 </p>
               </div>
             </div>
