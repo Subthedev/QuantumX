@@ -499,6 +499,25 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
               </p>
             </div>
             <div className="flex items-center gap-6">
+              {/* Pipeline Health Badge */}
+              {(() => {
+                const upMinutes = metrics.uptime / 60000;
+                const hasData = metrics.dataTickersFetched > 0;
+                const hasSignals = metrics.totalSignals > 0;
+                const goodWinRate = metrics.winRate >= 55;
+                const goodApproval = metrics.approvalRate >= 50;
+                const score = (hasData ? 25 : 0) + (hasSignals ? 25 : 0) + (goodWinRate ? 25 : 0) + (goodApproval ? 25 : 0);
+                const health = upMinutes < 1 ? { label: 'STARTING', color: 'text-amber-600 bg-amber-50 border-amber-200' }
+                  : score >= 75 ? { label: 'EXCELLENT', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+                  : score >= 50 ? { label: 'GOOD', color: 'text-blue-700 bg-blue-50 border-blue-200' }
+                  : score >= 25 ? { label: 'FAIR', color: 'text-amber-700 bg-amber-50 border-amber-200' }
+                  : { label: 'DEGRADED', color: 'text-rose-700 bg-rose-50 border-rose-200' };
+                return (
+                  <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${health.color}`}>
+                    {health.label}
+                  </div>
+                );
+              })()}
               <div className="text-right">
                 <div className="text-xs text-slate-500 font-medium mb-1">Uptime</div>
                 <div className="text-base font-semibold text-slate-900">{formatUptime(metrics.uptime)}</div>
@@ -1185,12 +1204,34 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
 
                           {/* Symbol and Strategy */}
                           <div className="flex-1">
-                            <div className="text-lg font-bold text-slate-900">{sig.symbol}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-lg font-bold text-slate-900">{sig.symbol}</div>
+                              {sig.marketRegime && (
+                                <span className="px-1.5 py-0.5 bg-violet-50 border border-violet-200 rounded text-[10px] font-bold text-violet-700 uppercase">
+                                  {sig.marketRegime}
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-slate-600 font-medium mt-0.5">
                               {sig.strategyName || sig.strategy || 'Unknown Strategy'}
                             </div>
-                            <div className="text-xs text-emerald-600 font-semibold mt-1">
-                              Started {timeAgo(sig.timestamp)}
+                            <div className="flex items-center gap-3 mt-1">
+                              <div className="text-xs text-emerald-600 font-semibold">
+                                Started {timeAgo(sig.timestamp)}
+                              </div>
+                              {(() => {
+                                const expiresAt = sig.expiresAt || (sig.timestamp + (sig.timeLimit || 14400000));
+                                const remaining = expiresAt - currentTime;
+                                if (remaining <= 0) return <span className="text-[10px] text-rose-600 font-bold">EXPIRED</span>;
+                                const mins = Math.floor(remaining / 60000);
+                                const secs = Math.floor((remaining % 60000) / 1000);
+                                const isUrgent = remaining < 300000;
+                                return (
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isUrgent ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-blue-50 text-blue-600 border border-blue-200'}`}>
+                                    Expires {mins}m {secs.toString().padStart(2, '0')}s
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
