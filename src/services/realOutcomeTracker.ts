@@ -281,13 +281,13 @@ class RealOutcomeTracker {
 
     try {
       // Get current price from real exchange data
-      const ticker = await multiExchangeAggregatorV4.getCanonicalTicker(signal.symbol);
-      if (!ticker) {
-        console.warn(`[RealOutcomeTracker] ⚠️ No ticker data for ${signal.symbol}`);
+      const data = await multiExchangeAggregatorV4.getAggregatedData(signal.symbol);
+      if (!data || !data.currentPrice) {
+        console.warn(`[RealOutcomeTracker] ⚠️ No price data for ${signal.symbol}`);
         return;
       }
 
-      const currentPrice = ticker.last;
+      const currentPrice = data.currentPrice;
       signal.lastPrice = currentPrice;
 
       // Update price extremes
@@ -387,7 +387,8 @@ class RealOutcomeTracker {
       timeoutReason = 'TIME_EXPIRED';
     }
 
-    console.log(`[RealOutcomeTracker] ⏱️ Signal ${signalId} timed out after ${this.MONITORING_DURATION / 1000}s`);
+    const holdDuration = Date.now() - (this.activeSignals.get(signalId)?.entryTime || Date.now());
+    console.log(`[RealOutcomeTracker] ⏱️ Signal ${signalId} timed out after ${(holdDuration / 1000).toFixed(0)}s`);
     console.log(`  Timeout Reason: ${timeoutReason}`);
     console.log(`  Price Movement: ${priceMovementPct > 0 ? '+' : ''}${priceMovementPct.toFixed(2)}%`);
 

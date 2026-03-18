@@ -101,14 +101,8 @@ interface AgentPerformanceHistory {
 
 // ===================== CONSTANTS =====================
 
-const STRATEGY_NAMES = [
-  'WHALE_SHADOW', 'SPRING_TRAP', 'MOMENTUM_SURGE', 'MOMENTUM_SURGE_V2',
-  'MOMENTUM_RECOVERY', 'FUNDING_SQUEEZE', 'ORDER_FLOW_TSUNAMI',
-  'FEAR_GREED_CONTRARIAN', 'GOLDEN_CROSS_MOMENTUM', 'MARKET_PHASE_SNIPER',
-  'LIQUIDITY_HUNTER', 'VOLATILITY_BREAKOUT', 'STATISTICAL_ARBITRAGE',
-  'ORDER_BOOK_MICROSTRUCTURE', 'LIQUIDATION_CASCADE_PREDICTION',
-  'CORRELATION_BREAKDOWN_DETECTOR', 'BOLLINGER_MEAN_REVERSION'
-];
+// Single source of truth from strategyTypes.ts
+import { ALL_STRATEGY_NAMES as STRATEGY_NAMES } from '@/services/strategies/strategyTypes';
 
 const REGIME_OPTIONS = [
   { value: 'auto', label: 'AUTO-DETECT', description: 'System detects market regime' },
@@ -744,30 +738,30 @@ export default function IGXControlCenter({ embedded = false }: IGXControlCenterP
     <div className={embedded ? "" : "min-h-screen bg-background"}>
       {/* Header - Hidden when embedded */}
       {!embedded && (
-        <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 md:px-6 py-4">
+        <header className="border-b border-slate-200/80 bg-white/98 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+          <div className="container mx-auto px-4 md:px-6 py-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-red-500 flex items-center justify-center">
-                  <Gauge className="w-7 h-7 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-md">
+                  <Gauge className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-red-500">
-                    QX CONTROL
+                  <h1 className="text-lg font-bold text-slate-900">
+                    QX Control Center
                   </h1>
-                  <p className="text-xs md:text-sm text-muted-foreground">QuantumX Trading Control Center</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Signal Configuration & Regime Adaptation</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={() => navigate('/intelligence-hub')} className="hover:border-primary">
-                  <Brain className="w-4 h-4 mr-2" />
-                  Intelligence Hub
-                  <ExternalLink className="w-3 h-3 ml-2" />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigate('/intelligence-hub')} className="hover:border-blue-400 hover:bg-blue-50 text-xs">
+                  <Brain className="w-3.5 h-3.5 mr-1.5" />
+                  Hub
+                  <ExternalLink className="w-3 h-3 ml-1.5 opacity-50" />
                 </Button>
-                <Badge className={`px-3 py-1.5 font-semibold ${hubRunning ? 'bg-green-500' : 'bg-red-500'} text-white`}>
-                  <Activity className="w-3 h-3 mr-1.5" />
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold ${hubRunning ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${hubRunning ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                   {hubRunning ? 'ONLINE' : 'OFFLINE'}
-                </Badge>
+                </div>
               </div>
             </div>
           </div>
@@ -777,16 +771,16 @@ export default function IGXControlCenter({ embedded = false }: IGXControlCenterP
       {/* Main Content */}
       <main className={embedded ? "py-4" : "container mx-auto px-4 md:px-6 py-6 max-w-7xl"}>
         <Tabs defaultValue="arena" className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-xl mx-auto bg-muted p-1 rounded-lg">
-            <TabsTrigger value="arena" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md">
+          <TabsList className="grid grid-cols-3 w-full max-w-xl mx-auto bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
+            <TabsTrigger value="arena" className="data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm rounded-lg text-sm font-semibold transition-all">
               <Rocket className="w-4 h-4 mr-2" />
               Arena
             </TabsTrigger>
-            <TabsTrigger value="controls" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger value="controls" className="data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm rounded-lg text-sm font-semibold transition-all">
               <Settings className="w-4 h-4 mr-2" />
               Controls
             </TabsTrigger>
-            <TabsTrigger value="adaptive" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger value="adaptive" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm rounded-lg text-sm font-semibold transition-all">
               <Layers className="w-4 h-4 mr-2" />
               Adaptive
             </TabsTrigger>
@@ -838,28 +832,28 @@ export default function IGXControlCenter({ embedded = false }: IGXControlCenterP
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className="text-2xl font-bold text-foreground">{arenaStats.totalTrades}</div>
-                    <div className="text-xs text-muted-foreground">Total Trades</div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="text-center p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="text-2xl font-bold text-slate-800 tabular-nums">{arenaStats.totalTrades}</div>
+                    <div className="text-[10px] text-slate-500 font-semibold uppercase mt-1">Total Trades</div>
                   </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{arenaStats.winRate.toFixed(1)}%</div>
-                    <div className="text-xs text-muted-foreground">Win Rate</div>
+                  <div className="text-center p-3 bg-emerald-50/50 rounded-xl border border-emerald-200">
+                    <div className="text-2xl font-bold text-emerald-700 tabular-nums">{arenaStats.winRate.toFixed(1)}%</div>
+                    <div className="text-[10px] text-emerald-600 font-semibold uppercase mt-1">Win Rate</div>
                   </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className={`text-2xl font-bold ${arenaStats.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`text-center p-3 rounded-xl border ${arenaStats.totalPnL >= 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}`}>
+                    <div className={`text-2xl font-bold tabular-nums ${arenaStats.totalPnL >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {arenaStats.totalPnL >= 0 ? '+' : ''}{arenaStats.totalPnL.toFixed(1)}%
                     </div>
-                    <div className="text-xs text-muted-foreground">Total P&L</div>
+                    <div className={`text-[10px] font-semibold uppercase mt-1 ${arenaStats.totalPnL >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>Total P&L</div>
                   </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
-                    <div className={`text-2xl font-bold ${arenaStats.return24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`text-center p-3 rounded-xl border ${arenaStats.return24h >= 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}`}>
+                    <div className={`text-2xl font-bold tabular-nums ${arenaStats.return24h >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       {arenaStats.return24h >= 0 ? '+' : ''}{arenaStats.return24h.toFixed(2)}%
                     </div>
-                    <div className="text-xs text-muted-foreground">24h Return</div>
+                    <div className={`text-[10px] font-semibold uppercase mt-1 ${arenaStats.return24h >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>24h Return</div>
                   </div>
-                  <div className="text-center p-4 bg-muted/30 rounded-lg">
+                  <div className="text-center p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <div className="text-2xl font-bold text-foreground">{arenaStats.trades24h}</div>
                     <div className="text-xs text-muted-foreground">24h Trades</div>
                   </div>
@@ -1039,7 +1033,7 @@ export default function IGXControlCenter({ embedded = false }: IGXControlCenterP
                       )}
 
                       {/* Performance Stats */}
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="text-center p-2 bg-muted/30 rounded">
                           <div className={`text-lg font-bold ${agent.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             ${agent.totalPnL.toFixed(0)}
@@ -1334,7 +1328,7 @@ export default function IGXControlCenter({ embedded = false }: IGXControlCenterP
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {(['PUSH', 'PULL', 'AUTO'] as const).map(mode => (
                         <Button
                           key={mode}

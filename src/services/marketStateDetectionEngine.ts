@@ -327,6 +327,17 @@ class MarketStateDetectionEngine {
     this.cache.clear();
     this.symbolCache.clear();
   }
+
+  /**
+   * Sync method: returns the last detected global market state without API call.
+   * Returns null if no state has been detected yet.
+   * Used by Delta V2 for cross-validation and orchestrator for regime tracking.
+   */
+  getLastDetectedState(): MarketStateAnalysis | null {
+    const cached = this.cache.get('market-state-50');
+    if (cached) return cached.analysis;
+    return null;
+  }
 }
 
 interface MarketMetrics {

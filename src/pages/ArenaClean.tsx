@@ -112,22 +112,24 @@ function LiveActivityFeed() {
   if (trades.length === 0) return null;
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800">
-      <div className="container mx-auto px-4 py-2">
+    <div className="bg-slate-950 border-b border-slate-800/50">
+      <div className="container mx-auto px-4 py-1.5">
         <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">
-            Recent Trades
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Trades
           </span>
+          <div className="w-px h-3 bg-slate-800" />
           {trades.map((trade) => (
-            <div key={trade.id} className="flex items-center gap-2 whitespace-nowrap">
-              <span className="text-xs text-slate-400">{trade.agentName}</span>
+            <div key={trade.id} className="flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-[11px] text-slate-500 font-medium">{trade.agentName}</span>
               <span className={cn(
-                "text-xs font-mono font-medium",
-                trade.isWin ? "text-emerald-400" : "text-red-400"
+                "text-[11px] font-mono font-semibold",
+                trade.isWin ? "text-emerald-400" : "text-rose-400"
               )}>
                 {trade.isWin ? '+' : ''}{trade.pnlPercent.toFixed(2)}%
               </span>
-              <span className="text-xs text-slate-600">{trade.symbol}</span>
+              <span className="text-[10px] text-slate-600">{trade.symbol}</span>
             </div>
           ))}
         </div>
@@ -2303,21 +2305,24 @@ export default function ArenaClean() {
           <>
             {/* ========== ARENA VIEW ========== */}
             {/* Live Status Bar - Real-time Updates */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 rounded-lg mb-6">
+        <div className="flex items-center justify-between px-4 py-2 bg-slate-950 rounded-xl mb-6 border border-slate-800/50">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-medium text-white">Engine Active</span>
+            <div className="flex items-center gap-1.5">
+              <div className="relative">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-75" />
+              </div>
+              <span className="text-[11px] font-semibold text-emerald-400">Engine Active</span>
             </div>
-            <div className="w-px h-4 bg-slate-700" />
-            <span className="text-xs text-slate-400 tabular-nums">{agents.length} Agents</span>
-            <div className="w-px h-4 bg-slate-700" />
-            <span className="text-xs text-slate-400 tabular-nums">{liveMetrics.totalTrades.toLocaleString()} Total Trades</span>
-            <div className="w-px h-4 bg-slate-700" />
-            <span className="text-xs text-slate-400 tabular-nums">{liveMetrics.activePositions} Open</span>
+            <div className="w-px h-3.5 bg-slate-800" />
+            <span className="text-[11px] text-slate-400 font-medium tabular-nums">{agents.length} Agents</span>
+            <div className="w-px h-3.5 bg-slate-800" />
+            <span className="text-[11px] text-slate-400 font-medium tabular-nums">{liveMetrics.totalTrades.toLocaleString()} Trades</span>
+            <div className="w-px h-3.5 bg-slate-800" />
+            <span className="text-[11px] text-slate-400 font-medium tabular-nums">{liveMetrics.activePositions} Open</span>
           </div>
-          <div className="text-xs text-slate-500 tabular-nums">
-            Updated {secondsSinceUpdate}s ago
+          <div className="text-[10px] text-slate-600 tabular-nums font-medium">
+            {secondsSinceUpdate}s ago
           </div>
         </div>
 

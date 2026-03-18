@@ -113,7 +113,7 @@ export interface PriceProvider {
 
 export class TripleBarrierMonitor {
   private priceProvider: PriceProvider;
-  private readonly CHECK_INTERVAL_MS = 5000; // Check price every 5 seconds
+  private readonly CHECK_INTERVAL_MS = 2000; // Check price every 2 seconds
   private activeMonitors: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(priceProvider: PriceProvider) {
@@ -147,61 +147,95 @@ export class TripleBarrierMonitor {
     let highestPrice = signal.entry || 0;
     let lowestPrice = signal.entry || 0;
     const startTime = Date.now();
+    const entryPrice = signal.entry || 0;
+    const direction = signal.direction!;
+
+    // Trailing stop state
+    let trailingActive = false;
+    let trailingStopPrice = barriers.lowerBarrier;
+    let bestTargetHit = 0; // 0=none, 1=TP1, 2=TP2
 
     while (Date.now() < barriers.timeBarrier) {
       try {
-        // Fetch current price
         const currentPrice = await this.priceProvider.getCurrentPrice(signal.symbol);
 
-        // Update price extremes
         highestPrice = Math.max(highestPrice, currentPrice);
         lowestPrice = Math.min(lowestPrice, currentPrice);
 
-        // Check upper barrier (TAKE PROFIT)
-        if (this.touchedTakeProfit(currentPrice, signal.direction!, barriers)) {
-          const targetLevel = this.determineTargetLevel(currentPrice, signal.direction!, barriers);
-          return this.createWinOutcome(
-            signal,
-            currentPrice,
-            targetLevel,
-            highestPrice,
-            lowestPrice,
-            startTime
+        // --- TRAILING STOP LOGIC ---
+        // After TP1 is hit: move SL to breakeven, trail towards TP2/TP3
+        if (!trailingActive && this.touchedTakeProfit(currentPrice, direction, barriers)) {
+          trailingActive = true;
+          bestTargetHit = this.determineTargetLevel(currentPrice, direction, barriers);
+
+          // If we hit TP2 or TP3 directly, take the win immediately
+          if (bestTargetHit >= 2) {
+            return this.createWinOutcome(signal, currentPrice, bestTargetHit as 1|2|3, highestPrice, lowestPrice, startTime);
+          }
+
+          // TP1 hit: move stop to breakeven + small buffer (0.1%)
+          trailingStopPrice = direction === 'LONG'
+            ? entryPrice * 1.001
+            : entryPrice * 0.999;
+
+          console.log(
+            `[Triple Barrier] TRAILING activated for ${signal.symbol} | ` +
+            `TP1 hit @ $${currentPrice.toFixed(2)} | ` +
+            `New trailing SL: $${trailingStopPrice.toFixed(2)} (breakeven+0.1%)`
           );
         }
 
-        // Check lower barrier (STOP LOSS)
-        if (this.touchedStopLoss(currentPrice, signal.direction!, barriers)) {
-          return this.createLossOutcome(
-            signal,
-            currentPrice,
-            barriers,
-            highestPrice,
-            lowestPrice,
-            startTime
-          );
+        if (trailingActive) {
+          // Trail the stop: keep 40% of the distance from entry to current price as buffer
+          const trailBuffer = 0.4;
+          if (direction === 'LONG') {
+            const newTrail = currentPrice - (currentPrice - entryPrice) * trailBuffer;
+            trailingStopPrice = Math.max(trailingStopPrice, newTrail);
+            // Check if TP2/TP3 hit
+            if (currentPrice >= barriers.target2) {
+              const level = currentPrice >= barriers.target3 ? 3 : 2;
+              return this.createWinOutcome(signal, currentPrice, level as 1|2|3, highestPrice, lowestPrice, startTime);
+            }
+            // Check trailing stop hit
+            if (currentPrice <= trailingStopPrice) {
+              // Exited with profit (between TP1 and entry)
+              return this.createWinOutcome(signal, currentPrice, 1, highestPrice, lowestPrice, startTime);
+            }
+          } else {
+            const newTrail = currentPrice + (entryPrice - currentPrice) * trailBuffer;
+            trailingStopPrice = Math.min(trailingStopPrice, newTrail);
+            if (currentPrice <= barriers.target2) {
+              const level = currentPrice <= barriers.target3 ? 3 : 2;
+              return this.createWinOutcome(signal, currentPrice, level as 1|2|3, highestPrice, lowestPrice, startTime);
+            }
+            if (currentPrice >= trailingStopPrice) {
+              return this.createWinOutcome(signal, currentPrice, 1, highestPrice, lowestPrice, startTime);
+            }
+          }
+        } else {
+          // Normal monitoring (pre-TP1)
+          if (this.touchedStopLoss(currentPrice, direction, barriers)) {
+            return this.createLossOutcome(signal, currentPrice, barriers, highestPrice, lowestPrice, startTime);
+          }
         }
 
-        // Wait before next check
         await this.sleep(this.CHECK_INTERVAL_MS);
 
       } catch (error) {
         console.error(`[Triple Barrier] Error monitoring ${signal.symbol}:`, error);
-        // Continue monitoring despite errors
         await this.sleep(this.CHECK_INTERVAL_MS);
       }
     }
 
-    // Time barrier reached (TIMEOUT)
+    // Time barrier reached
     const finalPrice = await this.priceProvider.getCurrentPrice(signal.symbol);
-    return this.createTimeoutOutcome(
-      signal,
-      finalPrice,
-      barriers,
-      highestPrice,
-      lowestPrice,
-      startTime
-    );
+
+    // If trailing was active (TP1 was hit), this is still a win
+    if (trailingActive) {
+      return this.createWinOutcome(signal, finalPrice, 1, highestPrice, lowestPrice, startTime);
+    }
+
+    return this.createTimeoutOutcome(signal, finalPrice, barriers, highestPrice, lowestPrice, startTime);
   }
 
   /**
@@ -486,15 +520,27 @@ export class TripleBarrierMonitor {
 export class MultiExchangePriceProvider implements PriceProvider {
   async getCurrentPrice(symbol: string): Promise<number> {
     try {
-      // Get real-time ticker from multi-exchange aggregator
-      const ticker = await multiExchangeAggregatorV4.getCanonicalTicker(symbol);
+      // Get real-time price from multi-exchange aggregator
+      const data = await multiExchangeAggregatorV4.getAggregatedData(symbol);
 
-      if (!ticker || !ticker.last) {
-        console.warn(`[Price Provider] No ticker data for ${symbol}`);
-        return 0;
+      if (data && data.currentPrice > 0) {
+        return data.currentPrice;
       }
 
-      return ticker.last;
+      // Fallback: try Binance directly for the symbol
+      const binanceSymbol = symbol.includes('USDT') ? symbol : `${symbol}USDT`;
+      const response = await fetch(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`,
+        { signal: AbortSignal.timeout(3000) }
+      );
+      if (response.ok) {
+        const json = await response.json();
+        const price = parseFloat(json.price);
+        if (price > 0) return price;
+      }
+
+      console.warn(`[Price Provider] No price data for ${symbol}`);
+      return 0;
 
     } catch (error) {
       console.error(`[Price Provider] Error fetching ${symbol}:`, error);

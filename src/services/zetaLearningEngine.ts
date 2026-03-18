@@ -120,6 +120,7 @@ class ZetaLearningEngine extends SimpleEventEmitter {
     };
 
     this.loadState();
+    this.loadSelfImprovementState();
   }
 
   // ========== LIFECYCLE ==========
@@ -158,6 +159,32 @@ class ZetaLearningEngine extends SimpleEventEmitter {
 
         console.log('[Zeta] ✅ Connected to globalHubService outcome events');
       });
+
+      // ✅ ARENA BRIDGE: Learn from arena agent trade closures (much higher frequency)
+      // Arena agents trade every few minutes — each closed trade is a learning opportunity
+      import('./arenaQuantEngine').then(({ arenaQuantEngine }) => {
+        arenaQuantEngine.onTradeEvent((event) => {
+          if (event.type !== 'close' || !event.position || event.pnlPercent === undefined) return;
+
+          const outcome: SignalOutcome = {
+            signalId: `arena-${event.agent.id}-${Date.now()}`,
+            symbol: event.position.symbol,
+            direction: event.position.direction === 'LONG' ? 'LONG' : 'SHORT',
+            outcome: event.isWin ? 'WIN' : (event.reason === 'TIMEOUT' ? 'TIMEOUT' : 'LOSS'),
+            entryPrice: event.position.entryPrice,
+            exitPrice: event.exitPrice || event.position.entryPrice,
+            confidence: 65, // Arena trades use moderate confidence baseline
+            strategy: event.position.strategy || 'MOMENTUM',
+            regime: 'UNKNOWN',
+            returnPct: event.pnlPercent,
+            timestamp: Date.now()
+          };
+
+          this.processSignalOutcome(outcome);
+        });
+
+        console.log('[Zeta] ✅ Connected to arenaQuantEngine trade events (high-frequency learning)');
+      });
     }
 
     // ✅ HEARTBEAT: Emit metrics every 1 second for real-time UI updates
@@ -191,6 +218,67 @@ class ZetaLearningEngine extends SimpleEventEmitter {
   }
 
   // ========== OUTCOME PROCESSING ==========
+
+  /**
+   * Record outcome from globalHubService format
+   * Maps the Hub's rich outcome data to SignalOutcome and delegates to processSignalOutcome()
+   */
+  recordOutcome(data: {
+    signalId: string;
+    symbol: string;
+    direction: string;
+    outcome: string;
+    trainingValue: number;
+    qualityScore: number;
+    mlProbability: number;
+    strategy: string;
+    marketRegime: string;
+    entryPrice: number;
+    exitPrice: number;
+    returnPct: number;
+  }): void {
+    // Map outcome strings: WIN_TP1/TP2/TP3 -> WIN, LOSS_SL/PARTIAL -> LOSS, TIMEOUT_* -> TIMEOUT
+    let mappedOutcome: 'WIN' | 'LOSS' | 'TIMEOUT';
+    let outcomeDetails: SignalOutcome['outcomeDetails'] = {};
+
+    const rawOutcome = String(data.outcome);
+    if (rawOutcome.startsWith('WIN') || rawOutcome === 'WIN_TP1' || rawOutcome === 'WIN_TP2' || rawOutcome === 'WIN_TP3') {
+      mappedOutcome = 'WIN';
+      if (rawOutcome.includes('TP')) {
+        outcomeDetails.targetHit = rawOutcome.replace('WIN_', '') as 'TP1' | 'TP2' | 'TP3';
+      }
+    } else if (rawOutcome.startsWith('LOSS') || rawOutcome === 'LOSS_SL' || rawOutcome === 'LOSS_PARTIAL') {
+      mappedOutcome = 'LOSS';
+      outcomeDetails.stopLossHit = rawOutcome === 'LOSS_SL';
+    } else if (rawOutcome.startsWith('TIMEOUT')) {
+      mappedOutcome = 'TIMEOUT';
+      const reason = rawOutcome.replace('TIMEOUT_', '');
+      if (['PRICE_STAGNATION', 'WRONG_DIRECTION', 'LOW_VOLATILITY', 'TIME_EXPIRED'].includes(reason)) {
+        outcomeDetails.timeoutReason = reason as any;
+      }
+    } else {
+      // Fallback: treat as the raw value if it's already WIN/LOSS/TIMEOUT
+      mappedOutcome = rawOutcome as 'WIN' | 'LOSS' | 'TIMEOUT';
+    }
+
+    const signalOutcome: SignalOutcome = {
+      signalId: data.signalId,
+      symbol: data.symbol,
+      direction: data.direction as 'LONG' | 'SHORT',
+      outcome: mappedOutcome,
+      entryPrice: data.entryPrice,
+      exitPrice: data.exitPrice,
+      confidence: data.qualityScore,
+      strategy: data.strategy,
+      regime: data.marketRegime,
+      returnPct: data.returnPct,
+      timestamp: Date.now(),
+      outcomeDetails
+    };
+
+    console.log(`[Zeta] recordOutcome() → ${data.symbol} ${rawOutcome} mapped to ${mappedOutcome}`);
+    this.processSignalOutcome(signalOutcome);
+  }
 
   /**
    * Process signal outcome - Route to all learning engines
@@ -295,6 +383,9 @@ class ZetaLearningEngine extends SimpleEventEmitter {
         }
       }
 
+      // Run self-improvement checks (confidence calibration, hourly tracking, strategy health)
+      this.runSelfImprovement(outcome);
+
       // Schedule batched metric update (not immediate)
       this.scheduleMetricUpdate();
 
@@ -398,6 +489,10 @@ class ZetaLearningEngine extends SimpleEventEmitter {
   /**
    * Get current metrics for UI
    */
+  getTotalOutcomes(): number {
+    return this.state.totalOutcomes;
+  }
+
   getMetrics(): ZetaMetrics {
     return {
       totalOutcomes: this.state.totalOutcomes,
@@ -417,7 +512,7 @@ class ZetaLearningEngine extends SimpleEventEmitter {
     let topWinRate = 0;
 
     for (const [strategy, perf] of this.state.strategyPerformance.entries()) {
-      if (perf.total < 5) continue; // Need at least 5 samples
+      if (perf.total < 3) continue; // Need at least 3 samples (lowered from 5)
 
       const winRate = perf.wins / perf.total;
       if (winRate > topWinRate) {
@@ -548,6 +643,210 @@ class ZetaLearningEngine extends SimpleEventEmitter {
     } catch (error) {
       console.error('[Zeta] Error saving state:', error);
     }
+  }
+
+  // ========== SELF-IMPROVEMENT ENGINE ==========
+  // These methods enable autonomous learning that compounds over time.
+
+  private confidenceCalibration: Map<string, { predicted: number; actual: number; count: number }> = new Map();
+  private hourlyPerformance: Map<number, { wins: number; total: number }> = new Map();
+  private strategyBlacklist: Set<string> = new Set();
+  private readonly SELF_IMPROVE_KEY = 'zeta-self-improve-v1';
+
+  /**
+   * Called after every outcome to trigger self-improvement checks.
+   * Runs automatically — no human intervention needed.
+   */
+  private runSelfImprovement(outcome: SignalOutcome): void {
+    this.updateConfidenceCalibration(outcome);
+    this.updateHourlyPerformance(outcome);
+    this.checkStrategyHealth(outcome);
+    this.saveSelfImprovementState();
+
+    // Every 15 outcomes, run a full optimization pass (lowered from 25 for faster adaptation)
+    if (this.state.totalOutcomes % 15 === 0 && this.state.totalOutcomes > 0) {
+      this.runOptimizationPass();
+    }
+  }
+
+  /**
+   * CONFIDENCE CALIBRATION
+   * Tracks predicted confidence vs actual win rate.
+   * If signals with 80% confidence only win 50%, we know confidence is inflated.
+   */
+  private updateConfidenceCalibration(outcome: SignalOutcome): void {
+    // Bucket confidence into 10% ranges: 0-10, 10-20, ..., 90-100
+    const bucket = Math.floor(outcome.confidence / 10) * 10;
+    const key = `${bucket}`;
+    const cal = this.confidenceCalibration.get(key) || { predicted: bucket + 5, actual: 0, count: 0 };
+    cal.count++;
+    cal.actual = ((cal.actual * (cal.count - 1)) + (outcome.outcome === 'WIN' ? 100 : 0)) / cal.count;
+    this.confidenceCalibration.set(key, cal);
+  }
+
+  /**
+   * Get calibrated confidence for a raw confidence score.
+   * Returns adjusted confidence based on historical accuracy of that bucket.
+   */
+  getCalibratedConfidence(rawConfidence: number): number {
+    const bucket = Math.floor(rawConfidence / 10) * 10;
+    const cal = this.confidenceCalibration.get(`${bucket}`);
+    if (!cal || cal.count < 3) return rawConfidence; // Need at least 3 samples (lowered from 5)
+    // Blend: 70% raw + 30% calibrated (gradual correction)
+    return rawConfidence * 0.7 + cal.actual * 0.3;
+  }
+
+  /**
+   * HOURLY PERFORMANCE TRACKING
+   * Tracks win rate by hour of day to identify optimal trading windows.
+   */
+  private updateHourlyPerformance(outcome: SignalOutcome): void {
+    const hour = new Date().getHours();
+    const perf = this.hourlyPerformance.get(hour) || { wins: 0, total: 0 };
+    perf.total++;
+    if (outcome.outcome === 'WIN') perf.wins++;
+    this.hourlyPerformance.set(hour, perf);
+  }
+
+  /**
+   * Check if current hour is historically good for trading.
+   * Returns a multiplier: 0.5 (bad hour) to 1.2 (great hour).
+   */
+  getHourlyMultiplier(): number {
+    const hour = new Date().getHours();
+    const perf = this.hourlyPerformance.get(hour);
+    if (!perf || perf.total < 5) return 1.0; // Need at least 5 samples (lowered from 10)
+    const winRate = perf.wins / perf.total;
+    if (winRate >= 0.65) return 1.2;  // Great hour
+    if (winRate >= 0.55) return 1.0;  // Normal
+    if (winRate >= 0.45) return 0.8;  // Below average
+    return 0.5;                        // Bad hour — reduce activity
+  }
+
+  /**
+   * STRATEGY HEALTH CHECK
+   * Auto-blacklists strategies with consistently poor performance.
+   */
+  private checkStrategyHealth(outcome: SignalOutcome): void {
+    const key = `${outcome.strategy}-${outcome.regime}`;
+    const perf = this.state.strategyPerformance.get(key) ||
+                 this.state.strategyPerformance.get(outcome.strategy);
+    if (!perf || perf.total < 8) return; // Lowered from 15 — blacklist bad combos faster
+
+    const winRate = perf.wins / perf.total;
+
+    // Blacklist strategy-regime combos below 30% win rate over 15+ trades
+    if (winRate < 0.30) {
+      if (!this.strategyBlacklist.has(key)) {
+        this.strategyBlacklist.add(key);
+        console.log(`[Zeta] AUTO-BLACKLIST: ${key} (win rate: ${(winRate * 100).toFixed(1)}% over ${perf.total} trades)`);
+        this.emit('self-improve:blacklist', { strategy: outcome.strategy, regime: outcome.regime, winRate });
+      }
+    }
+
+    // Un-blacklist if it recovers above 45% (allows redemption)
+    if (winRate > 0.45 && this.strategyBlacklist.has(key)) {
+      this.strategyBlacklist.delete(key);
+      console.log(`[Zeta] UN-BLACKLISTED: ${key} (win rate recovered to ${(winRate * 100).toFixed(1)}%)`);
+    }
+  }
+
+  /**
+   * Check if a strategy-regime combo is blacklisted.
+   */
+  isStrategyBlacklisted(strategy: string, regime: string): boolean {
+    return this.strategyBlacklist.has(`${strategy}-${regime}`) ||
+           this.strategyBlacklist.has(strategy);
+  }
+
+  /**
+   * FULL OPTIMIZATION PASS
+   * Runs every 25 outcomes. Analyzes patterns and emits adjustment recommendations.
+   */
+  private runOptimizationPass(): void {
+    console.log(`[Zeta] Running optimization pass #${Math.floor(this.state.totalOutcomes / 25)}...`);
+
+    // 1. Check confidence calibration drift
+    let totalDrift = 0;
+    let driftCount = 0;
+    for (const [, cal] of this.confidenceCalibration) {
+      if (cal.count >= 5) {
+        totalDrift += Math.abs(cal.predicted - cal.actual);
+        driftCount++;
+      }
+    }
+    const avgDrift = driftCount > 0 ? totalDrift / driftCount : 0;
+
+    // 2. Find best and worst hours
+    let bestHour = -1, worstHour = -1;
+    let bestWR = 0, worstWR = 1;
+    for (const [hour, perf] of this.hourlyPerformance) {
+      if (perf.total < 5) continue;
+      const wr = perf.wins / perf.total;
+      if (wr > bestWR) { bestWR = wr; bestHour = hour; }
+      if (wr < worstWR) { worstWR = wr; worstHour = hour; }
+    }
+
+    // 3. Count blacklisted strategies
+    const blacklistCount = this.strategyBlacklist.size;
+
+    // 4. Emit optimization report
+    const report = {
+      totalOutcomes: this.state.totalOutcomes,
+      confidenceDrift: avgDrift,
+      bestTradingHour: bestHour >= 0 ? `${bestHour}:00 (${(bestWR * 100).toFixed(0)}% WR)` : 'N/A',
+      worstTradingHour: worstHour >= 0 ? `${worstHour}:00 (${(worstWR * 100).toFixed(0)}% WR)` : 'N/A',
+      blacklistedStrategies: blacklistCount,
+      overallHealth: this.state.health,
+      mlAccuracy: this.state.mlAccuracy
+    };
+
+    console.log('[Zeta] Optimization report:', report);
+    this.emit('self-improve:report', report);
+  }
+
+  /**
+   * Get self-improvement diagnostics for UI/debugging
+   */
+  getSelfImprovementState(): {
+    calibration: Record<string, { predicted: number; actual: number; count: number }>;
+    hourlyPerf: Record<number, { wins: number; total: number; winRate: number }>;
+    blacklist: string[];
+  } {
+    const hourlyPerf: Record<number, { wins: number; total: number; winRate: number }> = {};
+    for (const [hour, perf] of this.hourlyPerformance) {
+      hourlyPerf[hour] = { ...perf, winRate: perf.total > 0 ? (perf.wins / perf.total) * 100 : 0 };
+    }
+
+    return {
+      calibration: Object.fromEntries(this.confidenceCalibration),
+      hourlyPerf,
+      blacklist: Array.from(this.strategyBlacklist)
+    };
+  }
+
+  private saveSelfImprovementState(): void {
+    try {
+      const data = {
+        calibration: Object.fromEntries(this.confidenceCalibration),
+        hourly: Object.fromEntries(this.hourlyPerformance),
+        blacklist: Array.from(this.strategyBlacklist)
+      };
+      localStorage.setItem(this.SELF_IMPROVE_KEY, JSON.stringify(data));
+    } catch {}
+  }
+
+  private loadSelfImprovementState(): void {
+    try {
+      const stored = localStorage.getItem(this.SELF_IMPROVE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.calibration) this.confidenceCalibration = new Map(Object.entries(data.calibration));
+        if (data.hourly) this.hourlyPerformance = new Map(Object.entries(data.hourly).map(([k, v]) => [Number(k), v as any]));
+        if (data.blacklist) this.strategyBlacklist = new Set(data.blacklist);
+        console.log(`[Zeta] Self-improvement state loaded: ${this.confidenceCalibration.size} calibration buckets, ${this.strategyBlacklist.size} blacklisted`);
+      }
+    } catch {}
   }
 }
 

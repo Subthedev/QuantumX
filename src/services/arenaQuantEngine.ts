@@ -14,18 +14,23 @@ import { MarketState, marketStateDetectionEngine } from './marketStateDetectionE
 import { strategyMatrix, AgentType, type StrategyProfile } from './strategyMatrix';
 import { arenaCircuitBreaker, CircuitBreakerLevel } from './arenaCircuitBreaker';
 import { arenaSupabaseStorage, type AgentSessionData } from './arenaSupabaseStorage';
+import { autonomousOrchestrator } from './autonomousOrchestrator';
+import { marketRegimeClassifier } from './regime/marketRegimeClassifier';
 
 // ===================== CONSTANTS =====================
 
 const BINANCE_API = 'https://api.binance.com/api/v3/ticker/24hr';
 
+// OPTIMIZED PAIR SELECTION: Major pairs get 60% of trades, mid 30%, volatile 10%
+// BTC/ETH/SOL have highest liquidity, tightest spreads, most predictable patterns
+// BNB/XRP provide diversification; DOGE only when volatility suits it
 const TRADING_PAIRS = [
-  { symbol: 'BTCUSDT', display: 'BTC/USD', tier: 'major' },
-  { symbol: 'ETHUSDT', display: 'ETH/USD', tier: 'major' },
-  { symbol: 'SOLUSDT', display: 'SOL/USD', tier: 'major' },
-  { symbol: 'BNBUSDT', display: 'BNB/USD', tier: 'mid' },
-  { symbol: 'XRPUSDT', display: 'XRP/USD', tier: 'mid' },
-  { symbol: 'DOGEUSDT', display: 'DOGE/USD', tier: 'volatile' }
+  { symbol: 'BTCUSDT', display: 'BTC/USD', tier: 'major', weight: 3 },
+  { symbol: 'ETHUSDT', display: 'ETH/USD', tier: 'major', weight: 3 },
+  { symbol: 'SOLUSDT', display: 'SOL/USD', tier: 'major', weight: 3 },
+  { symbol: 'BNBUSDT', display: 'BNB/USD', tier: 'mid', weight: 2 },
+  { symbol: 'XRPUSDT', display: 'XRP/USD', tier: 'mid', weight: 2 },
+  { symbol: 'DOGEUSDT', display: 'DOGE/USD', tier: 'volatile', weight: 1 }
 ];
 
 // ===================== RISK MANAGEMENT CONSTANTS =====================
@@ -91,7 +96,7 @@ const AGENT_PROFILES: AgentProfile[] = [
     description: 'Momentum & trend-following specialist',
     followers: 1243,
     primaryRegimes: [MarketState.BULLISH_HIGH_VOL, MarketState.BULLISH_LOW_VOL],
-    tradeIntervalMs: 15000,  // Trade every 15 seconds for active trading
+    tradeIntervalMs: 10000,  // Trade every 10 seconds for higher frequency
     positionSizePercent: 5,
     maxConcurrentTrades: 2,
     baseWinRate: 62,
@@ -110,7 +115,7 @@ const AGENT_PROFILES: AgentProfile[] = [
     description: 'Mean reversion & contrarian specialist',
     followers: 847,
     primaryRegimes: [MarketState.RANGEBOUND, MarketState.BEARISH_LOW_VOL],
-    tradeIntervalMs: 20000,  // Trade every 20 seconds for active trading
+    tradeIntervalMs: 12000,  // Trade every 12 seconds for higher frequency
     positionSizePercent: 4,
     maxConcurrentTrades: 3,
     baseWinRate: 58,
@@ -129,7 +134,7 @@ const AGENT_PROFILES: AgentProfile[] = [
     description: 'Volatility & chaos specialist',
     followers: 2156,
     primaryRegimes: [MarketState.BEARISH_HIGH_VOL, MarketState.BULLISH_HIGH_VOL, MarketState.RANGEBOUND],
-    tradeIntervalMs: 25000,  // Trade every 25 seconds for active trading
+    tradeIntervalMs: 15000,  // Trade every 15 seconds for higher frequency
     positionSizePercent: 3,
     maxConcurrentTrades: 1,
     baseWinRate: 68,
@@ -720,10 +725,10 @@ class ArenaQuantEngine {
         totalTrades: baseStats.trades,
         wins: baseStats.wins,
         losses: baseStats.losses,
-        sharpeRatio: 1.2 + Math.random() * 0.8,
-        maxDrawdown: 3 + Math.random() * 4,
-        streakCount: Math.floor(Math.random() * 4) + 1,
-        streakType: 'WIN',
+        sharpeRatio: 0,       // Calculated from actual trades, not simulated
+        maxDrawdown: 0,       // Tracked from actual drawdowns
+        streakCount: 0,       // Tracked from actual outcomes
+        streakType: null,
         isActive: true,
         currentPosition: null,
         activeStrategy: null,
@@ -886,13 +891,11 @@ class ArenaQuantEngine {
         agent.wins24h = wins;
         agent.winRate24h = (wins / agentTrades.length) * 100;
       } else {
-        // Generate base 24h stats for demo (based on agent's typical performance)
-        const baseDaily = (profile?.basePnLPercent || 5) / 30; // Monthly to daily
-        const varianceMultiplier = 0.8 + Math.random() * 0.4; // 0.8 - 1.2x
-        agent.return24h = Math.max(0.1, baseDaily * varianceMultiplier);
-        agent.trades24h = Math.floor((profile?.baseTradesPerDay || 30) * (Date.now() % HOURS_24) / HOURS_24);
-        agent.wins24h = Math.floor(agent.trades24h * (profile?.baseWinRate || 60) / 100);
-        agent.winRate24h = agent.trades24h > 0 ? (agent.wins24h / agent.trades24h) * 100 : (profile?.baseWinRate || 60);
+        // No trades yet — show actual zeros, not fake stats
+        agent.return24h = 0;
+        agent.trades24h = 0;
+        agent.wins24h = 0;
+        agent.winRate24h = 0;
       }
     });
   }
@@ -938,6 +941,9 @@ class ArenaQuantEngine {
         console.log(`%c🔄 REGIME CHANGE: ${previousState} → ${this.currentMarketState}`,
           'background: #8b5cf6; color: white; padding: 4px 12px; border-radius: 4px;');
         this.saveState();
+
+        // Notify orchestrator for regime transition tracking + position sizing penalty
+        autonomousOrchestrator.notifyRegimeChange(this.currentMarketState, previousState);
 
         // Optionally close positions on regime change
         this.handleRegimeChange(previousState, this.currentMarketState);
@@ -1000,10 +1006,170 @@ class ArenaQuantEngine {
     });
   }
 
+  // ===================== HUB SIGNAL INTEGRATION =====================
+
+  private hubSignalQueue: any[] = [];
+  private hubPairPriority: Map<string, number> = new Map(); // symbol -> priority score
+
+  /**
+   * Connect to globalHubService approved signals for hybrid trading
+   * Hub signals take priority; autonomous strategyDrivenTrade() is fallback
+   * Listens to BOTH signal:new and signal:approved for maximum coverage
+   */
+  private connectToHubSignals(): void {
+    import('./globalHubService').then(({ globalHubService }) => {
+      // Listen to approved signals (quality-gated)
+      globalHubService.on('signal:new', (hubSignal: any) => {
+        console.log(`[Arena] Hub signal received: ${hubSignal.symbol} ${hubSignal.direction}`);
+        // Track Hub-identified pairs for strategy selection intelligence
+        const sym = hubSignal.symbol?.toUpperCase();
+        if (sym) {
+          this.hubPairPriority.set(sym, (this.hubPairPriority.get(sym) || 0) + 1);
+        }
+        this.processHubSignal(hubSignal);
+      });
+      // Also queue signals that didn't go through full approval for fallback
+      globalHubService.on('signal:generated', (hubSignal: any) => {
+        if (hubSignal.confidence >= 60) {
+          this.hubSignalQueue.push(hubSignal);
+          // Keep queue bounded
+          if (this.hubSignalQueue.length > 10) this.hubSignalQueue.shift();
+        }
+      });
+      console.log('[Arena] Connected to Hub signal pipeline (approved + generated)');
+    }).catch(err => {
+      console.warn('[Arena] Could not connect to Hub signals:', err);
+    });
+  }
+
+  /**
+   * Process a Hub-approved signal: match to an available agent and open position
+   */
+  private processHubSignal(hubSignal: any): void {
+    if (!this.running) return;
+
+    const now = Date.now();
+
+    // Find an available agent that isn't in a position and passes circuit breaker
+    for (const [agentId, agent] of this.agents) {
+      const profile = this.profiles.get(agentId);
+      if (!profile) continue;
+      if (agent.currentPosition) continue;
+
+      // Circuit breaker check
+      const circuitCheck = arenaCircuitBreaker.canAgentTrade(agentId);
+      if (!circuitCheck.allowed) continue;
+
+      // Balance validation
+      if (!arenaCircuitBreaker.isBalanceValid(agent.balance)) continue;
+
+      // Drawdown check
+      const drawdownPercent = ((agent.initialBalance - agent.balance) / agent.initialBalance) * 100;
+      let drawdownMultiplier = 1.0;
+      for (const adj of RISK_LIMITS.DRAWDOWN_ADJUSTMENTS) {
+        if (drawdownPercent >= adj.threshold) {
+          drawdownMultiplier = adj.multiplier;
+        }
+      }
+      if (drawdownMultiplier === 0) continue;
+
+      // Map Hub signal symbol to a trading pair
+      const matchedPair = TRADING_PAIRS.find(p =>
+        p.display.replace('/USD', '').toLowerCase() === hubSignal.symbol?.toLowerCase() ||
+        p.symbol.toLowerCase() === `${hubSignal.symbol?.toLowerCase()}usdt`
+      );
+      if (!matchedPair) continue;
+      if (this.reservedSymbols.has(matchedPair.symbol)) continue;
+
+      const priceData = this.prices.get(matchedPair.symbol);
+      if (!priceData) continue;
+
+      // Use Hub signal's entry/TP/SL if available, otherwise generate
+      const entry = hubSignal.entry || priceData.price;
+      const direction = hubSignal.direction as 'LONG' | 'SHORT';
+      const isLong = direction === 'LONG';
+
+      // Calculate TP/SL from Hub signal targets
+      let takeProfitPrice: number;
+      let stopLossPrice: number;
+
+      if (hubSignal.targets && hubSignal.targets.length > 0 && hubSignal.stopLoss) {
+        takeProfitPrice = hubSignal.targets[0]; // Use TP1
+        stopLossPrice = hubSignal.stopLoss;
+      } else {
+        // Fallback: use default 1.5% TP, 1% SL
+        takeProfitPrice = isLong ? entry * 1.015 : entry * 0.985;
+        stopLossPrice = isLong ? entry * 0.99 : entry * 1.01;
+      }
+
+      // CONFIDENCE-BASED POSITION SIZING + AUTONOMOUS ORCHESTRATOR ADAPTIVE SIZING
+      // Scale position size: low confidence (40-60) → 60% size, high confidence (80+) → 120% size
+      const confidence = hubSignal.confidence || hubSignal.quality_score || 50;
+      const confidenceMultiplier = Math.max(0.6, Math.min(1.2, 0.4 + (confidence / 100)));
+
+      // Autonomous orchestrator: hourly perf + ML accuracy + flux-aware sizing
+      const orchestratorMultiplier = autonomousOrchestrator.getPositionSizeMultiplier();
+
+      const positionMultiplier = circuitCheck.positionMultiplier * drawdownMultiplier * confidenceMultiplier * orchestratorMultiplier;
+      let notionalValue = agent.balance * (profile.positionSizePercent / 100) * positionMultiplier;
+      notionalValue = Math.min(notionalValue, agent.balance * (RISK_LIMITS.MAX_POSITION_PERCENT / 100));
+      notionalValue = Math.max(notionalValue, RISK_LIMITS.MIN_POSITION_USD);
+      notionalValue = Math.min(notionalValue, RISK_LIMITS.MAX_POSITION_USD);
+
+      if (notionalValue < RISK_LIMITS.MIN_POSITION_USD) continue;
+
+      const quantity = notionalValue / entry;
+
+      const position: QuantPosition = {
+        id: `${agent.id}-hub-${Date.now()}`,
+        symbol: matchedPair.symbol,
+        displaySymbol: matchedPair.display,
+        direction,
+        entryPrice: entry,
+        currentPrice: entry,
+        quantity,
+        pnl: 0,
+        pnlPercent: 0,
+        entryTime: Date.now(),
+        takeProfitPrice,
+        stopLossPrice,
+        strategy: `Hub:${hubSignal.strategy || hubSignal.strategyName || 'SIGNAL'}`,
+        marketStateAtEntry: this.currentMarketState,
+        progressPercent: 50
+      };
+
+      // Tag with hub signal ID for outcome correlation
+      (position as any).hubSignalId = hubSignal.id;
+      (position as any).source = 'hub';
+
+      agent.currentPosition = position;
+      agent.activeStrategy = position.strategy;
+      agent.lastTradeTime = now;
+      this.reservedSymbols.add(matchedPair.symbol);
+
+      console.log(`[Arena] Hub signal trade: ${agent.name} ${direction} ${matchedPair.display} @ $${entry.toFixed(2)} (Hub: ${hubSignal.id?.slice(0, 8)})`);
+
+      this.savePositions();
+      this.emitTrade({ type: 'open', agent, position });
+      this.notify();
+      return; // One agent per Hub signal
+    }
+
+    console.log(`[Arena] No available agent for Hub signal: ${hubSignal.symbol} ${hubSignal.direction}`);
+  }
+
   // ===================== STRATEGY-DRIVEN TRADING =====================
 
   private async strategyDrivenTrade(): Promise<void> {
     const now = Date.now();
+
+    // Process any queued Hub signals first (generated but not fully approved)
+    while (this.hubSignalQueue.length > 0) {
+      const queued = this.hubSignalQueue.shift();
+      if (queued && now - (queued.timestamp || 0) < 300000) { // Max 5min old
+        this.processHubSignal(queued);
+      }
+    }
 
     for (const [agentId, agent] of this.agents) {
       const profile = this.profiles.get(agentId);
@@ -1056,16 +1222,51 @@ class ArenaQuantEngine {
         continue;
       }
 
-      // Select best strategy
-      const selectedStrategy = suitableStrategies[0];
+      // Filter out blacklisted strategy-regime combos (self-improvement)
+      let filteredStrategies = suitableStrategies;
+      try {
+        const { zetaLearningEngine } = await import('./zetaLearningEngine');
+        const regime = this.currentMarketState.toString();
+        filteredStrategies = suitableStrategies.filter(s =>
+          !zetaLearningEngine.isStrategyBlacklisted(s.strategy.name, regime)
+        );
+        if (filteredStrategies.length === 0) filteredStrategies = suitableStrategies; // Fallback
+      } catch {}
 
-      // Select trading pair (avoid already reserved symbols)
+      // Select best strategy
+      const selectedStrategy = filteredStrategies[0];
+
+      // STRATEGY SELECTION INTELLIGENCE: Prioritize Hub-identified pairs
       const availablePairs = TRADING_PAIRS.filter(p => !this.reservedSymbols.has(p.symbol));
       if (availablePairs.length === 0) continue;
 
-      const pair = availablePairs[Math.floor(Math.random() * availablePairs.length)];
+      // Sort by Hub priority (pairs Hub recently signaled get priority)
+      const sortedPairs = [...availablePairs].sort((a, b) => {
+        const aSymbol = a.display.replace('/USD', '').toUpperCase();
+        const bSymbol = b.display.replace('/USD', '').toUpperCase();
+        const aPriority = this.hubPairPriority.get(aSymbol) || 0;
+        const bPriority = this.hubPairPriority.get(bSymbol) || 0;
+        if (aPriority !== bPriority) return bPriority - aPriority;
+        // Tier priority: major > mid > volatile
+        const tierOrder: Record<string, number> = { major: 3, mid: 2, volatile: 1 };
+        return (tierOrder[b.tier] || 0) - (tierOrder[a.tier] || 0);
+      });
+      const pair = sortedPairs[0];
       const priceData = this.prices.get(pair.symbol);
       if (!priceData) continue;
+
+      // Per-coin regime classification for strategy routing validation
+      try {
+        const coinRegime = marketRegimeClassifier.classify({
+          symbol: pair.symbol,
+          price: priceData.price,
+          volume24h: priceData.volume,
+        } as any);
+        // If per-coin regime says this strategy isn't optimal, reduce position size
+        if (coinRegime.confidence > 60 && !coinRegime.optimalStrategies.includes(selectedStrategy.strategy.name as any)) {
+          drawdownMultiplier *= 0.7; // 30% reduction for non-optimal strategy-regime combo
+        }
+      } catch {}
 
       // Generate strategy-based signal using Adaptive Signal Generator V2
       // Direction already includes multi-confirmation bias (5 signals)
@@ -1073,8 +1274,15 @@ class ArenaQuantEngine {
       const signal = generateStrategySignal(selectedStrategy.strategy, this.currentMarketState, priceData);
       if (!signal) continue;
 
-      // Calculate final position size multiplier (circuit breaker × drawdown)
-      const positionMultiplier = circuitCheck.positionMultiplier * drawdownMultiplier;
+      // Check autonomous orchestrator: should we trade now?
+      const tradeCheck = autonomousOrchestrator.shouldTrade();
+      if (!tradeCheck.allowed) {
+        console.log(`⏸️ [Orchestrator] Trade blocked: ${tradeCheck.reason}`);
+        continue;
+      }
+
+      // Calculate final position size multiplier (circuit breaker × drawdown × orchestrator)
+      const positionMultiplier = circuitCheck.positionMultiplier * drawdownMultiplier * tradeCheck.multiplier;
 
       // Open position with multi-confirmation direction and risk-adjusted size
       this.openStrategyPosition(agent, profile, pair, priceData, selectedStrategy.strategy, signal.direction, signal, positionMultiplier);
@@ -1094,14 +1302,22 @@ class ArenaQuantEngine {
     const entry = priceData.price;
     const isLong = direction === 'LONG';
 
-    // POSITION SIZING WITH ALL SAFEGUARDS
+    // POSITION SIZING WITH ALL SAFEGUARDS + CONFIDENCE SCALING
     // 1. Calculate base position size
     let notionalValue = agent.balance * (profile.positionSizePercent / 100);
 
     // 2. Apply position multiplier (circuit breaker × drawdown)
     notionalValue *= positionMultiplier;
 
-    // 3. Enforce maximum 3% of balance
+    // 3. Confidence-based scaling: high-confidence signals get larger positions
+    const confidenceScale = Math.max(0.6, Math.min(1.2, 0.4 + (signal.confidence / 100)));
+    notionalValue *= confidenceScale;
+
+    // 3b. Apply autonomous orchestrator strategy bias (learned from outcomes)
+    const strategyBias = autonomousOrchestrator.getStrategyBias(strategy.name, this.currentMarketState);
+    notionalValue *= strategyBias;
+
+    // 4. Enforce maximum 3% of balance
     const maxByPercent = agent.balance * (RISK_LIMITS.MAX_POSITION_PERCENT / 100);
     notionalValue = Math.min(notionalValue, maxByPercent);
 
@@ -1199,7 +1415,10 @@ class ArenaQuantEngine {
     // Market state detection every 60s
     this.intervals.push(setInterval(() => this.detectMarketState(), 60000));
 
-    // Strategy-driven trading every 5s
+    // Connect to Hub signals for hybrid trading mode
+    this.connectToHubSignals();
+
+    // Strategy-driven trading every 5s (fallback when no Hub signals)
     this.intervals.push(setInterval(() => this.strategyDrivenTrade(), 5000));
 
     // Position checks every 2s
@@ -1287,6 +1506,9 @@ class ArenaQuantEngine {
     }
   }
 
+  // Track trailing stop state per position
+  private trailingStops: Map<string, { active: boolean; stopPrice: number }> = new Map();
+
   private checkPositions(): void {
     const now = Date.now();
     const maxHoldTime = 300000; // 5 minutes max hold
@@ -1300,22 +1522,55 @@ class ArenaQuantEngine {
 
       let close = false;
       let reason: 'TP' | 'SL' | 'TIMEOUT' | 'REGIME_CHANGE' = 'TIMEOUT';
-
       const isLong = pos.direction === 'LONG';
-      if (isLong) {
-        if (price.price >= pos.takeProfitPrice) { close = true; reason = 'TP'; }
-        else if (price.price <= pos.stopLossPrice) { close = true; reason = 'SL'; }
+      const trailing = this.trailingStops.get(pos.id) || { active: false, stopPrice: pos.stopLossPrice };
+
+      if (trailing.active) {
+        // TRAILING MODE: TP was already hit, now trail the stop
+        if (isLong) {
+          // Trail: keep stop at 40% of distance from entry to peak
+          const newTrail = price.price - (price.price - pos.entryPrice) * 0.4;
+          trailing.stopPrice = Math.max(trailing.stopPrice, newTrail);
+          if (price.price <= trailing.stopPrice) { close = true; reason = 'TP'; }
+        } else {
+          const newTrail = price.price + (pos.entryPrice - price.price) * 0.4;
+          trailing.stopPrice = Math.min(trailing.stopPrice, newTrail);
+          if (price.price >= trailing.stopPrice) { close = true; reason = 'TP'; }
+        }
+        this.trailingStops.set(pos.id, trailing);
       } else {
-        if (price.price <= pos.takeProfitPrice) { close = true; reason = 'TP'; }
-        else if (price.price >= pos.stopLossPrice) { close = true; reason = 'SL'; }
+        // NORMAL MODE: check TP and SL
+        if (isLong) {
+          if (price.price >= pos.takeProfitPrice) {
+            // Activate trailing instead of closing immediately
+            trailing.active = true;
+            trailing.stopPrice = pos.entryPrice * 1.001; // Breakeven + buffer
+            this.trailingStops.set(pos.id, trailing);
+            console.log(`[Arena] Trailing activated: ${agent.name} ${pos.displaySymbol} TP hit @ $${price.price.toFixed(2)}`);
+            return; // Don't close yet, let it trail
+          }
+          else if (price.price <= pos.stopLossPrice) { close = true; reason = 'SL'; }
+        } else {
+          if (price.price <= pos.takeProfitPrice) {
+            trailing.active = true;
+            trailing.stopPrice = pos.entryPrice * 0.999;
+            this.trailingStops.set(pos.id, trailing);
+            console.log(`[Arena] Trailing activated: ${agent.name} ${pos.displaySymbol} TP hit @ $${price.price.toFixed(2)}`);
+            return;
+          }
+          else if (price.price >= pos.stopLossPrice) { close = true; reason = 'SL'; }
+        }
       }
 
       if (now - pos.entryTime >= maxHoldTime) {
         close = true;
-        reason = 'TIMEOUT';
+        reason = trailing.active ? 'TP' : 'TIMEOUT'; // If trailing was active, it's still a win
       }
 
-      if (close) this.closeTrade(agent, price.price, reason);
+      if (close) {
+        this.trailingStops.delete(pos.id);
+        this.closeTrade(agent, price.price, reason);
+      }
     });
   }
 
@@ -1416,8 +1671,28 @@ class ArenaQuantEngine {
     });
 
     // Record strategy outcome for intelligent rotation
-    // This enables the adaptive signal generator to learn from outcomes
     recordStrategyOutcome(closedPos.strategy, isWin, pnlPercent);
+
+    // Bidirectional feedback: if hub-sourced trade, emit outcome back to Zeta
+    if ((closedPos as any).hubSignalId) {
+      import('./globalHubService').then(({ globalHubService }) => {
+        const outcomeType = reason === 'TP' ? (isWin ? 'WIN_TP1' : 'LOSS_SL') :
+                           reason === 'SL' ? 'LOSS_SL' :
+                           'TIMEOUT_TIME_EXPIRED';
+        globalHubService.emit('signal:outcome', {
+          signalId: (closedPos as any).hubSignalId,
+          symbol: closedPos.displaySymbol,
+          direction: closedPos.direction,
+          outcome: outcomeType,
+          returnPct: pnlPercent,
+          exitPrice,
+          exitReason: reason,
+          holdDuration: Date.now() - closedPos.entryTime,
+          source: 'arena'
+        });
+        console.log(`[Arena] Hub outcome feedback: ${closedPos.displaySymbol} ${outcomeType} ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`);
+      }).catch(() => {});
+    }
 
     const emoji = reason === 'TP' ? '✅' : reason === 'SL' ? '❌' : '⏰';
     const perf = getStrategyPerformance(closedPos.strategy);

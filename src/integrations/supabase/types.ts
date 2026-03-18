@@ -158,6 +158,66 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_outcomes: {
+        Row: {
+          id: string
+          signal_id: string
+          symbol: string
+          direction: string
+          strategy: string | null
+          market_regime: string | null
+          entry_price: number | null
+          exit_price: number | null
+          return_pct: number | null
+          outcome: string
+          ml_outcome: string | null
+          training_value: number | null
+          quality_score: number | null
+          ml_probability: number | null
+          hold_duration_ms: number | null
+          exit_reason: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          signal_id: string
+          symbol: string
+          direction: string
+          strategy?: string | null
+          market_regime?: string | null
+          entry_price?: number | null
+          exit_price?: number | null
+          return_pct?: number | null
+          outcome: string
+          ml_outcome?: string | null
+          training_value?: number | null
+          quality_score?: number | null
+          ml_probability?: number | null
+          hold_duration_ms?: number | null
+          exit_reason?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          signal_id?: string
+          symbol?: string
+          direction?: string
+          strategy?: string | null
+          market_regime?: string | null
+          entry_price?: number | null
+          exit_price?: number | null
+          return_pct?: number | null
+          outcome?: string
+          ml_outcome?: string | null
+          training_value?: number | null
+          quality_score?: number | null
+          ml_probability?: number | null
+          hold_duration_ms?: number | null
+          exit_reason?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       mock_trading_accounts: {
         Row: {
           balance: number
