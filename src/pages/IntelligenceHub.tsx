@@ -34,6 +34,8 @@ import {
 // Global Hub Service (runs in background)
 import { globalHubService, HubMetrics, HubSignal, MonthlyStats } from '@/services/globalHubService';
 import { zetaLearningEngine, ZetaMetrics } from '@/services/zetaLearningEngine';
+import { scheduledSignalDropper } from '@/services/scheduledSignalDropper';
+import { cryptoSentimentService } from '@/services/cryptoSentimentService';
 import { supabase } from '@/integrations/supabase/client';
 import { STRATEGY_METADATA, type StrategyName, type StrategyPerformance } from '@/services/strategies/strategyTypes';
 import { strategyPerformanceTracker } from '@/services/strategies/strategyPerformanceTracker';
@@ -268,8 +270,10 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
           setZetaMetrics(currentZetaMetrics);
           setCurrentMonthStats(monthlyStats);
 
-          // ✅ Fetch rejected signals every second for real-time transparency
-          fetchRejectedSignals();
+          // Fetch rejected signals every 30 seconds (reduced from 1s to protect DB)
+          if (Date.now() % 30000 < 1000) {
+            fetchRejectedSignals();
+          }
         }, 1000);
 
         // Start animations
@@ -537,14 +541,22 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
         <Card className="mb-6 border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-slate-800">Real-Time Pipeline</h2>
-                <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-xs font-semibold text-emerald-700">
-                  <Activity className="w-3 h-3 animate-pulse" />
-                  <span>Active</span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                  <Activity className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">Real-Time Pipeline</h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">7-stage signal processing engine</p>
                 </div>
               </div>
-              <div className="text-sm text-slate-600 font-medium">{fmt(metrics.totalSignals)} Total Signals</div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Active</span>
+                </div>
+                <div className="text-sm text-slate-600 font-medium tabular-nums">{fmt(metrics.totalSignals)} signals</div>
+              </div>
             </div>
 
             {/* Pipeline Visualization - Clean minimal design */}
@@ -700,7 +712,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
             </div>
 
             {/* Metrics Row - Minimal */}
-            <div className="grid grid-cols-4 gap-4 mt-12 pt-6 border-t border-slate-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-12 pt-6 border-t border-slate-100">
               <div className="p-3">
                 <div className="text-xs text-slate-500 mb-1 font-medium">Tickers</div>
                 <div className="text-xl font-semibold text-blue-600">{fmt(metrics.totalTickers)}</div>
@@ -744,7 +756,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 </p>
               </div>
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 bg-blue-50 rounded border border-blue-100 hover:border-blue-200 transition-colors">
                   <div className="text-xs text-blue-600 mb-1.5 font-medium">Tickers Fetched</div>
                   <div className="text-xl font-semibold text-blue-700">{fmt(metrics.dataTickersFetched || 0)}</div>
@@ -791,7 +803,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 </p>
               </div>
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 bg-violet-50 rounded border border-violet-100 hover:border-violet-200 transition-colors">
                   <div className="text-xs text-violet-600 mb-1.5 font-medium">Patterns Detected</div>
                   <div className="text-xl font-semibold text-violet-700">{fmt(metrics.alphaPatternsDetected || 0)}</div>
@@ -901,7 +913,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 {/* Institutional Features */}
                 <div className="mt-4 p-3 bg-gradient-to-r from-violet-50 to-blue-50 rounded border border-violet-200">
                   <div className="text-xs font-semibold text-slate-800 mb-2">Anti-Manipulation Features</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="text-[11px] text-slate-600">
                       <span className="font-semibold text-emerald-600">✓</span> Spoofing Detection (Order Flow Tsunami)
                     </div>
@@ -950,7 +962,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 </p>
               </div>
 
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
                   <div className="text-xs text-slate-600 mb-1.5 font-medium">Signals Scored</div>
                   <div className="text-xl font-semibold text-slate-800">{fmt(metrics.betaSignalsScored || 0)}</div>
@@ -1002,7 +1014,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 </p>
               </div>
 
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
                   <div className="text-xs text-slate-600 mb-1.5 font-medium">Received</div>
                   <div className="text-xl font-semibold text-slate-800">{fmt(metrics.gammaSignalsReceived || 0)}</div>
@@ -1061,7 +1073,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 </p>
               </div>
 
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
                   <div className="text-xs text-slate-600 mb-1.5 font-medium">Processed</div>
                   <div className="text-xl font-semibold text-slate-800">{fmt(metrics.deltaProcessed || 0)}</div>
@@ -1110,7 +1122,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-violet-50 rounded border border-violet-100 hover:border-violet-200 transition-colors">
                   <div className="text-xs text-violet-600 mb-1.5 font-medium">ML Accuracy</div>
                   <div className="text-xl font-semibold text-violet-700">{zetaMetrics.mlAccuracy.toFixed(1)}%</div>
@@ -1141,33 +1153,114 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
           </Card>
         )}
 
-        {/* 🔴 LIVE SIGNALS - Active Positions */}
-        {activeSignals.length > 0 && (
-          <Card className="border-2 border-emerald-300 shadow-lg bg-gradient-to-br from-emerald-50 to-white mb-6 hover:shadow-xl transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Activity className="w-5 h-5 text-emerald-600" />
+        {/* 🔴 LIVE SIGNALS - Always Visible */}
+        <Card className={`border-2 shadow-lg mb-6 hover:shadow-xl transition-shadow ${
+          activeSignals.length > 0
+            ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-white'
+            : 'border-slate-200 bg-gradient-to-br from-slate-50 to-white'
+        }`}>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Activity className={`w-5 h-5 ${activeSignals.length > 0 ? 'text-emerald-600' : 'text-slate-400'}`} />
+                  {activeSignals.length > 0 && (
                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
-                      Live Signals
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    Live Signals
+                    {activeSignals.length > 0 ? (
                       <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs font-bold rounded-full animate-pulse">
                         LIVE
                       </span>
-                    </h2>
-                    <p className="text-xs text-emerald-700 mt-0.5">
-                      Real-time active positions • {activeSignals.length} signal{activeSignals.length !== 1 ? 's' : ''} in play
-                    </p>
-                  </div>
-                </div>
-                <div className="text-xs text-emerald-700 font-semibold">
-                  Updated {new Date().toLocaleTimeString()}
+                    ) : (
+                      <span className="px-2 py-0.5 bg-slate-400 text-white text-xs font-bold rounded-full">
+                        SCANNING
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {activeSignals.length > 0
+                      ? `Real-time active positions • ${activeSignals.length} signal${activeSignals.length !== 1 ? 's' : ''} in play`
+                      : 'Analyzing market conditions for next opportunity'
+                    }
+                  </p>
                 </div>
               </div>
+              <div className="flex items-center gap-4">
+                {/* Sentiment Badge */}
+                {(() => {
+                  try {
+                    const sentiment = cryptoSentimentService.getSentimentData();
+                    const labelColor = sentiment.label === 'EXTREME_FEAR' || sentiment.label === 'FEAR'
+                      ? 'text-rose-700 bg-rose-50 border-rose-200'
+                      : sentiment.label === 'GREED' || sentiment.label === 'EXTREME_GREED'
+                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                      : 'text-amber-700 bg-amber-50 border-amber-200';
+                    return (
+                      <div className={`px-2.5 py-1 rounded border text-[10px] font-bold ${labelColor}`}>
+                        {sentiment.label.replace('_', ' ')} ({Math.round(sentiment.fearGreedIndex)})
+                      </div>
+                    );
+                  } catch { return null; }
+                })()}
+                <div className="text-xs text-slate-500 font-semibold">
+                  {new Date().toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
 
+            {/* Empty State with Next Signal Countdown */}
+            {activeSignals.length === 0 && (
+              <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-white">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <Target className="w-5 h-5 text-slate-400" />
+                  <span className="text-sm font-semibold text-slate-600">Awaiting Next Signal</span>
+                </div>
+                {(() => {
+                  try {
+                    const stats = scheduledSignalDropper.getStats('MAX');
+                    if (stats && stats.nextDropTime) {
+                      const remaining = Math.max(0, stats.nextDropTime - currentTime);
+                      const mins = Math.floor(remaining / 60000);
+                      const secs = Math.floor((remaining % 60000) / 1000);
+                      return (
+                        <div className="space-y-2">
+                          <div className="text-2xl font-bold text-slate-800 tabular-nums">
+                            {mins}:{secs.toString().padStart(2, '0')}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Next signal window • {stats.bufferSize || 0} signals buffered
+                          </div>
+                          <div className="w-48 mx-auto bg-slate-100 rounded-full h-1.5 mt-2">
+                            <div
+                              className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000"
+                              style={{ width: `${Math.min(100, Math.max(5, (1 - remaining / (48 * 60000)) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+                  } catch {}
+                  return (
+                    <div className="text-xs text-slate-500">
+                      Pipeline is running • signals generated every ~48 minutes
+                    </div>
+                  );
+                })()}
+                <div className="flex items-center justify-center gap-4 mt-4 text-[10px] text-slate-400">
+                  <span>{fmt(metrics.totalTickers)} tickers scanned</span>
+                  <span>•</span>
+                  <span>{metrics.strategiesActive}/17 strategies active</span>
+                  <span>•</span>
+                  <span>{fmtDec(metrics.approvalRate)}% approval rate</span>
+                </div>
+              </div>
+            )}
+
+            {activeSignals.length > 0 && (
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {activeSignals.map(sig => {
                   const confidence = sig.confidence || sig.qualityScore || 0;
@@ -1289,23 +1382,29 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                   );
                 })}
               </div>
-            </div>
-          </Card>
-        )}
+            )}
+          </div>
+        </Card>
 
         {/* Signal History - Last 24 Hours */}
         <Card className="border border-slate-200 shadow-sm bg-white mb-6 hover:shadow-md transition-shadow">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-800">Signal History - Last 24 Hours</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Real-time performance tracking • {signalHistory.length} signals</p>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
+                  <BarChart3 className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">Signal History</h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Last 24 hours • {signalHistory.length} signals tracked</p>
+                </div>
               </div>
               <a
                 href="/intelligence-hub/monthly"
-                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded text-xs font-semibold text-indigo-700 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-xs font-semibold text-indigo-700 transition-colors"
               >
-                View Monthly Stats →
+                Monthly Stats
+                <ChevronRight className="w-3.5 h-3.5" />
               </a>
             </div>
 
@@ -1326,7 +1425,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                       24-Hour Performance
                     </h3>
                   </div>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {/* Total Signals */}
                     <div className="p-3 bg-white rounded-lg border border-slate-200">
                       <div className="text-[10px] text-slate-600 font-semibold uppercase mb-1">
@@ -1397,9 +1496,10 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
             })()}
 
             {signalHistory.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">
+                <BarChart3 className="w-8 h-8 text-slate-300 mx-auto mb-3" />
                 <p className="text-sm text-slate-600 font-medium">No signals yet</p>
-                <p className="text-xs text-slate-500 mt-1">Signals will appear as they're generated</p>
+                <p className="text-xs text-slate-400 mt-1">Signals will appear here as they're generated by the pipeline</p>
               </div>
             ) : (
               <div>
@@ -1410,7 +1510,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                     return (
                       <div
                         key={sig.id}
-                        className="rounded-lg border bg-white border-slate-100 hover:border-slate-300 transition-all overflow-hidden"
+                        className="rounded-xl border bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-sm transition-all overflow-hidden"
                       >
                         {/* Main Signal Row - Clickable */}
                         <button
@@ -1463,12 +1563,22 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                                   'bg-amber-50 text-amber-700 border-amber-200'
                                 }`}>
                                   {sig.outcome}
+                                  {sig.exitReason && sig.exitReason !== sig.outcome && (
+                                    <span className="ml-1 opacity-70">({sig.exitReason})</span>
+                                  )}
                                 </div>
                                 {sig.actualReturn !== undefined && (
                                   <div className={`text-xs font-bold mt-1 ${
                                     sig.actualReturn > 0 ? 'text-emerald-600' : 'text-rose-600'
                                   }`}>
                                     {sig.actualReturn > 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
+                                  </div>
+                                )}
+                                {sig.holdDuration && (
+                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                    {sig.holdDuration >= 3600000
+                                      ? `${(sig.holdDuration / 3600000).toFixed(1)}h`
+                                      : `${(sig.holdDuration / 60000).toFixed(0)}m`}
                                   </div>
                                 )}
                               </div>
@@ -1487,7 +1597,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                             {/* Trading Levels */}
                             <div>
                               <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Trading Levels</div>
-                              <div className="grid grid-cols-4 gap-2">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {sig.entry && (
                                   <div className="p-2 bg-white rounded border border-slate-200">
                                     <div className="text-[10px] text-slate-600 font-semibold uppercase mb-0.5">Entry</div>
@@ -1519,7 +1629,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                             {sig.outcome && (
                               <div className="bg-white rounded-lg border border-slate-200 p-3">
                                 <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Outcome Metrics</div>
-                                <div className="grid grid-cols-4 gap-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                   {sig.actualReturn !== undefined && (
                                     <div className="text-center">
                                       <div className="text-[10px] text-slate-500 font-semibold mb-0.5">Return</div>
@@ -1594,7 +1704,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
                               <div>
                                 <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Outcome</div>
                                 <div className="p-3 bg-white rounded border border-slate-200">
-                                  <div className="grid grid-cols-3 gap-3">
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
                                       <div className="text-[10px] text-slate-600 font-semibold uppercase mb-1">Result</div>
                                       <div className={`text-sm font-bold ${
@@ -1701,7 +1811,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
 
             {/* Statistics */}
             {rejectedSignals.length > 0 && (
-              <div className="grid grid-cols-5 gap-2 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-4">
                 <div className="p-2 bg-slate-50 rounded border border-slate-200">
                   <div className="text-[10px] text-slate-600 font-semibold uppercase">Total</div>
                   <div className="text-lg font-bold text-slate-800">{rejectedSignals.length}</div>
@@ -1838,7 +1948,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
             )}
 
             {/* Summary Stats */}
-            <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-4 gap-3">
+            <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="text-center">
                 <div className="text-xs text-slate-500 mb-1">Alpha Rejects</div>
                 <div className="text-lg font-semibold text-violet-600">

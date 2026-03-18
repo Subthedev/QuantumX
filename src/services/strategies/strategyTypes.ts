@@ -281,3 +281,6 @@ export const STRATEGY_METADATA: Record<StrategyName, StrategyMetadata> = {
     minConfidenceThreshold: 68  // Statistical confidence threshold
   }
 };
+
+/** Single source of truth for all strategy names - derive from STRATEGY_METADATA keys */
+export const ALL_STRATEGY_NAMES: StrategyName[] = Object.keys(STRATEGY_METADATA) as StrategyName[];

@@ -22,6 +22,7 @@ import { marketPhaseDetector } from './marketPhaseDetector';
 import { fundingRateService } from './fundingRateService';
 import { onChainDataService } from './onChainDataService';
 import { intelligenceHub } from './intelligenceHub';
+import { cryptoSentimentService } from './cryptoSentimentService';
 import type { CanonicalTicker } from './dataStreams/canonicalDataTypes';
 // import type { MarketDataInput } from './smartMoneySignalEngine';
 import type { MarketPhase } from './marketPhaseDetector';
@@ -203,14 +204,27 @@ export class DataEnrichmentServiceV2 {
         // Technical indicators (comprehensive set)
         technicalData,
 
-        // Sentiment data
-        sentimentData: {
-          fearGreedIndex: fearGreed,
-          socialVolume: this.estimateSocialVolume(ticker),
-          redditSentiment: 0.5, // TODO: Integrate Reddit API
-          twitterSentiment: 0.5, // TODO: Integrate Twitter API
-          newsScore: 0.5 // TODO: Integrate news sentiment
-        },
+        // Sentiment data (LIVE from cryptoSentimentService)
+        sentimentData: (() => {
+          try {
+            const live = cryptoSentimentService.getSentimentData();
+            return {
+              fearGreedIndex: live.fearGreedIndex,
+              socialVolume: this.estimateSocialVolume(ticker),
+              redditSentiment: live.composite / 100,
+              twitterSentiment: live.longShortRatio / 100,
+              newsScore: live.composite / 100
+            };
+          } catch {
+            return {
+              fearGreedIndex: fearGreed,
+              socialVolume: this.estimateSocialVolume(ticker),
+              redditSentiment: 0.5,
+              twitterSentiment: 0.5,
+              newsScore: 0.5
+            };
+          }
+        })(),
 
         // Market phase (CRITICAL for MARKET_PHASE_SNIPER strategy)
         marketPhase,

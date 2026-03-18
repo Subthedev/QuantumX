@@ -27,6 +27,11 @@ import type { CanonicalTicker } from './dataStreams/canonicalDataTypes';
 import { ohlcDataManager } from './ohlcDataManager';
 import { supabase } from '@/integrations/supabase/client';
 import { stabilityMonitor } from './stabilityMonitor';
+import { autonomousOrchestrator } from './autonomousOrchestrator';
+import { liquidationCascadeService } from './liquidationCascadeService';
+import { multiExchangeFundingService } from './multiExchangeFundingService';
+import { stablecoinFlowService } from './stablecoinFlowService';
+import { cryptoSentimentService } from './cryptoSentimentService';
 import type { QualityFactors } from './signalQualityGate';
 import { scheduledSignalDropper, type UserTier } from './scheduledSignalDropper';
 
@@ -1043,6 +1048,11 @@ class GlobalHubService extends SimpleEventEmitter {
       this.gammaV2.start();
     } catch(e) { console.warn('[GlobalHub] Gamma start error:', e); }
     try { zetaLearningEngine.start(); } catch(e) { console.warn('[GlobalHub] Zeta start error:', e); }
+    try { autonomousOrchestrator.initialize(); } catch(e) { console.warn('[GlobalHub] Orchestrator start error:', e); }
+    try { liquidationCascadeService.start(); } catch(e) { console.warn('[GlobalHub] Liquidation cascade error:', e); }
+    try { multiExchangeFundingService.start(); } catch(e) { console.warn('[GlobalHub] Multi-exchange funding error:', e); }
+    try { stablecoinFlowService.start(); } catch(e) { console.warn('[GlobalHub] Stablecoin flow error:', e); }
+    try { cryptoSentimentService.start(); } catch(e) { console.warn('[GlobalHub] Sentiment service error:', e); }
     try { stabilityMonitor.start(); } catch(e) { console.warn('[GlobalHub] Stability monitor error:', e); }
     try { this.startRealTimeUpdates(); } catch(e) { console.warn('[GlobalHub] Real-time updates error:', e); }
     try { this.startSignalCleanup(); } catch(e) { console.warn('[GlobalHub] Signal cleanup error:', e); }
@@ -3063,24 +3073,26 @@ class GlobalHubService extends SimpleEventEmitter {
         );
 
         // Calculate entry, stop loss, and targets based on direction and volatility
+        // TP1 = 1x ATR, TP2 = 1.5x ATR, TP3 = 2.5x ATR, SL = 0.75x ATR
+        // Gives 1.33:1 R:R on TP1, 2:1 on TP2, 3.3:1 on TP3
         const volatilityMultiplier = decision.dataMetrics.volatility;
         let entry: number, stopLoss: number, targets: number[];
 
         if (signalInput.direction === 'LONG') {
           entry = currentPrice;
-          stopLoss = currentPrice * (1 - (volatilityMultiplier * 2)); // 2x volatility for stop
+          stopLoss = currentPrice * (1 - (volatilityMultiplier * 0.75));
           targets = [
-            currentPrice * (1 + (volatilityMultiplier * 2)), // Target 1: 2x volatility
-            currentPrice * (1 + (volatilityMultiplier * 4)), // Target 2: 4x volatility
-            currentPrice * (1 + (volatilityMultiplier * 6))  // Target 3: 6x volatility
+            currentPrice * (1 + (volatilityMultiplier * 1.0)),  // TP1: 1x ATR
+            currentPrice * (1 + (volatilityMultiplier * 1.5)),  // TP2: 1.5x ATR
+            currentPrice * (1 + (volatilityMultiplier * 2.5))   // TP3: 2.5x ATR
           ];
         } else {
           entry = currentPrice;
-          stopLoss = currentPrice * (1 + (volatilityMultiplier * 2)); // 2x volatility for stop
+          stopLoss = currentPrice * (1 + (volatilityMultiplier * 0.75));
           targets = [
-            currentPrice * (1 - (volatilityMultiplier * 2)), // Target 1: 2x volatility
-            currentPrice * (1 - (volatilityMultiplier * 4)), // Target 2: 4x volatility
-            currentPrice * (1 - (volatilityMultiplier * 6))  // Target 3: 6x volatility
+            currentPrice * (1 - (volatilityMultiplier * 1.0)),  // TP1: 1x ATR
+            currentPrice * (1 - (volatilityMultiplier * 1.5)),  // TP2: 1.5x ATR
+            currentPrice * (1 - (volatilityMultiplier * 2.5))   // TP3: 2.5x ATR
           ];
         }
 
@@ -4176,6 +4188,36 @@ class GlobalHubService extends SimpleEventEmitter {
         console.error('[GlobalHub] ❌ Failed to update signal in database:', error);
       } else {
         console.log(`[GlobalHub] ✅ Database updated: ${signalId} - ${outcome}`);
+      }
+
+      // ===== STEP 6b: Persist outcome to localStorage for ML training =====
+      try {
+        const OUTCOMES_KEY = 'signal_outcomes_v1';
+        const stored = JSON.parse(localStorage.getItem(OUTCOMES_KEY) || '[]');
+        stored.unshift({
+          signal_id: signalId,
+          symbol: signal.symbol,
+          direction: signal.direction,
+          strategy: signal.strategy || null,
+          market_regime: signal.marketRegime || null,
+          entry_price: signal.entry || null,
+          exit_price: exitPrice,
+          return_pct: profitLossPct || 0,
+          outcome,
+          ml_outcome: mlOutcome ? String(mlOutcome) : null,
+          training_value: trainingValue || null,
+          quality_score: signal.qualityScore || null,
+          ml_probability: signal.mlProbability || null,
+          hold_duration_ms: Date.now() - (signal.timestamp || Date.now()),
+          exit_reason: hitTarget ? `TP${hitTarget}` : hitStopLoss ? 'STOP_LOSS' : 'TIMEOUT',
+          created_at: new Date().toISOString()
+        });
+        // Keep last 500 outcomes
+        if (stored.length > 500) stored.length = 500;
+        localStorage.setItem(OUTCOMES_KEY, JSON.stringify(stored));
+        console.log(`[GlobalHub] ✅ signal_outcomes persisted to localStorage (${stored.length} total)`);
+      } catch (outcomeErr) {
+        console.warn('[GlobalHub] signal_outcomes localStorage save failed:', outcomeErr);
       }
 
       // ===== STEP 7: Feed to Zeta learning engine (CRITICAL FOR ML IMPROVEMENT) =====

@@ -74,13 +74,22 @@ export default defineConfig(({ mode }) => ({
     // Optimize build for production
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'query-vendor': ['@tanstack/react-query'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-toast'],
-          'chart-vendor': ['recharts', 'lightweight-charts'],
-          'utils': ['clsx', 'tailwind-merge', 'class-variance-authority'],
-          'swiper': ['swiper'],
+        manualChunks(id) {
+          // Core React
+          if (id.includes('react-dom') || id.includes('react-router-dom')) return 'react-vendor';
+          if (id.includes('node_modules/react/')) return 'react-vendor';
+          // TanStack Query
+          if (id.includes('@tanstack/react-query')) return 'query-vendor';
+          // Radix UI
+          if (id.includes('@radix-ui/')) return 'ui-vendor';
+          // Charts
+          if (id.includes('recharts') || id.includes('lightweight-charts')) return 'chart-vendor';
+          // Utilities
+          if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) return 'utils';
+          // Swiper
+          if (id.includes('swiper')) return 'swiper';
+          // Supabase
+          if (id.includes('@supabase/')) return 'supabase-vendor';
         },
       },
     },

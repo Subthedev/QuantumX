@@ -14,6 +14,12 @@
  */
 
 import { advancedRejectionFilter } from './AdvancedRejectionFilter';
+import { zetaLearningEngine } from './zetaLearningEngine';
+import { marketStateDetectionEngine, MarketState } from './marketStateDetectionEngine';
+import { liquidationCascadeService } from './liquidationCascadeService';
+import { multiExchangeFundingService } from './multiExchangeFundingService';
+import { stablecoinFlowService } from './stablecoinFlowService';
+import { cryptoSentimentService } from './cryptoSentimentService';
 
 // ===== TYPES =====
 
@@ -285,7 +291,8 @@ class MLSignalScorer {
   }
 
   private extractFeatures(signal: SignalInput, regime: MarketRegime, qualityScore: number): number[] {
-    return [
+    // Original 8 features
+    const features = [
       signal.confidence / 100, // 0-1
       qualityScore / 100, // 0-1
       signal.technicals.rsi / 100, // 0-1
@@ -295,6 +302,27 @@ class MLSignalScorer {
       this.regimeToNumber(regime), // 0-1
       this.strategyToNumber(signal.strategy) // 0-1
     ];
+
+    // 3 NEW alpha features from free data sources
+    try {
+      const liqFeature = liquidationCascadeService.getMLFeature();
+      features.push(liqFeature.intensity);   // 0-1: cascade intensity
+      features.push((liqFeature.direction + 1) / 2); // 0-1: liquidation direction (normalized from -1/+1)
+    } catch { features.push(0, 0.5); }
+
+    try {
+      const symbol = signal.symbol?.replace('/', '').replace('-', '') || 'BTCUSDT';
+      const fundingFeature = multiExchangeFundingService.getMLFeature(symbol);
+      features.push((fundingFeature + 1) / 2); // 0-1: funding sentiment (normalized from -1/+1)
+    } catch { features.push(0.5); }
+
+    // Feature 12: Composite sentiment from 6 sources
+    try {
+      const sentimentFeature = cryptoSentimentService.getMLFeature();
+      features.push((sentimentFeature + 1) / 2); // 0-1: sentiment (normalized from -1/+1)
+    } catch { features.push(0.5); }
+
+    return features;
   }
 
   private regimeToNumber(regime: MarketRegime): number {
@@ -333,8 +361,9 @@ class MLSignalScorer {
       this.outcomes = this.outcomes.slice(-500);
     }
 
-    // Retrain model if we have enough data
-    if (this.outcomes.length >= 20 && this.outcomes.length % 10 === 0) {
+    // Retrain model on every outcome after minimum threshold
+    // Frequent training = faster self-improvement compounding
+    if (this.outcomes.length >= 10) {
       this.trainModel();
     }
   }
@@ -498,11 +527,114 @@ class DeltaQualityEngine {
 
     console.log('[Delta V2 Engine] ✅ Initialized with quant-level quality control');
     console.log(`[Delta V2 Engine] Thresholds: Quality ≥${this.QUALITY_THRESHOLD}, ML ≥${(this.ML_THRESHOLD * 100).toFixed(0)}%, Strategy Win Rate ≥${this.STRATEGY_WINRATE_THRESHOLD}%`);
+
+    // Load historical outcomes from Supabase for ML training bootstrap
+    this.loadHistoricalOutcomes();
+  }
+
+  /**
+   * Bootstrap ML from historical outcomes stored in localStorage
+   * Prevents losing ML progress on page refresh
+   */
+  private loadHistoricalOutcomes(): void {
+    try {
+      const OUTCOMES_KEY = 'signal_outcomes_v1';
+      const stored = localStorage.getItem(OUTCOMES_KEY);
+      if (!stored) {
+        console.log('[Delta V2] No historical outcomes in localStorage yet');
+        return;
+      }
+
+      const data = JSON.parse(stored);
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      let loaded = 0;
+      for (const row of data) {
+        const win = row.outcome === 'WIN';
+        const strategy = (row.strategy || 'MOMENTUM') as StrategyType;
+        const regime = (row.market_regime || 'SIDEWAYS') as MarketRegime;
+
+        // Feed into strategy performance tracker
+        this.performanceTracker.recordOutcome(strategy, regime, win, row.return_pct || 0);
+
+        // Feed into ML scorer
+        const mockSignal: SignalInput = {
+          id: row.signal_id,
+          symbol: row.symbol,
+          direction: (row.direction || 'LONG') as 'LONG' | 'SHORT',
+          confidence: row.quality_score || 50,
+          grade: 'B',
+          strategy,
+          technicals: { rsi: 50, macd: 0, volume: 1, volatility: 0.03 },
+          timestamp: new Date(row.created_at).getTime()
+        };
+        this.mlScorer.learn(mockSignal, regime, row.quality_score || 50, win);
+        loaded++;
+      }
+
+      console.log(`[Delta V2] Loaded ${loaded} historical outcomes from localStorage`);
+    } catch (err) {
+      console.log('[Delta V2] Could not load historical outcomes:', err);
+    }
+  }
+
+  /**
+   * Auto-adjust thresholds based on Zeta's outcome count (graduated ramp-up)
+   * Only ramps UP, never down - prevents regression on page refresh with stale data
+   */
+  private autoAdjustThresholds(): void {
+    const totalOutcomes = zetaLearningEngine.getTotalOutcomes();
+
+    let targetQuality: number;
+    let targetML: number;
+    let targetWinRate: number;
+
+    if (totalOutcomes <= 20) {
+      // Learning phase - permissive
+      targetQuality = 20;
+      targetML = 0.25;
+      targetWinRate = 0;
+    } else if (totalOutcomes <= 50) {
+      // Calibrating
+      targetQuality = 35;
+      targetML = 0.35;
+      targetWinRate = 20;
+    } else if (totalOutcomes <= 100) {
+      // Tightening
+      targetQuality = 45;
+      targetML = 0.45;
+      targetWinRate = 30;
+    } else if (totalOutcomes <= 200) {
+      // Production
+      targetQuality = 55;
+      targetML = 0.55;
+      targetWinRate = 40;
+    } else {
+      // Optimized
+      targetQuality = 60;
+      targetML = 0.60;
+      targetWinRate = 45;
+    }
+
+    // Only ramp up, never down
+    if (targetQuality > this.QUALITY_THRESHOLD || targetML > this.ML_THRESHOLD || targetWinRate > this.STRATEGY_WINRATE_THRESHOLD) {
+      const newQuality = Math.max(this.QUALITY_THRESHOLD, targetQuality);
+      const newML = Math.max(this.ML_THRESHOLD, targetML);
+      const newWinRate = Math.max(this.STRATEGY_WINRATE_THRESHOLD, targetWinRate);
+
+      if (newQuality !== this.QUALITY_THRESHOLD || newML !== this.ML_THRESHOLD || newWinRate !== this.STRATEGY_WINRATE_THRESHOLD) {
+        console.log(`[Delta V2] Graduated ramp-up (${totalOutcomes} outcomes): Quality ${this.QUALITY_THRESHOLD}→${newQuality}, ML ${(this.ML_THRESHOLD*100).toFixed(0)}→${(newML*100).toFixed(0)}%, WR ${this.STRATEGY_WINRATE_THRESHOLD}→${newWinRate}%`);
+        this.setThresholds(newQuality, newML, newWinRate);
+      }
+    }
   }
 
   // Main filtering function
   filterSignal(signal: SignalInput): FilteredSignal {
     this.stats.totalProcessed++;
+
+    // Auto-adjust thresholds based on learning progress
+    this.autoAdjustThresholds();
 
     // Detect current market regime
     const regime = this.regimeDetector.detectRegime({
@@ -513,6 +645,26 @@ class DeltaQualityEngine {
     });
     this.regimeDetector.recordRegime(regime, 0.8);
     this.stats.currentRegime = regime;
+
+    // CROSS-VALIDATE: Check per-signal regime against global market state
+    // If global says BEARISH and Delta says BULLISH → reduce confidence
+    // If both agree → boost confidence
+    let regimeCrossValidationAdj = 0;
+    try {
+      const globalState = marketStateDetectionEngine.getLastDetectedState();
+      if (globalState) {
+        const globalBullish = globalState.state === MarketState.BULLISH_HIGH_VOL || globalState.state === MarketState.BULLISH_LOW_VOL;
+        const globalBearish = globalState.state === MarketState.BEARISH_HIGH_VOL || globalState.state === MarketState.BEARISH_LOW_VOL;
+        const localBullish = regime === 'BULLISH_TREND';
+        const localBearish = regime === 'BEARISH_TREND';
+
+        if ((globalBullish && localBearish) || (globalBearish && localBullish)) {
+          regimeCrossValidationAdj = -15; // Conflicting signals → reduce confidence
+        } else if ((globalBullish && localBullish) || (globalBearish && localBearish)) {
+          regimeCrossValidationAdj = 5; // Agreement → slight boost
+        }
+      }
+    } catch {}
 
     // Get strategy historical performance
     const strategyWinRate = this.performanceTracker.getWinRate(signal.strategy, regime);
@@ -531,25 +683,56 @@ class DeltaQualityEngine {
     this.stats.mlAccuracy = this.mlScorer.getAccuracy();
     this.stats.learningProgress = this.mlScorer.getLearningProgress();
 
-    // ✅ PHASE 1: Regime-Aware Quality Threshold (TEMPORARILY DISABLED FOR TESTING)
-    // Using base threshold for all regimes to allow signal flow
-    let qualityThreshold = this.QUALITY_THRESHOLD; // TESTING: Using 30 for all regimes
+    // Regime-specific threshold adjustments
+    let qualityThreshold = this.QUALITY_THRESHOLD;
+    if (regime === 'HIGH_VOLATILITY') {
+      qualityThreshold = this.QUALITY_THRESHOLD + 10;
+    } else if (regime === 'SIDEWAYS') {
+      qualityThreshold = this.QUALITY_THRESHOLD + 5;
+    } else if (regime === 'LOW_VOLATILITY') {
+      qualityThreshold = Math.max(this.QUALITY_THRESHOLD - 5, 15);
+    }
+    // BULLISH_TREND / BEARISH_TREND use base threshold
 
-    if (regime === 'SIDEWAYS' || regime === 'LOW_VOLATILITY') {
-      qualityThreshold = Math.max(this.QUALITY_THRESHOLD, 25); // TESTING: Very low threshold
-      console.log(`[Delta V2] 🎯 TESTING MODE - Regime: ${regime} → Quality ≥ ${qualityThreshold} (ACCEPTING MOST SIGNALS)`);
-    } else if (regime === 'BULLISH_TREND' || regime === 'BEARISH_TREND' || regime === 'HIGH_VOLATILITY') {
-      qualityThreshold = Math.max(this.QUALITY_THRESHOLD, 30); // TESTING: Low threshold
-      console.log(`[Delta V2] 🎯 TESTING MODE - Regime: ${regime} → Quality ≥ ${qualityThreshold} (ACCEPTING MOST SIGNALS)`);
+    console.log(`[Delta V2] Regime: ${regime} → Quality threshold: ${qualityThreshold} (base: ${this.QUALITY_THRESHOLD})`);
+
+    // SELF-IMPROVEMENT CHECK: Apply Zeta's calibrated confidence + strategy blacklist
+    let calibratedConfidence = signal.confidence;
+    try {
+      calibratedConfidence = zetaLearningEngine.getCalibratedConfidence(signal.confidence);
+      // Check strategy blacklist
+      if (zetaLearningEngine.isStrategyBlacklisted(signal.strategy, regime)) {
+        this.stats.totalRejected++;
+        this.stats.passRate = this.stats.totalPassed / this.stats.totalProcessed;
+        console.log(`[Delta V2] BLACKLISTED: ${signal.strategy} in ${regime} regime — auto-rejected by self-improvement`);
+        return {
+          ...signal,
+          passed: false,
+          qualityScore,
+          mlProbability,
+          marketRegime: regime,
+          strategyPerformance: strategyWinRate,
+          rejectionReason: `Strategy ${signal.strategy} blacklisted in ${regime} regime`
+        };
+      }
+    } catch {}
+
+    // Apply regime cross-validation adjustment to calibrated confidence
+    if (regimeCrossValidationAdj !== 0) {
+      calibratedConfidence = Math.max(0, Math.min(100, calibratedConfidence + regimeCrossValidationAdj));
+      if (regimeCrossValidationAdj < 0) {
+        console.log(`[Delta V2] ⚠️ Regime conflict: Global vs local disagree → confidence ${regimeCrossValidationAdj}%`);
+      } else {
+        console.log(`[Delta V2] ✅ Regime agreement: Global + local aligned → confidence +${regimeCrossValidationAdj}%`);
+      }
     }
 
-    // ✅ SIMPLIFIED ML-ONLY FILTERING - Trust Gamma's tier filtering, focus on ML prediction
+    // ✅ ML-ONLY FILTERING with self-improvement integration
     let passed = false;
     let rejectionReason: string | undefined;
 
-    // Simplified filtering: ML prediction + Strategy win rate veto
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`[Delta V2] 📊 EVALUATING: ${signal.symbol} ${signal.direction}`);
+    console.log(`[Delta V2] 📊 EVALUATING: ${signal.symbol} ${signal.direction} (calibrated confidence: ${calibratedConfidence.toFixed(0)}%)`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`🤖 ML Win Probability: ${(mlProbability * 100).toFixed(1)}% (threshold: ${(this.ML_THRESHOLD * 100).toFixed(1)}%)`);
     console.log(`🎯 Strategy Win Rate: ${strategyWinRate.toFixed(1)}% (veto threshold: ${this.STRATEGY_WINRATE_THRESHOLD}%)`);
@@ -638,6 +821,10 @@ class DeltaQualityEngine {
 
   getStats(): DeltaEngineStats {
     return { ...this.stats };
+  }
+
+  getMetrics(): DeltaEngineStats {
+    return this.getStats();
   }
 
   getStrategyPerformance(): StrategyPerformance[] {

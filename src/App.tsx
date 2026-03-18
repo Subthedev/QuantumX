@@ -10,9 +10,14 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 // IGX Background Service - 24/7 autonomous signal pipeline
-// Explicitly reference the singleton to prevent tree-shaking
-import { igxBackgroundService } from "@/services/igx/IGXBackgroundService";
-console.log('[App] IGXBackgroundService loaded, running:', igxBackgroundService.getStatus().running);
+// Dynamic import to keep it out of the main bundle (reduces index.js by ~300KB)
+let _bgServiceStarted = false;
+if (typeof window !== 'undefined' && !_bgServiceStarted) {
+  _bgServiceStarted = true;
+  import("@/services/igx/IGXBackgroundService").then(({ igxBackgroundService }) => {
+    console.log('[App] IGXBackgroundService loaded, running:', igxBackgroundService.getStatus().running);
+  });
+}
 
 // Development: Load agent test suite
 if (import.meta.env.DEV) {
@@ -44,6 +49,15 @@ if (typeof window !== 'undefined') {
     console.log('[QuantumX]   • Oracle: Prediction challenges with live market data');
     console.log('[QuantumX]   • Engines: Real-time analysis across 50+ cryptocurrencies');
     console.log('✅'.repeat(40) + '\n');
+
+    // Bootstrap ML model with historical Binance data (runs once)
+    import('./services/historicalDataBootstrap').then(({ bootstrapMLFromHistory }) => {
+      bootstrapMLFromHistory().then(result => {
+        if (result.loaded > 0) {
+          console.log(`[QuantumX] ML Bootstrap: ${result.loaded} outcomes loaded, ${result.winRate.toFixed(1)}% win rate`);
+        }
+      }).catch(err => console.warn('[QuantumX] ML Bootstrap failed:', err));
+    });
   }, 500); // Short delay to ensure DOM is ready
 }
 

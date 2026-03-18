@@ -1,6 +1,6 @@
 /**
- * Historical Data Service - STUB
- * Legacy service - disabled
+ * Historical Data Types
+ * Type definitions retained for FundingRateChart component
  */
 
 export interface OrderBookHistoryEntry {
@@ -28,18 +28,3 @@ export interface HistoricalChartData {
   value: number;
   label?: string;
 }
-
-class HistoricalDataService {
-  async getOrderBookHistory(): Promise<OrderBookHistoryEntry[]> {
-    return [];
-  }
-
-  async getFundingRateHistory(): Promise<FundingRateHistoryEntry[]> {
-    return [];
-  }
-
-  async saveOrderBookSnapshot(): Promise<void> {}
-  async saveFundingRateSnapshot(): Promise<void> {}
-}
-
-export const historicalDataService = new HistoricalDataService();
