@@ -12,38 +12,22 @@ const monthlyPlans = [
   {
     name: "FREE",
     price: "$0",
-    period: "/month",
-    description: "Get started with basic features",
+    period: "",
+    badge: "OPEN ACCESS",
+    description: "Full AI signal experience — free during early access",
     originalPrice: undefined,
     features: [
-      "3 AI analysis reports per month",
-      "Basic technical analysis",
-      "Market overview dashboard",
+      "Real-time AI trading signals",
+      "17 institutional-grade strategies",
+      "Full entry, stop-loss & target levels",
+      "ML-powered quality filtering",
+      "24/7 autonomous signal generation",
+      "3 AI agents trading live in Arena",
+      "Signal history & performance tracking",
       "Community support"
     ],
-    highlighted: false,
-    buttonText: "Get Started",
-    buttonVariant: "outline" as const,
-    disabled: false
-  },
-  {
-    name: "PRO",
-    price: "$19",
-    period: "/month",
-    badge: "MOST POPULAR",
-    description: "Everything you need for serious trading",
-    originalPrice: "$49",
-    features: [
-      "Access to Titan 10 exclusive picks",
-      "Unlimited AI analysis reports",
-      "Advanced analytics & insights",
-      "Daily market direction signals",
-      "Portfolio tracker",
-      "Real-time price alerts",
-      "Priority support"
-    ],
     highlighted: true,
-    buttonText: "Join Waitlist",
+    buttonText: "Get Started Free",
     buttonVariant: "default" as const,
     disabled: false
   },
@@ -55,7 +39,7 @@ const monthlyPlans = [
     description: "Built for institutions and developers",
     originalPrice: undefined,
     features: [
-      "Everything in Pro",
+      "Everything in Free",
       "Full API access",
       "Custom integrations",
       "Dedicated account manager",
@@ -70,65 +54,8 @@ const monthlyPlans = [
   }
 ];
 
-const yearlyPlans = [
-  {
-    name: "FREE",
-    price: "$0",
-    period: "/year",
-    description: "Get started with basic features",
-    features: [
-      "3 AI analysis reports per month",
-      "Basic technical analysis",
-      "Market overview dashboard",
-      "Community support"
-    ],
-    highlighted: false,
-    buttonText: "Get Started",
-    buttonVariant: "outline" as const,
-    disabled: false
-  },
-  {
-    name: "PRO",
-    price: "$199",
-    period: "/year",
-    badge: "SAVE 15%",
-    description: "Everything you need for serious trading",
-    originalPrice: "$228",
-    features: [
-      "Access to Titan 10 exclusive picks",
-      "Unlimited AI analysis reports",
-      "Advanced analytics & insights",
-      "Daily market direction signals",
-      "Portfolio tracker",
-      "Real-time price alerts",
-      "Priority support"
-    ],
-    highlighted: true,
-    buttonText: "Join Waitlist",
-    buttonVariant: "default" as const,
-    disabled: false
-  },
-  {
-    name: "ENTERPRISE",
-    price: "Custom",
-    period: "",
-    badge: "API ACCESS",
-    description: "Built for institutions and developers",
-    features: [
-      "Everything in Pro",
-      "Full API access",
-      "Custom integrations",
-      "Dedicated account manager",
-      "Custom model training",
-      "99.9% uptime SLA",
-      "White-label options"
-    ],
-    highlighted: false,
-    buttonText: "Contact Us",
-    buttonVariant: "secondary" as const,
-    disabled: false
-  }
-];
+// Yearly plans removed — unified free experience, no billing toggle needed
+const yearlyPlans = monthlyPlans;
 export default function Pricing() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -162,11 +89,10 @@ export default function Pricing() {
 
   const handlePlanAction = (plan: typeof monthlyPlans[0]) => {
     if (plan.name === "FREE") {
-      navigate("/dashboard");
+      navigate("/auth");
     } else if (plan.name === "ENTERPRISE") {
       window.location.href = "mailto:contact@quantumx.org.in?subject=Enterprise API Access Inquiry";
     }
-    // Pro plan uses the waitlist form
   };
   return (
     <div className="min-h-screen bg-background">
@@ -237,7 +163,7 @@ export default function Pricing() {
           </Tabs>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {(billingPeriod === "monthly" ? monthlyPlans : yearlyPlans).map((plan) => (
             <Card
               key={plan.name}
@@ -283,34 +209,13 @@ export default function Pricing() {
                 </ul>
 
                 {/* CTA Button */}
-                {plan.name === "PRO" ? (
-                  <form onSubmit={handleWaitlistSubmit} className="space-y-3">
-                    <input
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      disabled={isSubmitting}
-                    />
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      variant={plan.buttonVariant}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Joining..." : plan.buttonText}
-                    </Button>
-                  </form>
-                ) : (
-                  <Button
-                    className="w-full"
-                    variant={plan.buttonVariant}
-                    onClick={() => handlePlanAction(plan)}
-                  >
-                    {plan.buttonText}
-                  </Button>
-                )}
+                <Button
+                  className="w-full"
+                  variant={plan.buttonVariant}
+                  onClick={() => handlePlanAction(plan)}
+                >
+                  {plan.buttonText}
+                </Button>
               </CardContent>
             </Card>
           ))}

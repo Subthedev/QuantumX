@@ -287,19 +287,19 @@ class GlobalHubService extends SimpleEventEmitter {
     MAX: 0
   };
 
-  // Signal drop intervals in milliseconds (matches scheduledSignalDropper)
-  // Made mutable to allow frequency control via Control Center
+  // Signal drop intervals — UNIFIED for all users (no tier gating)
+  // Everyone gets the best rate for maximum user acquisition
   private DROP_INTERVALS: Record<UserTier, number> = {
-    FREE: 8 * 60 * 60 * 1000,    // 8 hours (default)
-    PRO: 96 * 60 * 1000,          // 96 minutes (default)
-    MAX: 48 * 60 * 1000           // 48 minutes (default)
+    FREE: 10 * 60 * 1000,         // 10 minutes (~144 signals/24h) — same for all
+    PRO: 10 * 60 * 1000,          // unified
+    MAX: 10 * 60 * 1000           // unified
   };
 
   // Default intervals for reset functionality
   private readonly DEFAULT_DROP_INTERVALS: Record<UserTier, number> = {
-    FREE: 8 * 60 * 60 * 1000,    // 8 hours
-    PRO: 96 * 60 * 1000,          // 96 minutes
-    MAX: 48 * 60 * 1000           // 48 minutes
+    FREE: 10 * 60 * 1000,
+    PRO: 10 * 60 * 1000,
+    MAX: 10 * 60 * 1000
   };
 
   // Separate buffers for each tier - ensures independent signal generation

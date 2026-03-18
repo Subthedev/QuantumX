@@ -38,15 +38,12 @@ class ScheduledSignalDropper {
   // Signal buffer (sorted by confidence)
   private signalBuffer: BufferedSignal[] = [];
 
-  // ✅ PRODUCTION TIER SYSTEM: Drop intervals (in milliseconds)
-  // Tiered signal distribution as required:
-  // FREE: 3 signals per 24 hours → Every 8 hours
-  // PRO: 15 signals per 24 hours → Every 1.6 hours (96 minutes)
-  // MAX: 30 signals per 24 hours → Every 48 minutes
+  // ✅ UNIFIED SIGNAL EXPERIENCE: Same interval for all users
+  // No tier gating — everyone gets the best signal rate for user acquisition
   private readonly DROP_INTERVALS: DropSchedule = {
-    FREE: 8 * 60 * 60 * 1000,       // Every 8 hours (3 signals per 24h)
-    PRO: 96 * 60 * 1000,            // Every 1.6 hours = 96 minutes (15 signals per 24h)
-    MAX: 48 * 60 * 1000             // Every 48 minutes (30 signals per 24h)
+    FREE: 10 * 60 * 1000,           // Every 10 minutes (~144 signals/24h)
+    PRO: 10 * 60 * 1000,            // Same as FREE (unified)
+    MAX: 10 * 60 * 1000             // Same as FREE (unified)
   };
 
   // TESTING INTERVALS (for development):
@@ -73,11 +70,9 @@ class ScheduledSignalDropper {
   private isDropping = false;
 
   constructor() {
-    console.log('[ScheduledDropper] ✅ PRODUCTION MODE - Initialized with TIERED intervals:');
-    console.log(`  FREE: ${this.DROP_INTERVALS.FREE / (60 * 1000)} minutes (3 signals/24h)`);
-    console.log(`  PRO: ${this.DROP_INTERVALS.PRO / (60 * 1000)} minutes (15 signals/24h)`);
-    console.log(`  MAX: ${this.DROP_INTERVALS.MAX / (60 * 1000)} minutes (30 signals/24h)`);
-    console.log('[ScheduledDropper] 🎯 Production tiered signal distribution active!');
+    console.log('[ScheduledDropper] ✅ UNIFIED MODE - All users get same signal rate:');
+    console.log(`  Interval: ${this.DROP_INTERVALS.FREE / (60 * 1000)} minutes (~144 signals/24h)`);
+    console.log('[ScheduledDropper] 🎯 Unified signal distribution active!');
   }
 
   /**
@@ -106,10 +101,7 @@ class ScheduledSignalDropper {
 
     console.log('[ScheduledDropper] ✅ Started - Checking for drops every 1 second (PRECISE TIMING)');
     console.log('[ScheduledDropper] 🚀 INSTANT DROP MODE: First signal will drop immediately!');
-    console.log('[ScheduledDropper] 📋 After first drop, signals will drop at normal intervals:');
-    console.log(`[ScheduledDropper]    FREE: Every ${this.DROP_INTERVALS.FREE / (60 * 1000)} minutes (3 signals/24h)`);
-    console.log(`[ScheduledDropper]    PRO: Every ${this.DROP_INTERVALS.PRO / (60 * 1000)} minutes (15 signals/24h)`);
-    console.log(`[ScheduledDropper]    MAX: Every ${this.DROP_INTERVALS.MAX / (60 * 1000)} minutes (30 signals/24h)`);
+    console.log(`[ScheduledDropper] 📋 After first drop, signals every ${this.DROP_INTERVALS.FREE / (60 * 1000)} minutes (unified for all users)`);
   }
 
   /**
