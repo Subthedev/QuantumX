@@ -177,7 +177,7 @@ const App = () => {
               */}
               <Route path="/flux" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} />
               <Route path="/igx-control" element={<ProtectedRoute><IGXControlCenter /></ProtectedRoute>} /> {/* Legacy route */}
-              <Route path="/intelligence-hub" element={<IntelligenceHub />} />
+              <Route path="/intelligence-hub" element={<ProtectedRoute><IntelligenceHub /></ProtectedRoute>} />
               <Route path="/intelligence-hub/monthly" element={<IntelligenceHubMonthly />} />
               <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
               <Route path="/mock-trading" element={<ProtectedRoute><MockTrading /></ProtectedRoute>} />

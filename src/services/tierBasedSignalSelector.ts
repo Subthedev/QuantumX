@@ -60,12 +60,13 @@ class TierBasedSignalSelector {
   private intervalId: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
 
+  // UNIFIED: All tiers get the same signal count (no gating)
   private config: SelectionConfig = {
-    intervalMinutes: 10, // Run every 10 minutes by default
+    intervalMinutes: 10,
     tierLimits: {
-      FREE: 3,   // Top 3 signals for free users
-      PRO: 10,   // Top 10 signals for pro users
-      MAX: 20    // Top 20 signals for max tier users
+      FREE: 20,  // Same for all — unified experience
+      PRO: 20,
+      MAX: 20
     }
   };
 

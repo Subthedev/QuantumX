@@ -27,3 +27,5 @@ dist-ssr
 *.disabled
 *.bak
 *.legacy
+.vercel
+.env*.local

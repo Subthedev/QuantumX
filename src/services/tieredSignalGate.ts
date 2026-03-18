@@ -54,24 +54,22 @@ export interface DistributionResult {
   signalsRemainingToday: number;
 }
 
-// Tier configurations
-// SMART DISTRIBUTION: FREE gets TOP 2 best signals (trust building)
-// PRO/MAX get higher quality thresholds for better signals
+// UNIFIED SIGNAL EXPERIENCE — All users get the same best experience
+// No tier gating during user acquisition phase
 const TIER_CONFIGS: Record<UserTier, TierConfig> = {
   FREE: {
     tier: 'FREE',
-    maxSignalsPerDay: 2,
-    minQualityScore: 75, // Cherry-picks TOP 2 from 75+ pool
-    dropSchedule: 'scheduled',
-    dropTimes: [9, 18], // 9 AM and 6 PM UTC
+    maxSignalsPerDay: 144,       // Unlimited effectively (~144/day at 10min intervals)
+    minQualityScore: 60,         // Same quality threshold for everyone
+    dropSchedule: 'realtime',    // Real-time for all users
     earlyAccessMinutes: 0,
-    fullDetails: false,
-    tradingEnabled: false,
+    fullDetails: true,           // Full details for everyone
+    tradingEnabled: true,        // All features unlocked
   },
   PRO: {
     tier: 'PRO',
-    maxSignalsPerDay: 15,
-    minQualityScore: 65, // Higher quality threshold (was 60)
+    maxSignalsPerDay: 144,
+    minQualityScore: 60,
     dropSchedule: 'realtime',
     earlyAccessMinutes: 0,
     fullDetails: true,
@@ -79,10 +77,10 @@ const TIER_CONFIGS: Record<UserTier, TierConfig> = {
   },
   MAX: {
     tier: 'MAX',
-    maxSignalsPerDay: 30,
-    minQualityScore: 60, // Higher quality threshold (was 50) + more volume
+    maxSignalsPerDay: 144,
+    minQualityScore: 60,
     dropSchedule: 'realtime',
-    earlyAccessMinutes: 10, // 10 minutes before PRO users
+    earlyAccessMinutes: 0,
     fullDetails: true,
     tradingEnabled: true,
   },
