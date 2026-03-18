@@ -75,15 +75,18 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Core React
-          if (id.includes('react-dom') || id.includes('react-router-dom')) return 'react-vendor';
-          if (id.includes('node_modules/react/')) return 'react-vendor';
+          // Core React — MUST load first, so keep react + react-dom together
+          if (id.includes('node_modules/react-dom/') || id.includes('node_modules/react/') || id.includes('react-router-dom')) return 'react-vendor';
           // TanStack Query
           if (id.includes('@tanstack/react-query')) return 'query-vendor';
           // Radix UI
           if (id.includes('@radix-ui/')) return 'ui-vendor';
-          // Charts
-          if (id.includes('recharts') || id.includes('lightweight-charts')) return 'chart-vendor';
+          // D3 libs (used by recharts) — safe to chunk separately, no React dependency
+          if (id.includes('node_modules/d3-') || id.includes('node_modules/internmap') || id.includes('node_modules/delaunator')) return 'chart-vendor';
+          // Lightweight Charts — standalone, no React dependency
+          if (id.includes('lightweight-charts') || id.includes('fancy-canvas')) return 'chart-vendor';
+          // NOTE: recharts itself imports React, so do NOT put it in chart-vendor
+          // Let Vite co-locate it with the pages that use it
           // Utilities
           if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) return 'utils';
           // Swiper
