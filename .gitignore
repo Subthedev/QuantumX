@@ -29,3 +29,6 @@ dist-ssr
 *.legacy
 .vercel
 .env*.local
+
+# Agent secrets
+agents/market-intel/.env

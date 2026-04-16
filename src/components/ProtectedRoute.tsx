@@ -8,6 +8,11 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  // Skip auth in development — allow full access for testing
+  if (import.meta.env.DEV) {
+    return <>{children}</>;
+  }
+
   const { user, loading } = useAuth();
 
   // Show loading skeleton while checking auth state

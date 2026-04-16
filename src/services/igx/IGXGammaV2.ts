@@ -247,9 +247,9 @@ export class IGXGammaV2 {
     const startTime = performance.now();
     this.stats.totalProcessed++;
 
-    // ✅ SMART 24-HOUR DEDUPLICATION CHECK (Production Grade)
-    // Prevents same coin+direction within 24 hours, allows different directions
-    // Example: BTC LONG blocked for 24h, but BTC SHORT allowed immediately
+    // ✅ SMART DEDUPLICATION CHECK (2-hour rolling window)
+    // Prevents same coin+direction within 2 hours, allows different directions
+    // Example: BTC LONG blocked for 2h, but BTC SHORT allowed immediately
     const isDuplicate = signalDeduplicationCache.isDuplicate(
       consensus.symbol,
       consensus.direction
@@ -262,20 +262,20 @@ export class IGXGammaV2 {
       );
 
       const reason = `DUPLICATE REJECTED: ${consensus.symbol} ${consensus.direction} ` +
-        `already sent within last 24 hours (${timeRemaining} remaining)`;
+        `already sent within last 2 hours (${timeRemaining} remaining)`;
 
       this.stats.totalRejected++;
-      const rejectionKey = '24-Hour Duplicate (Same Coin+Direction)';
+      const rejectionKey = '2-Hour Duplicate (Same Coin+Direction)';
       this.stats.rejectionReasons.set(
         rejectionKey,
         (this.stats.rejectionReasons.get(rejectionKey) || 0) + 1
       );
 
       console.log(
-        `\n[IGX Gamma V2] 🔒 24H DUPLICATE REJECTED: ${consensus.symbol} ${consensus.direction}\n` +
+        `\n[IGX Gamma V2] 🔒 DUPLICATE REJECTED: ${consensus.symbol} ${consensus.direction}\n` +
         `├─ Time Remaining: ${timeRemaining}\n` +
         `├─ Different Direction: ${consensus.direction === 'LONG' ? 'SHORT' : 'LONG'} would be allowed ✅\n` +
-        `├─ Rule: ONE SIGNAL PER COIN+DIRECTION per 24 hours\n` +
+        `├─ Rule: ONE SIGNAL PER COIN+DIRECTION per 2 hours\n` +
         `└─ Confidence: ${consensus.confidence}% (Quality: ${consensus.qualityTier})\n`
       );
 
@@ -382,13 +382,13 @@ export class IGXGammaV2 {
       timestamp: Date.now()
     };
 
-    // ✅ RECORD APPROVED SIGNAL IN 24H CACHE (if passed)
-    // This prevents duplicate signals for same coin+direction within 24 hours
+    // ✅ RECORD APPROVED SIGNAL IN DEDUP CACHE (if passed)
+    // This prevents duplicate signals for same coin+direction within 2 hours
     if (passed) {
       signalDeduplicationCache.recordSignal(consensus.symbol, consensus.direction);
       console.log(
-        `[IGX Gamma V2] 📝 Signal recorded in 24h cache: ${consensus.symbol} ${consensus.direction} ` +
-        `(valid until ${new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString()})`
+        `[IGX Gamma V2] 📝 Signal recorded in dedup cache: ${consensus.symbol} ${consensus.direction} ` +
+        `(valid until ${new Date(Date.now() + 2 * 60 * 60 * 1000).toLocaleString()})`
       );
     }
 

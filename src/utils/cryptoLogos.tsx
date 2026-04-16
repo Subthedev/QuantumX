@@ -49,8 +49,7 @@ export const CryptoLogo: React.FC<CryptoLogoProps> = ({
   const symbolUpper = symbol.toUpperCase();
   const symbolClean = symbolUpper.replace(/USDT|USDC|USD|PERP|\//g, '').trim();
 
-  // Debug: Log imageUrl prop received
-  console.log(`[CryptoLogo] 🎨 ${symbol} → cleaned: ${symbolClean} | imageUrl: "${imageUrl}"`);
+  // Debug logging removed — was spamming console every 1s poll
 
   // Priority 1: Try local SVG logo components (10 major cryptos - instant, no HTTP)
   const logoMap: Record<string, React.FC<{ className?: string }>> = {

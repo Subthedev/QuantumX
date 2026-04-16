@@ -171,6 +171,15 @@ class ArenaSupabaseStorage {
       this.initialized = true;
       console.log('%c✅ Arena Supabase Storage initialized',
         'background: #10b981; color: white; padding: 4px 12px;');
+
+      // 🧹 Retention cleanup — purge trade history older than 14 days
+      try {
+        const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        await supabase.from('arena_trade_history').delete().lt('timestamp', cutoff);
+        console.log('  🧹 Purged arena_trade_history older than 14 days');
+      } catch (e) {
+        // Non-critical — won't block init
+      }
     } catch (error) {
       console.error('❌ Failed to initialize arena storage:', error);
       this.initialized = true; // Continue with empty cache

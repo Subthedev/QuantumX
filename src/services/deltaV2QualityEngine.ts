@@ -509,6 +509,57 @@ class DeltaQualityEngine {
     this.performanceTracker = new StrategyPerformanceTracker();
     this.mlScorer = new MLSignalScorer();
 
+    // ✅ ONE-TIME MIGRATION: Detect & reset corrupted data from old fake-price bug
+    // The old timeout handlers used exitPrice=entryPrice (0% return), corrupting ML training
+    // This migration detects that pattern and resets everything for clean learning
+    if (typeof window !== 'undefined') {
+      try {
+        const MIGRATION_KEY = 'igx_timeout_pipeline_fix_v2';
+        const migrated = localStorage.getItem(MIGRATION_KEY);
+        if (!migrated) {
+          console.log('[Delta V2] 🔄 ONE-TIME MIGRATION: Resetting corrupted data from old timeout bug...');
+          
+          // Check if outcomes data is corrupted (all 0% returns)
+          const outcomesRaw = localStorage.getItem('signal_outcomes_v1');
+          if (outcomesRaw) {
+            try {
+              const outcomes = JSON.parse(outcomesRaw);
+              if (Array.isArray(outcomes) && outcomes.length > 3) {
+                const zeroReturnCount = outcomes.filter((o: any) => Math.abs(o.return_pct || 0) < 0.01).length;
+                const corruptionRatio = zeroReturnCount / outcomes.length;
+                if (corruptionRatio > 0.7) {
+                  console.log(`[Delta V2] ⚠️ CORRUPTION DETECTED: ${(corruptionRatio * 100).toFixed(0)}% of outcomes have 0% return`);
+                  console.log('[Delta V2] 🗑️ Clearing corrupted outcomes, ML model, and thresholds...');
+                  localStorage.removeItem('signal_outcomes_v1');
+                  localStorage.removeItem('delta-ml-model-v2');
+                  localStorage.removeItem('delta-strategy-performance-v2');
+                  localStorage.removeItem('igx_delta_thresholds');
+                  // Re-initialize ML scorer with clean state
+                  this.mlScorer = new MLSignalScorer();
+                  this.performanceTracker = new StrategyPerformanceTracker();
+                }
+              }
+            } catch {}
+          }
+          
+          // Reset thresholds to permissive defaults regardless
+          localStorage.removeItem('igx_delta_thresholds');
+          this.QUALITY_THRESHOLD = 20;
+          this.ML_THRESHOLD = 0.25;
+          this.STRATEGY_WINRATE_THRESHOLD = 0;
+          
+          // Mark migration as done
+          localStorage.setItem(MIGRATION_KEY, JSON.stringify({ 
+            timestamp: Date.now(), 
+            reason: 'Reset corrupted 0% return data from old timeout bug' 
+          }));
+          console.log('[Delta V2] ✅ Migration complete: Thresholds reset to 20/25%/0% for clean learning');
+        }
+      } catch (error) {
+        console.warn('[Delta V2] Migration error (non-fatal):', error);
+      }
+    }
+
     // ✅ Load thresholds from localStorage (persist across refreshes)
     if (typeof window !== 'undefined') {
       try {

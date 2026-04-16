@@ -1,8 +1,8 @@
 /**
- * SMART 24-HOUR SIGNAL DEDUPLICATION CACHE
+ * SMART SIGNAL DEDUPLICATION CACHE
  *
  * Production-grade deduplication system that prevents duplicate signals
- * for the same coin+direction within a 24-hour rolling window.
+ * for the same coin+direction within a 2-hour rolling window.
  *
  * Features:
  * - Fast O(1) lookups using Map data structure
@@ -13,9 +13,9 @@
  * - Time-remaining calculations
  *
  * Examples:
- * - BTC LONG (now) → BTC LONG (12h later) = BLOCKED ❌
- * - BTC LONG (now) → BTC SHORT (30m later) = ALLOWED ✅
- * - BTC LONG (now) → BTC LONG (24h later) = ALLOWED ✅
+ * - BTC LONG (now) → BTC LONG (1h later) = BLOCKED ❌
+ * - BTC LONG (now) → BTC SHORT (5m later) = ALLOWED ✅
+ * - BTC LONG (now) → BTC LONG (2h later) = ALLOWED ✅
  */
 
 export interface DedupCacheEntry {
@@ -37,9 +37,10 @@ export class SignalDeduplicationCache {
   // Core cache storage: key = "BTC_LONG", value = timestamp
   private cache: Map<string, number> = new Map();
 
-  // Configuration
-  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-  private readonly STORAGE_KEY = 'ignitex-signal-cache-24h';
+  // Configuration — 2 hours keeps signals fresh without blocking the pipeline
+  private readonly CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+  private readonly STORAGE_KEY = 'ignitex-signal-cache-2h';
+  private readonly OLD_STORAGE_KEY = 'ignitex-signal-cache-24h'; // migrate away from old key
   private readonly CLEANUP_INTERVAL = 60 * 60 * 1000; // Cleanup every 1 hour
 
   // Statistics
@@ -52,9 +53,11 @@ export class SignalDeduplicationCache {
   private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor() {
+    // Remove old 24h cache key to prevent stale blocks
+    try { localStorage.removeItem(this.OLD_STORAGE_KEY); } catch {}
     this.loadFromStorage();
     this.startCleanupTimer();
-    console.log('[Dedup Cache] ✅ Initialized with 24-hour rolling window');
+    console.log('[Dedup Cache] ✅ Initialized with 2-hour rolling window');
   }
 
   /**
@@ -104,7 +107,7 @@ export class SignalDeduplicationCache {
     this.saveToStorage();
 
     console.log(
-      `[Dedup Cache] 📝 Recorded: ${key} at ${new Date(timestamp).toLocaleTimeString()} (valid for 24h)`
+      `[Dedup Cache] 📝 Recorded: ${key} at ${new Date(timestamp).toLocaleTimeString()} (valid for 2h)`
     );
   }
 

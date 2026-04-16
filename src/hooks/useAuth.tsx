@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string) => {
     // Always use production URL for email verification
     // This ensures mobile users can access verification links
-    const redirectUrl = 'https://ignitexagency.com/email-verified';
+    const redirectUrl = 'https://quantumx.org.in/email-verified';
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const resetPassword = async (email: string) => {
     // Always use production URL for password reset
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://ignitexagency.com/reset-password',
+      redirectTo: 'https://quantumx.org.in/reset-password',
     });
     return { error };
   };
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       type: 'signup',
       email: email,
       options: {
-        emailRedirectTo: 'https://ignitexagency.com/email-verified',
+        emailRedirectTo: 'https://quantumx.org.in/email-verified',
       }
     });
 
