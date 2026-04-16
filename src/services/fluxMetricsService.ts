@@ -301,6 +301,17 @@ class FluxMetricsService {
         // Silently fail if tables don't exist
       }
     }
+
+    // 🧹 Retention cleanup — purge rows older than 7 days (runs every sync cycle)
+    try {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      await Promise.all([
+        supabase.from('flux_agent_metrics').delete().lt('timestamp', cutoff),
+        supabase.from('flux_market_states').delete().lt('timestamp', cutoff),
+      ]);
+    } catch (e) {
+      // Silently fail if tables don't exist
+    }
   }
 
   // ===================== REAL-TIME SUBSCRIPTION =====================

@@ -124,7 +124,7 @@ const EmailVerified = () => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer);
-            window.location.href = "https://ignitex.live";
+            window.location.href = "https://quantumx.org.in";
             return 0;
           }
           return prev - 1;
@@ -269,7 +269,7 @@ const EmailVerified = () => {
           </div>
           <CardTitle className="text-2xl">Email Verified Successfully!</CardTitle>
           <CardDescription>
-            Welcome to IgniteX, {user.email?.split('@')[0]}!
+            Welcome to QuantumX, {user.email?.split('@')[0]}!
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
@@ -284,7 +284,7 @@ const EmailVerified = () => {
 
           <div className="pt-4">
             <p className="text-sm text-muted-foreground">
-              Redirecting to IgniteX in <span className="font-bold text-primary">{countdown}</span> second{countdown !== 1 ? 's' : ''}...
+              Redirecting to QuantumX in <span className="font-bold text-primary">{countdown}</span> second{countdown !== 1 ? 's' : ''}...
             </p>
             <div className="mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
               <div
@@ -295,10 +295,10 @@ const EmailVerified = () => {
           </div>
 
           <button
-            onClick={() => window.location.href = "https://ignitex.live"}
+            onClick={() => window.location.href = "https://quantumx.org.in"}
             className="text-sm text-primary hover:underline mt-4"
           >
-            Skip and go to IgniteX →
+            Skip and go to QuantumX →
           </button>
         </CardContent>
       </Card>

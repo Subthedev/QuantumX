@@ -213,7 +213,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Welcome to IgniteX</CardTitle>
+          <CardTitle>Welcome to QuantumX</CardTitle>
           <CardDescription>Sign in or create an account to continue</CardDescription>
         </CardHeader>
         <CardContent>

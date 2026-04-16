@@ -288,18 +288,18 @@ class GlobalHubService extends SimpleEventEmitter {
   };
 
   // Signal drop intervals — UNIFIED for all users (no tier gating)
-  // Everyone gets the best rate for maximum user acquisition
+  // 3-minute intervals for fast signal flow during acquisition phase
   private DROP_INTERVALS: Record<UserTier, number> = {
-    FREE: 10 * 60 * 1000,         // 10 minutes (~144 signals/24h) — same for all
-    PRO: 10 * 60 * 1000,          // unified
-    MAX: 10 * 60 * 1000           // unified
+    FREE: 3 * 60 * 1000,          // 3 minutes (~480 signals/24h) — fast flow
+    PRO: 3 * 60 * 1000,           // unified
+    MAX: 3 * 60 * 1000            // unified
   };
 
   // Default intervals for reset functionality
   private readonly DEFAULT_DROP_INTERVALS: Record<UserTier, number> = {
-    FREE: 10 * 60 * 1000,
-    PRO: 10 * 60 * 1000,
-    MAX: 10 * 60 * 1000
+    FREE: 3 * 60 * 1000,
+    PRO: 3 * 60 * 1000,
+    MAX: 3 * 60 * 1000
   };
 
   // Separate buffers for each tier - ensures independent signal generation
@@ -814,7 +814,7 @@ class GlobalHubService extends SimpleEventEmitter {
     try {
       // Load metrics
       const metricsJson = localStorage.getItem(STORAGE_KEY_METRICS);
-      const signalsJson = localStorage.getItem(STORAGE_KEY_SIGNALS);
+      let signalsJson = localStorage.getItem(STORAGE_KEY_SIGNALS);
 
       const metrics: HubMetrics = metricsJson ? JSON.parse(metricsJson) : {
         // Global metrics
@@ -860,6 +860,21 @@ class GlobalHubService extends SimpleEventEmitter {
         deltaQualityScore: 0
       };
 
+      // ✅ ONE-TIME MIGRATION: Purge corrupted signal history from old timeout bug
+      // Old handlers set exitPrice=entryPrice (0% return), corrupting history and ML
+      const SIGNALS_MIGRATION_KEY = 'igx_timeout_signals_migration_v2';
+      if (!localStorage.getItem(SIGNALS_MIGRATION_KEY)) {
+        console.log('[GlobalHub] 🔄 ONE-TIME MIGRATION: Purging corrupted signal history...');
+        // Clear the corrupted signals data - let the system start fresh
+        localStorage.removeItem(STORAGE_KEY_SIGNALS);
+        signalsJson = null as any; // Force empty load below
+        localStorage.setItem(SIGNALS_MIGRATION_KEY, JSON.stringify({
+          timestamp: Date.now(),
+          reason: 'Purged corrupted 0% return signal history from old timeout bug'
+        }));
+        console.log('[GlobalHub] ✅ Migration complete: Signal history cleared for clean data');
+      }
+
       // ✅ CRITICAL: Load BOTH active signals AND history from localStorage
       // This matches the new saveSignals() format that saves both
       let activeSignals: HubSignal[] = [];
@@ -880,6 +895,25 @@ class GlobalHubService extends SimpleEventEmitter {
         }
       }
 
+      // ✅ Filter out signals from non-curated coins (migration from old dynamic universe)
+      const CURATED_SET = new Set([
+        'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'LINK',
+        'UNI', 'AVAX', 'DOT', 'LTC', 'TRX', 'NEAR', 'ATOM',
+        'AAVE', 'MKR', 'INJ', 'SUI', 'SEI', 'ARB', 'OP', 'APT',
+        'MATIC', 'GRT', 'CRV', 'SNX', 'COMP', 'HYPE'
+      ]);
+      const isCurated = (sym: string) => {
+        const clean = sym.replace(/USDT$/i, '').replace(/USD$/i, '').toUpperCase();
+        return CURATED_SET.has(clean);
+      };
+      const preFilt = activeSignals.length + signalHistory.length;
+      activeSignals = activeSignals.filter(s => isCurated(s.symbol));
+      signalHistory = signalHistory.filter(s => isCurated(s.symbol));
+      const postFilt = activeSignals.length + signalHistory.length;
+      if (preFilt !== postFilt) {
+        console.log(`[GlobalHub] 🧹 Filtered out ${preFilt - postFilt} non-curated signals from localStorage`);
+      }
+
       // ✅ Fix missing expiresAt on loaded signals and move expired signals to history
       const now = Date.now();
       const validActiveSignals: HubSignal[] = [];
@@ -896,14 +930,27 @@ class GlobalHubService extends SimpleEventEmitter {
           console.log(`[GlobalHub] 🔧 Added default expiresAt for ${signal.symbol}`);
         }
 
-        // Check if signal has expired
-        if (signal.expiresAt && signal.expiresAt < now) {
+        // Check if signal has expired (with 5-min grace for triple barrier)
+        const INIT_GRACE = 5 * 60 * 1000;
+        if (signal.expiresAt && (signal.expiresAt + INIT_GRACE) < now) {
           // Signal has expired - move to history with TIMEOUT outcome
           if (!signal.outcome) {
+            // ✅ FIX: Use lastPrice for real PnL instead of silently setting 0%
+            const lastPrice = (signal as any).lastPrice || signal.entry || 0;
+            const entryPrice = signal.entry || 0;
+            const returnPct = entryPrice > 0
+              ? (signal.direction === 'LONG'
+                  ? ((lastPrice - entryPrice) / entryPrice) * 100
+                  : ((entryPrice - lastPrice) / entryPrice) * 100)
+              : 0;
+
             signal.outcome = 'TIMEOUT';
             signal.outcomeTimestamp = now;
             signal.exitReason = 'TIME_EXPIRED';
-            console.log(`[GlobalHub] ⏱️ Signal ${signal.symbol} expired, moving to history`);
+            signal.exitPrice = lastPrice;
+            signal.actualReturn = returnPct;
+            signal.holdDuration = (signal.expiresAt || now) - (signal.timestamp || now);
+            console.log(`[GlobalHub] ⏱️ Signal ${signal.symbol} expired on init | Exit: $${lastPrice} | Return: ${returnPct.toFixed(2)}%`);
           }
           expiredSignals.push(signal);
         } else {
@@ -928,7 +975,7 @@ class GlobalHubService extends SimpleEventEmitter {
         metrics.totalLosses = losses;
       }
 
-      console.log('[GlobalHub] ✅ Loaded state:', {
+      console.log('[GlobalHub] ✅ Loaded state from localStorage:', {
         activeSignals: activeSignals.length,
         signalHistory: signalHistory.length,
         tickers: metrics.totalTickers,
@@ -944,6 +991,111 @@ class GlobalHubService extends SimpleEventEmitter {
     } catch (error) {
       console.error('[GlobalHub] Error loading state:', error);
       return this.getInitialState();
+    }
+  }
+
+  // =====================================================================
+  // 🔄 SUPABASE SYNC: Fetch signals from database as source of truth
+  // If localStorage was cleared or incognito, Supabase has the real data
+  // =====================================================================
+  private async syncSignalsFromSupabase(): Promise<void> {
+    try {
+      const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      // Fetch active signals from Supabase
+      const { data: dbActive, error: activeErr } = await supabase
+        .from('intelligence_signals')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Fetch recent completed signals for history
+      const { data: dbHistory, error: historyErr } = await supabase
+        .from('intelligence_signals')
+        .select('*')
+        .neq('status', 'ACTIVE')
+        .gt('created_at', cutoff24h)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (!activeErr && dbActive && dbActive.length > 0) {
+        // Merge: Supabase signals take priority (dedup by ID)
+        const existingIds = new Set(this.state.activeSignals.map(s => s.id));
+        let addedFromDb = 0;
+
+        for (const dbSig of dbActive) {
+          if (!existingIds.has(dbSig.id)) {
+            this.state.activeSignals.push({
+              id: dbSig.id,
+              symbol: dbSig.symbol,
+              direction: dbSig.signal_type as 'LONG' | 'SHORT',
+              confidence: dbSig.confidence,
+              timestamp: new Date(dbSig.created_at).getTime(),
+              entry: dbSig.current_price || dbSig.entry_min,
+              stopLoss: dbSig.stop_loss ?? undefined,
+              targets: [dbSig.target_1, dbSig.target_2, dbSig.target_3].filter(Boolean) as number[],
+              expiresAt: new Date(dbSig.expires_at).getTime(),
+              timeLimit: new Date(dbSig.expires_at).getTime() - new Date(dbSig.created_at).getTime(),
+              qualityScore: dbSig.confidence,
+            });
+            addedFromDb++;
+          }
+        }
+
+        if (addedFromDb > 0) {
+          console.log(`[GlobalHub] 🔄 Supabase sync: Merged ${addedFromDb} active signals from database`);
+        }
+      }
+
+      if (!historyErr && dbHistory && dbHistory.length > 0) {
+        const existingHistoryIds = new Set(this.state.signalHistory.map(s => s.id));
+        let addedHistoryFromDb = 0;
+
+        for (const dbSig of dbHistory) {
+          if (!existingHistoryIds.has(dbSig.id)) {
+            const outcome = dbSig.status === 'SUCCESS' ? 'WIN' : dbSig.status === 'FAILED' ? 'LOSS' : 'TIMEOUT';
+            this.state.signalHistory.push({
+              id: dbSig.id,
+              symbol: dbSig.symbol,
+              direction: dbSig.signal_type as 'LONG' | 'SHORT',
+              confidence: dbSig.confidence,
+              timestamp: new Date(dbSig.created_at).getTime(),
+              entry: dbSig.entry_price || dbSig.current_price || dbSig.entry_min,
+              stopLoss: dbSig.stop_loss ?? undefined,
+              targets: [dbSig.target_1, dbSig.target_2, dbSig.target_3].filter(Boolean) as number[],
+              outcome: outcome as 'WIN' | 'LOSS' | 'TIMEOUT',
+              outcomeTimestamp: dbSig.completed_at ? new Date(dbSig.completed_at).getTime() : undefined,
+              actualReturn: dbSig.profit_loss_percent ?? undefined,
+              exitPrice: dbSig.exit_price ?? undefined,
+            });
+            addedHistoryFromDb++;
+          }
+        }
+
+        if (addedHistoryFromDb > 0) {
+          console.log(`[GlobalHub] 🔄 Supabase sync: Merged ${addedHistoryFromDb} history signals from database`);
+        }
+      }
+
+      // Recalculate metrics after merge
+      const allWins = this.state.signalHistory.filter(s => s.outcome === 'WIN').length;
+      const allLosses = this.state.signalHistory.filter(s => s.outcome === 'LOSS').length;
+      if (allWins + allLosses > 0) {
+        this.state.metrics.winRate = (allWins / (allWins + allLosses)) * 100;
+        this.state.metrics.totalWins = allWins;
+        this.state.metrics.totalLosses = allLosses;
+      }
+
+      // Save merged results back to localStorage as cache
+      this.saveSignals();
+
+      console.log(`[GlobalHub] ✅ Supabase sync complete: ${this.state.activeSignals.length} active, ${this.state.signalHistory.length} history`);
+      this.emit('state:update', this.getState());
+
+    } catch (supabaseErr) {
+      console.warn('[GlobalHub] ⚠️ Supabase sync failed (using localStorage only):', supabaseErr);
     }
   }
 
@@ -1064,6 +1216,12 @@ class GlobalHubService extends SimpleEventEmitter {
       });
     } catch(e) { console.warn('[GlobalHub] Signal dropper error:', e); }
     try { this.startBufferProcessor(); } catch(e) { console.warn('[GlobalHub] Buffer processor error:', e); }
+
+    // 🧹 Supabase storage cleanup — runs in background, never blocks startup
+    this.cleanupSupabaseStorage().catch(e => console.warn('[GlobalHub] Supabase cleanup error:', e));
+
+    // 🔄 Supabase signal sync — restore signals from database (survives localStorage clear)
+    this.syncSignalsFromSupabase().catch(e => console.warn('[GlobalHub] Supabase signal sync error:', e));
 
     console.log('[GlobalHub] Phase 1 complete: all synchronous subsystems started');
 
@@ -1515,19 +1673,49 @@ class GlobalHubService extends SimpleEventEmitter {
    */
   private checkAndMoveExpiredSignals(): number {
     const now = Date.now();
+    // ✅ GRACE PERIOD: Give tripleBarrierMonitor 5 minutes past expiry to report real outcome
+    // This prevents this sweeper from pre-empting the correct handler
+    const GRACE_PERIOD = 5 * 60 * 1000; // 5 minutes
     const expiredSignals: HubSignal[] = [];
     const validActiveSignals: HubSignal[] = [];
 
     this.state.activeSignals.forEach(signal => {
-      if (signal.expiresAt && signal.expiresAt < now && !signal.outcome) {
-        // Signal has expired - move to history with TIMEOUT outcome
+      const isExpired = signal.expiresAt && (signal.expiresAt + GRACE_PERIOD) < now && !signal.outcome;
+      if (isExpired) {
+        // Signal has expired AND grace period passed — tripleBarrier didn't catch it
+        // Fetch real price asynchronously (fire-and-forget, use lastPrice as sync fallback)
+        const lastPrice = (signal as any).lastPrice || signal.entry;
+        const returnPct = signal.direction === 'LONG'
+          ? ((lastPrice - (signal.entry || 0)) / (signal.entry || 1)) * 100
+          : (((signal.entry || 0) - lastPrice) / (signal.entry || 1)) * 100;
+
+        // Classify timeout reason from real price movement
+        const absPriceMove = Math.abs(returnPct);
+        let mlOutcome: string;
+        if (returnPct < -0.5) {
+          mlOutcome = 'TIMEOUT_WRONG';
+        } else if (absPriceMove < 0.2) {
+          mlOutcome = 'TIMEOUT_STAGNATION';
+        } else if (returnPct > 0.3) {
+          mlOutcome = 'TIMEOUT_VALID';
+        } else {
+          mlOutcome = 'TIMEOUT_LOWVOL';
+        }
+
         signal.outcome = 'TIMEOUT';
         signal.outcomeTimestamp = now;
         signal.exitReason = 'TIME_EXPIRED';
-        signal.exitPrice = signal.entry; // Use entry price as exit price for timeout
-        signal.actualReturn = 0; // No profit/loss on timeout
-        signal.holdDuration = signal.expiresAt - signal.timestamp;
+        signal.exitPrice = lastPrice;
+        signal.actualReturn = returnPct;
+        signal.holdDuration = (signal.expiresAt || now) - (signal.timestamp || now);
+        signal.outcomeDetails = {
+          exitPrice: lastPrice,
+          profitLossPct: returnPct,
+          mlOutcome
+        };
         expiredSignals.push(signal);
+
+        console.log(`[GlobalHub] ⏱️ Expired signal swept: ${signal.symbol} ${signal.direction} | Exit: $${lastPrice} | Return: ${returnPct.toFixed(2)}% | ${mlOutcome}`);
       } else {
         validActiveSignals.push(signal);
       }
@@ -1540,8 +1728,27 @@ class GlobalHubService extends SimpleEventEmitter {
       this.state.signalHistory.unshift(...expiredSignals);
       // Save to localStorage
       this.saveSignals();
-      // Emit update event
+      // Emit update events
+      this.emit('signal:history', this.state.signalHistory);
+      this.emit('signal:live', this.state.activeSignals);
       this.emit('state:update', this.getState());
+
+      // Feed to Zeta for each expired signal
+      for (const signal of expiredSignals) {
+        this.emit('signal:outcome', {
+          signalId: signal.id,
+          symbol: signal.symbol,
+          direction: signal.direction,
+          outcome: signal.outcome,
+          returnPct: signal.actualReturn || 0,
+          exitReason: 'TIME_EXPIRED',
+          holdDuration: signal.holdDuration || 0,
+          mlOutcome: signal.outcomeDetails?.mlOutcome || 'TIMEOUT_STAGNATION',
+          trainingValue: signal.outcomeDetails?.mlOutcome === 'TIMEOUT_VALID' ? 0.5
+            : signal.outcomeDetails?.mlOutcome === 'TIMEOUT_LOWVOL' ? 0.4
+            : signal.outcomeDetails?.mlOutcome === 'TIMEOUT_WRONG' ? 0.0 : 0.2
+        });
+      }
     }
 
     return expiredSignals.length;
@@ -2064,111 +2271,31 @@ class GlobalHubService extends SimpleEventEmitter {
    * ✅ INSTITUTIONAL-GRADE: Dynamic Top 50 Coin Selection
    * Uses Binance API directly (no proxy needed) with CoinGecko fallback
    */
+  /**
+   * CURATED COIN UNIVERSE — Only coins we have logos, data quality, and CoinGecko mappings for.
+   * No dynamic Binance fetching — this prevents random/unknown coins from appearing.
+   */
   private async buildDynamicCoinUniverse(): Promise<string[]> {
-    // DEFAULT UNIVERSE - always available, no API needed
-    const DEFAULT_UNIVERSE = [
-      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'ATOM',
-      'UNI', 'DOT', 'LTC', 'BCH', 'NEAR', 'APT', 'OP', 'ARB', 'TRX', 'ETC',
-      'AAVE', 'MKR', 'FIL', 'INJ', 'SUI', 'SEI', 'TIA', 'RNDR', 'FET', 'WLD'
+    const CURATED_UNIVERSE = [
+      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'LINK',
+      'UNI', 'AVAX', 'DOT', 'LTC', 'TRX', 'NEAR', 'ATOM',
+      'AAVE', 'MKR', 'INJ', 'SUI', 'SEI', 'ARB', 'OP', 'APT',
+      'MATIC', 'GRT', 'CRV', 'SNX', 'COMP', 'HYPE'
     ];
-
-    try {
-      console.log('[GlobalHub] 🎯 Building dynamic coin universe via Binance API...');
-
-      // PRIMARY: Use Binance 24hr ticker (direct, no proxy, no CORS issues)
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-      const response = await fetch('https://api.binance.com/api/v3/ticker/24hr', { signal: controller.signal });
-      clearTimeout(timeout);
-      if (!response.ok) throw new Error(`Binance API error: ${response.status}`);
-
-      const tickers = await response.json();
-
-      // Filter USDT pairs with high volume
-      const usdtPairs = tickers
-        .filter((t: any) => {
-          const symbol = t.symbol as string;
-          if (!symbol.endsWith('USDT')) return false;
-          const quoteVolume = parseFloat(t.quoteVolume);
-          return quoteVolume > 50_000_000; // > $50M daily volume
-        })
-        .sort((a: any, b: any) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-        .slice(0, 50);
-
-      // Exclude stablecoins/wrapped tokens
-      const exclude = new Set(['USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD', 'USDD', 'WBTC', 'WETH', 'STETH']);
-
-      const qualifiedCoins = usdtPairs
-        .map((t: any) => (t.symbol as string).replace('USDT', ''))
-        .filter((s: string) => !exclude.has(s));
-
-      if (qualifiedCoins.length >= 10) {
-        console.log(`[GlobalHub] ✅ Universe built: ${qualifiedCoins.length} high-liquidity coins from Binance`);
-        console.log(`[GlobalHub] Top 10: ${qualifiedCoins.slice(0, 10).join(', ')}`);
-        return qualifiedCoins;
-      }
-
-      throw new Error('Not enough qualified coins from Binance');
-    } catch (error) {
-      console.warn('[GlobalHub] Binance universe failed, trying CoinGecko:', (error as Error).message);
-
-      try {
-        const topCoins = await cryptoDataService.getTopCryptos(100);
-        const qualifiedCoins = topCoins
-          .filter(coin => coin.total_volume > 50_000_000 && coin.market_cap > 500_000_000)
-          .slice(0, 50)
-          .map(coin => coin.symbol.toUpperCase());
-
-        if (qualifiedCoins.length >= 10) {
-          console.log(`[GlobalHub] ✅ Universe built: ${qualifiedCoins.length} coins from CoinGecko`);
-          return qualifiedCoins;
-        }
-      } catch (e) {
-        console.warn('[GlobalHub] CoinGecko also failed:', (e as Error).message);
-      }
-
-      console.log(`[GlobalHub] Using default universe: ${DEFAULT_UNIVERSE.length} coins`);
-      return DEFAULT_UNIVERSE;
-    }
+    console.log(`[GlobalHub] Using curated universe: ${CURATED_UNIVERSE.length} coins`);
+    return CURATED_UNIVERSE;
   }
 
   private async startSignalGeneration() {
     console.log('[GlobalHub] ENTERING startSignalGeneration()');
 
-    // Use hardcoded DEFAULT_UNIVERSE immediately - no API call needed to start the loop.
-    // Background system will upgrade to dynamic universe via hourly refresh.
-    let SCAN_SYMBOLS = [
-      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'LINK', 'ATOM',
-      'UNI', 'DOT', 'LTC', 'BCH', 'NEAR', 'APT', 'OP', 'ARB', 'TRX', 'ETC',
-      'AAVE', 'MKR', 'FIL', 'INJ', 'SUI', 'SEI', 'TIA', 'RNDR', 'FET', 'WLD'
-    ];
-
-    // Try to upgrade to dynamic universe (with a fast timeout - don't delay the loop)
-    try {
-      const dynamic = await withTimeout(this.buildDynamicCoinUniverse(), 8000, 'fastUniverse');
-      if (dynamic.length >= 10) {
-        SCAN_SYMBOLS = dynamic;
-        console.log(`[GlobalHub] Using dynamic universe: ${SCAN_SYMBOLS.length} coins`);
-      }
-    } catch(e) {
-      console.log(`[GlobalHub] Using default universe (${SCAN_SYMBOLS.length} coins) - dynamic build timed out`);
-    }
+    // Curated universe — matches our logo set, CoinGecko mappings, and data quality
+    const SCAN_SYMBOLS = await this.buildDynamicCoinUniverse();
 
     const ANALYSIS_INTERVAL = 5000; // 5 seconds per coin
     let currentSymbolIndex = 0;
 
     console.log(`[GlobalHub] Signal loop starting: ${SCAN_SYMBOLS.length} coins, ${ANALYSIS_INTERVAL/1000}s interval`);
-
-    // Refresh coin universe every hour in the background
-    setInterval(async () => {
-      try {
-        const refreshed = await withTimeout(this.buildDynamicCoinUniverse(), 15000, 'universeRefresh');
-        if (refreshed.length >= 10) {
-          SCAN_SYMBOLS = refreshed;
-          console.log(`[GlobalHub] Universe refreshed: ${SCAN_SYMBOLS.length} coins`);
-        }
-      } catch(e) { /* keep current universe */ }
-    }, 3600000);
 
     const analyzeNextCoin = async () => {
       try {
@@ -2761,22 +2888,25 @@ class GlobalHubService extends SimpleEventEmitter {
       // Auto-place paper trade for this signal
       this.autoPlaceTrade(displaySignal);
 
-      // CRITICAL: Set up timeout to remove signal when it expires
-      // 🔥 FIX: Proper operator precedence - check timeLimit first, then expiryMinutes, then default
+      // CRITICAL: Safety-net timeout — fires 5 min AFTER expiry to handle edge cases
+      // The tripleBarrierMonitor is the PRIMARY handler (fetches real price, classifies properly)
+      // This setTimeout is the SECONDARY fallback only if triple barrier somehow missed it
+      const SAFETY_BUFFER = 5 * 60 * 1000; // 5 minutes grace period
       const timeLimit = displaySignal.timeLimit ||
         (displaySignal.expiryFactors?.expiryMinutes && displaySignal.expiryFactors.expiryMinutes > 0
           ? displaySignal.expiryFactors.expiryMinutes * 60000
           : 14400000); // Default 4 hours
-      console.log(`[GlobalHub] ⏰ Setting up timeout for ${displaySignal.symbol} in ${(timeLimit / 60000).toFixed(1)} minutes`);
+      const safetyTimeout = timeLimit + SAFETY_BUFFER;
+      console.log(`[GlobalHub] ⏰ Safety timeout for ${displaySignal.symbol} in ${(safetyTimeout / 60000).toFixed(1)} min (expiry + 5min buffer, triple barrier is primary handler)`);
 
       setTimeout(() => {
-        // Check if signal is still active (hasn't hit TP/SL)
+        // Check if signal is still active (hasn't been resolved by triple barrier)
         const stillActive = this.state.activeSignals.some(s => s.id === displaySignal.id);
         if (stillActive) {
-          console.log(`[GlobalHub] ⏱️ Signal timeout reached for ${displaySignal.symbol} - removing from active signals`);
+          console.log(`[GlobalHub] ⏱️ Safety timeout fired for ${displaySignal.symbol} - triple barrier missed, removing with real price`);
           this.removeFromActiveSignals(displaySignal.id!);
         }
-      }, timeLimit);
+      }, safetyTimeout);
 
       // ✅ TRACK: Publishing completed successfully
       this.state.metrics.publishingComplete = (this.state.metrics.publishingComplete || 0) + 1;
@@ -3525,17 +3655,55 @@ class GlobalHubService extends SimpleEventEmitter {
       const signal = this.state.activeSignals[index];
 
       // CRITICAL: If signal doesn't have an outcome yet, it means it timed out
+      // ✅ FIX: Fetch REAL price instead of using entry price (0% return)
       if (!signal.outcome) {
-        // Create timeout outcome and move to history
+        // Use lastPrice if available (tracked by realOutcomeTracker), otherwise fetch async
+        const lastPrice = (signal as any).lastPrice || signal.entry || 0;
+
+        // Calculate REAL return based on actual market price
+        const entryPrice = signal.entry || 0;
+        const returnPct = entryPrice > 0
+          ? (signal.direction === 'LONG'
+              ? ((lastPrice - entryPrice) / entryPrice) * 100
+              : ((entryPrice - lastPrice) / entryPrice) * 100)
+          : 0;
+
+        // Classify timeout with REAL price data (not fake 0%)
+        const absPriceMove = Math.abs(returnPct);
+        let mlOutcome: string;
+        let timeoutLabel: string;
+        if (returnPct < -0.5) {
+          mlOutcome = 'TIMEOUT_WRONG';
+          timeoutLabel = 'Wrong direction';
+        } else if (absPriceMove < 0.2) {
+          mlOutcome = 'TIMEOUT_STAGNATION';
+          timeoutLabel = 'Price stagnation';
+        } else if (returnPct > 0.3) {
+          mlOutcome = 'TIMEOUT_VALID';
+          timeoutLabel = 'Valid signal, needed more time';
+        } else {
+          mlOutcome = 'TIMEOUT_LOWVOL';
+          timeoutLabel = 'Low volatility';
+        }
+
+        const trainingValue = mlOutcome === 'TIMEOUT_VALID' ? 0.5
+          : mlOutcome === 'TIMEOUT_LOWVOL' ? 0.4
+          : mlOutcome === 'TIMEOUT_WRONG' ? 0.0 : 0.2;
+
         const timedOutSignal: HubSignal = {
           ...signal,
           outcome: 'TIMEOUT',
           outcomeTimestamp: Date.now(),
-          outcomeReason: 'Signal expired (time limit reached)',
+          outcomeReason: `Signal expired: ${timeoutLabel}`,
+          exitPrice: lastPrice,
+          actualReturn: returnPct,
+          holdDuration: Date.now() - (signal.timestamp || Date.now()),
+          exitReason: 'TIMEOUT',
           outcomeDetails: {
-            exitPrice: signal.entry, // Use entry price as exit for timeout
-            profitLossPct: 0,
-            mlOutcome: 'TIMEOUT_STAGNATION'
+            exitPrice: lastPrice,
+            profitLossPct: returnPct,
+            mlOutcome,
+            trainingValue
           }
         };
 
@@ -3547,17 +3715,55 @@ class GlobalHubService extends SimpleEventEmitter {
           this.state.signalHistory = this.state.signalHistory.slice(0, 500);
         }
 
-        // Update metrics for timeout - increment timeout counter
+        // Update metrics for timeout
         this.state.metrics.totalTimeouts = (this.state.metrics.totalTimeouts || 0) + 1;
         this.state.metrics.lastUpdate = Date.now();
 
-        console.log(`[GlobalHub] ⏱️ Signal timed out and moved to history: ${signal.symbol} ${signal.direction}`);
-        console.log(`[GlobalHub] 📊 Updated Metrics - Timeouts: ${this.state.metrics.totalTimeouts}, History: ${this.state.signalHistory.length}`);
+        console.log(
+          `[GlobalHub] ⏱️ Signal timed out: ${signal.symbol} ${signal.direction}\n` +
+          `   Exit: $${lastPrice.toFixed(2)} | Return: ${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}%\n` +
+          `   Classification: ${mlOutcome} (${timeoutLabel})\n` +
+          `   Training Value: ${trainingValue} → Zeta will learn from this`
+        );
 
-        // CRITICAL: Emit ALL events for real-time UI updates
+        // CRITICAL: Emit ALL events for real-time UI updates AND Zeta learning
         this.emit('signal:history', this.state.signalHistory);
-        this.emit('metrics:update', this.state.metrics); // ✅ ADD THIS
-        this.emit('signal:outcome', timedOutSignal); // ✅ ADD THIS for UI feedback
+        this.emit('metrics:update', this.state.metrics);
+        this.emit('signal:outcome', {
+          signalId: signal.id,
+          symbol: signal.symbol,
+          direction: signal.direction,
+          outcome: 'TIMEOUT',
+          returnPct,
+          exitReason: 'TIME_EXPIRED',
+          holdDuration: timedOutSignal.holdDuration,
+          mlOutcome,
+          trainingValue,
+          entryPrice,
+          exitPrice: lastPrice
+        });
+
+        // ✅ ASYNC: Also fetch fresh price for even more accurate data (fire-and-forget)
+        this.getCurrentPrice(signal.symbol).then(freshPrice => {
+          if (freshPrice > 0 && freshPrice !== lastPrice) {
+            const freshReturn = signal.direction === 'LONG'
+              ? ((freshPrice - entryPrice) / entryPrice) * 100
+              : ((entryPrice - freshPrice) / entryPrice) * 100;
+            console.log(`[GlobalHub] 📊 Fresh price update for timed-out ${signal.symbol}: $${freshPrice.toFixed(2)} (${freshReturn.toFixed(2)}%)`);
+            // Update the history entry with fresh data
+            const histIdx = this.state.signalHistory.findIndex(s => s.id === signal.id);
+            if (histIdx !== -1) {
+              this.state.signalHistory[histIdx].exitPrice = freshPrice;
+              this.state.signalHistory[histIdx].actualReturn = freshReturn;
+              this.state.signalHistory[histIdx].outcomeDetails = {
+                ...this.state.signalHistory[histIdx].outcomeDetails,
+                exitPrice: freshPrice,
+                profitLossPct: freshReturn
+              };
+              this.saveSignals();
+            }
+          }
+        }).catch(() => {}); // Non-fatal
       }
 
       // Remove from active signals
@@ -3772,26 +3978,42 @@ class GlobalHubService extends SimpleEventEmitter {
       const originalCount = this.state.activeSignals.length;
 
       this.state.activeSignals = this.state.activeSignals.filter(signal => {
-        const expiryTime = signal.timestamp + (signal.timeLimit || 14400000); // Default 4 hours
-        const isExpired = now > expiryTime;
+        // ✅ FIX: Use expiresAt (corrected at publish time) with grace period
+        const LOAD_GRACE = 5 * 60 * 1000; // 5 minutes
+        const expiryTime = signal.expiresAt || (signal.timestamp + (signal.timeLimit || 14400000));
+        const isExpired = now > (expiryTime + LOAD_GRACE);
 
         if (isExpired) {
           console.log(`[GlobalHub] 🗑️ Removing expired signal from active list: ${signal.symbol} (expired ${Math.floor((now - expiryTime) / 60000)}m ago)`);
 
-          // Move expired signal to history immediately
+          // Move expired signal to history with REAL price data
           if (!signal.outcome) {
+            const lastPrice = (signal as any).lastPrice || signal.entry || 0;
+            const entryPrice = signal.entry || 0;
+            const returnPct = entryPrice > 0
+              ? (signal.direction === 'LONG'
+                  ? ((lastPrice - entryPrice) / entryPrice) * 100
+                  : ((entryPrice - lastPrice) / entryPrice) * 100)
+              : 0;
+
             const expiredSignal: HubSignal = {
               ...signal,
               outcome: 'TIMEOUT',
               outcomeTimestamp: now,
               outcomeReason: 'Signal expired before page refresh',
+              exitPrice: lastPrice,
+              actualReturn: returnPct,
+              holdDuration: expiryTime - (signal.timestamp || now),
               outcomeDetails: {
-                exitPrice: signal.entry,
-                profitLossPct: 0,
-                mlOutcome: 'TIMEOUT_STAGNATION'
+                exitPrice: lastPrice,
+                profitLossPct: returnPct,
+                mlOutcome: returnPct < -0.5 ? 'TIMEOUT_WRONG'
+                  : Math.abs(returnPct) < 0.2 ? 'TIMEOUT_STAGNATION'
+                  : returnPct > 0.3 ? 'TIMEOUT_VALID' : 'TIMEOUT_LOWVOL'
               }
             };
             this.state.signalHistory.unshift(expiredSignal);
+            console.log(`[GlobalHub]   Exit: $${lastPrice} | Return: ${returnPct.toFixed(2)}%`);
           }
           return false; // Remove from active
         }
@@ -3989,8 +4211,8 @@ class GlobalHubService extends SimpleEventEmitter {
       console.log(`[GlobalHub] 🔄 Resuming tracking for ${this.state.activeSignals.length} localStorage signals...`);
 
       for (const signal of this.state.activeSignals) {
-        // Calculate remaining time
-        const expiryTime = signal.timestamp + (signal.timeLimit || 14400000); // Default 4 hours
+        // ✅ FIX: Use expiresAt (corrected at publish time) instead of timestamp+timeLimit
+        const expiryTime = signal.expiresAt || (signal.timestamp + (signal.timeLimit || 14400000));
         const remainingTime = expiryTime - Date.now();
 
         if (remainingTime > 0) {
@@ -4220,6 +4442,36 @@ class GlobalHubService extends SimpleEventEmitter {
         console.warn('[GlobalHub] signal_outcomes localStorage save failed:', outcomeErr);
       }
 
+      // ===== STEP 6c: Persist outcome to Supabase signal_outcomes table =====
+      try {
+        const { error: outcomeDbErr } = await supabase
+          .from('signal_outcomes')
+          .insert({
+            signal_id: signalId,
+            symbol: signal.symbol,
+            direction: signal.direction,
+            strategy: signal.strategy || null,
+            market_regime: signal.marketRegime || null,
+            entry_price: signal.entry || null,
+            exit_price: exitPrice,
+            return_pct: profitLossPct || 0,
+            outcome,
+            ml_outcome: mlOutcome ? String(mlOutcome) : null,
+            training_value: trainingValue || null,
+            quality_score: signal.qualityScore || null,
+            ml_probability: signal.mlProbability || null,
+            hold_duration_ms: Date.now() - (signal.timestamp || Date.now()),
+            exit_reason: hitTarget ? `TP${hitTarget}` : hitStopLoss ? 'STOP_LOSS' : 'TIMEOUT',
+          });
+        if (outcomeDbErr) {
+          console.warn('[GlobalHub] signal_outcomes Supabase insert failed:', outcomeDbErr.message);
+        } else {
+          console.log(`[GlobalHub] ✅ signal_outcomes persisted to Supabase`);
+        }
+      } catch (outcomeSupaErr) {
+        console.warn('[GlobalHub] signal_outcomes Supabase save failed:', outcomeSupaErr);
+      }
+
       // ===== STEP 7: Feed to Zeta learning engine (CRITICAL FOR ML IMPROVEMENT) =====
       if (mlOutcome && trainingValue !== undefined) {
         try {
@@ -4310,6 +4562,61 @@ class GlobalHubService extends SimpleEventEmitter {
     setTimeout(() => {
       this.removeFromActiveSignals(fullSignal.id);
     }, SIGNAL_LIVE_DURATION);
+  }
+
+  // ===== SUPABASE STORAGE CLEANUP =====
+  // Purges old data from high-volume tables to keep storage under control
+
+  private async cleanupSupabaseStorage(): Promise<void> {
+    console.log('[GlobalHub] 🧹 Running Supabase storage cleanup...');
+
+    const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff3d = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+
+    const results: string[] = [];
+
+    // 1. signals_pool — purge older than 7 days
+    try {
+      const { count } = await supabase
+        .from('signals_pool' as any)
+        .delete({ count: 'exact' })
+        .lt('created_at', cutoff7d);
+      if (count && count > 0) results.push(`signals_pool: ${count} rows`);
+    } catch (e) { /* table may not exist */ }
+
+    // 2. rejected_signals — purge older than 3 days
+    try {
+      const { count } = await supabase
+        .from('rejected_signals')
+        .delete({ count: 'exact' })
+        .lt('created_at', cutoff3d);
+      if (count && count > 0) results.push(`rejected_signals: ${count} rows`);
+    } catch (e) { /* table may not exist */ }
+
+    // 3. agent_activity_log — purge older than 7 days
+    try {
+      const { count } = await supabase
+        .from('agent_activity_log' as any)
+        .delete({ count: 'exact' })
+        .lt('created_at', cutoff7d);
+      if (count && count > 0) results.push(`agent_activity_log: ${count} rows`);
+    } catch (e) { /* table may not exist */ }
+
+    // 4. intelligence_signals — purge expired signals older than 7 days
+    try {
+      const { count } = await supabase
+        .from('intelligence_signals')
+        .delete({ count: 'exact' })
+        .lt('created_at', cutoff7d)
+        .neq('status', 'active');
+      if (count && count > 0) results.push(`intelligence_signals (old): ${count} rows`);
+    } catch (e) { /* table may not exist */ }
+
+    if (results.length > 0) {
+      console.log(`[GlobalHub] 🧹 Cleanup complete — purged: ${results.join(', ')}`);
+    } else {
+      console.log('[GlobalHub] 🧹 Cleanup complete — nothing to purge');
+    }
   }
 
   // ===== RESET (for testing) =====

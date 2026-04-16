@@ -39,11 +39,11 @@ class ScheduledSignalDropper {
   private signalBuffer: BufferedSignal[] = [];
 
   // ✅ UNIFIED SIGNAL EXPERIENCE: Same interval for all users
-  // No tier gating — everyone gets the best signal rate for user acquisition
+  // 3-minute intervals for fast signal flow during acquisition phase
   private readonly DROP_INTERVALS: DropSchedule = {
-    FREE: 10 * 60 * 1000,           // Every 10 minutes (~144 signals/24h)
-    PRO: 10 * 60 * 1000,            // Same as FREE (unified)
-    MAX: 10 * 60 * 1000             // Same as FREE (unified)
+    FREE: 3 * 60 * 1000,            // Every 3 minutes — fast flow
+    PRO: 3 * 60 * 1000,             // Same as FREE (unified)
+    MAX: 3 * 60 * 1000              // Same as FREE (unified)
   };
 
   // TESTING INTERVALS (for development):

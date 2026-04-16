@@ -43,7 +43,7 @@ export const IgniteXLogo: React.FC<IgniteXLogoProps> = ({
       </svg>
       {showText && (
         <span className={`${currentSize.text} font-bold text-foreground tracking-tight`}>
-          IgniteX
+          QuantumX
         </span>
       )}
     </div>
