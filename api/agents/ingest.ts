@@ -102,54 +102,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = payload.symbol.replace('USDT', '');
   const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
-  // Deduplication check
-  const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  const { count: dupeCount } = await supabase
-    .from('intelligence_signals')
-    .select('id', { count: 'exact', head: true })
-    .eq('symbol', ticker)
-    .eq('signal_type', payload.signal)
-    .gte('created_at', since);
-
-  if ((dupeCount ?? 0) > 0) {
-    return res.status(200).json({ status: 'skipped', reason: 'duplicate within 15 minutes' });
+  // SECURITY DEFINER RPC handles dedup + insert atomically.
+  // The DB-side function returns null when the signal is a duplicate within
+  // the last 15 minutes; otherwise returns the new row's UUID.
+  const cronSecret = process.env.CRON_SECRET ?? '';
+  if (!cronSecret) {
+    console.error('[ingest] CRON_SECRET not configured');
+    return res.status(500).json({ error: 'Server misconfiguration' });
   }
 
-  const { data, error } = await supabase
-    .from('intelligence_signals')
-    .insert({
-      symbol: ticker,
-      signal_type: payload.signal,
-      confidence: payload.confidence,
-      entry_min: payload.entryMin,
-      entry_max: payload.entryMax,
-      target_1: payload.target1,
-      target_2: payload.target2,
-      stop_loss: payload.stopLoss,
-      risk_level: payload.confidence >= 80 ? 'LOW' : payload.confidence >= 65 ? 'MEDIUM' : 'HIGH',
-      strength: Math.round(payload.confidence / 10),
-      status: 'active',
-      expires_at: expiresAt,
-      // extended metadata stored as extra cols (schema-permissive)
-      regime: payload.regime,
-      fear_greed_index: payload.fearGreedIndex,
-      funding_rate: payload.fundingRate,
-      thesis: payload.thesis,
-      invalidation: payload.invalidation,
-    })
-    .select('id')
-    .single();
+  const { data, error } = await supabase.rpc('worker_ingest_signal', {
+    p_secret: cronSecret,
+    p_symbol: ticker,
+    p_signal: payload.signal,
+    p_confidence: payload.confidence,
+    p_entry_min: payload.entryMin,
+    p_entry_max: payload.entryMax,
+    p_target_1: payload.target1,
+    p_target_2: payload.target2,
+    p_stop_loss: payload.stopLoss,
+    p_regime: payload.regime,
+    p_thesis: payload.thesis,
+    p_invalidation: payload.invalidation,
+    p_fear_greed: payload.fearGreedIndex,
+    p_funding_rate: payload.fundingRate,
+    p_expires_at: expiresAt,
+  });
 
   if (error) {
-    console.error('[ingest] Supabase insert error:', error.message);
+    console.error('[ingest] Supabase RPC error:', error.message);
     return res.status(502).json({ error: 'Database write failed' });
   }
 
-  console.info(`[ingest] Signal stored: ${ticker} ${payload.signal} @ ${payload.confidence}% | id=${data.id}`);
+  if (!data) {
+    return res.status(200).json({ status: 'skipped', reason: 'duplicate within 15 minutes' });
+  }
+
+  console.info(`[ingest] Signal stored: ${ticker} ${payload.signal} @ ${payload.confidence}% | id=${data}`);
 
   return res.status(201).json({
     status: 'stored',
-    id: data.id,
+    id: data,
     symbol: ticker,
     signal: payload.signal,
     confidence: payload.confidence,

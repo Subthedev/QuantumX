@@ -225,7 +225,72 @@ async function fetchPricesCoinPaprika(map: Map<string, PriceData>): Promise<numb
   return filled;
 }
 
-async function fetchPrices(): Promise<Map<string, PriceData>> {
+/**
+ * Try the Supabase price_cache first — if all pairs are <30s old, return them
+ * directly without hitting any upstream. Only one of {trade-tick, signal-tick}
+ * needs to refresh per minute, the other re-uses the cache. This avoids
+ * exceeding CoinGecko's 30 calls/min free-tier limit (we'd hit it with
+ * ~12+24 = 36 calls/min between markets + ohlc + breadth-50).
+ */
+async function tryPriceCache(supabase: any, maxAgeMs: number = 30_000): Promise<Map<string, PriceData> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('price_cache')
+      .select('symbol, price, change24h, high24h, low24h, volume, fetched_at')
+      .in('symbol', TRADING_PAIRS.map(p => p.symbol));
+    if (error || !data) return null;
+    if (data.length < TRADING_PAIRS.length) return null;     // partial cache → refresh
+    const now = Date.now();
+    const map = new Map<string, PriceData>();
+    for (const row of data) {
+      const ageMs = now - new Date(row.fetched_at).getTime();
+      if (ageMs > maxAgeMs) return null;                     // any stale row → refresh
+      map.set(row.symbol, {
+        symbol: row.symbol,
+        price: Number(row.price),
+        change24h: Number(row.change24h),
+        change7d: 0,
+        high24h: Number(row.high24h),
+        low24h: Number(row.low24h),
+        volume: Number(row.volume) || 0,
+      });
+    }
+    return map;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist refreshed prices back to the cache for the OTHER cron to read.
+ */
+async function persistPriceCache(supabase: any, map: Map<string, PriceData>, source: string): Promise<void> {
+  if (map.size === 0) return;
+  const payload = Array.from(map.values()).map(p => ({
+    symbol: p.symbol,
+    price: p.price,
+    change24h: p.change24h,
+    high24h: p.high24h,
+    low24h: p.low24h,
+    volume: p.volume,
+    source,
+  }));
+  try {
+    await supabase.rpc('worker_upsert_prices', {
+      p_secret: process.env.CRON_SECRET ?? '',
+      p_payload: payload,
+    });
+  } catch {/* non-critical — cache miss next tick is fine */}
+}
+
+async function fetchPrices(supabase?: any): Promise<Map<string, PriceData>> {
+  // Cache hit short-circuit: if Supabase price_cache has fresh data (<30s),
+  // return it without hitting any upstream API.
+  if (supabase) {
+    const cached = await tryPriceCache(supabase);
+    if (cached) return cached;
+  }
+
   const map = new Map<string, PriceData>();
   const ids = TRADING_PAIRS.map(p => p.coingeckoId).join(',');
   // price_change_percentage=24h,7d — gets us the higher-timeframe trend in
@@ -290,6 +355,11 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
     if (cbFilled > 0) {
       console.info(`[trade-tick] Coinbase fallback filled ${cbFilled}/${TRADING_PAIRS.length - beforeCb} missing pairs`);
     }
+  }
+
+  // Persist to cache so the next tick (and signal-tick) can short-circuit.
+  if (supabase && map.size > 0) {
+    void persistPriceCache(supabase, map, 'coingecko+fallbacks');
   }
 
   return map;
@@ -829,9 +899,11 @@ async function persistBrain(
   // cleared by a brain persist that didn't know about it.
   if (typeof rawState?.killSwitch === 'boolean') newState.killSwitch = rawState.killSwitch;
 
-  const { error } = await supabase
-    .from('autonomous_state')
-    .upsert({ id: 'singleton', state: newState, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  const { error } = await supabase.rpc('worker_upsert_brain', {
+    p_secret: process.env.CRON_SECRET ?? '',
+    p_state: newState,
+    p_decisions: [],
+  });
   if (error) console.warn('[trade-tick] brain persist failed:', error.message);
 }
 
@@ -1356,16 +1428,17 @@ async function maybePruneTradeHistory(supabase: any): Promise<number> {
   if (Math.random() > 0.01) return 0;
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   try {
-    const { error, count } = await supabase
-      .from('arena_trade_history')
-      .delete({ count: 'exact' })
-      .lt('timestamp', cutoff);
+    const { data, error } = await supabase.rpc('worker_prune_trade_history', {
+      p_secret: process.env.CRON_SECRET ?? '',
+      p_older_than_days: 30,
+    });
     if (error) {
       console.warn('[trade-tick] history prune failed:', error.message);
       return 0;
     }
-    if ((count ?? 0) > 0) console.info(`[trade-tick] pruned ${count} trade rows older than 30d`);
-    return count ?? 0;
+    const count = typeof data === 'number' ? data : 0;
+    if (count > 0) console.info(`[trade-tick] pruned ${count} trade rows older than 30d`);
+    return count;
   } catch (err: any) {
     console.warn('[trade-tick] history prune threw:', err?.message);
     return 0;
@@ -1405,7 +1478,7 @@ async function runTradingTick(): Promise<TickResult> {
   //    free APIs (alternative.me F&G + Binance public endpoints). Each has its
   //    own short timeout so a slow source can't stall the whole tick.
   const [prices, sessionsResult, positionsResult, atrByPair, brainLoad, sentiment, btcCascade, ethCascade, solCascade, dogeCascade, publishedSignals] = await Promise.all([
-    fetchPrices(),
+    fetchPrices(supabase),
     supabase.from('arena_agent_sessions').select('*'),
     supabase.from('arena_active_positions').select('*'),
     fetchAtrForPairs(),
@@ -1547,10 +1620,11 @@ async function runTradingTick(): Promise<TickResult> {
         const newSL = entry; // break-even
         trailOps.push(
           (async () => {
-            const { error } = await supabase
-              .from('arena_active_positions')
-              .update({ stop_loss_price: newSL, updated_at: new Date().toISOString() })
-              .eq('agent_id', pos.agent_id);
+            const { error } = await supabase.rpc('worker_trail_stop_loss', {
+              p_secret: process.env.CRON_SECRET ?? '',
+              p_agent_id: pos.agent_id,
+              p_new_stop_loss: newSL,
+            });
             if (error) {
               console.warn(`[trade-tick] trail SL failed for ${pos.agent_id}: ${error.message}`);
             } else {
