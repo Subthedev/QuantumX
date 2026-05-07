@@ -31,4 +31,8 @@ dist-ssr
 .env*.local
 
 # Agent secrets
-agents/market-intel/.env
+/agents/market-intel/.env
+
+# Market intel agent local working dir (root-only — don't match api/agents/)
+/agents/
+/.claude/

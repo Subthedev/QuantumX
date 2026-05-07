@@ -570,6 +570,8 @@ class ArenaQuantEngine {
   // Supabase initialization state
   private storageInitialized = false;
   private initPromise: Promise<void> | null = null;
+  // Phase 0: Realtime cache-change unsubscriber
+  private cacheUnsubscribe: (() => void) | null = null;
 
   constructor() {
     console.log('%c🎯 ARENA QUANT ENGINE V8 - STRATEGY-DRIVEN (Supabase Storage)',
@@ -1134,6 +1136,7 @@ class ArenaQuantEngine {
         takeProfitPrice,
         stopLossPrice,
         strategy: `Hub:${hubSignal.strategy || hubSignal.strategyName || 'SIGNAL'}`,
+        strategyProfile: null,
         marketStateAtEntry: this.currentMarketState,
         progressPercent: 50
       };
@@ -1415,14 +1418,29 @@ class ArenaQuantEngine {
     // Market state detection every 60s
     this.intervals.push(setInterval(() => this.detectMarketState(), 60000));
 
-    // Connect to Hub signals for hybrid trading mode
+    // Connect to Hub signals for hybrid trading mode (browser-only feature
+    // for the Hub→Arena bridge UX; in-memory only since writes are no-ops).
     this.connectToHubSignals();
 
-    // Strategy-driven trading every 5s (fallback when no Hub signals)
-    this.intervals.push(setInterval(() => this.strategyDrivenTrade(), 5000));
+    // Phase 0: BROWSER IS READ-ONLY for trade lifecycle.
+    // The Vercel cron `/api/agents/trade-tick` is the canonical writer for
+    // arena_active_positions / arena_agent_sessions / arena_trade_history.
+    // We previously had two competing setIntervals here that fought with the
+    // cron and corrupted rows on every minute boundary. Disabled.
+    //
+    //   this.intervals.push(setInterval(() => this.strategyDrivenTrade(), 5000));
+    //   this.intervals.push(setInterval(() => this.checkPositions(), 2000));
+    //
+    // The browser still:
+    //   - fetches Binance prices (above) for live P&L animation
+    //   - detects market regime for UI display
+    //   - subscribes to Supabase Realtime via arenaSupabaseStorage (below)
+    //     and reconciles in-memory agent state when cron writes land.
 
-    // Position checks every 2s
-    this.intervals.push(setInterval(() => this.checkPositions(), 2000));
+    // Subscribe to Realtime cache events so UI mirrors cron writes within ~1s.
+    this.cacheUnsubscribe = arenaSupabaseStorage.onCacheChange((e) => {
+      this.applyRemoteCacheChange(e);
+    });
 
     // Base stats refresh every minute
     this.intervals.push(setInterval(() => this.refreshBaseStats(), 60000));
@@ -1430,10 +1448,94 @@ class ArenaQuantEngine {
     this.notify();
   }
 
+  /**
+   * Phase 0: handle Realtime CacheChangeEvents from arenaSupabaseStorage.
+   * Cron writes propagate here within ~1s of being persisted.
+   */
+  private applyRemoteCacheChange(e: import('./arenaSupabaseStorage').CacheChangeEvent): void {
+    if (e.type === 'position-upsert') {
+      const agent = this.agents.get(e.agentId);
+      if (agent) {
+        agent.currentPosition = e.position;
+        agent.activeStrategy = e.position.strategy;
+        this.reservedSymbols.add(e.position.symbol);
+        this.notify();
+      }
+    } else if (e.type === 'position-delete') {
+      const agent = this.agents.get(e.agentId);
+      if (agent && agent.currentPosition) {
+        this.reservedSymbols.delete(agent.currentPosition.symbol);
+        agent.currentPosition = null;
+        agent.activeStrategy = null;
+        this.notify();
+      }
+    } else if (e.type === 'session-upsert') {
+      const agent = this.agents.get(e.agentId);
+      if (agent) {
+        agent.totalTrades = e.session.trades;
+        agent.wins = e.session.wins;
+        agent.losses = e.session.trades - e.session.wins;
+        agent.totalPnLPercent = e.session.pnl;
+        agent.balance = agent.initialBalance + e.session.balanceDelta;
+        agent.totalPnL = e.session.balanceDelta;
+        agent.winRate = e.session.trades > 0 ? (e.session.wins / e.session.trades) * 100 : 0;
+        agent.lastTradeTime = e.session.lastTradeTime ?? agent.lastTradeTime;
+        this.notify();
+      }
+    } else if (e.type === 'trade-insert') {
+      const agent = this.agents.get(e.trade.agentId);
+      if (agent) {
+        // Push to local trade-history ring buffer for 24h-metric rendering
+        this.tradeHistory.push({
+          agentId: e.trade.agentId,
+          timestamp: e.trade.timestamp,
+          pnlPercent: e.trade.pnlPercent ?? 0,
+          isWin: !!e.trade.isWin,
+          strategy: e.trade.strategy,
+          symbol: e.trade.symbol,
+        });
+        // Fire trade event for UI toasts
+        if (agent.currentPosition || e.trade.exitPrice) {
+          const synthPos = agent.currentPosition ?? {
+            id: `${e.trade.agentId}-remote`,
+            symbol: e.trade.symbol,
+            displaySymbol: e.trade.symbol,
+            direction: e.trade.direction,
+            entryPrice: e.trade.entryPrice,
+            currentPrice: e.trade.exitPrice ?? e.trade.entryPrice,
+            quantity: e.trade.quantity,
+            pnl: e.trade.pnlDollar ?? 0,
+            pnlPercent: e.trade.pnlPercent ?? 0,
+            entryTime: e.trade.timestamp,
+            takeProfitPrice: 0,
+            stopLossPrice: 0,
+            strategy: e.trade.strategy,
+            strategyProfile: null,
+            marketStateAtEntry: (e.trade.marketState || this.currentMarketState) as any,
+            progressPercent: 100,
+          };
+          this.emitTrade({
+            type: 'close',
+            agent,
+            position: synthPos,
+            exitPrice: e.trade.exitPrice ?? undefined,
+            reason: (e.trade.reason as any) || 'TIMEOUT',
+            pnlPercent: e.trade.pnlPercent ?? 0,
+            isWin: !!e.trade.isWin,
+          });
+        }
+      }
+    }
+  }
+
   stop(): void {
     this.running = false;
     this.intervals.forEach(i => clearInterval(i));
     this.intervals = [];
+    if (this.cacheUnsubscribe) {
+      this.cacheUnsubscribe();
+      this.cacheUnsubscribe = null;
+    }
   }
 
   private async fetchPrices(): Promise<void> {

@@ -19,6 +19,7 @@ import { zetaLearningEngine } from './zetaLearningEngine';
 import { deltaV2QualityEngine } from './deltaV2QualityEngine';
 import { fluxController, type FluxMode } from './fluxController';
 import { type MarketState } from './marketStateDetectionEngine';
+import { supabase } from '@/integrations/supabase/client';
 
 // ===== TYPES =====
 
@@ -59,6 +60,14 @@ class AutonomousOrchestrator {
   private readonly MAX_DECISIONS = 200;
   private initialized = false;
 
+  // Phase 1.C: Supabase persistence (shared between browser + Vercel cron)
+  private readonly SUPABASE_TABLE = 'autonomous_state';
+  private readonly SUPABASE_ROW_ID = 'singleton';
+  private supabaseLoaded = false;
+  private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly SAVE_DEBOUNCE_MS = 2000;
+  private currentVersion = 0;
+
   // Accuracy tracking for adaptive threshold adjustment
   private recentAccuracy: number[] = [];
   private readonly ACCURACY_WINDOW = 50;
@@ -82,17 +91,29 @@ class AutonomousOrchestrator {
       outcomesProcessed: 0,
       thresholdAdjustments: 0
     };
-    this.loadState();
+    // Synchronous fallback boot — loaded from localStorage if available.
+    // The async Supabase load happens in initialize() and overrides this.
+    this.loadStateFromLocalStorage();
   }
 
   // ===== INITIALIZATION =====
 
   /**
    * Connect all feedback loops. Call once after all services are initialized.
+   * Also kicks off async Supabase load — when it completes, in-memory state
+   * is overwritten with the canonical row (which the cron may have updated).
    */
   initialize(): void {
     if (this.initialized) return;
     this.initialized = true;
+
+    // Async load from Supabase — does not block feedback-loop wiring.
+    // In a serverless context (Vercel cron), call loadFromSupabase() and
+    // await it directly; in browser, fire-and-forget is fine because the
+    // initial localStorage boot gives a sane starting point.
+    this.loadFromSupabase().catch(err =>
+      console.warn('[Orchestrator] Supabase load failed, using localStorage:', err?.message)
+    );
 
     console.log('[Orchestrator] Initializing autonomous feedback loops...');
 
@@ -542,9 +563,12 @@ class AutonomousOrchestrator {
     }
   }
 
-  private saveState(): void {
-    try {
-      const data = {
+  /**
+   * Serialize state to a JSON-safe object (used by both Supabase and localStorage).
+   */
+  private serialize(): { state: any; decisions: AdaptiveDecision[] } {
+    return {
+      state: {
         positionSizeMultiplier: this.state.positionSizeMultiplier,
         signalFrequencyMultiplier: this.state.signalFrequencyMultiplier,
         strategyBias: Object.fromEntries(this.state.strategyBias),
@@ -556,30 +580,119 @@ class AutonomousOrchestrator {
         totalAdaptations: this.state.totalAdaptations,
         outcomesProcessed: this.state.outcomesProcessed,
         thresholdAdjustments: this.state.thresholdAdjustments,
-        decisions: this.decisions.slice(-50)
-      };
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
-    } catch {}
+        recentAccuracy: this.recentAccuracy,
+        regimeHistory: this.regimeHistory,
+        regimeTransitionPenalty: this.regimeTransitionPenalty,
+      },
+      decisions: this.decisions.slice(-50),
+    };
   }
 
-  private loadState(): void {
+  /**
+   * Hydrate from a previously-serialized blob (from Supabase or localStorage).
+   */
+  private hydrate(payload: { state: any; decisions?: AdaptiveDecision[] }): void {
+    const data = payload.state || {};
+    this.state.positionSizeMultiplier = data.positionSizeMultiplier ?? 1.0;
+    this.state.signalFrequencyMultiplier = data.signalFrequencyMultiplier ?? 1.0;
+    this.state.strategyBias = new Map(Object.entries(data.strategyBias || {}));
+    this.state.regimeConfidence = data.regimeConfidence ?? 50;
+    this.state.feedbackLoopsActive = data.feedbackLoopsActive ?? 0;
+    this.state.lastOptimizationPass = data.lastOptimizationPass ?? 0;
+    this.state.adaptationScore = data.adaptationScore ?? 0;
+    this.state.autonomyLevel = data.autonomyLevel ?? 'BOOTSTRAPPING';
+    this.state.totalAdaptations = data.totalAdaptations ?? 0;
+    this.state.outcomesProcessed = data.outcomesProcessed ?? 0;
+    this.state.thresholdAdjustments = data.thresholdAdjustments ?? 0;
+    this.recentAccuracy = data.recentAccuracy ?? [];
+    this.regimeHistory = data.regimeHistory ?? [];
+    this.regimeTransitionPenalty = data.regimeTransitionPenalty ?? 1.0;
+    this.decisions = payload.decisions || [];
+  }
+
+  /**
+   * Phase 1.C: durably persist state to Supabase (with localStorage fallback).
+   * Debounced to absorb burst writes during high-event periods.
+   */
+  private saveState(): void {
+    // Always update localStorage synchronously as the fast-path cache.
+    try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.serialize())); } catch {}
+
+    // Debounce the Supabase write. The cron uses a non-debounced path because
+    // Vercel functions don't survive past the response — see saveStateNow().
+    if (typeof window === 'undefined') {
+      // Server-side (Vercel cron): save synchronously
+      this.saveStateNow().catch(err =>
+        console.warn('[Orchestrator] Supabase save failed:', err?.message)
+      );
+      return;
+    }
+
+    if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
+    this.saveDebounceTimer = setTimeout(() => {
+      this.saveStateNow().catch(err =>
+        console.warn('[Orchestrator] Supabase save failed:', err?.message)
+      );
+    }, this.SAVE_DEBOUNCE_MS);
+  }
+
+  /**
+   * Non-debounced Supabase write — call directly from server-side code that
+   * needs to flush before responding (e.g. trade-tick.ts at end of tick).
+   */
+  async saveStateNow(): Promise<void> {
+    const payload = this.serialize();
+    this.currentVersion += 1;
+    const { error } = await (supabase as any)
+      .from(this.SUPABASE_TABLE)
+      .update({
+        state: payload.state,
+        decisions: payload.decisions,
+        version: this.currentVersion,
+      })
+      .eq('id', this.SUPABASE_ROW_ID);
+    if (error) throw error;
+  }
+
+  /**
+   * Phase 1.C: load canonical state from Supabase (overrides localStorage boot).
+   * Called by initialize(); cron handlers should also `await loadFromSupabase()`
+   * before applying any orchestrator multipliers.
+   */
+  async loadFromSupabase(): Promise<void> {
+    const { data, error } = await (supabase as any)
+      .from(this.SUPABASE_TABLE)
+      .select('state, decisions, version')
+      .eq('id', this.SUPABASE_ROW_ID)
+      .single();
+    if (error) {
+      // PGRST116 = no rows; row should exist after migration but skip gracefully
+      if ((error as any).code !== 'PGRST116') {
+        throw error;
+      }
+      return;
+    }
+    if (data?.state) {
+      this.hydrate({ state: data.state, decisions: data.decisions || [] });
+      this.currentVersion = data.version ?? 0;
+      this.supabaseLoaded = true;
+      console.log(`[Orchestrator] Loaded from Supabase: ${this.state.autonomyLevel}, v${this.currentVersion}, ${this.state.totalAdaptations} adaptations`);
+    }
+  }
+
+  /**
+   * Synchronous localStorage boot — fast-path startup so the orchestrator has
+   * sane multipliers before the async Supabase load completes.
+   */
+  private loadStateFromLocalStorage(): void {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
         const data = JSON.parse(stored);
-        this.state.positionSizeMultiplier = data.positionSizeMultiplier ?? 1.0;
-        this.state.signalFrequencyMultiplier = data.signalFrequencyMultiplier ?? 1.0;
-        this.state.strategyBias = new Map(Object.entries(data.strategyBias || {}));
-        this.state.regimeConfidence = data.regimeConfidence ?? 50;
-        this.state.feedbackLoopsActive = data.feedbackLoopsActive ?? 0;
-        this.state.lastOptimizationPass = data.lastOptimizationPass ?? 0;
-        this.state.adaptationScore = data.adaptationScore ?? 0;
-        this.state.autonomyLevel = data.autonomyLevel ?? 'BOOTSTRAPPING';
-        this.state.totalAdaptations = data.totalAdaptations ?? 0;
-        this.state.outcomesProcessed = data.outcomesProcessed ?? 0;
-        this.state.thresholdAdjustments = data.thresholdAdjustments ?? 0;
-        this.decisions = data.decisions || [];
-        console.log(`[Orchestrator] State loaded: ${this.state.autonomyLevel}, ${this.state.totalAdaptations} adaptations, ${this.state.outcomesProcessed} outcomes`);
+        // Old format had state fields at top-level; new format wraps under .state
+        const payload = data.state ? data : { state: data, decisions: data.decisions || [] };
+        this.hydrate(payload);
+        console.log(`[Orchestrator] localStorage boot: ${this.state.autonomyLevel}, ${this.state.totalAdaptations} adaptations`);
       }
     } catch {}
   }
