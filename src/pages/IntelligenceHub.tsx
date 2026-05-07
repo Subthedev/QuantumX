@@ -1,1944 +1,652 @@
 /**
- * IGX INTELLIGENCE HUB - Final Production Polish
+ * IGX INTELLIGENCE HUB — Server-driven view of the autonomous trading stack
  *
- * Autonomous 24/7 operation with minimal, elegant design
- * Collapsible engine metrics, smooth animations, buttery performance
+ * Source of truth: `intelligence_signals` (cron-published, outcome-resolved by
+ * signal-tick) + `arena_agent_sessions` + `arena_active_positions`
+ * (cron-managed by trade-tick).
+ *
+ * No more legacy globalHubService noise. Every number on this page comes from
+ * Supabase, every outcome is a real TP/SL/expiry resolution.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { AppHeader } from '@/components/AppHeader';
 import {
   Activity,
-  Database,
   Brain,
   Target,
   CheckCircle2,
-  Circle,
-  Filter,
-  ChevronDown,
-  ChevronUp,
-  XCircle,
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  BarChart3,
   TrendingUp,
   TrendingDown,
   Shield,
-  DollarSign,
-  TrendingUpIcon,
-  Coins
+  Clock,
+  Sparkles,
+  Bot,
+  AlertTriangle,
+  Flame,
 } from 'lucide-react';
-
-// Global Hub Service (runs in background)
-import { globalHubService, HubMetrics, HubSignal, MonthlyStats } from '@/services/globalHubService';
-import { zetaLearningEngine, ZetaMetrics } from '@/services/zetaLearningEngine';
-
-import { cryptoSentimentService } from '@/services/cryptoSentimentService';
+import { useServerSignals, type ServerSignal } from '@/hooks/useServerSignals';
 import { supabase } from '@/integrations/supabase/client';
-import { STRATEGY_METADATA, type StrategyName, type StrategyPerformance } from '@/services/strategies/strategyTypes';
-import { strategyPerformanceTracker } from '@/services/strategies/strategyPerformanceTracker';
-import { DiagnosticPanel } from '@/components/hub/DiagnosticPanel';
 import { CryptoLogo } from '@/utils/cryptoLogos';
 
-// Rejected Signal Type
-interface RejectedSignal {
-  id: string;
+// ────────────────────────────────────────────────────────────────────────────
+// Types pulled from arena_* tables (read-only here, written by trade-tick).
+// ────────────────────────────────────────────────────────────────────────────
+
+interface AgentSessionRow {
+  agent_id: string;
+  trades: number;
+  wins: number;
+  pnl: number;
+  balance_delta: number;
+  consecutive_losses: number;
+  circuit_breaker_level: string;
+  halted_until: string | null;
+  last_trade_time: string | null;
+}
+
+interface ActivePositionRow {
+  agent_id: string;
   symbol: string;
-  direction: 'LONG' | 'SHORT' | 'NEUTRAL';
-  rejection_stage: 'ALPHA' | 'BETA' | 'GAMMA' | 'DELTA';
-  rejection_reason: string;
-  quality_score?: number;
-  confidence_score?: number;
-  data_quality?: number;
-  strategy_votes?: any[];
-  created_at: string;
+  display_symbol: string;
+  direction: 'LONG' | 'SHORT';
+  entry_price: number;
+  current_price: number;
+  take_profit_price: number;
+  stop_loss_price: number;
+  strategy: string;
+  market_state_at_entry: string;
+  entry_time: string;
 }
 
-// ML-based priority classification
-function classifyRejectionPriority(signal: RejectedSignal): 'CRITICAL' | 'IMPORTANT' | 'NOISE' {
-  const quality = signal.quality_score || 0;
-  const confidence = signal.confidence_score || 0;
-  
-  // CRITICAL: High quality but rejected
-  if (quality >= 70 && confidence >= 65) return 'CRITICAL';
-  if (signal.rejection_stage === 'DELTA' && quality >= 60) return 'CRITICAL';
-  
-  // NOISE: Low quality, expected
-  if (quality < 40 && confidence < 50) return 'NOISE';
-  if (signal.rejection_stage === 'ALPHA' && quality < 30) return 'NOISE';
-  
-  return 'IMPORTANT';
+interface MarketStateRow {
+  state: string;
+  confidence: number;
+  volatility: number;
+  trend_strength: number;
+  updated_at: string;
 }
 
-const CRYPTO_SYMBOLS = ['₿', 'Ξ', '◎', '♦', '●', '◆', '○', '▲'];
-
-interface FlowingParticle {
-  id: string;
-  stage: number;
-  progress: number;
-  symbol: string;
-  speed: number;
-  color: string;
-  size: 'sm' | 'md' | 'lg';
+interface BrainStateRow {
+  strategyBias?: Record<string, number>;
+  intelStats?: Record<string, { sentiment: { trades: number; wins: number; contribution: number }; cascade: { trades: number; wins: number; contribution: number } }>;
+  confidenceCal?: Record<string, { trades: number; wins: number }>;
+  brainLastUpdate?: number;
 }
 
-export default function IntelligenceHub({ embedded = false }: { embedded?: boolean }) {
-  // Shared formatting helpers
-  const formatSymbol = (s: string) => s.replace(/USDT$/i, '').replace(/USD$/i, '').toUpperCase();
-  const formatStrategy = (s: string) => {
-    const meta = STRATEGY_METADATA[s as StrategyName];
-    if (meta?.displayName) return meta.displayName;
-    return s.replace(/_/g, ' ').replace(/\bV(\d)/g, 'v$1');
-  };
-  const priceFmt = (v: number | undefined) => {
-    if (v == null || v === 0) return 'N/A';
-    const digits = v < 0.01 ? 8 : v < 1 ? 6 : v < 100 ? 4 : 2;
-    return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: digits })}`;
-  };
+const AGENT_LABELS: Record<string, { name: string; color: string; type: string }> = {
+  alphax: { name: 'AlphaX',  color: 'bg-rose-500',    type: 'AGGRESSIVE'   },
+  betax:  { name: 'BetaX',   color: 'bg-amber-500',   type: 'BALANCED'     },
+  gammax: { name: 'GammaX',  color: 'bg-emerald-500', type: 'CONSERVATIVE' },
+};
 
-  const animationFrameRef = useRef<number>();
-  const mountedRef = useRef(true);
-  const metricsIntervalRef = useRef<NodeJS.Timeout>();
+const INITIAL_BALANCE = 10_000;
 
-  // State from global service
-  const [metrics, setMetrics] = useState<HubMetrics>(globalHubService.getMetrics());
-  const [activeSignals, setActiveSignals] = useState<HubSignal[]>(globalHubService.getActiveSignals());
-  const allSignalHistory = globalHubService.getSignalHistory();
-  const [zetaMetrics, setZetaMetrics] = useState<ZetaMetrics>(zetaLearningEngine.getMetrics());
+// ────────────────────────────────────────────────────────────────────────────
+// Small hooks — keep all server reads contained.
+// ────────────────────────────────────────────────────────────────────────────
 
-  // Strategy performance state
-  const [strategyPerformances, setStrategyPerformances] = useState<StrategyPerformance[]>([]);
+function useArenaState() {
+  const [sessions, setSessions] = useState<AgentSessionRow[]>([]);
+  const [positions, setPositions] = useState<ActivePositionRow[]>([]);
+  const [market, setMarket] = useState<MarketStateRow | null>(null);
+  const [brain, setBrain] = useState<BrainStateRow | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Filter signal history for last 24 hours only (for main dashboard)
-  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-  const signalHistory = allSignalHistory.filter(signal => {
-    const signalAge = Date.now() - (signal.outcomeTimestamp || signal.timestamp);
-    return signalAge <= TWENTY_FOUR_HOURS;
-  });
-
-  // Visual state
-  const [flowingParticles, setFlowingParticles] = useState<FlowingParticle[]>([]);
-  const [recentSignal, setRecentSignal] = useState<HubSignal | null>(null);
-
-  // Expanded engine states
-  const [expandedEngine, setExpandedEngine] = useState<string | null>(null);
-
-  // Rejected Signals State
-  const [rejectedSignals, setRejectedSignals] = useState<RejectedSignal[]>([]);
-  const [rejectedFilter, setRejectedFilter] = useState<'ALL' | 'ALPHA' | 'BETA' | 'GAMMA' | 'DELTA'>('ALL');
-  const [showRejectedExpanded, setShowRejectedExpanded] = useState(false);
-
-  // Pagination State for Signal History
-  const [currentPage, setCurrentPage] = useState(1);
-  const SIGNALS_PER_PAGE = 20;
-
-  // Signal expansion state for detailed view
-  const [expandedSignalId, setExpandedSignalId] = useState<string | null>(null);
-
-  // Monthly Stats State
-  const [currentMonthStats, setCurrentMonthStats] = useState<MonthlyStats | null>(null);
-  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-  // Activity pulses (subtle)
-  const [dataEngineActive, setDataEngineActive] = useState(false);
-  const [alphaEngineActive, setAlphaEngineActive] = useState(false);
-  const [betaEngineActive, setBetaEngineActive] = useState(false);
-  const [gammaEngineActive, setGammaEngineActive] = useState(false);
-  const [deltaEngineActive, setDeltaEngineActive] = useState(false);
-  const [zetaEngineActive, setZetaEngineActive] = useState(false);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-
-  // ===== TIMER UPDATE FOR COUNTDOWN =====
   useEffect(() => {
-    const timerInterval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
+    let alive = true;
 
-    return () => clearInterval(timerInterval);
-  }, []);
-
-  // ===== CONNECT TO GLOBAL SERVICE =====
-  useEffect(() => {
-    mountedRef.current = true;
-    console.log('[Hub UI] Connecting to global service...');
-
-    // ✅ CRITICAL FIX: Properly handle async start() method
-    const initializeService = async () => {
-      // Ensure service is running
-      if (!globalHubService.isRunning()) {
-        console.log('[Hub UI] Starting global service...');
-        await globalHubService.start(); // ✅ AWAIT the async start method
-        console.log('[Hub UI] ✅ Global service started successfully');
-      } else {
-        console.log('[Hub UI] Service already running (auto-started)');
-      }
-
-      // ✅ CRITICAL: ALWAYS load initial state (even if service was already running)
-      // This fixes the race condition where service auto-starts before UI mounts
-      console.log('[Hub UI] 📥 Loading initial state from service...');
-      const initialMetrics = globalHubService.getMetrics();
-      const initialSignals = globalHubService.getActiveSignals();
-      const initialZetaMetrics = zetaLearningEngine.getMetrics();
-
-      console.log('[Hub UI] 📊 Initial metrics loaded:', initialMetrics);
-      console.log('[Hub UI] 🔔 Initial active signals loaded:', initialSignals.length);
-      console.log('[Hub UI] 🧠 Initial Zeta metrics loaded:', initialZetaMetrics);
-
-      setMetrics(initialMetrics);
-      setActiveSignals(initialSignals);
-      setZetaMetrics(initialZetaMetrics);
-
-      // Load strategy performances
-      console.log('[Hub UI] 📈 Loading strategy performances...');
-      try {
-        const performances = await strategyPerformanceTracker.getAllStrategyPerformances();
-        console.log('[Hub UI] ✅ Strategy performances loaded:', performances.length);
-        setStrategyPerformances(performances);
-      } catch (error) {
-        console.error('[Hub UI] ❌ Error loading strategy performances:', error);
-      }
+    const load = async () => {
+      const [sRes, pRes, mRes, bRes] = await Promise.all([
+        supabase.from('arena_agent_sessions').select('*'),
+        supabase.from('arena_active_positions').select('*'),
+        supabase.from('arena_market_state').select('*').limit(1).maybeSingle(),
+        supabase.from('autonomous_state').select('state').eq('id', 'singleton').maybeSingle(),
+      ]);
+      if (!alive) return;
+      setSessions((sRes.data ?? []) as AgentSessionRow[]);
+      setPositions((pRes.data ?? []) as ActivePositionRow[]);
+      setMarket((mRes.data as MarketStateRow) ?? null);
+      setBrain(((bRes.data as any)?.state as BrainStateRow) ?? null);
+      setLoading(false);
     };
 
-    // Subscribe to updates
-    const handleMetricsUpdate = (newMetrics: HubMetrics) => {
-      if (!mountedRef.current) return;
-      setMetrics(newMetrics);
+    load();
+    const interval = setInterval(load, 15_000); // refresh every 15s
 
-      // Trigger visual feedback with color
-      setDataEngineActive(true);
-      setTimeout(() => setDataEngineActive(false), 200);
-    };
-
-    const handleSignalLive = (signals: HubSignal[]) => {
-      if (!mountedRef.current) return;
-      setActiveSignals(signals);
-    };
-
-    const handleSignalNew = (signal: HubSignal) => {
-      if (!mountedRef.current) return;
-      console.log('[Hub UI] New signal:', signal.symbol, signal.direction);
-
-      // Show recent signal highlight
-      setRecentSignal(signal);
-      setTimeout(() => setRecentSignal(null), 3000);
-
-      // Pipeline pulses: Gamma (assembly) → Delta (filtering) → signal emitted
-      setGammaEngineActive(true);
-      setTimeout(() => setGammaEngineActive(false), 400);
-
-      // Delta pulse (signal passed quality filter)
-      setTimeout(() => {
-        setDeltaEngineActive(true);
-        setTimeout(() => setDeltaEngineActive(false), 400);
-      }, 200);
-    };
-
-    const handleSignalOutcome = ({ outcome }: { signalId: string; outcome: 'WIN' | 'LOSS' }) => {
-      if (!mountedRef.current) return;
-      console.log('[Hub UI] Signal outcome:', outcome);
-
-      // Zeta pulse (learning from outcome)
-      setZetaEngineActive(true);
-      setTimeout(() => setZetaEngineActive(false), 400);
-    };
-
-    const handleZetaMetricsUpdate = (newMetrics: ZetaMetrics) => {
-      if (!mountedRef.current) return;
-      console.log('[Hub UI] 🧠 Zeta metrics update received:', newMetrics);
-      setZetaMetrics(newMetrics);
-    };
-
-    // Listen to events
-    globalHubService.on('metrics:update', handleMetricsUpdate);
-    globalHubService.on('signal:live', handleSignalLive);
-    globalHubService.on('signal:new', handleSignalNew);
-    globalHubService.on('signal:outcome', handleSignalOutcome);
-    zetaLearningEngine.on('metrics:update', handleZetaMetricsUpdate);
-
-    // Call the async initialization (after event listeners are set up)
-    initializeService()
-      .then(() => {
-        console.log('[Hub UI] 🎯 Initialization complete - Setting up polling and animations...');
-        console.log('[Hub UI] 📊 Service running:', globalHubService.isRunning());
-        console.log('[Hub UI] 📊 Initial metrics:', globalHubService.getMetrics());
-        console.log('[Hub UI] 🔔 Initial active signals:', globalHubService.getActiveSignals().length);
-        console.log('[Hub UI] 📚 Signal history:', globalHubService.getState().signalHistory.length);
-
-        // ✅ CRITICAL: Poll metrics every second for real-time updates (AFTER initialization)
-        metricsIntervalRef.current = setInterval(() => {
-          if (!mountedRef.current) return;
-
-          const currentMetrics = globalHubService.getMetrics();
-          const currentSignals = globalHubService.getActiveSignals();
-          const currentZetaMetrics = zetaLearningEngine.getMetrics();
-          const monthlyStats = globalHubService.getCurrentMonthStats();
-
-          // Reduced logging: Only log every 60 seconds instead of 10 to reduce console spam
-          if (Date.now() % 60000 < 1000) {
-            console.log('[Hub UI] 🔄 Polling update - Active signals:', currentSignals.length, 'Zeta outcomes:', currentZetaMetrics.totalOutcomes);
-          }
-
-          setMetrics(currentMetrics);
-          setActiveSignals(currentSignals);
-          setZetaMetrics(currentZetaMetrics);
-          setCurrentMonthStats(monthlyStats);
-
-          // Fetch rejected signals every 30 seconds (reduced from 1s to protect DB)
-          if (Date.now() % 30000 < 1000) {
-            fetchRejectedSignals();
-          }
-        }, 1000);
-
-        // Start animations
-        startParticleFlow();
-        startActivityPulses();
-
-        console.log('[Hub UI] ✅ Connected to global service - All systems operational');
-      })
-      .catch((error) => {
-        console.error('[Hub UI] ❌ CRITICAL: Failed to initialize service:', error);
-        console.error('[Hub UI] Stack trace:', error.stack);
-      });
+    // Realtime subscription on positions so the panel reacts to opens/closes
+    const channel = supabase
+      .channel('arena-state-stream')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'arena_active_positions' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'arena_agent_sessions'   }, () => load())
+      .subscribe();
 
     return () => {
-      mountedRef.current = false;
-      globalHubService.off('metrics:update', handleMetricsUpdate);
-      globalHubService.off('signal:live', handleSignalLive);
-      globalHubService.off('signal:new', handleSignalNew);
-      globalHubService.off('signal:outcome', handleSignalOutcome);
-      zetaLearningEngine.off('metrics:update', handleZetaMetricsUpdate);
-
-      if (metricsIntervalRef.current) {
-        clearInterval(metricsIntervalRef.current);
-      }
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      console.log('[Hub UI] Disconnected from global service');
+      alive = false;
+      clearInterval(interval);
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  // ===== CONTINUOUS PARTICLE FLOW (24/7) WITH FILTERING FUNNEL =====
-  const startParticleFlow = () => {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
-    const sizes: ('sm' | 'md' | 'lg')[] = ['sm', 'sm', 'md'];
+  return { sessions, positions, market, brain, loading };
+}
 
-    // ✅ SMOOTHER SPAWN RATES - More continuous 24/7 flow with better visual consistency
-    // Increased spawn rates for smoother, more continuous particle flow
-    const SPAWN_RATES = [
-      0.9,  // Stage 0 (Data): 90% - High density (raw data ingestion) - INCREASED for continuous flow
-      0.7,  // Stage 1 (Alpha): 70% - Pattern filtering reduces flow - INCREASED
-      0.5,  // Stage 2 (Beta): 50% - Scoring reduces further - INCREASED
-      0.35, // Stage 3 (Gamma): 35% - Assembly filters more - INCREASED
-      0.2,  // Stage 4 (Delta): 20% - ML filter (CRITICAL GATE) - INCREASED
-      0.08  // Stage 5 (Zeta): 8% - Learning from passed signals - INCREASED
-    ];
+// ────────────────────────────────────────────────────────────────────────────
+// Pure helpers
+// ────────────────────────────────────────────────────────────────────────────
 
-    const animate = () => {
-      setFlowingParticles(prev => {
-        const particles = [...prev];
+function fmt(n: number, decimals = 2): string {
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
 
-        // ✅ SPAWN PARTICLES AT EACH STAGE based on filtering logic
-        // This creates the visual funnel effect showing data reduction
-        for (let stage = 0; stage <= 5; stage++) {
-          const spawnRate = SPAWN_RATES[stage];
-          const maxParticlesPerStage = 12; // INCREASED for smoother continuous flow
-          const currentStageCount = particles.filter(p => p.stage === stage).length;
+function fmtPrice(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(4) : n.toFixed(6);
+}
 
-          // Spawn if: random chance < spawn rate AND not too many particles AND total particles < 80 (INCREASED)
-          if (Math.random() < spawnRate && currentStageCount < maxParticlesPerStage && particles.length < 80) {
-            // ✅ CONDITIONAL ZETA PARTICLES - Only spawn when Delta has passed signals
-            // Zeta only learns from Delta-approved signals, so particles should reflect this
-            if (stage === 5) {
-              // Only spawn Zeta particles if Delta has processed and passed some signals
-              const deltaPassRate = metrics.deltaPassed && metrics.deltaProcessed
-                ? metrics.deltaPassed / metrics.deltaProcessed
-                : 0;
+function fmtPct(n: number | null | undefined, signed = true): string {
+  if (n == null || !Number.isFinite(n)) return '—';
+  const sign = signed && n > 0 ? '+' : '';
+  return `${sign}${n.toFixed(2)}%`;
+}
 
-              // Skip Zeta particle if Delta hasn't passed any signals yet
-              if (deltaPassRate === 0 || metrics.deltaPassed === 0) {
-                continue;
-              }
-            }
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return `${Math.floor(ms / 1000)}s ago`;
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
+  return `${Math.floor(ms / 86_400_000)}d ago`;
+}
 
-            particles.push({
-              id: `p${Date.now()}${Math.random()}`,
-              stage: stage,
-              progress: 0,
-              symbol: CRYPTO_SYMBOLS[Math.floor(Math.random() * CRYPTO_SYMBOLS.length)],
-              speed: 2.0 + Math.random() * 2.0, // SMOOTHER: Slightly faster, tighter range for more consistent flow
-              color: colors[Math.floor(Math.random() * colors.length)],
-              size: sizes[Math.floor(Math.random() * sizes.length)]
-            });
-          }
-        }
+function timeUntil(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'expired';
+  if (ms < 60_000) return `${Math.floor(ms / 1000)}s`;
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m`;
+  return `${Math.floor(ms / 3_600_000)}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
+}
 
-        // Animate existing particles
-        return particles
-          .map(p => {
-            const newProgress = p.progress + p.speed;
-            if (newProgress >= 100) {
-              // Particle reached end of current stage
-              if (p.stage < 5) {
-                // Move to next stage with filtering probability
-                const nextStage = p.stage + 1;
-                const passRate = SPAWN_RATES[nextStage] / SPAWN_RATES[p.stage];
+function regimeBadgeStyle(state: string | null | undefined): { bg: string; text: string; label: string } {
+  if (!state) return { bg: 'bg-slate-100',  text: 'text-slate-600',   label: 'UNKNOWN' };
+  if (state.startsWith('BULLISH'))  return { bg: 'bg-emerald-50', text: 'text-emerald-700', label: state };
+  if (state.startsWith('BEARISH'))  return { bg: 'bg-rose-50',    text: 'text-rose-700',    label: state };
+  return { bg: 'bg-slate-100', text: 'text-slate-700', label: state };
+}
 
-                // Filtering: particle may not pass to next stage
-                if (Math.random() < passRate) {
-                  return { ...p, stage: nextStage, progress: 0 };
-                }
-                // Filtered out - remove particle
-                return null;
-              }
-              // Reached end of Zeta (final stage) - remove
-              return null;
-            }
-            return { ...p, progress: newProgress };
-          })
-          .filter((p): p is FlowingParticle => p !== null);
-      });
+interface OutcomeStats {
+  total: number;
+  tp1: number;
+  tp2: number;
+  sl: number;
+  expired: number;
+  active: number;
+  hitRate: number;       // (tp1+tp2) / (tp1+tp2+sl) — only counts resolved with TP/SL
+  avgPL: number;         // average profit_loss_percent across resolved
+  totalPL: number;       // sum of profit_loss_percent across resolved
+  avgConfidence: number;
+}
 
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
+function computeStats(signals: ServerSignal[]): OutcomeStats {
+  const stats: OutcomeStats = {
+    total: signals.length, tp1: 0, tp2: 0, sl: 0, expired: 0, active: 0,
+    hitRate: 0, avgPL: 0, totalPL: 0, avgConfidence: 0,
   };
-
-  // ===== ACTIVITY PULSES =====
-  const startActivityPulses = () => {
-    const pulse = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
-      setter(true);
-      setTimeout(() => setter(false), 300);
-    };
-
-    const interval = setInterval(() => {
-      if (!mountedRef.current) return;
-
-      // Random engine pulses for "alive" feel
-      const engines = [setAlphaEngineActive, setBetaEngineActive];
-      const randomEngine = engines[Math.floor(Math.random() * engines.length)];
-
-      if (Math.random() < 0.3) {
-        pulse(randomEngine);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  };
-
-  // ===== FETCH REJECTED SIGNALS =====
-  const fetchRejectedSignals = async () => {
-    try {
-      const { data, error} = await supabase
-        .from('rejected_signals')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000); // ✅ Professional quant-firm level: Track all rejections for analysis (increased from 100)
-
-      if (error) {
-        console.error('[Hub UI] Error fetching rejected signals:', error);
-        return;
-      }
-
-      if (data) {
-        setRejectedSignals(data);
-      }
-    } catch (err) {
-      console.error('[Hub UI] Error fetching rejected signals:', err);
+  let plSum = 0;
+  let plCount = 0;
+  let confSum = 0;
+  for (const s of signals) {
+    confSum += s.confidence;
+    if (s.status === 'active') { stats.active++; continue; }
+    if (s.hitTarget === 2)        stats.tp2++;
+    else if (s.hitTarget === 1)   stats.tp1++;
+    else if (s.hitStopLoss)       stats.sl++;
+    else                          stats.expired++;
+    if (s.profitLossPercent != null) {
+      plSum += s.profitLossPercent;
+      plCount++;
     }
-  };
+  }
+  const wins = stats.tp1 + stats.tp2;
+  const decided = wins + stats.sl;
+  stats.hitRate = decided > 0 ? (wins / decided) * 100 : 0;
+  stats.avgPL = plCount > 0 ? plSum / plCount : 0;
+  stats.totalPL = plSum;
+  stats.avgConfidence = signals.length > 0 ? confSum / signals.length : 0;
+  return stats;
+}
 
-  // ===== HELPER FUNCTIONS =====
-  const getStagePos = (stage: number): string => {
-    const positions = ['6%', '21%', '36%', '51%', '66%', '81%'];
-    return positions[Math.min(stage, 5)] || '6%';
-  };
+// ────────────────────────────────────────────────────────────────────────────
+// Component
+// ────────────────────────────────────────────────────────────────────────────
 
-  const getParticleSize = (size: string) => {
-    if (size === 'lg') return 'text-base';
-    if (size === 'md') return 'text-sm';
-    return 'text-xs';
-  };
+export default function IntelligenceHub({ embedded = false }: { embedded?: boolean }) {
+  const { signals, loading: signalsLoading, error, realtimeConnected } = useServerSignals({
+    status: 'any',
+    limit: 100,
+  });
+  const { sessions, positions, market, brain, loading: arenaLoading } = useArenaState();
 
-  const fmt = (num: number) => num.toLocaleString();
-  const fmtDec = (num: number) => num.toFixed(1);
+  // Force rerender every second so countdowns tick.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
-  const formatUptime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    if (hours > 0) return `${hours}h ${minutes % 60}m`;
-    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-    return `${seconds}s`;
-  };
+  const activeSignals = useMemo(() => signals.filter(s => s.status === 'active'), [signals]);
+  const closedSignals = useMemo(() => signals.filter(s => s.status !== 'active'), [signals]);
+  const stats24h = useMemo(() => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return computeStats(signals.filter(s => new Date(s.createdAt).getTime() >= cutoff));
+  }, [signals, tick]);
+  const statsAll = useMemo(() => computeStats(signals), [signals]);
 
-  const timeAgo = (timestamp: number) => {
-    const seconds = Math.floor((Date.now() - timestamp) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
-  };
+  const tradedAgents = sessions.filter(s => (s.trades ?? 0) > 0);
+  const totalAgentTrades = tradedAgents.reduce((s, x) => s + (x.trades ?? 0), 0);
+  const totalAgentWins = tradedAgents.reduce((s, x) => s + (x.wins ?? 0), 0);
+  const totalBalanceDelta = sessions.reduce((s, x) => s + Number(x.balance_delta ?? 0), 0);
+  const agentWinRate = totalAgentTrades > 0 ? (totalAgentWins / totalAgentTrades) * 100 : 0;
 
+  const haltedAgents = sessions.filter(s => s.circuit_breaker_level && s.circuit_breaker_level !== 'ACTIVE').length;
 
-  // Toggle engine expansion
-  const toggleEngine = (engineName: string) => {
-    setExpandedEngine(expandedEngine === engineName ? null : engineName);
-  };
+  const regime = regimeBadgeStyle(market?.state);
 
-  // Reset expanded signal when page changes
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    setExpandedSignalId(null); // Close any expanded signal when navigating
-  };
+  const intelRegimes = brain?.intelStats ? Object.entries(brain.intelStats) : [];
+  const confCalBins = brain?.confidenceCal ? Object.entries(brain.confidenceCal) : [];
+  const biasCells = brain?.strategyBias ? Object.keys(brain.strategyBias).length : 0;
 
-  return (
-    <div className={embedded ? '' : 'min-h-screen bg-gradient-to-b from-orange-50/30 via-white to-slate-50/50'}>
-      {!embedded && <AppHeader />}
-
-      <div className={embedded ? '' : 'container mx-auto px-6 py-8 max-w-[1400px]'}>
-        {/* HEADER - Clean and professional */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">
-                Intelligence Hub
-              </h1>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                  Live 24/7
-                </span>
-                <span className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-semibold text-blue-700">
-                  {fmt(metrics.totalTickers)} Tickers
-                </span>
-                <span className="px-2.5 py-1 bg-violet-50 border border-violet-200 rounded-full text-xs font-semibold text-violet-700">
-                  {fmt(metrics.totalAnalyses)} Analyses
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Pipeline Health Badge */}
-              {(() => {
-                const upMinutes = metrics.uptime / 60000;
-                const hasData = metrics.dataTickersFetched > 0;
-                const hasSignals = metrics.totalSignals > 0;
-                const goodWinRate = metrics.winRate >= 55;
-                const goodApproval = metrics.approvalRate >= 50;
-                const score = (hasData ? 25 : 0) + (hasSignals ? 25 : 0) + (goodWinRate ? 25 : 0) + (goodApproval ? 25 : 0);
-                const health = upMinutes < 1 ? { label: 'STARTING', color: 'text-amber-700 bg-amber-50 border-amber-200' }
-                  : score >= 75 ? { label: 'EXCELLENT', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
-                  : score >= 50 ? { label: 'GOOD', color: 'text-blue-700 bg-blue-50 border-blue-200' }
-                  : score >= 25 ? { label: 'FAIR', color: 'text-amber-700 bg-amber-50 border-amber-200' }
-                  : { label: 'DEGRADED', color: 'text-rose-700 bg-rose-50 border-rose-200' };
-                return (
-                  <div className={`px-3.5 py-1.5 rounded-full border text-xs font-bold ${health.color} shadow-sm`}>
-                    {health.label}
-                  </div>
-                );
-              })()}
-              <div className="text-right">
-                <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-0.5">Uptime</div>
-                <div className="text-sm font-bold text-slate-800">{formatUptime(metrics.uptime)}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-0.5">Win Rate</div>
-                <div className="text-sm font-bold text-emerald-600">{fmtDec(metrics.winRate)}%</div>
-              </div>
-            </div>
-          </div>
+  const Header = (
+    <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <Brain className="h-6 w-6 text-orange-500" />
+          Intelligence Hub
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Server-resolved signals + autonomous trading agents. Updates every 5 minutes.
+        </p>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-slate-500">
+        <div className="flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${realtimeConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+          {realtimeConnected ? 'Realtime connected' : 'Connecting…'}
         </div>
-
-        {/* DIAGNOSTIC PANEL - Visual debugging interface */}
-        <DiagnosticPanel />
-
-        {/* PIPELINE - Clean flow with connecting line */}
-        <Card className="mb-6 border border-slate-200/80 bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm">
-                  <Activity className="w-4.5 h-4.5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-800">Real-Time Pipeline</h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">7-stage signal processing engine</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-bold text-emerald-700">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Active
-                </div>
-                <div className="text-sm text-slate-500 font-semibold tabular-nums">{fmt(metrics.totalSignals)} signals</div>
-              </div>
-            </div>
-
-            {/* Pipeline Visualization - With connecting gradient line */}
-            <div className="relative h-36 bg-gradient-to-r from-orange-50/40 via-slate-50/30 to-violet-50/40 rounded-xl border border-slate-100/80 overflow-hidden">
-              {/* Connecting gradient line between nodes */}
-              <div className="absolute top-1/2 left-[9%] right-[22%] h-0.5 -translate-y-1/2 bg-gradient-to-r from-blue-200 via-amber-200 via-50% to-violet-200 opacity-60 rounded-full" />
-
-              {/* Flowing Particles */}
-              {flowingParticles.map(p => {
-                const stagePos = parseFloat(getStagePos(p.stage));
-                const nextStagePos = parseFloat(getStagePos(p.stage + 1));
-                const currentLeft = stagePos + (nextStagePos - stagePos) * (p.progress / 100);
-
-                return (
-                  <div
-                    key={p.id}
-                    className={`absolute ${getParticleSize(p.size)} font-bold pointer-events-none transition-all duration-100 opacity-70`}
-                    style={{
-                      left: `${currentLeft}%`,
-                      top: 'calc(50% - 8px)',
-                      color: p.color
-                    }}
-                  >
-                    {p.symbol}
-                  </div>
-                );
-              })}
-
-              {/* Engine Nodes - Clickable for details */}
-
-              {/* Data Engine (Clickable) */}
-              <div className="absolute left-[6%] top-1/2 -translate-y-1/2 z-10">
-                <button
-                  onClick={() => toggleEngine('data')}
-                  className={`relative transition-all duration-200 ${dataEngineActive ? 'scale-110' : ''} ${expandedEngine === 'data' ? 'scale-105' : ''}`}
-                >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer hover:scale-105 ${
-                    dataEngineActive
-                      ? 'bg-blue-500 border-2 border-blue-400'
-                      : expandedEngine === 'data'
-                      ? 'bg-blue-100 border-2 border-blue-300'
-                      : 'bg-white border-2 border-blue-200'
-                  }`}>
-                    <Database className={`w-6 h-6 transition-colors ${dataEngineActive ? 'text-white' : expandedEngine === 'data' ? 'text-blue-600' : 'text-blue-600'}`} />
-                  </div>
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs text-slate-700 font-semibold">Data</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Alpha Engine (Clickable) */}
-              <div className="absolute left-[21%] top-1/2 -translate-y-1/2 z-10">
-                <button
-                  onClick={() => toggleEngine('alpha')}
-                  className={`relative transition-all duration-200 ${alphaEngineActive ? 'scale-110' : ''} ${expandedEngine === 'alpha' ? 'scale-105' : ''}`}
-                >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer hover:scale-105 ${
-                    alphaEngineActive
-                      ? 'bg-blue-500 border-2 border-blue-400'
-                      : expandedEngine === 'alpha'
-                      ? 'bg-violet-100 border-2 border-violet-300'
-                      : 'bg-white border-2 border-violet-200'
-                  }`}>
-                    <Brain className={`w-6 h-6 transition-colors ${alphaEngineActive ? 'text-white' : expandedEngine === 'alpha' ? 'text-violet-600' : 'text-violet-600'}`} />
-                  </div>
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs text-slate-700 font-semibold">Alpha</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Beta Engine (Clickable) */}
-              <div className="absolute left-[36%] top-1/2 -translate-y-1/2 z-10">
-                <button
-                  onClick={() => toggleEngine('beta')}
-                  className={`relative transition-all duration-200 ${betaEngineActive ? 'scale-110' : ''} ${expandedEngine === 'beta' ? 'scale-105' : ''}`}
-                >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer hover:scale-105 ${
-                    betaEngineActive
-                      ? 'bg-blue-500 border-2 border-blue-400'
-                      : expandedEngine === 'beta'
-                      ? 'bg-amber-100 border-2 border-amber-300'
-                      : 'bg-white border-2 border-amber-200'
-                  }`}>
-                    <Target className={`w-6 h-6 transition-colors ${betaEngineActive ? 'text-white' : expandedEngine === 'beta' ? 'text-amber-600' : 'text-amber-600'}`} />
-                  </div>
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs text-slate-700 font-semibold">Beta</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Gamma Engine (Clickable) */}
-              <div className="absolute left-[51%] top-1/2 -translate-y-1/2 z-10">
-                <button
-                  onClick={() => toggleEngine('gamma')}
-                  className={`relative transition-all duration-200 ${gammaEngineActive ? 'scale-110' : ''} ${expandedEngine === 'gamma' ? 'scale-105' : ''}`}
-                >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer hover:scale-105 ${
-                    gammaEngineActive
-                      ? 'bg-amber-500 border-2 border-amber-400'
-                      : expandedEngine === 'gamma'
-                      ? 'bg-rose-100 border-2 border-rose-300'
-                      : 'bg-white border-2 border-amber-200'
-                  }`}>
-                    <CheckCircle2 className={`w-6 h-6 transition-colors ${gammaEngineActive ? 'text-white' : expandedEngine === 'gamma' ? 'text-rose-600' : 'text-amber-600'}`} />
-                  </div>
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs text-slate-700 font-semibold">Gamma</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Delta V2 - Quality Filter (Clickable) */}
-              <div className="absolute left-[66%] top-1/2 -translate-y-1/2 z-10">
-                <button
-                  onClick={() => toggleEngine('delta')}
-                  className={`relative transition-all duration-200 ${deltaEngineActive ? 'scale-110' : ''} ${expandedEngine === 'delta' ? 'scale-105' : ''}`}
-                >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer hover:scale-105 ${
-                    deltaEngineActive
-                      ? 'bg-emerald-500 border-2 border-emerald-400'
-                      : expandedEngine === 'delta'
-                      ? 'bg-emerald-100 border-2 border-emerald-300'
-                      : 'bg-white border-2 border-emerald-200'
-                  }`}>
-                    <Filter className={`w-6 h-6 transition-colors ${deltaEngineActive ? 'text-white' : 'text-emerald-600'}`} />
-                  </div>
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs text-slate-700 font-semibold">Delta</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Zeta - Learning Engine (Clickable) */}
-              <div className="absolute left-[81%] top-1/2 -translate-y-1/2 z-10">
-                <button
-                  onClick={() => toggleEngine('zeta')}
-                  className={`relative transition-all duration-200 ${zetaEngineActive ? 'scale-110' : ''} ${expandedEngine === 'zeta' ? 'scale-105' : ''}`}
-                >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-md transition-all duration-200 cursor-pointer hover:scale-105 ${
-                    zetaEngineActive
-                      ? 'bg-violet-500 border-2 border-violet-400'
-                      : expandedEngine === 'zeta'
-                      ? 'bg-violet-100 border-2 border-violet-300'
-                      : 'bg-white border-2 border-violet-200'
-                  }`}>
-                    <Brain className={`w-6 h-6 transition-colors ${zetaEngineActive ? 'text-white' : 'text-violet-600'}`} />
-                  </div>
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <div className="text-xs text-slate-700 font-semibold">Zeta</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Metrics Row - Rounded stat pills */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-10 pt-5 border-t border-slate-100">
-              <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100/80">
-                <div className="text-[10px] text-blue-500 mb-1 font-bold uppercase tracking-wider">Tickers</div>
-                <div className="text-xl font-bold text-blue-700">{fmt(metrics.totalTickers)}</div>
-              </div>
-              <div className="p-3.5 bg-violet-50/60 rounded-xl border border-violet-100/80">
-                <div className="text-[10px] text-violet-500 mb-1 font-bold uppercase tracking-wider">Analyses</div>
-                <div className="text-xl font-bold text-violet-700">{fmt(metrics.totalAnalyses)}</div>
-              </div>
-              <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-100/80">
-                <div className="text-[10px] text-amber-500 mb-1 font-bold uppercase tracking-wider">Strategies</div>
-                <div className="text-xl font-bold text-amber-700">{metrics.strategiesActive}/17</div>
-              </div>
-              <div className="p-3.5 bg-orange-50/60 rounded-xl border border-orange-100/80">
-                <div className="text-[10px] text-orange-500 mb-1 font-bold uppercase tracking-wider">Approval</div>
-                <div className="text-xl font-bold text-orange-700">{fmtDec(metrics.approvalRate)}%</div>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Data Engine Details - Collapsible */}
-        {expandedEngine === 'data' && (
-          <Card className="mb-6 border border-blue-200 shadow-sm bg-white animate-in slide-in-from-top duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <Database className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Data Engine</h2>
-                  <div className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-medium text-blue-700">
-                    Live Data Ingestion
-                  </div>
-                </div>
-                <button onClick={() => setExpandedEngine(null)} className="text-slate-400 hover:text-slate-600">
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-slate-600">
-                  Continuously ingests real-time ticker data from exchanges, building comprehensive market snapshots.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-blue-50 rounded border border-blue-100 hover:border-blue-200 transition-colors">
-                  <div className="text-xs text-blue-600 mb-1.5 font-medium">Tickers Fetched</div>
-                  <div className="text-xl font-semibold text-blue-700">{fmt(metrics.dataTickersFetched || 0)}</div>
-                </div>
-                <div className="p-3 bg-violet-50 rounded border border-violet-100 hover:border-violet-200 transition-colors">
-                  <div className="text-xs text-violet-600 mb-1.5 font-medium">Data Points</div>
-                  <div className="text-xl font-semibold text-violet-700">{fmt(metrics.dataPointsCollected || 0)}</div>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded border border-emerald-100 hover:border-emerald-200 transition-colors">
-                  <div className="text-xs text-emerald-600 mb-1.5 font-medium">Refresh Rate</div>
-                  <div className="text-xl font-semibold text-emerald-700">{fmtDec(metrics.dataRefreshRate || 0)}/min</div>
-                </div>
-                <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className="text-xs text-slate-600 mb-1.5 font-medium">Last Fetch</div>
-                  <div className="text-sm font-semibold text-slate-700">
-                    {metrics.dataLastFetch ? timeAgo(metrics.dataLastFetch) : 'Never'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Alpha Engine Details - Collapsible */}
-        {expandedEngine === 'alpha' && (
-          <Card className="mb-6 border border-violet-200 shadow-sm bg-white animate-in slide-in-from-top duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <Brain className="w-5 h-5 text-violet-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Alpha Engine</h2>
-                  <div className="px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs font-medium text-violet-700">
-                    Pattern Detection
-                  </div>
-                </div>
-                <button onClick={() => setExpandedEngine(null)} className="text-slate-400 hover:text-slate-600">
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-slate-600">
-                  Analyzes market data using {metrics.alphaStrategiesActive || 17} institutional-grade strategies to detect tradeable patterns and setups.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-violet-50 rounded border border-violet-100 hover:border-violet-200 transition-colors">
-                  <div className="text-xs text-violet-600 mb-1.5 font-medium">Patterns Detected</div>
-                  <div className="text-xl font-semibold text-violet-700">{fmt(metrics.alphaPatternsDetected || 0)}</div>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded border border-emerald-100 hover:border-emerald-200 transition-colors">
-                  <div className="text-xs text-emerald-600 mb-1.5 font-medium">Signals Generated</div>
-                  <div className="text-xl font-semibold text-emerald-700">{fmt(metrics.alphaSignalsGenerated || 0)}</div>
-                </div>
-                <div className="p-3 bg-blue-50 rounded border border-blue-100 hover:border-blue-200 transition-colors">
-                  <div className="text-xs text-blue-600 mb-1.5 font-medium">Active Strategies</div>
-                  <div className="text-xl font-semibold text-blue-700">{metrics.alphaStrategiesActive || 0}/17</div>
-                </div>
-                <div className="p-3 bg-amber-50 rounded border border-amber-100 hover:border-amber-200 transition-colors">
-                  <div className="text-xs text-amber-600 mb-1.5 font-medium">Detection Rate</div>
-                  <div className="text-xl font-semibold text-amber-700">{fmtDec(metrics.alphaDetectionRate || 0)}/min</div>
-                </div>
-              </div>
-
-              {/* 17 Strategy Breakdown with Performance Metrics */}
-              <div className="mt-6 pt-6 border-t border-violet-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <Shield className="w-4 h-4 text-violet-600" />
-                  <h3 className="text-sm font-semibold text-slate-800">17 Institutional-Grade Strategies</h3>
-                  <div className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs font-medium text-slate-600">
-                    Ranked by Performance
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                  {(() => {
-                    // Merge strategy metadata with performance data
-                    const strategiesWithPerformance = Object.values(STRATEGY_METADATA).map(strategy => {
-                      const performance = strategyPerformances.find(p => p.strategyName === strategy.name);
-                      return { strategy, performance };
-                    });
-
-                    // Sort by success rate (descending), then by total signals (for strategies with no data)
-                    const sortedStrategies = strategiesWithPerformance.sort((a, b) => {
-                      const aRate = a.performance?.successRate || 0;
-                      const bRate = b.performance?.successRate || 0;
-                      const aSignals = a.performance?.totalSignals || 0;
-                      const bSignals = b.performance?.totalSignals || 0;
-
-                      // If both have data, sort by success rate
-                      if (aSignals > 0 && bSignals > 0) {
-                        return bRate - aRate;
-                      }
-                      // If only one has data, prioritize it
-                      if (aSignals > 0) return -1;
-                      if (bSignals > 0) return 1;
-                      // If neither has data, maintain original order
-                      return 0;
-                    });
-
-                    return sortedStrategies.map(({ strategy, performance }, index) => {
-                      const hasData = performance && performance.totalSignals > 0;
-                      const winRate = performance?.successRate || 0;
-                      const totalSignals = performance?.totalSignals || 0;
-
-                      return (
-                        <div key={strategy.name} className="p-3 bg-slate-50 rounded border border-slate-200 hover:border-violet-300 transition-all group">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                {/* Rank Badge */}
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                  index === 0 && hasData ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
-                                  index === 1 && hasData ? 'bg-slate-200 text-slate-700 border border-slate-300' :
-                                  index === 2 && hasData ? 'bg-orange-100 text-orange-700 border border-orange-300' :
-                                  'bg-slate-100 text-slate-500 border border-slate-200'
-                                }`}>
-                                  #{index + 1}
-                                </span>
-                                <span className="text-xs font-semibold text-slate-800">{strategy.displayName}</span>
-                                {/* Win Rate Badge */}
-                                {hasData ? (
-                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                    winRate >= 70 ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' :
-                                    winRate >= 55 ? 'bg-blue-100 text-blue-700 border border-blue-300' :
-                                    winRate >= 45 ? 'bg-amber-100 text-amber-700 border border-amber-300' :
-                                    'bg-rose-100 text-rose-700 border border-rose-300'
-                                  }`}>
-                                    {winRate.toFixed(1)}% WR
-                                  </span>
-                                ) : (
-                                  <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded text-[10px] font-medium">
-                                    No data yet
-                                  </span>
-                                )}
-                                {/* Signal Count */}
-                                {hasData && (
-                                  <span className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 rounded text-[10px] font-medium">
-                                    {totalSignals} signals
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-slate-600 leading-relaxed">{strategy.description}</p>
-                              <p className="text-[10px] text-violet-600 mt-1 font-medium">Best for: {strategy.bestFor}</p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-
-                {/* Institutional Features */}
-                <div className="mt-4 p-3 bg-gradient-to-r from-violet-50 to-blue-50 rounded border border-violet-200">
-                  <div className="text-xs font-semibold text-slate-800 mb-2">Anti-Manipulation Features</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-emerald-600">✓</span> Spoofing Detection (Order Flow Tsunami)
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-emerald-600">✓</span> OI Validation (Funding Squeeze)
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-emerald-600">✓</span> Multi-Exchange Consensus
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-emerald-600">✓</span> Coin Deduplication (1 signal/coin)
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-emerald-600">✓</span> Beta Consensus (65% threshold)
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-emerald-600">✓</span> Delta Win Rate Filter (52%+)
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Beta Engine Details - Collapsible */}
-        {expandedEngine === 'beta' && (
-          <Card className="mb-6 border border-amber-200 shadow-sm bg-white animate-in slide-in-from-top duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <Target className="w-5 h-5 text-amber-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Beta Engine</h2>
-                  <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 rounded text-xs font-medium text-amber-700">
-                    Scoring & Ranking
-                  </div>
-                </div>
-                <button onClick={() => setExpandedEngine(null)} className="text-slate-400 hover:text-slate-600">
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-slate-600">
-                  Evaluates and scores all Alpha signals, ranking them by confidence and quality metrics.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className="text-xs text-slate-600 mb-1.5 font-medium">Signals Scored</div>
-                  <div className="text-xl font-semibold text-slate-800">{fmt(metrics.betaSignalsScored || 0)}</div>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded border border-emerald-100 hover:border-emerald-200 transition-colors">
-                  <div className="text-xs text-emerald-600 mb-1.5 font-medium">High Quality</div>
-                  <div className="text-xl font-semibold text-emerald-700">{fmt(metrics.betaHighQuality || 0)}</div>
-                  <div className="text-xs text-slate-500 mt-1">&gt;80%</div>
-                </div>
-                <div className="p-3 bg-blue-50 rounded border border-blue-100 hover:border-blue-200 transition-colors">
-                  <div className="text-xs text-blue-600 mb-1.5 font-medium">Medium Quality</div>
-                  <div className="text-xl font-semibold text-blue-700">{fmt(metrics.betaMediumQuality || 0)}</div>
-                  <div className="text-xs text-slate-500 mt-1">60-80%</div>
-                </div>
-                <div className="p-3 bg-amber-50 rounded border border-amber-100 hover:border-amber-200 transition-colors">
-                  <div className="text-xs text-amber-600 mb-1.5 font-medium">Low Quality</div>
-                  <div className="text-xl font-semibold text-amber-700">{fmt(metrics.betaLowQuality || 0)}</div>
-                  <div className="text-xs text-slate-500 mt-1">&lt;60%</div>
-                </div>
-                <div className="p-3 bg-violet-50 rounded border border-violet-100 hover:border-violet-200 transition-colors">
-                  <div className="text-xs text-violet-600 mb-1.5 font-medium">Avg Confidence</div>
-                  <div className="text-xl font-semibold text-violet-700">{fmtDec(metrics.betaAvgConfidence || 0)}%</div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Gamma Engine Details - Collapsible */}
-        {expandedEngine === 'gamma' && (
-          <Card className="mb-6 border border-rose-200 shadow-sm bg-white animate-in slide-in-from-top duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-rose-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Gamma Engine</h2>
-                  <div className="px-2 py-0.5 bg-rose-50 border border-rose-200 rounded text-xs font-medium text-rose-700">
-                    Signal Assembly
-                  </div>
-                </div>
-                <button onClick={() => setExpandedEngine(null)} className="text-slate-400 hover:text-slate-600">
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-slate-600">
-                  Assembles complete signal packages from scored data, preparing them for final quality filtering.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className="text-xs text-slate-600 mb-1.5 font-medium">Received</div>
-                  <div className="text-xl font-semibold text-slate-800">{fmt(metrics.gammaSignalsReceived || 0)}</div>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded border border-emerald-100 hover:border-emerald-200 transition-colors">
-                  <div className="text-xs text-emerald-600 mb-1.5 font-medium">Passed</div>
-                  <div className="text-xl font-semibold text-emerald-700">{fmt(metrics.gammaSignalsPassed || 0)}</div>
-                </div>
-                <div className="p-3 bg-rose-50 rounded border border-rose-100 hover:border-rose-200 transition-colors">
-                  <div className="text-xs text-rose-600 mb-1.5 font-medium">Rejected</div>
-                  <div className="text-xl font-semibold text-rose-700">{fmt(metrics.gammaSignalsRejected || 0)}</div>
-                </div>
-                <div className="p-3 bg-blue-50 rounded border border-blue-100 hover:border-blue-200 transition-colors">
-                  <div className="text-xs text-blue-600 mb-1.5 font-medium">Pass Rate</div>
-                  <div className="text-xl font-semibold text-blue-700">{fmtDec(metrics.gammaPassRate || 0)}%</div>
-                </div>
-                <div className="p-3 bg-amber-50 rounded border border-amber-100 hover:border-amber-200 transition-colors">
-                  <div className="text-xs text-amber-600 mb-1.5 font-medium">Queue Size</div>
-                  <div className="text-xl font-semibold text-amber-700">{fmt(metrics.gammaQueueSize || 0)}</div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Delta V2 Engine Details - Collapsible */}
-        {expandedEngine === 'delta' && (
-          <Card className="mb-6 border border-emerald-200 shadow-sm bg-white animate-in slide-in-from-top duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <Filter className="w-5 h-5 text-emerald-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Delta V2 Quality Engine</h2>
-                  <div className="flex items-center gap-2">
-                    <div className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-medium text-blue-700">
-                      ML Active
-                    </div>
-                    <div className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded text-xs font-medium text-emerald-700">
-                      Regime-Aware
-                    </div>
-                    {metrics.currentRegime && (
-                      <div className="px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs font-medium text-violet-700">
-                        {metrics.currentRegime}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <button onClick={() => setExpandedEngine(null)} className="text-slate-400 hover:text-slate-600">
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-slate-600">
-                  ML-powered quality filter with regime-aware thresholds. SIDEWAYS/LOW_VOL: Accepts quality ≥50 (MEDIUM). TRENDING/HIGH_VOL: Requires quality ≥60 (HIGH only).
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className="text-xs text-slate-600 mb-1.5 font-medium">Processed</div>
-                  <div className="text-xl font-semibold text-slate-800">{fmt(metrics.deltaProcessed || 0)}</div>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded border border-emerald-100 hover:border-emerald-200 transition-colors">
-                  <div className="text-xs text-emerald-600 mb-1.5 font-medium">Passed</div>
-                  <div className="text-xl font-semibold text-emerald-700">{fmt(metrics.deltaPassed || 0)}</div>
-                </div>
-                <div className="p-3 bg-rose-50 rounded border border-rose-100 hover:border-rose-200 transition-colors">
-                  <div className="text-xs text-rose-600 mb-1.5 font-medium">Rejected</div>
-                  <div className="text-xl font-semibold text-rose-700">{fmt(metrics.deltaRejected || 0)}</div>
-                </div>
-                <div className="p-3 bg-blue-50 rounded border border-blue-100 hover:border-blue-200 transition-colors">
-                  <div className="text-xs text-blue-600 mb-1.5 font-medium">Pass Rate</div>
-                  <div className="text-xl font-semibold text-blue-700">{fmtDec(metrics.deltaPassRate || 0)}%</div>
-                </div>
-                <div className="p-3 bg-amber-50 rounded border border-amber-100 hover:border-amber-200 transition-colors">
-                  <div className="text-xs text-amber-600 mb-1.5 font-medium">Avg Quality</div>
-                  <div className="text-xl font-semibold text-amber-700">{fmtDec(metrics.deltaQualityScore || 0)}</div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Zeta Learning Engine Details - Collapsible */}
-        {expandedEngine === 'zeta' && (
-          <Card className="mb-6 border border-violet-200 shadow-sm bg-white animate-in slide-in-from-top duration-300">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <Brain className="w-5 h-5 text-violet-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Zeta Learning Engine</h2>
-                  <div className="px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs font-medium text-violet-700">
-                    Learning Active
-                  </div>
-                </div>
-                <button onClick={() => setExpandedEngine(null)} className="text-slate-400 hover:text-slate-600">
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-slate-600">
-                  Continuous Learning: Trains ML models from real outcomes, adapts strategy weights, optimizes thresholds.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 bg-violet-50 rounded border border-violet-100 hover:border-violet-200 transition-colors">
-                  <div className="text-xs text-violet-600 mb-1.5 font-medium">ML Accuracy</div>
-                  <div className="text-xl font-semibold text-violet-700">{zetaMetrics.mlAccuracy.toFixed(1)}%</div>
-                  <div className="text-xs text-slate-500 mt-1">{zetaMetrics.trainingCount} trainings</div>
-                </div>
-                <div className="p-3 bg-emerald-50 rounded border border-emerald-100 hover:border-emerald-200 transition-colors">
-                  <div className="text-xs text-emerald-600 mb-1.5 font-medium">Top Strategy</div>
-                  <div className="text-sm font-semibold text-emerald-700 truncate">{zetaMetrics.topStrategy}</div>
-                  <div className="text-xs text-slate-500 mt-1">{zetaMetrics.totalOutcomes} outcomes</div>
-                </div>
-                <div className="p-3 bg-slate-50 rounded border border-slate-100 hover:border-slate-200 transition-colors">
-                  <div className="text-xs text-slate-600 mb-1.5 font-medium">System Health</div>
-                  <div className="text-sm font-semibold text-slate-700">{zetaMetrics.health}</div>
-                  <div className={`text-xs mt-1 font-medium ${
-                    zetaMetrics.health === 'OPTIMAL' ? 'text-emerald-600' :
-                    zetaMetrics.health === 'GOOD' ? 'text-blue-600' :
-                    zetaMetrics.health === 'FAIR' ? 'text-amber-600' :
-                    'text-rose-600'
-                  }`}>
-                    {zetaMetrics.health === 'OPTIMAL' ? '✓ Excellent' :
-                     zetaMetrics.health === 'GOOD' ? '✓ Good' :
-                     zetaMetrics.health === 'FAIR' ? '⚠ Fair' :
-                     '✗ Degraded'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* 🔴 LIVE SIGNALS - Always Visible */}
-        <Card className={`mb-6 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden ${
-          activeSignals.length > 0
-            ? 'border-l-4 border-l-emerald-400 border border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-white'
-            : 'border border-slate-200/80 bg-white'
-        }`}>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm ${
-                    activeSignals.length > 0
-                      ? 'bg-gradient-to-br from-emerald-400 to-emerald-600'
-                      : 'bg-gradient-to-br from-orange-400 to-amber-500'
-                  }`}>
-                    <Activity className="w-4 h-4 text-white" />
-                  </div>
-                  {activeSignals.length > 0 && (
-                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full animate-pulse border-2 border-white" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                    Live Signals
-                    {activeSignals.length > 0 ? (
-                      <span className="px-2.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full animate-pulse shadow-sm">
-                        LIVE
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 bg-orange-400 text-white text-[10px] font-bold rounded-full">
-                        SCANNING
-                      </span>
-                    )}
-                  </h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {activeSignals.length > 0
-                      ? `Real-time active positions • ${activeSignals.length} signal${activeSignals.length !== 1 ? 's' : ''} in play`
-                      : 'Analyzing market conditions for next opportunity'
-                    }
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Sentiment Badge */}
-                {(() => {
-                  try {
-                    const sentiment = cryptoSentimentService.getSentimentData();
-                    const labelColor = sentiment.label === 'EXTREME_FEAR' || sentiment.label === 'FEAR'
-                      ? 'text-rose-700 bg-rose-50 border-rose-200'
-                      : sentiment.label === 'GREED' || sentiment.label === 'EXTREME_GREED'
-                      ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                      : 'text-amber-700 bg-amber-50 border-amber-200';
-                    return (
-                      <div className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${labelColor}`}>
-                        {sentiment.label.replace('_', ' ')} ({Math.round(sentiment.fearGreedIndex)})
-                      </div>
-                    );
-                  } catch { return null; }
-                })()}
-                <div className="text-[11px] text-slate-400 font-semibold tabular-nums">
-                  {new Date().toLocaleTimeString()}
-                </div>
-              </div>
-            </div>
-
-            {/* Empty State - Pulsing Radar */}
-            {activeSignals.length === 0 && (
-              <div className="text-center py-10 border border-dashed border-orange-200/60 rounded-xl bg-gradient-to-b from-orange-50/30 to-white">
-                {/* Radar Animation */}
-                <div className="relative w-20 h-20 mx-auto mb-4">
-                  <div className="absolute inset-0 rounded-full border-2 border-orange-200/40" />
-                  <div className="absolute inset-2 rounded-full border-2 border-orange-200/30" />
-                  <div className="absolute inset-4 rounded-full border-2 border-orange-300/30" />
-                  <div className="absolute inset-0 rounded-full border-2 border-orange-400/50 animate-ping" style={{ animationDuration: '2s' }} />
-                  <div className="absolute inset-[35%] rounded-full bg-gradient-to-br from-orange-400 to-amber-500 shadow-sm" />
-                </div>
-                <span className="text-sm font-semibold text-slate-600">Scanning Markets</span>
-                {(() => {
-                  try {
-                    const remainingSec = globalHubService.getTimeRemaining('FREE');
-                    const bufferSize = globalHubService.getBufferSize('FREE');
-                    const remaining = remainingSec * 1000;
-                    const intervalMs = 3 * 60 * 1000;
-                    const mins = Math.floor(remaining / 60000);
-                    const secs = Math.floor((remaining % 60000) / 1000);
-                    return (
-                      <div className="space-y-2 mt-3">
-                        <div className="text-2xl font-bold text-slate-700 tabular-nums">
-                          {mins}:{secs.toString().padStart(2, '0')}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          Next signal window • {bufferSize} signals buffered
-                        </div>
-                        <div className="w-44 mx-auto bg-orange-100/60 rounded-full h-1.5 mt-2">
-                          <div
-                            className="bg-gradient-to-r from-orange-400 to-amber-500 h-1.5 rounded-full transition-all duration-1000"
-                            style={{ width: `${Math.min(100, Math.max(5, (1 - remaining / intervalMs) * 100))}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  } catch {
-                    return (
-                      <div className="text-[11px] text-slate-400 mt-2">
-                        Pipeline is running • signals generated every ~3 minutes
-                      </div>
-                    );
-                  }
-                })()}
-                <div className="flex items-center justify-center gap-3 mt-5 text-[10px] text-slate-400">
-                  <span>{fmt(metrics.totalTickers)} tickers scanned</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-300" />
-                  <span>{metrics.strategiesActive}/17 strategies active</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-300" />
-                  <span>{fmtDec(metrics.approvalRate)}% approval rate</span>
-                </div>
-              </div>
-            )}
-
-            {activeSignals.length > 0 && (() => {
-              // Deduplicate: keep first occurrence per symbol+direction
-              const seen = new Set<string>();
-              const dedupedSignals = activeSignals.filter(sig => {
-                const key = `${sig.symbol}_${sig.direction}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-              });
-
-              return (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {dedupedSignals.map(sig => {
-                    const confidence = sig.confidence || sig.qualityScore || 0;
-                    const isHighConfidence = confidence >= 80;
-                    const isMediumConfidence = confidence >= 70;
-                    const grade = confidence >= 80 ? 'A+' : confidence >= 70 ? 'A' : confidence >= 60 ? 'B' : 'C';
-
-                    return (
-                      <div
-                        key={sig.id}
-                        className="rounded-lg border-2 border-emerald-200 bg-white hover:border-emerald-400 transition-all p-4 hover:shadow-md"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 flex-1">
-                            {/* Crypto Logo */}
-                            <CryptoLogo
-                              symbol={sig.symbol}
-                              imageUrl={sig.image}
-                              className="w-10 h-10 flex-shrink-0"
-                            />
-
-                            {/* Direction Badge */}
-                            <div className={`w-20 h-12 rounded-lg flex items-center justify-center text-sm font-bold border-2 shadow-sm ${
-                              sig.direction === 'LONG'
-                                ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-800 border-emerald-300'
-                                : 'bg-gradient-to-br from-rose-100 to-rose-50 text-rose-800 border-rose-300'
-                            }`}>
-                              {sig.direction}
-                            </div>
-
-                            {/* Symbol and Strategy */}
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className="text-lg font-bold text-slate-900">{formatSymbol(sig.symbol)}</div>
-                                {sig.marketRegime && (
-                                  <span className="px-1.5 py-0.5 bg-violet-50 border border-violet-200 rounded text-[10px] font-bold text-violet-700 uppercase">
-                                    {sig.marketRegime}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-slate-600 font-medium mt-0.5">
-                                {formatStrategy(sig.strategyName || sig.strategy || 'Unknown Strategy')}
-                              </div>
-                              <div className="flex items-center gap-3 mt-1">
-                                <div className="text-xs text-emerald-600 font-semibold">
-                                  Started {timeAgo(sig.timestamp)}
-                                </div>
-                                {(() => {
-                                  const expiresAt = sig.expiresAt || (sig.timestamp + (sig.timeLimit || 14400000));
-                                  const remaining = expiresAt - currentTime;
-                                  if (remaining <= 0) return <span className="text-[10px] text-rose-600 font-bold">EXPIRED</span>;
-                                  const hrs = Math.floor(remaining / 3600000);
-                                  const mins = Math.floor((remaining % 3600000) / 60000);
-                                  const secs = Math.floor((remaining % 60000) / 1000);
-                                  const display = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m ${secs.toString().padStart(2, '0')}s`;
-                                  const isUrgent = remaining < 300000;
-                                  return (
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isUrgent ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-blue-50 text-blue-600 border border-blue-200'}`}>
-                                      Expires {display}
-                                    </span>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Trading Levels */}
-                          <div className="flex items-center gap-6 mr-6">
-                            <div className="text-center">
-                              <div className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Entry</div>
-                              <div className="text-sm font-bold text-slate-800">{priceFmt(sig.entry)}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-[10px] text-rose-500 font-semibold uppercase mb-1">Stop Loss</div>
-                              <div className="text-sm font-bold text-rose-600">{priceFmt(sig.stopLoss)}</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-[10px] text-emerald-500 font-semibold uppercase mb-1">Target</div>
-                              <div className="text-sm font-bold text-emerald-600">{priceFmt(sig.targets?.[0])}</div>
-                            </div>
-                          </div>
-
-                          {/* Confidence and Grade */}
-                          <div className="text-right">
-                            <div className={`text-2xl font-bold mb-1 ${
-                              isHighConfidence ? 'text-emerald-600' :
-                              isMediumConfidence ? 'text-blue-600' :
-                              'text-amber-600'
-                            }`}>
-                              {confidence.toFixed(1)}%
-                            </div>
-                            <div className={`text-xs font-bold mb-2 ${
-                              isHighConfidence ? 'text-emerald-500' :
-                              isMediumConfidence ? 'text-blue-500' :
-                              'text-amber-500'
-                            }`}>
-                              {isHighConfidence ? 'EXCELLENT' :
-                               isMediumConfidence ? 'GOOD' :
-                               'ACCEPTABLE'}
-                            </div>
-                            <div className={`px-3 py-1.5 rounded-lg border-2 text-xs font-bold shadow-sm ${
-                              grade.startsWith('A') ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
-                              grade === 'B' ? 'bg-blue-50 text-blue-700 border-blue-300' :
-                              'bg-amber-50 text-amber-700 border-amber-300'
-                            }`}>
-                              Grade {grade}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-        </Card>
-
-        {/* Signal History - Last 24 Hours */}
-        <Card className="border border-slate-200/80 shadow-sm bg-white mb-6 rounded-2xl hover:shadow-md transition-shadow">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
-                  <BarChart3 className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-800">Signal History</h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Last 24 hours • {signalHistory.length} signals tracked</p>
-                </div>
-              </div>
-              <a
-                href="/intelligence-hub/monthly"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-full text-xs font-bold text-orange-700 transition-colors"
-              >
-                Monthly Stats
-                <ChevronRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* 24-Hour Performance Summary */}
-            {signalHistory.length > 0 && (() => {
-              const totalSignals = signalHistory.length;
-              const wins = signalHistory.filter(s => s.outcome === 'WIN').length;
-              const losses = signalHistory.filter(s => s.outcome === 'LOSS').length;
-              const timeouts = signalHistory.filter(s => s.outcome === 'TIMEOUT').length;
-              const pending = signalHistory.filter(s => !s.outcome || s.outcome === 'PENDING').length;
-              const resolved = wins + losses;
-              const winRate = resolved > 0 ? (wins / resolved) * 100 : 0;
-              const totalReturn = signalHistory.filter(s => s.outcome === 'WIN' || s.outcome === 'LOSS').reduce((sum, s) => sum + (s.actualReturn || 0), 0);
-              const avgReturn = resolved > 0 ? totalReturn / resolved : 0;
-
-              return (
-                <div className="mb-6 p-4 bg-gradient-to-r from-orange-50/70 to-amber-50/50 rounded-xl border border-orange-100/80">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Activity className="w-3.5 h-3.5 text-orange-500" />
-                    <h3 className="text-xs font-bold text-orange-800 uppercase tracking-wide">
-                      24-Hour Performance
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {/* Total Signals */}
-                    <div className="p-3 bg-white/80 rounded-xl border border-slate-100">
-                      <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">
-                        Total Signals
-                      </div>
-                      <div className="text-2xl font-bold text-slate-800">
-                        {totalSignals}
-                      </div>
-                    </div>
-
-                    {/* Win Rate */}
-                    <div className="p-3 bg-white/80 rounded-xl border border-emerald-100">
-                      <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider mb-1">
-                        Win Rate
-                      </div>
-                      <div className="text-2xl font-bold text-emerald-700">
-                        {winRate.toFixed(1)}%
-                      </div>
-                      <div className="text-[10px] text-slate-600 mt-1">
-                        {wins}W / {losses}L{timeouts > 0 ? ` / ${timeouts}T` : ''}
-                      </div>
-                    </div>
-
-                    {/* Total Return */}
-                    <div className={`p-3 bg-white/80 rounded-xl border ${
-                      totalReturn >= 0 ? 'border-emerald-100' : 'border-rose-100'
-                    }`}>
-                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${
-                        totalReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                      }`}>
-                        Total Return
-                      </div>
-                      <div className={`text-2xl font-bold flex items-center gap-1 ${
-                        totalReturn >= 0 ? 'text-emerald-700' : 'text-rose-700'
-                      }`}>
-                        {totalReturn >= 0 ? (
-                          <TrendingUp className="w-5 h-5" />
-                        ) : (
-                          <TrendingDown className="w-5 h-5" />
-                        )}
-                        {totalReturn > 0 ? '+' : ''}{totalReturn.toFixed(1)}%
-                      </div>
-                    </div>
-
-                    {/* Avg Return per Trade */}
-                    <div className={`p-3 bg-white/80 rounded-xl border ${
-                      avgReturn >= 0 ? 'border-emerald-100' : 'border-rose-100'
-                    }`}>
-                      <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${
-                        avgReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                      }`}>
-                        Avg Return/Trade
-                      </div>
-                      <div className={`text-2xl font-bold flex items-center gap-1 ${
-                        avgReturn >= 0 ? 'text-emerald-700' : 'text-rose-700'
-                      }`}>
-                        {avgReturn >= 0 ? (
-                          <TrendingUp className="w-5 h-5" />
-                        ) : (
-                          <TrendingDown className="w-5 h-5" />
-                        )}
-                        {avgReturn > 0 ? '+' : ''}{avgReturn.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {signalHistory.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-slate-200 rounded-xl">
-                <BarChart3 className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-600 font-medium">No signals yet</p>
-                <p className="text-xs text-slate-400 mt-1">Signals will appear here as they're generated by the pipeline</p>
-              </div>
-            ) : (
-              <div>
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {signalHistory.slice((currentPage - 1) * SIGNALS_PER_PAGE, currentPage * SIGNALS_PER_PAGE).map(sig => {
-                    const isExpanded = expandedSignalId === sig.id;
-
-                    return (
-                      <div
-                        key={sig.id}
-                        className="rounded-xl border bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-sm transition-all overflow-hidden"
-                      >
-                        {/* Main Signal Row - Clickable */}
-                        <button
-                          onClick={() => setExpandedSignalId(isExpanded ? null : sig.id)}
-                          className="w-full flex items-center justify-between p-3 text-left hover:bg-slate-50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            {/* Crypto Logo */}
-                            <CryptoLogo
-                              symbol={sig.symbol}
-                              imageUrl={sig.image}
-                              className="w-9 h-9 flex-shrink-0"
-                            />
-
-                            <div className={`w-16 h-10 rounded-md flex items-center justify-center text-sm font-semibold border ${
-                              sig.direction === 'LONG'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}>
-                              {sig.direction}
-                            </div>
-                            <div>
-                              <div className="text-base font-semibold text-slate-800">{formatSymbol(sig.symbol)}</div>
-                              <div className="text-xs text-slate-600 font-medium">
-                                {timeAgo(sig.timestamp)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <div className="text-base font-semibold text-slate-800">{(sig.confidence || 0).toFixed(1)}%</div>
-                              {(() => {
-                                const g = (sig.confidence || 0) >= 80 ? 'A+' : (sig.confidence || 0) >= 70 ? 'A' : (sig.confidence || 0) >= 60 ? 'B' : 'C';
-                                return (
-                                  <div className={`text-xs font-medium ${
-                                    g.startsWith('A') ? 'text-emerald-600' :
-                                    g === 'B' ? 'text-blue-600' :
-                                    'text-amber-600'
-                                  }`}>
-                                    Grade {g}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                            {sig.outcome && (
-                              <div className="text-right">
-                                <div className={`px-3 py-1 rounded border text-xs font-semibold ${
-                                  sig.outcome === 'WIN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                  sig.outcome === 'LOSS' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                  'bg-amber-50 text-amber-700 border-amber-200'
-                                }`}>
-                                  {sig.outcome}
-                                  {sig.exitReason && sig.exitReason !== sig.outcome && (
-                                    <span className="ml-1 opacity-70">({sig.exitReason})</span>
-                                  )}
-                                </div>
-                                {sig.actualReturn !== undefined && (
-                                  <div className={`text-xs font-bold mt-1 ${
-                                    sig.actualReturn > 0 ? 'text-emerald-600' : 'text-rose-600'
-                                  }`}>
-                                    {sig.actualReturn > 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
-                                  </div>
-                                )}
-                                {sig.holdDuration && (
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
-                                    {sig.holdDuration >= 3600000
-                                      ? `${(sig.holdDuration / 3600000).toFixed(1)}h`
-                                      : `${(sig.holdDuration / 60000).toFixed(0)}m`}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {isExpanded ? (
-                              <ChevronUp className="w-5 h-5 text-slate-400" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5 text-slate-400" />
-                            )}
-                          </div>
-                        </button>
-
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-3 animate-in slide-in-from-top duration-200">
-                            {/* Trading Levels */}
-                            <div>
-                              <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Trading Levels</div>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {sig.entry && (
-                                  <div className="p-2 bg-white rounded border border-slate-200">
-                                    <div className="text-[10px] text-slate-600 font-semibold uppercase mb-0.5">Entry</div>
-                                    <div className="text-sm font-bold text-slate-900">{priceFmt(sig.entry)}</div>
-                                  </div>
-                                )}
-                                {sig.stopLoss && (
-                                  <div className="p-2 bg-white rounded border border-rose-200">
-                                    <div className="text-[10px] text-rose-600 font-semibold uppercase mb-0.5">Stop Loss</div>
-                                    <div className="text-sm font-bold text-rose-700">{priceFmt(sig.stopLoss)}</div>
-                                  </div>
-                                )}
-                                {sig.riskRewardRatio && (
-                                  <div className="p-2 bg-white rounded border border-blue-200">
-                                    <div className="text-[10px] text-blue-600 font-semibold uppercase mb-0.5">R:R</div>
-                                    <div className="text-sm font-bold text-blue-700">{sig.riskRewardRatio.toFixed(1)}:1</div>
-                                  </div>
-                                )}
-                                {sig.qualityScore && (
-                                  <div className="p-2 bg-white rounded border border-emerald-200">
-                                    <div className="text-[10px] text-emerald-600 font-semibold uppercase mb-0.5">Quality</div>
-                                    <div className="text-sm font-bold text-emerald-700">{sig.qualityScore.toFixed(0)}</div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Outcome Metrics for Zeta Learning */}
-                            {sig.outcome && (
-                              <div className="bg-white rounded-lg border border-slate-200 p-3">
-                                <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Outcome Metrics</div>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                  {sig.actualReturn !== undefined && (
-                                    <div className="text-center">
-                                      <div className="text-[10px] text-slate-500 font-semibold mb-0.5">Return</div>
-                                      <div className={`text-sm font-bold ${
-                                        sig.actualReturn > 0 ? 'text-emerald-600' : 'text-rose-600'
-                                      }`}>
-                                        {sig.actualReturn > 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
-                                      </div>
-                                    </div>
-                                  )}
-                                  {sig.exitPrice && (
-                                    <div className="text-center">
-                                      <div className="text-[10px] text-slate-500 font-semibold mb-0.5">Exit Price</div>
-                                      <div className="text-sm font-bold text-slate-900">{priceFmt(sig.exitPrice)}</div>
-                                    </div>
-                                  )}
-                                  {sig.holdDuration && (
-                                    <div className="text-center">
-                                      <div className="text-[10px] text-slate-500 font-semibold mb-0.5">Duration</div>
-                                      <div className="text-sm font-bold text-slate-900">{Math.floor(sig.holdDuration / 60000)}m</div>
-                                    </div>
-                                  )}
-                                  {sig.exitReason && (
-                                    <div className="text-center">
-                                      <div className="text-[10px] text-slate-500 font-semibold mb-0.5">Exit</div>
-                                      <div className="text-xs font-bold text-blue-600">{sig.exitReason.replace(/_/g, ' ')}</div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Targets */}
-                            {sig.targets && sig.targets.length > 0 && (
-                              <div>
-                                <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Targets</div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  {sig.targets.map((target, idx) => (
-                                    <div key={idx} className="px-2 py-1 bg-white rounded border border-emerald-200">
-                                      <span className="text-[10px] text-emerald-600 font-semibold">T{idx + 1}:</span>
-                                      <span className="text-xs font-bold text-emerald-700 ml-1">{priceFmt(target)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Strategy & Technical Details */}
-                            <div>
-                              <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Technical Details</div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {sig.strategy && (
-                                  <span className="text-[10px] px-2 py-1 bg-violet-50 text-violet-700 border border-violet-200 rounded font-semibold">
-                                    {formatStrategy(sig.strategy)}
-                                  </span>
-                                )}
-                                {sig.marketRegime && (
-                                  <span className="text-[10px] px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded font-semibold">
-                                    {sig.marketRegime}
-                                  </span>
-                                )}
-                                {sig.mlProbability && (
-                                  <span className="text-[10px] px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-semibold">
-                                    ML: {(sig.mlProbability * 100).toFixed(1)}%
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Outcome Details (if available) */}
-                            {sig.outcome && (
-                              <div>
-                                <div className="text-xs font-semibold text-slate-600 uppercase mb-2">Outcome</div>
-                                <div className="p-3 bg-white rounded border border-slate-200">
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div>
-                                      <div className="text-[10px] text-slate-600 font-semibold uppercase mb-1">Result</div>
-                                      <div className={`text-sm font-bold ${
-                                        sig.outcome === 'WIN' ? 'text-emerald-600' :
-                                        sig.outcome === 'LOSS' ? 'text-rose-600' :
-                                        'text-amber-600'
-                                      }`}>
-                                        {sig.outcome}
-                                      </div>
-                                    </div>
-                                    {sig.actualReturn !== undefined && (
-                                      <div>
-                                        <div className="text-[10px] text-slate-600 font-semibold uppercase mb-1">Return</div>
-                                        <div className={`text-sm font-bold ${
-                                          sig.actualReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                                        }`}>
-                                          {sig.actualReturn >= 0 ? '+' : ''}{sig.actualReturn.toFixed(2)}%
-                                        </div>
-                                      </div>
-                                    )}
-                                    {sig.exitPrice && (
-                                      <div>
-                                        <div className="text-[10px] text-slate-600 font-semibold uppercase mb-1">Exit Price</div>
-                                        <div className="text-sm font-bold text-slate-800">
-                                          {priceFmt(sig.exitPrice)}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Timestamp */}
-                            <div className="pt-2 border-t border-slate-200">
-                              <div className="text-[10px] text-slate-500">
-                                Generated: {new Date(sig.timestamp).toLocaleString()}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-              {/* Pagination Controls */}
-              {(() => {
-                const totalPages = Math.ceil(signalHistory.length / SIGNALS_PER_PAGE);
-                if (totalPages <= 1) return null;
-
-                return (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
-                    <button
-                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                        currentPage === 1
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-sm'
-                      }`}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      Previous
-                    </button>
-
-                    <div className="text-sm font-medium text-slate-600">
-                      Page {currentPage} of {totalPages}
-                    </div>
-
-                    <button
-                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                        currentPage === totalPages
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-sm'
-                      }`}
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              })()}
-            </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Pipeline Quality Gate — Compact rejection summary */}
-        {rejectedSignals.length > 0 && (
-          <Card className="border border-slate-200/80 shadow-sm bg-white mb-6 rounded-2xl">
-            <div className="p-4">
-              <button
-                onClick={() => setShowRejectedExpanded(!showRejectedExpanded)}
-                className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
-              >
-                <div className="flex items-center gap-3">
-                  <Filter className="w-4 h-4 text-slate-400" />
-                  <h2 className="text-sm font-bold text-slate-700">Quality Gate Summary</h2>
-                  <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[10px] font-bold text-slate-500">{rejectedSignals.length} filtered</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold">
-                    <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 border border-violet-100 rounded-full">
-                      A:{rejectedSignals.filter(s => s.rejection_stage === 'ALPHA').length}
-                    </span>
-                    <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full">
-                      B:{rejectedSignals.filter(s => s.rejection_stage === 'BETA').length}
-                    </span>
-                    <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-full">
-                      G:{rejectedSignals.filter(s => s.rejection_stage === 'GAMMA').length}
-                    </span>
-                    <span className="px-1.5 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded-full">
-                      D:{rejectedSignals.filter(s => s.rejection_stage === 'DELTA').length}
-                    </span>
-                  </div>
-                  {showRejectedExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  )}
-                </div>
-              </button>
-
-              {showRejectedExpanded && (
-                <div className="mt-4 space-y-2 max-h-64 overflow-y-auto border-t border-slate-100 pt-3">
-                  {/* Filter Tabs */}
-                  <div className="flex items-center gap-1.5 mb-3">
-                    {['ALL', 'ALPHA', 'BETA', 'GAMMA', 'DELTA'].map(stage => {
-                      const stageCount = stage === 'ALL'
-                        ? rejectedSignals.length
-                        : rejectedSignals.filter(s => s.rejection_stage === stage).length;
-                      return (
-                        <button
-                          key={stage}
-                          onClick={() => setRejectedFilter(stage as typeof rejectedFilter)}
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                            rejectedFilter === stage
-                              ? 'bg-slate-700 text-white shadow-sm'
-                              : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-200'
-                          }`}
-                        >
-                          {stage} ({stageCount})
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {rejectedSignals
-                    .filter(sig => rejectedFilter === 'ALL' || sig.rejection_stage === rejectedFilter)
-                    .slice(0, 30)
-                    .map(sig => {
-                      const stageColors: Record<string, string> = {
-                        'ALPHA': 'text-violet-600 bg-violet-50 border-violet-200',
-                        'BETA': 'text-amber-600 bg-amber-50 border-amber-200',
-                        'GAMMA': 'text-rose-600 bg-rose-50 border-rose-200',
-                        'DELTA': 'text-red-600 bg-red-50 border-red-200'
-                      };
-                      return (
-                        <div key={sig.id} className="flex items-center gap-2 p-2 rounded border border-slate-100 bg-slate-50/50 text-xs">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${stageColors[sig.rejection_stage] || ''}`}>
-                            {sig.rejection_stage}
-                          </span>
-                          <CryptoLogo symbol={sig.symbol} className="w-5 h-5 flex-shrink-0" />
-                          <span className="font-semibold text-slate-700">{formatSymbol(sig.symbol)}</span>
-                          <span className={`font-semibold ${sig.direction === 'LONG' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {sig.direction}
-                          </span>
-                          <span className="text-slate-400 flex-1 truncate">{sig.rejection_reason}</span>
-                          <span className="text-slate-400 flex-shrink-0">{timeAgo(new Date(sig.created_at).getTime())}</span>
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-slate-100 text-center pb-8">
-          <div className="flex items-center justify-center gap-3 text-sm">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-full">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-              <span className="text-orange-700 font-bold text-xs">
-                Autonomous 24/7 Operation
-              </span>
-            </span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span className="text-sm"><span className="font-bold text-slate-700">{fmt(metrics.totalSignals)}</span> <span className="text-slate-500">Signals</span></span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span className="text-sm"><span className="font-bold text-slate-700">{formatUptime(metrics.uptime)}</span> <span className="text-slate-500">Uptime</span></span>
-          </div>
+        <div className={`px-2 py-1 rounded-md ${regime.bg} ${regime.text} text-[11px] font-semibold`}>
+          {regime.label}
         </div>
       </div>
     </div>
   );
+
+  const KPIs = (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500 uppercase tracking-wide">Signals 24h</span>
+          <Sparkles className="h-4 w-4 text-orange-500" />
+        </div>
+        <div className="text-2xl font-bold text-slate-900 mt-1">{stats24h.total}</div>
+        <div className="text-[11px] text-slate-500 mt-1">
+          {stats24h.active} active · {stats24h.tp1 + stats24h.tp2} won · {stats24h.sl} lost · {stats24h.expired} expired
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500 uppercase tracking-wide">Hit Rate 24h</span>
+          <Target className="h-4 w-4 text-emerald-500" />
+        </div>
+        <div className={`text-2xl font-bold mt-1 ${stats24h.hitRate >= 50 ? 'text-emerald-600' : stats24h.hitRate > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+          {stats24h.tp1 + stats24h.tp2 + stats24h.sl > 0 ? `${stats24h.hitRate.toFixed(0)}%` : '—'}
+        </div>
+        <div className="text-[11px] text-slate-500 mt-1">
+          {stats24h.tp2}× TP2 · {stats24h.tp1}× TP1 · {stats24h.sl}× SL
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500 uppercase tracking-wide">Avg Outcome P/L</span>
+          {stats24h.avgPL >= 0 ? <TrendingUp className="h-4 w-4 text-emerald-500" /> : <TrendingDown className="h-4 w-4 text-rose-500" />}
+        </div>
+        <div className={`text-2xl font-bold mt-1 ${stats24h.avgPL >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {fmtPct(stats24h.avgPL)}
+        </div>
+        <div className="text-[11px] text-slate-500 mt-1">
+          Σ {fmtPct(stats24h.totalPL)} across {stats24h.tp1 + stats24h.tp2 + stats24h.sl + stats24h.expired} resolved
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500 uppercase tracking-wide">Agent W/L</span>
+          <Bot className="h-4 w-4 text-sky-500" />
+        </div>
+        <div className="text-2xl font-bold text-slate-900 mt-1">
+          {totalAgentTrades > 0 ? `${agentWinRate.toFixed(0)}%` : '—'}
+        </div>
+        <div className="text-[11px] text-slate-500 mt-1">
+          {totalAgentWins}W / {totalAgentTrades - totalAgentWins}L · Δ ${fmt(totalBalanceDelta, 0)}
+        </div>
+      </Card>
+    </div>
+  );
+
+  const ActiveSignals = (
+    <Card className="p-5 mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-orange-500" />
+          Active Signals ({activeSignals.length})
+        </h2>
+        <span className="text-[11px] text-slate-500">TTL 4h · resolves to TP1/TP2/SL/EXPIRED</span>
+      </div>
+
+      {signalsLoading ? (
+        <div className="text-sm text-slate-500 py-6 text-center">Loading signals…</div>
+      ) : activeSignals.length === 0 ? (
+        <div className="text-sm text-slate-500 py-6 text-center">
+          No active signals. Next scan in ≤5 min.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {activeSignals.slice(0, 8).map(s => {
+            const isLong = s.signalType === 'LONG';
+            return (
+              <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-gradient-to-r from-white to-slate-50">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CryptoLogo symbol={s.symbol} size={28} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-900">{s.symbol}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isLong ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {s.signalType}
+                      </span>
+                      <span className="text-[11px] text-slate-500">conf {s.confidence}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[420px]">
+                      {s.thesis ?? '—'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-right text-xs">
+                  <div>
+                    <div className="text-slate-500">Entry</div>
+                    <div className="font-mono text-slate-800">{fmtPrice(s.currentPrice)}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500">TP1 / SL</div>
+                    <div className="font-mono">
+                      <span className="text-emerald-600">{fmtPrice(s.target1)}</span>
+                      <span className="text-slate-400"> / </span>
+                      <span className="text-rose-600">{fmtPrice(s.stopLoss)}</span>
+                    </div>
+                  </div>
+                  <div className="w-20">
+                    <div className="text-slate-500 flex items-center justify-end gap-1"><Clock className="h-3 w-3" />Expires</div>
+                    <div className="font-mono text-slate-800">{timeUntil(s.expiresAt)}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+
+  const RecentOutcomes = (
+    <Card className="p-5 mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          Recent Outcomes ({closedSignals.length})
+        </h2>
+        <span className="text-[11px] text-slate-500">Resolved on real OHLC, not last-tick</span>
+      </div>
+
+      {error && (
+        <div className="text-xs text-rose-600 mb-3 flex items-center gap-1.5">
+          <AlertTriangle className="h-3 w-3" />
+          {error.message}
+        </div>
+      )}
+
+      {closedSignals.length === 0 ? (
+        <div className="text-sm text-slate-500 py-6 text-center">
+          No resolved signals yet. The first batch resolves within one full TTL window (≤4h).
+        </div>
+      ) : (
+        <div className="space-y-1.5 max-h-[420px] overflow-y-auto">
+          {closedSignals.slice(0, 30).map(s => {
+            const win = (s.hitTarget ?? 0) > 0;
+            const sl = s.hitStopLoss;
+            const expired = !win && !sl;
+            const tag = win ? `TP${s.hitTarget}` : sl ? 'SL' : 'EXPIRED';
+            const tagBg = win ? 'bg-emerald-100 text-emerald-700' : sl ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500';
+            const plColor = (s.profitLossPercent ?? 0) > 0 ? 'text-emerald-600' : (s.profitLossPercent ?? 0) < 0 ? 'text-rose-600' : 'text-slate-500';
+
+            return (
+              <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded border border-slate-100 hover:bg-slate-50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CryptoLogo symbol={s.symbol} size={18} />
+                  <span className="font-semibold text-xs text-slate-900 w-10">{s.symbol}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${s.signalType === 'LONG' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                    {s.signalType}
+                  </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${tagBg}`}>{tag}</span>
+                  <span className="text-[11px] text-slate-400 truncate">{s.regime ?? '—'}</span>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-slate-500">conf {s.confidence}</span>
+                  <span className="font-mono text-slate-600">
+                    {fmtPrice(s.currentPrice)} → {fmtPrice(s.exitPrice)}
+                  </span>
+                  <span className={`font-mono font-semibold w-16 text-right ${plColor}`}>
+                    {fmtPct(s.profitLossPercent)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 w-14 text-right">{timeAgo(s.completedAt ?? s.createdAt)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+
+  const Agents = (
+    <Card className="p-5 mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <Bot className="h-4 w-4 text-sky-500" />
+          Autonomous Agents
+        </h2>
+        <span className="text-[11px] text-slate-500">
+          {haltedAgents > 0 ? `${haltedAgents} halted` : 'all live'}
+        </span>
+      </div>
+
+      {arenaLoading ? (
+        <div className="text-sm text-slate-500 py-6 text-center">Loading…</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {Object.entries(AGENT_LABELS).map(([id, label]) => {
+            const session = sessions.find(s => s.agent_id === id);
+            const pos = positions.find(p => p.agent_id === id);
+            const trades = session?.trades ?? 0;
+            const wins = session?.wins ?? 0;
+            const wr = trades > 0 ? (wins / trades) * 100 : 0;
+            const balance = INITIAL_BALANCE + Number(session?.balance_delta ?? 0);
+            const halted = session && session.circuit_breaker_level !== 'ACTIVE';
+
+            return (
+              <div key={id} className="p-3 rounded-lg border border-slate-200 bg-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${label.color}`} />
+                    <span className="font-semibold text-sm text-slate-900">{label.name}</span>
+                    <span className="text-[10px] text-slate-500">{label.type}</span>
+                  </div>
+                  {halted && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-rose-100 text-rose-700 flex items-center gap-1">
+                      <Shield className="h-3 w-3" />
+                      {session?.circuit_breaker_level}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-[10px] text-slate-500 uppercase">Trades</div>
+                    <div className="font-bold text-slate-900">{trades}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-500 uppercase">Win Rate</div>
+                    <div className={`font-bold ${trades > 0 && wr >= 50 ? 'text-emerald-600' : trades > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                      {trades > 0 ? `${wr.toFixed(0)}%` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-500 uppercase">Balance</div>
+                    <div className={`font-bold ${balance > INITIAL_BALANCE ? 'text-emerald-600' : balance < INITIAL_BALANCE ? 'text-rose-600' : 'text-slate-700'}`}>
+                      ${fmt(balance, 0)}
+                    </div>
+                  </div>
+                </div>
+                {pos ? (
+                  <div className="mt-2 pt-2 border-t border-slate-100 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Open</span>
+                      <span className="font-mono text-slate-700">
+                        {pos.direction} {pos.display_symbol} @ {fmtPrice(pos.entry_price)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-slate-500">Strategy</span>
+                      <span className="text-slate-600">{pos.strategy}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-400 text-center">
+                    Idle — waiting for next setup
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+
+  const Brainpan = (
+    <Card className="p-5 mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <Brain className="h-4 w-4 text-orange-500" />
+          Continuous Learning Brain
+        </h2>
+        <span className="text-[11px] text-slate-500">
+          {biasCells} bias cells · {intelRegimes.length} regimes · {confCalBins.length} confidence bins
+        </span>
+      </div>
+
+      {biasCells === 0 && intelRegimes.length === 0 && confCalBins.length === 0 ? (
+        <div className="text-sm text-slate-500 py-4 text-center">
+          Brain is cold-starting. The first ~10 closed trades populate strategy bias and confidence calibration.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="text-xs font-semibold text-slate-700 mb-2">Confidence Calibration</div>
+            {confCalBins.length === 0 ? (
+              <div className="text-[11px] text-slate-400 italic">no data yet</div>
+            ) : (
+              <div className="space-y-1">
+                {confCalBins.sort(([a], [b]) => a.localeCompare(b)).map(([bin, cal]) => {
+                  const wr = cal.trades > 0 ? (cal.wins / cal.trades) * 100 : 0;
+                  return (
+                    <div key={bin} className="flex items-center justify-between text-[11px] py-1 px-2 rounded bg-slate-50">
+                      <span className="font-mono text-slate-600">{bin}</span>
+                      <span className="text-slate-700">{cal.wins}/{cal.trades} = <span className={`font-bold ${wr >= 50 ? 'text-emerald-600' : 'text-rose-600'}`}>{wr.toFixed(0)}%</span></span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-700 mb-2">Intel Source × Regime</div>
+            {intelRegimes.length === 0 ? (
+              <div className="text-[11px] text-slate-400 italic">no data yet</div>
+            ) : (
+              <div className="space-y-1">
+                {intelRegimes.map(([regimeName, stats]) => (
+                  <div key={regimeName} className="text-[11px] py-1 px-2 rounded bg-slate-50">
+                    <div className="font-semibold text-slate-700 mb-0.5">{regimeName}</div>
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>sentiment</span>
+                      <span>{stats.sentiment.wins}/{stats.sentiment.trades} · contrib <span className="font-mono">{stats.sentiment.contribution.toFixed(2)}</span></span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>cascade</span>
+                      <span>{stats.cascade.wins}/{stats.cascade.trades} · contrib <span className="font-mono">{stats.cascade.contribution.toFixed(2)}</span></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+
+  const PipelineSummary = (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <Flame className="h-4 w-4 text-rose-500" />
+          All-time Stats
+        </h2>
+        <span className="text-[11px] text-slate-500">
+          since first signal
+        </span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Stat label="Total signals"   value={`${statsAll.total}`} />
+        <Stat label="Wins (TP1+TP2)"  value={`${statsAll.tp1 + statsAll.tp2}`} good={statsAll.tp1 + statsAll.tp2 > statsAll.sl} />
+        <Stat label="Losses (SL)"     value={`${statsAll.sl}`} bad={statsAll.sl > statsAll.tp1 + statsAll.tp2} />
+        <Stat label="Hit Rate"        value={statsAll.tp1 + statsAll.tp2 + statsAll.sl > 0 ? `${statsAll.hitRate.toFixed(0)}%` : '—'} />
+        <Stat label="Σ P/L"           value={fmtPct(statsAll.totalPL)} good={statsAll.totalPL > 0} bad={statsAll.totalPL < 0} />
+      </div>
+    </Card>
+  );
+
+  return (
+    <div className={embedded ? '' : 'min-h-screen bg-gradient-to-b from-orange-50/30 via-white to-slate-50/50'}>
+      {!embedded && <AppHeader />}
+      <div className={embedded ? '' : 'container mx-auto px-6 py-8 max-w-[1400px]'}>
+        {Header}
+        {KPIs}
+        {ActiveSignals}
+        {RecentOutcomes}
+        {Agents}
+        {Brainpan}
+        {PipelineSummary}
+      </div>
+    </div>
+  );
 }
+
+function Stat({ label, value, good, bad }: { label: string; value: string; good?: boolean; bad?: boolean }) {
+  const color = good ? 'text-emerald-600' : bad ? 'text-rose-600' : 'text-slate-900';
+  return (
+    <div className="p-3 rounded-lg border border-slate-200 bg-white">
+      <div className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</div>
+      <div className={`text-lg font-bold mt-1 ${color}`}>{value}</div>
+    </div>
+  );
+}
+

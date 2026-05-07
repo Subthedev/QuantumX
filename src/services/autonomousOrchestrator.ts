@@ -618,23 +618,26 @@ class AutonomousOrchestrator {
     // Always update localStorage synchronously as the fast-path cache.
     try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.serialize())); } catch {}
 
-    // Debounce the Supabase write. The cron uses a non-debounced path because
-    // Vercel functions don't survive past the response — see saveStateNow().
-    // Phase 4: All saves go through saveStateWithRetry() to tolerate
-    // concurrent writers (multiple browser tabs + cron).
-    if (typeof window === 'undefined') {
-      this.saveStateWithRetry().catch(err =>
-        console.warn('[Orchestrator] Supabase save failed:', err?.message)
-      );
+    // ARCHITECTURE GUARDRAIL — the canonical autonomous_state row is owned by
+    // api/agents/trade-tick.ts (the cron). The browser is a read-only consumer
+    // since the cron's serialized state contains keys the browser doesn't know
+    // about (intelStats, mlWeights, confidenceCal, strategyOutcomes, pendingIntel).
+    // If the browser were to write here, it would strip those keys from the
+    // JSONB and corrupt the cron's learned brain.
+    //
+    // We keep saveStateNow / saveStateWithRetry callable for legacy server-side
+    // contexts (Vercel cron paths that import this shell), but the BROWSER never
+    // writes to Supabase. localStorage above remains the only browser-side
+    // persistence — it survives reloads and is purely local.
+    if (typeof window !== 'undefined') {
+      // Browser context — localStorage only; do NOT touch autonomous_state.
       return;
     }
 
-    if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
-    this.saveDebounceTimer = setTimeout(() => {
-      this.saveStateWithRetry().catch(err =>
-        console.warn('[Orchestrator] Supabase save failed:', err?.message)
-      );
-    }, this.SAVE_DEBOUNCE_MS);
+    // Non-browser path (preserved for any direct server-side callers).
+    this.saveStateWithRetry().catch(err =>
+      console.warn('[Orchestrator] Supabase save failed:', err?.message)
+    );
   }
 
   /**
