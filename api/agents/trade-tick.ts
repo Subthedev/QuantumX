@@ -378,17 +378,13 @@ async function detectRichRegime(btcFallback?: PriceData): Promise<RegimeSnapshot
 }
 
 async function writeMarketState(supabase: any, snap: RegimeSnapshot): Promise<void> {
-  // Singleton row keyed by a fixed UUID — overwrite in place each tick
-  const { error } = await supabase
-    .from('arena_market_state')
-    .upsert({
-      id: '00000000-0000-0000-0000-000000000001',
-      state: snap.state,
-      confidence: snap.confidence,
-      volatility: snap.volatility,
-      trend_strength: snap.trendStrength,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
+  const { error } = await supabase.rpc('worker_upsert_market_state', {
+    p_secret: process.env.CRON_SECRET ?? '',
+    p_state: snap.state,
+    p_confidence: snap.confidence,
+    p_volatility: snap.volatility,
+    p_trend_strength: snap.trendStrength,
+  });
   if (error) console.warn('[trade-tick] arena_market_state upsert failed:', error.message);
 }
 
@@ -622,25 +618,45 @@ async function loadActivePublishedSignals(supabase: any): Promise<Map<string, Pu
  * Apply published-signal alignment to a candidate's confidence.
  * Same direction → boost; opposite direction → penalty (disagreement).
  * Returns adjusted confidence + a one-line annotation if alignment changed it.
+ *
+ * Phase 2 wiring: scaled by `signalQuality[symbol-regime]` from autonomous_state
+ * (populated by signal-tick's resolver). When historical Hub-signal accuracy
+ * for this pair+regime is high (>0.6), boost magnitude grows; when accuracy
+ * is low (<0.4), boost is attenuated and conflict penalty also softens. So a
+ * signal generator that's been wrong all day stops bullying the Arena's
+ * native judgment.
  */
 function applyPublishedSignalAlignment(
   baseConfidence: number,
   direction: Direction,
   pairSymbol: string,
   published: Map<string, PublishedSignal>,
+  signalQuality?: Record<string, number>,
 ): { confidence: number; note: string | null } {
   const sig = published.get(pairSymbol);
   if (!sig) return { confidence: baseConfidence, note: null };
+
+  // Lookup quality EMA (0..1, default 0.5 = neutral). Map 0.5 → 1.0x, 0.8 → 1.6x,
+  // 0.2 → 0.4x. Clamped so a single bad cell can't completely silence the source.
+  const ticker = pairSymbol.replace(/USDT$/, '');
+  const qKey = `${ticker}-${sig.regime}`;
+  const q = signalQuality?.[qKey];
+  const qMult = (typeof q === 'number') ? Math.max(0.4, Math.min(1.6, 0.4 + 1.2 * q)) : 1.0;
+
   if (sig.direction === direction) {
-    // Aligned — boost by min(8, sig.confidence/10) to give published-confidence weight
-    const boost = Math.min(8, Math.max(2, sig.confidence / 10));
+    const baseBoost = Math.min(8, Math.max(2, sig.confidence / 10));
+    const boost = baseBoost * qMult;
     const adjusted = Math.min(95, baseConfidence + boost);
-    return { confidence: adjusted, note: `pub-aligned ${sig.direction}@${sig.confidence}+${boost.toFixed(0)}` };
+    const qNote = q != null ? ` q=${(q * 100).toFixed(0)}%` : '';
+    return { confidence: adjusted, note: `pub-aligned ${sig.direction}@${sig.confidence}+${boost.toFixed(1)}${qNote}` };
   }
-  // Disagreement — penalize. Stronger penalty when published signal is high-conviction.
-  const penalty = Math.min(12, Math.max(4, sig.confidence / 8));
+  const basePenalty = Math.min(12, Math.max(4, sig.confidence / 8));
+  // For disagreement, qMult > 1 means signal usually right → bigger penalty
+  // for going against it; qMult < 1 means usually wrong → smaller penalty.
+  const penalty = basePenalty * qMult;
   const adjusted = Math.max(0, baseConfidence - penalty);
-  return { confidence: adjusted, note: `pub-conflict ${sig.direction}@${sig.confidence}-${penalty.toFixed(0)}` };
+  const qNote = q != null ? ` q=${(q * 100).toFixed(0)}%` : '';
+  return { confidence: adjusted, note: `pub-conflict ${sig.direction}@${sig.confidence}-${penalty.toFixed(1)}${qNote}` };
 }
 
 // ─── Brain (per-strategy bias EMA) ────────────────────────────────────────────
@@ -688,6 +704,7 @@ interface BrainState {
   confidenceCal: Record<string, { trades: number; wins: number }>;                          // bin → calibration
   pendingIntel: Record<string, IntelSnapshot>;           // agent_id → intel-at-open
   mlWeights?: MLWeights;                                  // online logistic regression coefficients
+  signalQuality?: Record<string, number>;                // 0..1 EMA of Hub signal accuracy per `${ticker}-${regime}` (written by signal-tick)
 }
 // Forward-declared so BrainState compiles before the ML block defines it
 interface MLWeights {
@@ -741,6 +758,7 @@ async function loadBrain(supabase: any): Promise<{ brain: BrainState; rawState: 
     return {
       brain: {
         strategyBias:     s.strategyBias     && typeof s.strategyBias     === 'object' ? { ...s.strategyBias }     : {},
+        signalQuality:    s.signalQuality    && typeof s.signalQuality    === 'object' ? { ...s.signalQuality }    : {},
         strategyOutcomes: s.strategyOutcomes && typeof s.strategyOutcomes === 'object' ? { ...s.strategyOutcomes } : {},
         intelStats:       s.intelStats       && typeof s.intelStats       === 'object' ? { ...s.intelStats }       : {},
         confidenceCal:    s.confidenceCal    && typeof s.confidenceCal    === 'object' ? { ...s.confidenceCal }    : {},
@@ -772,6 +790,25 @@ async function persistBrain(
   for (const [k, v] of Object.entries(brain.pendingIntel)) {
     if (v.openedAt >= cutoff) liveIntel[k] = v;
   }
+  // Re-read signalQuality* RIGHT before persist so we don't clobber a write
+  // signal-tick performed during this trade-tick run. signal-tick is the only
+  // writer for those keys; trade-tick is read-only there.
+  let freshSQ = rawState?.signalQuality;
+  let freshSQCount = rawState?.signalQualityCount;
+  let freshSQUpdate = rawState?.signalQualityLastUpdate;
+  try {
+    const { data: fresh } = await supabase
+      .from('autonomous_state')
+      .select('state')
+      .eq('id', 'singleton')
+      .single();
+    if (fresh?.state) {
+      if (fresh.state.signalQuality)            freshSQ       = fresh.state.signalQuality;
+      if (fresh.state.signalQualityCount)       freshSQCount  = fresh.state.signalQualityCount;
+      if (fresh.state.signalQualityLastUpdate)  freshSQUpdate = fresh.state.signalQualityLastUpdate;
+    }
+  } catch { /* swallow — fall back to rawState values */ }
+
   const newState: any = {
     ...rawState,
     strategyBias: trimmedBias,
@@ -782,6 +819,9 @@ async function persistBrain(
     mlWeights: brain.mlWeights ?? null,    // null when never trained
     brainLastUpdate: Date.now(),
   };
+  if (freshSQ)       newState.signalQuality           = freshSQ;
+  if (freshSQCount)  newState.signalQualityCount      = freshSQCount;
+  if (freshSQUpdate) newState.signalQualityLastUpdate = freshSQUpdate;
   // Heartbeat snapshot. Always written when supplied so external monitors
   // can verify the engine is alive even on zero-activity ticks.
   if (lastTick) newState.lastTick = lastTick;
@@ -1082,22 +1122,30 @@ async function fetchSentiment(): Promise<SentimentSnap> {
   if (fng?.data?.[0]) snap.fearGreed = Number(fng.data[0].value);
   else snap.partial = true;
 
-  // Funding BTC: Binance → Bybit fallback
-  if (fBtc?.lastFundingRate != null) {
-    snap.fundingBTC = Number(fBtc.lastFundingRate) * 100;
+  // Funding BTC: try Binance, but accept the value only if it's a real (non-zero)
+  // number. Binance from AWS is unreliable — sometimes it returns success with
+  // an empty/zeroed body. In that case Bybit is the canonical source.
+  const binBtcFund = fBtc?.lastFundingRate != null ? Number(fBtc.lastFundingRate) : NaN;
+  const bybBtcFund = fBtcByb?.result?.list?.[0]?.fundingRate != null
+    ? Number(fBtcByb.result.list[0].fundingRate) : NaN;
+  if (Number.isFinite(binBtcFund) && binBtcFund !== 0) {
+    snap.fundingBTC = binBtcFund * 100;
+  } else if (Number.isFinite(bybBtcFund)) {
+    snap.fundingBTC = bybBtcFund * 100;
   } else {
-    const byb = fBtcByb?.result?.list?.[0]?.fundingRate;
-    if (byb != null) snap.fundingBTC = Number(byb) * 100;
-    else snap.partial = true;
+    snap.partial = true;
   }
 
-  // Funding ETH: Binance → Bybit fallback
-  if (fEth?.lastFundingRate != null) {
-    snap.fundingETH = Number(fEth.lastFundingRate) * 100;
+  // Funding ETH — same pattern
+  const binEthFund = fEth?.lastFundingRate != null ? Number(fEth.lastFundingRate) : NaN;
+  const bybEthFund = fEthByb?.result?.list?.[0]?.fundingRate != null
+    ? Number(fEthByb.result.list[0].fundingRate) : NaN;
+  if (Number.isFinite(binEthFund) && binEthFund !== 0) {
+    snap.fundingETH = binEthFund * 100;
+  } else if (Number.isFinite(bybEthFund)) {
+    snap.fundingETH = bybEthFund * 100;
   } else {
-    const byb = fEthByb?.result?.list?.[0]?.fundingRate;
-    if (byb != null) snap.fundingETH = Number(byb) * 100;
-    else snap.partial = true;
+    snap.partial = true;
   }
 
   // L/S ratio: Binance → OKX fallback. OKX format:
@@ -1601,7 +1649,7 @@ async function runTradingTick(): Promise<TickResult> {
       const sBias = sentimentBiasFor(sentiment, sig.direction);
       const cPulse = cascadeBySymbol.get(pair.symbol) ?? { pressure: 0, intensity: 0 };
       const cBias = cascadeBiasFor(cPulse, sig.direction);
-      const pubAdj = applyPublishedSignalAlignment(sig.confidence, sig.direction, pair.symbol, publishedSignals);
+      const pubAdj = applyPublishedSignalAlignment(sig.confidence, sig.direction, pair.symbol, publishedSignals, brain.signalQuality);
       const pubDelta = pubAdj.confidence - sig.confidence;
       // Multi-timeframe: 7d trend agreement amplifies, disagreement penalizes
       const mtf = multiTimeframeBiasFor(price.change7d, sig.direction);
@@ -1720,7 +1768,7 @@ async function runTradingTick(): Promise<TickResult> {
     const sBiasAtOpen = sentimentBiasFor(sentiment, chosenSignal.direction);
     const cPulseAtOpen = cascadeBySymbol.get(chosenPair.symbol) ?? { pressure: 0, intensity: 0 };
     const cBiasAtOpen = cascadeBiasFor(cPulseAtOpen, chosenSignal.direction);
-    const pubAdjAtOpen = applyPublishedSignalAlignment(chosenSignal.confidence, chosenSignal.direction, chosenPair.symbol, publishedSignals);
+    const pubAdjAtOpen = applyPublishedSignalAlignment(chosenSignal.confidence, chosenSignal.direction, chosenPair.symbol, publishedSignals, brain.signalQuality);
     const mtfAtOpen = multiTimeframeBiasFor(price.change7d, chosenSignal.direction);
     brain.pendingIntel[agent.id] = {
       strategy: chosenSignal.strategy,
@@ -1774,23 +1822,23 @@ async function openPosition(
   const quantity = notional / entry;
   const positionId = `${agent.id}-${Date.now()}`;
 
-  const { error } = await supabase
-    .from('arena_active_positions')
-    .upsert({
-      agent_id: agent.id,
-      position_id: positionId,
-      symbol: pair.symbol,
-      display_symbol: pair.display,
-      direction: signal.direction,
-      entry_price: entry,
-      current_price: entry,
-      quantity,
-      take_profit_price: tp,
-      stop_loss_price: sl,
-      strategy: signal.strategy,
-      market_state_at_entry: marketState,
-      entry_time: new Date().toISOString(),
-    }, { onConflict: 'agent_id' });
+  // Use SECURITY DEFINER RPC instead of direct UPSERT — anon role no longer
+  // has INSERT/UPDATE/DELETE on worker tables. The RPC verifies CRON_SECRET
+  // before bypassing RLS to write.
+  const { error } = await supabase.rpc('worker_open_position', {
+    p_secret: process.env.CRON_SECRET ?? '',
+    p_agent_id: agent.id,
+    p_position_id: positionId,
+    p_symbol: pair.symbol,
+    p_display_symbol: pair.display,
+    p_direction: signal.direction,
+    p_entry_price: entry,
+    p_quantity: quantity,
+    p_take_profit_price: tp,
+    p_stop_loss_price: sl,
+    p_strategy: signal.strategy,
+    p_market_state: marketState,
+  });
 
   if (error) {
     const msg = `open failed for ${agent.id}: ${error.message ?? error.code ?? error}`;
@@ -1871,44 +1919,28 @@ async function closeTrade(
     haltedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   }
 
-  const writes = await Promise.all([
-    supabase.from('arena_trade_history').insert({
-      agent_id: pos.agent_id,
-      timestamp: new Date().toISOString(),
-      symbol: pos.symbol,
-      direction: pos.direction,
-      entry_price: entry,
-      exit_price: exitPrice,
-      quantity: qty,
-      pnl_percent: pnlPercent,
-      pnl_dollar: pnlDollar,
-      is_win: isWin,
-      strategy: pos.strategy,
-      market_state: pos.market_state_at_entry,
-      reason,
-    }),
-    supabase.from('arena_active_positions').delete().eq('agent_id', pos.agent_id),
-    supabase.from('arena_agent_sessions').upsert({
-      agent_id: pos.agent_id,
-      trades: (session?.trades ?? 0) + 1,
-      wins: (session?.wins ?? 0) + (isWin ? 1 : 0),
-      pnl: Number(session?.pnl ?? 0) + pnlPercent,
-      balance_delta: newDelta,
-      consecutive_losses: consecutive,
-      circuit_breaker_level: circuitLevel,
-      halted_until: haltedUntil,
-      last_trade_time: new Date().toISOString(),
-    }, { onConflict: 'agent_id' }),
-  ]);
-
-  const labels = ['trade_history.insert', 'active_position.delete', 'agent_session.upsert'];
-  writes.forEach((w: any, i: number) => {
-    if (w?.error) {
-      const msg = `close ${labels[i]} failed for ${pos.agent_id}: ${w.error.message ?? w.error.code ?? w.error}`;
-      console.error('[trade-tick]', msg);
-      result.errors.push(msg);
-    }
+  // Use SECURITY DEFINER RPC — atomic insert+delete+upsert + circuit-breaker
+  // logic on the DB side. Anon no longer has direct write rights on these tables.
+  const { error: closeErr } = await supabase.rpc('worker_close_trade', {
+    p_secret: process.env.CRON_SECRET ?? '',
+    p_agent_id: pos.agent_id,
+    p_symbol: pos.symbol,
+    p_direction: pos.direction,
+    p_entry_price: entry,
+    p_exit_price: exitPrice,
+    p_quantity: qty,
+    p_pnl_percent: pnlPercent,
+    p_pnl_dollar: pnlDollar,
+    p_is_win: isWin,
+    p_strategy: pos.strategy,
+    p_market_state: pos.market_state_at_entry,
+    p_reason: reason,
   });
+  if (closeErr) {
+    const msg = `close failed for ${pos.agent_id}: ${closeErr.message ?? closeErr.code ?? closeErr}`;
+    console.error('[trade-tick]', msg);
+    result.errors.push(msg);
+  }
 
   console.info(`[trade-tick] CLOSE ${pos.agent_id} ${pos.direction} ${pos.display_symbol} ${reason} pnl=${pnlPercent.toFixed(2)}% ($${pnlDollar.toFixed(2)}) consec=${consecutive}`);
 }

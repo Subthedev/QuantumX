@@ -486,10 +486,13 @@ interface ActiveSignalRow {
   stop_loss: number | null;
   expires_at: string;
   created_at: string;
+  regime: string | null;            // for signal-quality EMA bucketing
 }
 
 interface ResolvedOutcome {
   id: string;
+  symbol: string;                   // 'BTC' — for signal-quality EMA key
+  regime: string;                   // 'BULLISH_HIGH_VOL' etc.
   status: 'completed' | 'expired';
   exit_price: number | null;
   hit_target: number | null;       // 0=none, 1=TP1, 2=TP2
@@ -529,7 +532,7 @@ function resolveSignalAgainstCandles(
         const exit = sl!;
         const pl = ((exit - signal.current_price) / signal.current_price) * 100;
         return {
-          id: signal.id, status: 'completed', exit_price: exit,
+          id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'completed', exit_price: exit,
           hit_target: 0, hit_stop_loss: true, profit_loss_percent: pl,
           completed_at: new Date(Math.min(c.ts + HALF_HOUR, nowMs)).toISOString(),
         };
@@ -538,7 +541,7 @@ function resolveSignalAgainstCandles(
         const exit = tp2!;
         const pl = ((exit - signal.current_price) / signal.current_price) * 100;
         return {
-          id: signal.id, status: 'completed', exit_price: exit,
+          id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'completed', exit_price: exit,
           hit_target: 2, hit_stop_loss: false, profit_loss_percent: pl,
           completed_at: new Date(Math.min(c.ts + HALF_HOUR, nowMs)).toISOString(),
         };
@@ -547,7 +550,7 @@ function resolveSignalAgainstCandles(
         const exit = tp1!;
         const pl = ((exit - signal.current_price) / signal.current_price) * 100;
         return {
-          id: signal.id, status: 'completed', exit_price: exit,
+          id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'completed', exit_price: exit,
           hit_target: 1, hit_stop_loss: false, profit_loss_percent: pl,
           completed_at: new Date(Math.min(c.ts + HALF_HOUR, nowMs)).toISOString(),
         };
@@ -561,7 +564,7 @@ function resolveSignalAgainstCandles(
         const exit = sl!;
         const pl = ((signal.current_price - exit) / signal.current_price) * 100;
         return {
-          id: signal.id, status: 'completed', exit_price: exit,
+          id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'completed', exit_price: exit,
           hit_target: 0, hit_stop_loss: true, profit_loss_percent: pl,
           completed_at: new Date(Math.min(c.ts + HALF_HOUR, nowMs)).toISOString(),
         };
@@ -570,7 +573,7 @@ function resolveSignalAgainstCandles(
         const exit = tp2!;
         const pl = ((signal.current_price - exit) / signal.current_price) * 100;
         return {
-          id: signal.id, status: 'completed', exit_price: exit,
+          id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'completed', exit_price: exit,
           hit_target: 2, hit_stop_loss: false, profit_loss_percent: pl,
           completed_at: new Date(Math.min(c.ts + HALF_HOUR, nowMs)).toISOString(),
         };
@@ -579,7 +582,7 @@ function resolveSignalAgainstCandles(
         const exit = tp1!;
         const pl = ((signal.current_price - exit) / signal.current_price) * 100;
         return {
-          id: signal.id, status: 'completed', exit_price: exit,
+          id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'completed', exit_price: exit,
           hit_target: 1, hit_stop_loss: false, profit_loss_percent: pl,
           completed_at: new Date(Math.min(c.ts + HALF_HOUR, nowMs)).toISOString(),
         };
@@ -594,12 +597,72 @@ function resolveSignalAgainstCandles(
       ? ((lastClose - signal.current_price) / signal.current_price) * 100
       : ((signal.current_price - lastClose) / signal.current_price) * 100;
     return {
-      id: signal.id, status: 'expired', exit_price: lastClose,
+      id: signal.id, symbol: signal.symbol, regime: signal.regime ?? 'RANGEBOUND', status: 'expired', exit_price: lastClose,
       hit_target: 0, hit_stop_loss: false, profit_loss_percent: pl,
       completed_at: new Date(nowMs).toISOString(),
     };
   }
   return null;
+}
+
+// ─── Signal-quality feedback (per-symbol, per-regime EMA) ────────────────────
+// Closes the Hub→Arena learning loop. Each resolved signal updates an EMA
+// of "did this signal actually pay" per (symbol, regime). trade-tick reads
+// autonomous_state.signalQuality and scales its published-signal alignment
+// boost by it — so good-signal regimes get extra weight, bad-signal regimes
+// get attenuated. Without this, every signal gets the same trust regardless
+// of historical accuracy.
+const SIGNAL_QUALITY_ALPHA = 0.15;
+
+async function updateSignalQualityEMA(
+  supabase: any,
+  resolutions: ResolvedOutcome[],
+): Promise<void> {
+  // Only completed (TP/SL) outcomes carry a real win/loss signal. 'expired'
+  // is ambiguous — could be flat market, not a wrong call — so we skip it.
+  const completed = resolutions.filter(r => r.status === 'completed');
+  if (completed.length === 0) return;
+
+  // Read current state — singleton row, JSONB
+  const { data, error } = await supabase
+    .from('autonomous_state')
+    .select('state')
+    .eq('id', 'singleton')
+    .single();
+  if (error || !data) return;
+
+  const state = (data.state && typeof data.state === 'object') ? data.state : {};
+  const sq: Record<string, number> = (state.signalQuality && typeof state.signalQuality === 'object')
+    ? { ...state.signalQuality } : {};
+  const sqCount: Record<string, number> = (state.signalQualityCount && typeof state.signalQualityCount === 'object')
+    ? { ...state.signalQualityCount } : {};
+
+  for (const r of completed) {
+    if (!r.symbol || !r.regime) continue;
+    const key = `${r.symbol}-${r.regime}`;
+    // Win = TP1 or TP2; Loss = SL.
+    const isWin = !r.hit_stop_loss && (r.hit_target === 1 || r.hit_target === 2);
+    const target = isWin ? 1.0 : 0.0;
+    const current = typeof sq[key] === 'number' ? sq[key] : 0.5;
+    sq[key] = Math.max(0, Math.min(1, current * (1 - SIGNAL_QUALITY_ALPHA) + target * SIGNAL_QUALITY_ALPHA));
+    sqCount[key] = (sqCount[key] || 0) + 1;
+  }
+
+  const newState = {
+    ...state,
+    signalQuality: sq,
+    signalQualityCount: sqCount,
+    signalQualityLastUpdate: Date.now(),
+  };
+
+  const { error: upErr } = await supabase
+    .from('autonomous_state')
+    .upsert({ id: 'singleton', state: newState, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  if (upErr) {
+    console.warn('[signal-tick] signalQuality persist failed:', upErr.message);
+  } else {
+    console.info(`[signal-tick] signalQuality updated: ${completed.length} outcomes, ${Object.keys(sq).length} cells`);
+  }
 }
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
@@ -632,7 +695,7 @@ async function runSignalTick(): Promise<TickResult> {
       .select('symbol, signal_type, created_at')
       .gte('created_at', new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString()),
     supabase.from('intelligence_signals')
-      .select('id, symbol, signal_type, current_price, target_1, target_2, stop_loss, expires_at, created_at')
+      .select('id, symbol, signal_type, current_price, target_1, target_2, stop_loss, expires_at, created_at, regime')
       .eq('status', 'active')
       .order('created_at', { ascending: true })
       .limit(OUTCOME_RESOLVER_LIMIT),
@@ -687,6 +750,16 @@ async function runSignalTick(): Promise<TickResult> {
   }
   if (resolutions.length > 0) {
     console.info(`[signal-tick] RESOLVED ${result.resolved} (TP1=${result.resolvedHitTP1} TP2=${result.resolvedHitTP2} SL=${result.resolvedHitSL}) + ${result.expired} expired`);
+
+    // Feed resolved outcomes back to autonomous_state.signalQuality so the
+    // Arena's published-signal alignment boost can scale by historical accuracy
+    // per (symbol, regime). EMA alpha=0.15 — fast enough to react to regime
+    // shifts, slow enough to not whipsaw on a single bad call.
+    try {
+      await updateSignalQualityEMA(supabase, resolutions);
+    } catch (err: any) {
+      console.warn('[signal-tick] signalQuality update failed:', err?.message);
+    }
   }
 
   // Step 2 — generate fresh candidates from breadth-aware regime + indicators.
