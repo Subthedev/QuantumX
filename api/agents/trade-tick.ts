@@ -146,6 +146,62 @@ const COINBASE_PRODUCTS: Record<string, string> = {
  * as a proxy for change24h. We pull ticker for current_price + Coinbase
  * doesn't expose direct change24h, so we compute it from open-vs-last.
  */
+/**
+ * Bybit Spot fallback — single batched call returns all 6 pairs in one round-trip.
+ * Bybit's spot API is open-IP (works from AWS), no auth, and we already use
+ * Bybit elsewhere for funding + cascade pulses, so it's a known-good source.
+ *
+ * This is the 4th-tier safety net. Used only when the previous three
+ * (CoinGecko / CoinPaprika / Coinbase) all miss a pair. In production we've
+ * observed CoinGecko + Coinbase both throttle Vercel's IPs simultaneously,
+ * leaving the cron with zero prices. Bybit Spot fills that gap.
+ */
+async function fetchPricesBybitSpot(map: Map<string, PriceData>): Promise<number> {
+  const missing = TRADING_PAIRS.filter(p => !map.has(p.symbol));
+  if (missing.length === 0) return 0;
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);
+  let filled = 0;
+  try {
+    // /v5/market/tickers without symbol returns ALL pairs — we filter client-side
+    const r = await fetch('https://api.bybit.com/v5/market/tickers?category=spot', {
+      signal: ctrl.signal,
+      headers: { accept: 'application/json' },
+    });
+    clearTimeout(t);
+    if (!r.ok) return 0;
+    const body: any = await r.json();
+    const list: any[] = body?.result?.list ?? [];
+    if (!Array.isArray(list) || list.length === 0) return 0;
+    const bySymbol = new Map<string, any>(list.map((row: any) => [String(row.symbol), row]));
+    for (const pair of missing) {
+      const row = bySymbol.get(pair.symbol);
+      if (!row || !row.lastPrice) continue;
+      const last = Number(row.lastPrice);
+      const high = Number(row.highPrice24h ?? last);
+      const low  = Number(row.lowPrice24h  ?? last);
+      const vol  = Number(row.volume24h    ?? 0);
+      // Bybit price24hPcnt is a fractional change (e.g. -0.0149 = -1.49%); ×100 → percent.
+      const pct  = Number(row.price24hPcnt ?? 0) * 100;
+      if (last <= 0) continue;
+      map.set(pair.symbol, {
+        symbol:    pair.symbol,
+        price:     last,
+        change24h: pct,
+        change7d:  0, // Bybit /tickers doesn't expose 7d; downstream treats as soft tilt
+        high24h:   high,
+        low24h:    low,
+        volume:    vol,
+      });
+      filled++;
+    }
+  } catch {
+    clearTimeout(t);
+  }
+  return filled;
+}
+
 async function fetchPricesCoinbase(map: Map<string, PriceData>): Promise<number> {
   const missing = TRADING_PAIRS.filter(p => !map.has(p.symbol) && COINBASE_PRODUCTS[p.symbol]);
   if (missing.length === 0) return 0;
@@ -354,6 +410,15 @@ async function fetchPrices(supabase?: any): Promise<Map<string, PriceData>> {
     const cbFilled = await fetchPricesCoinbase(map);
     if (cbFilled > 0) {
       console.info(`[trade-tick] Coinbase fallback filled ${cbFilled}/${TRADING_PAIRS.length - beforeCb} missing pairs`);
+    }
+  }
+  // 4th tier: Bybit Spot (single batched call, always reachable from AWS,
+  // covers BNB which Coinbase doesn't list).
+  if (map.size < TRADING_PAIRS.length) {
+    const beforeBy = map.size;
+    const byFilled = await fetchPricesBybitSpot(map);
+    if (byFilled > 0) {
+      console.info(`[trade-tick] Bybit Spot fallback filled ${byFilled}/${TRADING_PAIRS.length - beforeBy} missing pairs`);
     }
   }
 

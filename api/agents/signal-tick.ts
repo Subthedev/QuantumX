@@ -109,6 +109,53 @@ const COINBASE_PRODUCTS: Record<string, string> = {
   DOGEUSDT: 'DOGE-USD',
 };
 
+/**
+ * Bybit Spot fallback — single batched call returns all pairs in one round-trip.
+ * 4th-tier safety net for when CoinGecko + Coinbase both throttle Vercel IPs.
+ */
+async function fetchPricesBybitSpot(map: Map<string, PriceData>): Promise<number> {
+  const missing = SIGNAL_UNIVERSE.filter(p => !map.has(p.ticker));
+  if (missing.length === 0) return 0;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);
+  let filled = 0;
+  try {
+    const r = await fetch('https://api.bybit.com/v5/market/tickers?category=spot', {
+      signal: ctrl.signal,
+      headers: { accept: 'application/json' },
+    });
+    clearTimeout(t);
+    if (!r.ok) return 0;
+    const body: any = await r.json();
+    const list: any[] = body?.result?.list ?? [];
+    if (!Array.isArray(list) || list.length === 0) return 0;
+    const bySymbol = new Map<string, any>(list.map((row: any) => [String(row.symbol), row]));
+    for (const pair of missing) {
+      const row = bySymbol.get(pair.symbol);
+      if (!row || !row.lastPrice) continue;
+      const last = Number(row.lastPrice);
+      const high = Number(row.highPrice24h ?? last);
+      const low  = Number(row.lowPrice24h  ?? last);
+      const vol  = Number(row.volume24h    ?? 0);
+      const pct  = Number(row.price24hPcnt ?? 0) * 100;
+      if (last <= 0) continue;
+      map.set(pair.ticker, {
+        symbol: pair.symbol,
+        ticker: pair.ticker,
+        price: last,
+        change24h: pct,
+        high24h: high,
+        low24h: low,
+        volume: vol,
+      });
+      filled++;
+    }
+  } catch {
+    clearTimeout(t);
+  }
+  return filled;
+}
+
 async function fetchPricesCoinbase(map: Map<string, PriceData>): Promise<number> {
   const missing = SIGNAL_UNIVERSE.filter(p => !map.has(p.ticker) && COINBASE_PRODUCTS[p.symbol]);
   if (missing.length === 0) return 0;
@@ -252,9 +299,18 @@ async function fetchPrices(supabase?: any): Promise<Map<string, PriceData>> {
       console.info(`[signal-tick] Coinbase fallback filled ${filled}/${SIGNAL_UNIVERSE.length - before} missing`);
     }
   }
+  // 4th tier: Bybit Spot (always reachable from AWS, single batched call,
+  // covers BNB which Coinbase doesn't list).
+  if (map.size < SIGNAL_UNIVERSE.length) {
+    const before = map.size;
+    const filled = await fetchPricesBybitSpot(map);
+    if (filled > 0) {
+      console.info(`[signal-tick] Bybit Spot fallback filled ${filled}/${SIGNAL_UNIVERSE.length - before} missing`);
+    }
+  }
 
   if (supabase && map.size > 0) {
-    void persistPriceCache(supabase, map, 'coingecko+coinbase');
+    void persistPriceCache(supabase, map, 'coingecko+coinbase+bybit');
   }
 
   return map;
