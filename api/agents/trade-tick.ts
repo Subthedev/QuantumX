@@ -976,14 +976,22 @@ interface SentimentSnap {
 
 async function fetchSentiment(): Promise<SentimentSnap> {
   const snap: SentimentSnap = { fearGreed: 50, fundingBTC: 0, fundingETH: 0, longShortRatio: 1, partial: false };
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 7000);
+  // Per-call AbortController + 6s timeout. Sharing one controller across
+  // Promise.all caused a single slow upstream (Binance, which blocks AWS IPs
+  // and times out at 7s) to abort ALL pending requests including the Bybit /
+  // OKX fallbacks — leaving funding/L-S at their defaults forever.
   const fetchOne = async (url: string): Promise<any | null> => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
     try {
       const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+      clearTimeout(t);
       if (!r.ok) return null;
       return await r.json();
-    } catch { return null; }
+    } catch {
+      clearTimeout(t);
+      return null;
+    }
   };
   // Binance Futures (fapi.binance.com) blocks AWS IP ranges → all 3 calls
   // return null in production. Fall back to Bybit (open IPs, free) for funding
@@ -1000,7 +1008,6 @@ async function fetchSentiment(): Promise<SentimentSnap> {
     // OKX long/short ratio for BTC perps (5min). open-IP, no auth.
     fetchOne('https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=BTC&period=5m'),
   ]);
-  clearTimeout(t);
 
   // F&G — primary only
   if (fng?.data?.[0]) snap.fearGreed = Number(fng.data[0].value);
