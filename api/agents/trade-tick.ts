@@ -428,61 +428,313 @@ function findCorrelatedConflict(
   return null;
 }
 
+// ─── Published intelligence signals (consumed from signal-tick) ───────────────
+// signal-tick publishes top-confidence multi-confirmation candidates to
+// `intelligence_signals` every 5 min. trade-tick reads these and uses them
+// as a confidence overlay: same direction → boost, disagreement → penalty.
+// This is the cheapest "wire what's already there" intelligence integration
+// available given the self-contained constraint — signal-tick is already
+// running, already publishing, so this is pure-read-side glue.
+interface PublishedSignal {
+  fullSymbol: string;     // 'BTCUSDT' (signal-tick stores 'BTC' as ticker)
+  direction: Direction;
+  confidence: number;
+  expiresAt: number;
+  regime: string;
+}
+
+async function loadActivePublishedSignals(supabase: any): Promise<Map<string, PublishedSignal>> {
+  const map = new Map<string, PublishedSignal>();
+  // Last 15 min — signal-tick runs every 5 min so this gives us up to 3 ticks
+  const sinceCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  try {
+    const { data, error } = await supabase
+      .from('intelligence_signals')
+      .select('symbol, signal_type, confidence, expires_at, regime, created_at')
+      .eq('status', 'active')
+      .gte('created_at', sinceCutoff)
+      .order('created_at', { ascending: false });
+    if (error || !Array.isArray(data)) return map;
+    const now = Date.now();
+    for (const row of data) {
+      if (!row.symbol || !row.signal_type) continue;
+      const expiresAtMs = row.expires_at ? new Date(row.expires_at).getTime() : 0;
+      if (expiresAtMs <= now) continue;
+      const fullSymbol = `${String(row.symbol).toUpperCase()}USDT`;
+      // Keep only the most-recent active signal per pair
+      if (!map.has(fullSymbol)) {
+        map.set(fullSymbol, {
+          fullSymbol,
+          direction: row.signal_type as Direction,
+          confidence: Number(row.confidence) || 0,
+          expiresAt: expiresAtMs,
+          regime: row.regime ?? 'RANGEBOUND',
+        });
+      }
+    }
+  } catch (err: any) {
+    console.warn('[trade-tick] loadActivePublishedSignals failed:', err?.message);
+  }
+  return map;
+}
+
+/**
+ * Apply published-signal alignment to a candidate's confidence.
+ * Same direction → boost; opposite direction → penalty (disagreement).
+ * Returns adjusted confidence + a one-line annotation if alignment changed it.
+ */
+function applyPublishedSignalAlignment(
+  baseConfidence: number,
+  direction: Direction,
+  pairSymbol: string,
+  published: Map<string, PublishedSignal>,
+): { confidence: number; note: string | null } {
+  const sig = published.get(pairSymbol);
+  if (!sig) return { confidence: baseConfidence, note: null };
+  if (sig.direction === direction) {
+    // Aligned — boost by min(8, sig.confidence/10) to give published-confidence weight
+    const boost = Math.min(8, Math.max(2, sig.confidence / 10));
+    const adjusted = Math.min(95, baseConfidence + boost);
+    return { confidence: adjusted, note: `pub-aligned ${sig.direction}@${sig.confidence}+${boost.toFixed(0)}` };
+  }
+  // Disagreement — penalize. Stronger penalty when published signal is high-conviction.
+  const penalty = Math.min(12, Math.max(4, sig.confidence / 8));
+  const adjusted = Math.max(0, baseConfidence - penalty);
+  return { confidence: adjusted, note: `pub-conflict ${sig.direction}@${sig.confidence}-${penalty.toFixed(0)}` };
+}
+
 // ─── Brain (per-strategy bias EMA) ────────────────────────────────────────────
 // Persisted to autonomous_state.state.strategyBias.
 // Key: `${strategy}-${regime}` → 0.5..1.5 multiplier on notional.
 // Update: alpha=0.1 EMA toward 1.3 (win) or 0.7 (loss). Clamped [0.5, 1.5]
 // inside getStrategyBias to cap upside/downside per-trade. Strategies that
 // consistently win in a regime get bigger trades; consistent losers get smaller.
-interface BrainState {
-  strategyBias: Record<string, number>;
+// ─── Brain v2 ─────────────────────────────────────────────────────────────────
+// Multi-dimensional learning brain. Every closed trade updates 5 things:
+//   1. strategyBias EMA per (strategy, regime)         — position-size scaling
+//   2. strategyOutcomes rolling window                  — auto-disable/boost gates
+//   3. intelStats[regime].{sentiment,cascade}           — does that intel signal predict wins HERE?
+//   4. confidenceCal[bin]                               — does our X% confidence ACTUALLY win X%?
+//   5. pendingIntel[agent_id] is consumed (deleted)     — snapshot of intel-at-open for credit assignment
+//
+// The state.openIntel snapshot is written when a position opens and read when
+// it closes so we can credit-assign which intel features helped/hurt this trade.
+//
+// All persisted to autonomous_state.state. Trimmed on persist to keep JSONB lean.
+interface IntelSourceStats {
+  trades: number;     // # trades where this intel source was active (|bias| ≥ threshold)
+  wins: number;
+  contribution: number;  // EMA win-rate (0..1), prior 0.5
 }
-const DEFAULT_BRAIN: BrainState = { strategyBias: {} };
+interface IntelSnapshot {
+  strategy: string;
+  regime: string;
+  direction: Direction;
+  symbol: string;
+  rawConfidence: number;
+  effConfidence: number;
+  sentBias: number;
+  liqBias: number;
+  fearGreed: number;
+  cascadeIntensity: number;
+  openedAt: number;
+}
+interface BrainState {
+  strategyBias: Record<string, number>;                  // EMA per strategy-regime key
+  strategyOutcomes: Record<string, number[]>;            // rolling last 20 outcomes (1=win, 0=loss)
+  intelStats: Record<string, { sentiment: IntelSourceStats; cascade: IntelSourceStats }>;  // per-regime intel effectiveness
+  confidenceCal: Record<string, { trades: number; wins: number }>;                          // bin → calibration
+  pendingIntel: Record<string, IntelSnapshot>;           // agent_id → intel-at-open
+}
+const DEFAULT_INTEL_SOURCE: IntelSourceStats = { trades: 0, wins: 0, contribution: 0.5 };
+const DEFAULT_BRAIN: BrainState = {
+  strategyBias: {},
+  strategyOutcomes: {},
+  intelStats: {},
+  confidenceCal: {},
+  pendingIntel: {},
+};
 const BIAS_ALPHA = 0.1;
+const OUTCOME_WINDOW = 20;
+const AUTO_DISABLE_WR = 0.40;       // < 40% over last 20 → bias clamped to 0.1
+const AUTO_BOOST_WR = 0.65;         // > 65% over last 20 → bias clamped to 1.5
+const AUTO_GATE_MIN_TRADES = 10;    // need at least this many before override kicks in
+const INTEL_ALPHA = 0.12;           // intelStats EMA rate (slightly faster than strategy bias)
+const INTEL_ACTIVE_THRESHOLD = 2;   // |bias| ≥ 2 = "this intel source actively contributed"
+const INTEL_MIN_TRADES = 8;         // need this many before applying multiplier
+const CONFCAL_MIN_TRADES = 8;       // need this many in a bin before remapping
 
 async function loadBrain(supabase: any): Promise<{ brain: BrainState; rawState: any }> {
+  const fresh = (): BrainState => ({
+    strategyBias: {},
+    strategyOutcomes: {},
+    intelStats: {},
+    confidenceCal: {},
+    pendingIntel: {},
+  });
   try {
     const { data, error } = await supabase
       .from('autonomous_state')
       .select('state')
       .eq('id', 'singleton')
       .single();
-    if (error || !data?.state) return { brain: DEFAULT_BRAIN, rawState: {} };
+    if (error || !data?.state) return { brain: fresh(), rawState: {} };
     const s = data.state;
     return {
-      brain: { strategyBias: s.strategyBias && typeof s.strategyBias === 'object' ? { ...s.strategyBias } : {} },
+      brain: {
+        strategyBias:     s.strategyBias     && typeof s.strategyBias     === 'object' ? { ...s.strategyBias }     : {},
+        strategyOutcomes: s.strategyOutcomes && typeof s.strategyOutcomes === 'object' ? { ...s.strategyOutcomes } : {},
+        intelStats:       s.intelStats       && typeof s.intelStats       === 'object' ? { ...s.intelStats }       : {},
+        confidenceCal:    s.confidenceCal    && typeof s.confidenceCal    === 'object' ? { ...s.confidenceCal }    : {},
+        pendingIntel:     s.pendingIntel     && typeof s.pendingIntel     === 'object' ? { ...s.pendingIntel }     : {},
+      },
       rawState: s,
     };
   } catch {
-    return { brain: DEFAULT_BRAIN, rawState: {} };
+    return { brain: fresh(), rawState: {} };
   }
 }
 
 async function persistBrain(supabase: any, rawState: any, brain: BrainState): Promise<void> {
-  // Trim entries that have drifted back to ~1.0 (no signal) to keep JSONB lean
-  const trimmed: Record<string, number> = {};
+  // Trim bias entries that have drifted back to ~1.0 (no signal) to keep JSONB lean
+  const trimmedBias: Record<string, number> = {};
   for (const [k, v] of Object.entries(brain.strategyBias)) {
-    if (Math.abs(v - 1.0) > 0.05) trimmed[k] = v;
+    if (Math.abs(v - 1.0) > 0.05) trimmedBias[k] = v;
   }
-  const newState = { ...rawState, strategyBias: trimmed, brainLastUpdate: Date.now() };
+  // Garbage-collect stale pendingIntel entries (>2h old). Should normally clear
+  // when their position closes, but a crash mid-tick could orphan one.
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+  const liveIntel: Record<string, IntelSnapshot> = {};
+  for (const [k, v] of Object.entries(brain.pendingIntel)) {
+    if (v.openedAt >= cutoff) liveIntel[k] = v;
+  }
+  const newState = {
+    ...rawState,
+    strategyBias: trimmedBias,
+    strategyOutcomes: brain.strategyOutcomes,
+    intelStats: brain.intelStats,
+    confidenceCal: brain.confidenceCal,
+    pendingIntel: liveIntel,
+    brainLastUpdate: Date.now(),
+  };
   const { error } = await supabase
     .from('autonomous_state')
     .upsert({ id: 'singleton', state: newState, updated_at: new Date().toISOString() }, { onConflict: 'id' });
   if (error) console.warn('[trade-tick] brain persist failed:', error.message);
 }
 
-function getStrategyBias(brain: BrainState, strategy: string, regime: string): number {
+// ─── Brain v2 helpers: intel learning + confidence calibration ────────────────
+
+function confidenceBin(conf: number): string {
+  if (conf < 60)  return '50-60';
+  if (conf < 70)  return '60-70';
+  if (conf < 80)  return '70-80';
+  if (conf < 90)  return '80-90';
+  return '90-100';
+}
+
+/**
+ * Apply intel learning at close. Updates intelStats EMA per regime+source
+ * (only for sources that were "active" at open — |bias| ≥ threshold) and
+ * confidence calibration. Consumes the pendingIntel snapshot.
+ */
+function applyIntelLearning(brain: BrainState, agentId: string, isWin: boolean): IntelSnapshot | null {
+  const snap = brain.pendingIntel[agentId];
+  if (!snap) return null;
+
+  const stats = brain.intelStats[snap.regime] ?? {
+    sentiment: { ...DEFAULT_INTEL_SOURCE },
+    cascade:   { ...DEFAULT_INTEL_SOURCE },
+  };
+
+  // Sentiment was directionally aligned with the trade (bias ≥ threshold)
+  if (snap.sentBias >= INTEL_ACTIVE_THRESHOLD) {
+    stats.sentiment.trades++;
+    if (isWin) stats.sentiment.wins++;
+    stats.sentiment.contribution = stats.sentiment.contribution * (1 - INTEL_ALPHA) + (isWin ? 1 : 0) * INTEL_ALPHA;
+  }
+  // Cascade was directionally aligned
+  if (snap.liqBias >= INTEL_ACTIVE_THRESHOLD) {
+    stats.cascade.trades++;
+    if (isWin) stats.cascade.wins++;
+    stats.cascade.contribution = stats.cascade.contribution * (1 - INTEL_ALPHA) + (isWin ? 1 : 0) * INTEL_ALPHA;
+  }
+  brain.intelStats[snap.regime] = stats;
+
+  // Confidence calibration on the eff confidence we actually used to decide
+  const bin = confidenceBin(snap.effConfidence);
+  const cal = brain.confidenceCal[bin] ?? { trades: 0, wins: 0 };
+  cal.trades++;
+  if (isWin) cal.wins++;
+  brain.confidenceCal[bin] = cal;
+
+  delete brain.pendingIntel[agentId];
+  return snap;
+}
+
+/**
+ * Multiplier for an intel source's bias based on its learned predictive power
+ * in this regime. <1 dampens, >1 amplifies, default 1 (no data).
+ */
+function intelMultiplier(brain: BrainState, regime: string, source: 'sentiment' | 'cascade'): number {
+  const s = brain.intelStats[regime]?.[source];
+  if (!s || s.trades < INTEL_MIN_TRADES) return 1.0;
+  // contribution 0.5 (random) → 1.0x. Above 0.5 → up to 1.5x. Below 0.5 → down to 0.4x.
+  const c = s.contribution;
+  if (c >= 0.5) return Math.min(1.5, 1 + (c - 0.5) * 1.0);
+  return Math.max(0.4, 1 - (0.5 - c) * 1.2);
+}
+
+/**
+ * Confidence calibration multiplier. If our 80%-confidence trades actually
+ * win 60% of the time, we should treat 80% as more like 60% — return 0.75.
+ * Returns 1.0 (no remap) when we have <8 trades in the bin.
+ */
+function confidenceCalMultiplier(brain: BrainState, conf: number): number {
+  if (conf <= 0) return 1.0;
+  const cal = brain.confidenceCal[confidenceBin(conf)];
+  if (!cal || cal.trades < CONFCAL_MIN_TRADES) return 1.0;
+  const actual = cal.wins / cal.trades;            // realized hit rate (0..1)
+  const expected = conf / 100;                     // what we claimed
+  if (expected <= 0) return 1.0;
+  // Limit the swing to ±40% so bad bin samples don't crash decisions
+  return Math.max(0.6, Math.min(1.4, actual / expected));
+}
+
+/**
+ * Returns the bias multiplier for a (strategy, regime) cell.
+ *
+ * Auto-disable / auto-boost overrides the EMA when we have enough samples:
+ *   - WR < 40% over last 20 → 0.1 (effectively muted)
+ *   - WR > 65% over last 20 → 1.5 (max amplified)
+ *   - else → EMA value, clamped [0.5, 1.5]
+ *
+ * The override fires only when n ≥ AUTO_GATE_MIN_TRADES so we don't slam a
+ * strategy after a 2-trade losing streak.
+ */
+function getStrategyBias(brain: BrainState, strategy: string, regime: string): { bias: number; reason: string } {
   const key = `${strategy}-${regime}`;
+  const outcomes = brain.strategyOutcomes[key];
+  if (Array.isArray(outcomes) && outcomes.length >= AUTO_GATE_MIN_TRADES) {
+    const wr = outcomes.reduce((s, v) => s + v, 0) / outcomes.length;
+    if (wr < AUTO_DISABLE_WR) return { bias: 0.1, reason: `auto-disable WR=${(wr * 100).toFixed(0)}% n=${outcomes.length}` };
+    if (wr > AUTO_BOOST_WR) return { bias: 1.5, reason: `auto-boost WR=${(wr * 100).toFixed(0)}% n=${outcomes.length}` };
+  }
   const v = brain.strategyBias[key] ?? brain.strategyBias[strategy] ?? 1.0;
-  return Math.max(0.5, Math.min(1.5, v));
+  return { bias: Math.max(0.5, Math.min(1.5, v)), reason: 'ema' };
 }
 
 function updateStrategyBias(brain: BrainState, strategy: string, regime: string, isWin: boolean): void {
   const key = `${strategy}-${regime}`;
+  // EMA bias update
   const current = brain.strategyBias[key] ?? 1.0;
   const target = isWin ? 1.3 : 0.7;
-  const updated = Math.max(0.1, Math.min(2.0, current * (1 - BIAS_ALPHA) + target * BIAS_ALPHA));
-  brain.strategyBias[key] = updated;
+  brain.strategyBias[key] = Math.max(0.1, Math.min(2.0, current * (1 - BIAS_ALPHA) + target * BIAS_ALPHA));
+  // Rolling outcome window (1=win, 0=loss)
+  const arr = brain.strategyOutcomes[key] ?? [];
+  arr.push(isWin ? 1 : 0);
+  if (arr.length > OUTCOME_WINDOW) arr.splice(0, arr.length - OUTCOME_WINDOW);
+  brain.strategyOutcomes[key] = arr;
 }
 
 // ─── Intel layer (sentiment + liquidation cascades) ──────────────────────────
@@ -602,6 +854,17 @@ interface TickResult {
   errors: string[];
   regime: string;
   intel?: { fearGreed: number; fundingBTC: number; longShortRatio: number; cascadesActive: number };
+  brain?: {
+    biasCells: number;             // # populated strategyBias entries
+    intelRegimes: number;          // # regimes with intelStats data
+    confCalBins: number;           // # confidence bins with samples
+    pendingIntel: number;          // # snapshots awaiting outcome (open positions)
+    sample?: {
+      sentMultByRegime?: Record<string, number>;
+      liqMultByRegime?: Record<string, number>;
+      confCalRates?: Record<string, { wins: number; trades: number }>;
+    };
+  };
 }
 
 async function runTradingTick(): Promise<TickResult> {
@@ -613,7 +876,7 @@ async function runTradingTick(): Promise<TickResult> {
   // 1. Load all state + intel in parallel. Sentiment + cascade pulses are pure
   //    free APIs (alternative.me F&G + Binance public endpoints). Each has its
   //    own short timeout so a slow source can't stall the whole tick.
-  const [prices, sessionsResult, positionsResult, atrByPair, brainLoad, sentiment, btcCascade, ethCascade, solCascade, dogeCascade] = await Promise.all([
+  const [prices, sessionsResult, positionsResult, atrByPair, brainLoad, sentiment, btcCascade, ethCascade, solCascade, dogeCascade, publishedSignals] = await Promise.all([
     fetchPrices(),
     supabase.from('arena_agent_sessions').select('*'),
     supabase.from('arena_active_positions').select('*'),
@@ -624,9 +887,13 @@ async function runTradingTick(): Promise<TickResult> {
     fetchCascadePulse('ETHUSDT'),
     fetchCascadePulse('SOLUSDT'),
     fetchCascadePulse('DOGEUSDT'),
+    loadActivePublishedSignals(supabase),
   ]);
   const { brain, rawState: brainRawState } = brainLoad;
   let brainDirty = false;
+  if (publishedSignals.size > 0) {
+    console.info(`[trade-tick] consuming ${publishedSignals.size} published signal(s): ${Array.from(publishedSignals.values()).map(s => `${s.fullSymbol}-${s.direction}@${s.confidence}`).join(', ')}`);
+  }
   const cascadeBySymbol = new Map<string, { pressure: number; intensity: number }>([
     ['BTCUSDT', btcCascade], ['ETHUSDT', ethCascade], ['SOLUSDT', solCascade], ['DOGEUSDT', dogeCascade],
   ]);
@@ -637,7 +904,31 @@ async function runTradingTick(): Promise<TickResult> {
     longShortRatio: sentiment.longShortRatio,
     cascadesActive,
   };
-  console.info(`[trade-tick] intel: F&G=${sentiment.fearGreed} fund=${sentiment.fundingBTC.toFixed(3)}% L/S=${sentiment.longShortRatio.toFixed(2)} cascades=${cascadesActive}/4${sentiment.partial ? ' (partial)' : ''}`);
+  // Surface what the brain has learned so far (for observability / API consumers)
+  const sentByR: Record<string, number> = {};
+  const liqByR: Record<string, number> = {};
+  for (const r of Object.keys(brain.intelStats)) {
+    sentByR[r] = +intelMultiplier(brain, r, 'sentiment').toFixed(2);
+    liqByR[r]  = +intelMultiplier(brain, r, 'cascade').toFixed(2);
+  }
+  result.brain = {
+    biasCells: Object.keys(brain.strategyBias).length,
+    intelRegimes: Object.keys(brain.intelStats).length,
+    confCalBins: Object.keys(brain.confidenceCal).length,
+    pendingIntel: Object.keys(brain.pendingIntel).length,
+    sample: {
+      sentMultByRegime: sentByR,
+      liqMultByRegime: liqByR,
+      confCalRates: brain.confidenceCal,
+    },
+  };
+  console.info(
+    `[trade-tick] intel: F&G=${sentiment.fearGreed} fund=${sentiment.fundingBTC.toFixed(3)}% ` +
+    `L/S=${sentiment.longShortRatio.toFixed(2)} cascades=${cascadesActive}/4` +
+    `${sentiment.partial ? ' (partial)' : ''} ` +
+    `| brain: bias=${result.brain.biasCells} intel=${result.brain.intelRegimes}r ` +
+    `conf=${result.brain.confCalBins}b pending=${result.brain.pendingIntel}`,
+  );
 
   if ((sessionsResult as any).error) {
     const msg = `arena_agent_sessions read failed: ${(sessionsResult as any).error.message ?? (sessionsResult as any).error}`;
@@ -802,6 +1093,13 @@ async function runTradingTick(): Promise<TickResult> {
     // Generate base candidates, then enrich each with intel-derived bias
     // (sentiment direction-bias + per-symbol cascade alignment). Effective
     // confidence drives ranking; raw confidence still drives sizing later.
+    //
+    // BRAIN v2: each intel source's bias is scaled by its LEARNED predictive
+    // power in the current regime (intelStats), and raw confidence is
+    // recalibrated against historical hit rates per confidence bin
+    // (confidenceCal). With <8 trades the multipliers are 1.0 (no remap).
+    const sentMult = intelMultiplier(brain, marketState, 'sentiment');
+    const liqMult  = intelMultiplier(brain, marketState, 'cascade');
     const candidates: Array<{ pair: typeof TRADING_PAIRS[0]; signal: Signal; effConf: number; intelTag: string }> = [];
     for (const pair of availablePairs) {
       const price = prices.get(pair.symbol);
@@ -811,10 +1109,17 @@ async function runTradingTick(): Promise<TickResult> {
       const sBias = sentimentBiasFor(sentiment, sig.direction);
       const cPulse = cascadeBySymbol.get(pair.symbol) ?? { pressure: 0, intensity: 0 };
       const cBias = cascadeBiasFor(cPulse, sig.direction);
-      const effConf = Math.max(0, Math.min(100, sig.confidence + sBias.bias + cBias));
+      const pubAdj = applyPublishedSignalAlignment(sig.confidence, sig.direction, pair.symbol, publishedSignals);
+      const pubDelta = pubAdj.confidence - sig.confidence;
+      // Scale intel bias by learned effectiveness; recalibrate raw conf
+      const confCalMult = confidenceCalMultiplier(brain, sig.confidence);
+      const calibratedConf = sig.confidence * confCalMult;
+      const effConf = Math.max(0, Math.min(100, calibratedConf + sBias.bias * sentMult + cBias * liqMult + pubDelta));
       const tagParts: string[] = [];
-      if (sBias.bias !== 0) tagParts.push(`sent${sBias.bias >= 0 ? '+' : ''}${sBias.bias.toFixed(0)}${sBias.tag ? `:${sBias.tag}` : ''}`);
-      if (cBias !== 0)      tagParts.push(`liq${cBias >= 0 ? '+' : ''}${cBias.toFixed(0)}`);
+      if (sBias.bias !== 0) tagParts.push(`sent${sBias.bias >= 0 ? '+' : ''}${sBias.bias.toFixed(0)}${sentMult !== 1 ? `×${sentMult.toFixed(2)}` : ''}${sBias.tag ? `:${sBias.tag}` : ''}`);
+      if (cBias !== 0)      tagParts.push(`liq${cBias >= 0 ? '+' : ''}${cBias.toFixed(0)}${liqMult !== 1 ? `×${liqMult.toFixed(2)}` : ''}`);
+      if (pubAdj.note)      tagParts.push(pubAdj.note);
+      if (confCalMult !== 1.0) tagParts.push(`confCal×${confCalMult.toFixed(2)}`);
       candidates.push({ pair, signal: sig, effConf, intelTag: tagParts.join(' ') });
     }
     candidates.sort((a, b) => b.effConf - a.effConf);
@@ -858,8 +1163,18 @@ async function runTradingTick(): Promise<TickResult> {
     const balance = computeBalance(session);
 
     // Brain bias: scale notional by per-(strategy, regime) EMA learned from outcomes.
-    // 1.0 = unbiased; >1 = strategy has been winning here, take bigger bites.
-    const bias = getStrategyBias(brain, chosenSignal.strategy, marketState);
+    // Auto-disable kicks in if recent 20-trade WR < 40% (bias forced to 0.1);
+    // auto-boost if WR > 65% (bias forced to 1.5). Otherwise EMA value applies.
+    const biasResult = getStrategyBias(brain, chosenSignal.strategy, marketState);
+    const bias = biasResult.bias;
+
+    // Skip outright if auto-disabled — sized down to 0.1 means notional would
+    // collapse below MIN_POSITION_USD, so save the work and tag the skip clearly.
+    if (biasResult.reason.startsWith('auto-disable')) {
+      result.skipReasons['STRATEGY_DISABLED'] = (result.skipReasons['STRATEGY_DISABLED'] ?? 0) + 1;
+      console.info(`[trade-tick] strategy disabled ${agent.name} ${chosenSignal.strategy}@${marketState}: ${biasResult.reason}`);
+      continue;
+    }
 
     let notional = balance * (agent.positionSizePercent / 100);
     notional *= Math.max(0.7, Math.min(1.3, 0.4 + chosenSignal.confidence / 100));
@@ -881,18 +1196,41 @@ async function runTradingTick(): Promise<TickResult> {
     }
     currentHeatUSD += projectedHeatUSD;
 
-    if (Math.abs(bias - 1.0) > 0.05) {
-      console.info(`[trade-tick] brain bias ${agent.name} ${chosenSignal.strategy}@${marketState}=${bias.toFixed(2)}x notional=$${notional.toFixed(0)}`);
+    if (Math.abs(bias - 1.0) > 0.05 || biasResult.reason !== 'ema') {
+      console.info(`[trade-tick] brain bias ${agent.name} ${chosenSignal.strategy}@${marketState}=${bias.toFixed(2)}x (${biasResult.reason}) notional=$${notional.toFixed(0)}`);
     }
 
     openOps.push(openPosition(supabase, agent, chosenPair, price, chosenSignal, notional, marketState, result));
     result.opened++;
     reservedSymbols.add(chosenPair.symbol);
     openIntents.push({ symbol: chosenPair.symbol, direction: chosenSignal.direction });
+
+    // Snapshot intel-at-open so we can credit-assign at close. Stored on the
+    // brain singleton (not arena_active_positions) so we don't need a schema
+    // migration. One snapshot per agent — overwritten on each open.
+    const sBiasAtOpen = sentimentBiasFor(sentiment, chosenSignal.direction);
+    const cPulseAtOpen = cascadeBySymbol.get(chosenPair.symbol) ?? { pressure: 0, intensity: 0 };
+    const cBiasAtOpen = cascadeBiasFor(cPulseAtOpen, chosenSignal.direction);
+    brain.pendingIntel[agent.id] = {
+      strategy: chosenSignal.strategy,
+      regime: marketState,
+      direction: chosenSignal.direction,
+      symbol: chosenPair.symbol,
+      rawConfidence: chosenSignal.confidence,
+      effConfidence: chosen.effConf,
+      sentBias: sBiasAtOpen.bias,
+      liqBias: cBiasAtOpen,
+      fearGreed: sentiment.fearGreed,
+      cascadeIntensity: cPulseAtOpen.intensity,
+      openedAt: Date.now(),
+    };
+    brainDirty = true;
   }
   await Promise.all(openOps);
 
-  // Persist brain if any close updated the bias map (closeTrade sets brainDirty)
+  // Persist brain on any change — strategyBias EMA, intel snapshots, intel
+  // stats, confidence calibration. brainDirty is flipped on every open and on
+  // every close (via closeTrade callback).
   if (brainDirty) {
     await persistBrain(supabase, brainRawState, brain);
   }
@@ -970,6 +1308,20 @@ async function closeTrade(
   // persist actually writes the update back to autonomous_state.
   if (brain && pos.strategy && pos.market_state_at_entry) {
     updateStrategyBias(brain, pos.strategy, pos.market_state_at_entry, isWin);
+
+    // Credit-assign intel snapshots — does sentiment / cascade actually predict wins
+    // in this regime? Did our confidence rate match reality? Consumed snapshot.
+    const consumedSnap = applyIntelLearning(brain, pos.agent_id, isWin);
+    if (consumedSnap) {
+      const fb: string[] = [];
+      if (consumedSnap.sentBias >= INTEL_ACTIVE_THRESHOLD) fb.push(`sent=${consumedSnap.sentBias.toFixed(0)}`);
+      if (consumedSnap.liqBias  >= INTEL_ACTIVE_THRESHOLD) fb.push(`liq=${consumedSnap.liqBias.toFixed(0)}`);
+      console.info(
+        `[trade-tick] LEARN ${pos.agent_id} ${isWin ? 'WIN' : 'LOSS'} ` +
+        `bin=${confidenceBin(consumedSnap.effConfidence)} conf=${consumedSnap.effConfidence.toFixed(0)} ` +
+        `${fb.length ? '(' + fb.join(' ') + ')' : ''}`,
+      );
+    }
     onBrainUpdate?.();
   }
 
