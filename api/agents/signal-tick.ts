@@ -67,14 +67,14 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
       console.error(`[signal-tick] CoinGecko HTTP ${r.status}`);
       return map;
     }
-    const arr: Array<{
+    const arr = (await r.json()) as Array<{
       id: string;
       current_price: number;
       high_24h: number;
       low_24h: number;
       total_volume: number;
       price_change_percentage_24h: number;
-    }> = await r.json();
+    }>;
 
     const idToSymbol = new Map(Object.entries(COINGECKO_IDS).map(([sym, id]) => [id, sym]));
     for (const row of arr) {
