@@ -1045,11 +1045,30 @@ class ArenaQuantEngine {
   }
 
   /**
-   * Process a Hub-approved signal: match to an available agent and open position
+   * Process a Hub-approved signal: match to an available agent and open position.
+   *
+   * Phase 1.B: BROWSER NO-OP. The Vercel cron `/api/agents/trade-tick` is the
+   * canonical writer for arena_active_positions. Opening a position from the
+   * browser here would create a phantom in-memory state that diverges from
+   * Supabase until the next Realtime event from the cron.
+   *
+   * Hub signal pair-priority tracking still happens (via hubPairPriority Map)
+   * because that's UI-only and helps the cron prioritize Hub-identified pairs
+   * when we make the cron Hub-aware in a future phase.
    */
   private processHubSignal(hubSignal: any): void {
     if (!this.running) return;
 
+    // Update pair priority (in-memory UI state — safe)
+    const sym = hubSignal.symbol?.toUpperCase();
+    if (sym) {
+      this.hubPairPriority.set(sym, (this.hubPairPriority.get(sym) || 0) + 1);
+    }
+
+    // Browser is read-only; do not open positions here
+    return;
+
+    // eslint-disable-next-line no-unreachable
     const now = Date.now();
 
     // Find an available agent that isn't in a position and passes circuit breaker

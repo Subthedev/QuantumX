@@ -92,7 +92,9 @@ const MLAdmin = lazy(() => import("./pages/MLAdmin"));
 const IGXControlCenter = lazy(() => import("./pages/IGXControlCenter"));
 
 // Arena features (require full client-side system)
-const Arena = lazy(() => import("./pages/Arena"));
+// Phase 3: Arena (the classic /arena-classic page) and arenaLiveTrading were
+// deleted. ArenaClean is the canonical Arena page; the cron is the canonical
+// trading engine.
 const ArenaEnhanced = lazy(() => import("./pages/ArenaEnhanced"));
 const ArenaClean = lazy(() => import("./pages/ArenaClean")); // ✅ Arena with integrated Oracle tab
 // QXOracle removed - Oracle is now integrated as a tab inside ArenaClean
@@ -143,7 +145,7 @@ const App = () => {
               <Route path="/arena" element={<ArenaClean />} /> {/* ✅ Arena with integrated Oracle tab */}
               <Route path="/arena-clean" element={<ArenaClean />} /> {/* Alias for arena-clean URL */}
               <Route path="/arena-enhanced" element={<ArenaEnhanced />} />
-              <Route path="/arena-classic" element={<Arena />} />
+              {/* /arena-classic removed in Phase 3 — page deleted */}
               {/* Oracle Challenge integrated into ArenaClean as a tab - no separate route needed */}
               <Route path="/qx-oracle" element={<ArenaClean />} />
               <Route path="/predict" element={<ArenaClean />} />
