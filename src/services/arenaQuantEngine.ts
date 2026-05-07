@@ -16,6 +16,7 @@ import { arenaCircuitBreaker, CircuitBreakerLevel } from './arenaCircuitBreaker'
 import { arenaSupabaseStorage, type AgentSessionData } from './arenaSupabaseStorage';
 import { autonomousOrchestrator } from './autonomousOrchestrator';
 import { marketRegimeClassifier } from './regime/marketRegimeClassifier';
+import { zetaLearningEngine } from './zetaLearningEngine';
 
 // ===================== CONSTANTS =====================
 
@@ -1245,17 +1246,29 @@ class ArenaQuantEngine {
       }
 
       // Filter out blacklisted strategy-regime combos (self-improvement)
+      // and re-rank surviving strategies by THIS agent's learned bias for
+      // the current regime — so AlphaX prefers what AlphaX has historically
+      // won with, BetaX prefers what BetaX has won with, etc.
       let filteredStrategies = suitableStrategies;
       try {
-        const { zetaLearningEngine } = await import('./zetaLearningEngine');
         const regime = this.currentMarketState.toString();
         filteredStrategies = suitableStrategies.filter(s =>
           !zetaLearningEngine.isStrategyBlacklisted(s.strategy.name, regime)
         );
         if (filteredStrategies.length === 0) filteredStrategies = suitableStrategies; // Fallback
+
+        // Re-rank by per-agent learned bias × suitability so each agent
+        // gravitates toward its proven combos as outcomes accumulate.
+        filteredStrategies = [...filteredStrategies].sort((a, b) => {
+          const biasA = zetaLearningEngine.getAgentStrategyBias(agentId, a.strategy.name, regime);
+          const biasB = zetaLearningEngine.getAgentStrategyBias(agentId, b.strategy.name, regime);
+          const scoreA = a.suitability * biasA;
+          const scoreB = b.suitability * biasB;
+          return scoreB - scoreA;
+        });
       } catch {}
 
-      // Select best strategy
+      // Select best strategy (now ranked by suitability × per-agent learned bias)
       const selectedStrategy = filteredStrategies[0];
 
       // STRATEGY SELECTION INTELLIGENCE: Prioritize Hub-identified pairs
@@ -1338,6 +1351,22 @@ class ArenaQuantEngine {
     // 3b. Apply autonomous orchestrator strategy bias (learned from outcomes)
     const strategyBias = autonomousOrchestrator.getStrategyBias(strategy.name, this.currentMarketState);
     notionalValue *= strategyBias;
+
+    // 3c. Apply PER-AGENT learned bias on top of the global bias.
+    // This makes each agent compound its own track record — alphaX's sizing
+    // grows where alphaX has won, even if betaX has lost on the same combo.
+    try {
+      const agentBias = zetaLearningEngine.getAgentStrategyBias(agent.id, strategy.name, this.currentMarketState);
+      notionalValue *= agentBias;
+    } catch {}
+
+    // 3d. Apply ContinuousLearningEngine's regime-weight (gradient-descent
+    // learned, complementary to orchestrator's EMA-based bias). Tightly
+    // bounded to 0.7–1.3 inside Zeta so it can't dominate the stack.
+    try {
+      const clWeight = zetaLearningEngine.getContinuousLearningRegimeWeight(this.currentMarketState);
+      notionalValue *= clWeight;
+    } catch {}
 
     // 4. Enforce maximum 3% of balance
     const maxByPercent = agent.balance * (RISK_LIMITS.MAX_POSITION_PERCENT / 100);
