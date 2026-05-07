@@ -252,6 +252,57 @@ async function writeMarketState(supabase: any, snap: RegimeSnapshot): Promise<vo
   if (error) console.warn('[trade-tick] arena_market_state upsert failed:', error.message);
 }
 
+// ─── ATR fetch + compute ─────────────────────────────────────────────────────
+
+interface AtrData {
+  symbol: string;
+  atrPercent: number;     // ATR(14) as % of last close
+  sampleSize: number;
+}
+
+/**
+ * Fetch CoinGecko OHLC (30-min candles, last 24h) for each pair in parallel
+ * and compute ATR(14) as a % of current price. Used to size stop losses to
+ * realized volatility instead of the cruder 24h range.
+ *
+ * Endpoint: /coins/{id}/ohlc?days=1 → ~48 candles of 30-min OHLC.
+ * 6 calls × ~250ms parallel ≈ 300ms total. Within free-tier rate limits.
+ */
+async function fetchAtrForPairs(): Promise<Map<string, AtrData>> {
+  const map = new Map<string, AtrData>();
+  await Promise.all(TRADING_PAIRS.map(async pair => {
+    const url = `https://api.coingecko.com/api/v3/coins/${pair.coingeckoId}/ohlc?vs_currency=usd&days=1`;
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 7000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { 'accept': 'application/json' } });
+      clearTimeout(timeout);
+      if (!r.ok) return;
+      const candles = (await r.json()) as Array<[number, number, number, number, number]>;
+      if (!Array.isArray(candles) || candles.length < 15) return;
+      // Use the last 15 candles → 14 True Range values for ATR(14)
+      const recent = candles.slice(-15);
+      let trSum = 0;
+      for (let i = 1; i < recent.length; i++) {
+        const [, , high, low] = recent[i];
+        const prevClose = recent[i - 1][4];
+        const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+        trSum += tr;
+      }
+      const atr14 = trSum / (recent.length - 1);
+      const lastClose = recent[recent.length - 1][4];
+      const atrPercent = lastClose > 0 ? (atr14 / lastClose) * 100 : 0;
+      if (atrPercent > 0) {
+        map.set(pair.symbol, { symbol: pair.symbol, atrPercent, sampleSize: recent.length - 1 });
+      }
+    } catch {
+      clearTimeout(timeout);
+      // Silent — fall back to range-based stops for this pair
+    }
+  }));
+  return map;
+}
+
 interface Signal {
   direction: Direction;
   confidence: number;
@@ -265,6 +316,7 @@ function generateSignal(
   pair: typeof TRADING_PAIRS[0],
   price: PriceData,
   marketState: string,
+  atr: AtrData | undefined,
 ): Signal | null {
   const range = price.high24h > 0 ? ((price.high24h - price.low24h) / price.price) * 100 : 0;
   const positionInRange = price.high24h > price.low24h
@@ -296,12 +348,28 @@ function generateSignal(
 
   const isHighVol = marketState.includes('HIGH_VOL');
   const isRangebound = marketState === 'RANGEBOUND';
-  const volMultiplier = isHighVol ? 1.4 : (isRangebound ? 0.7 : 1.0);
-  const rangeAdjustment = Math.min(1.5, Math.max(0.6, range / 4));
+  let tp: number;
+  let sl: number;
+  let strategy: string;
 
-  let tp = agent.baseTPPercent * volMultiplier * rangeAdjustment;
-  let sl = agent.baseSLPercent * volMultiplier * rangeAdjustment;
-  if (tp / sl < MIN_RR) tp = sl * MIN_RR;
+  if (atr && atr.atrPercent > 0) {
+    // ATR-based stops: SL at 1.5×ATR(14, 30m) — sits just outside normal noise.
+    // Light regime tilt: high-vol regimes earn slightly wider stops, ranges tighter.
+    // TP keeps the agent's preferred R:R (capped at MIN_RR for safety).
+    const regimeMult = isHighVol ? 1.2 : (isRangebound ? 0.9 : 1.0);
+    sl = atr.atrPercent * 1.5 * regimeMult;
+    tp = sl * Math.max(MIN_RR, agent.baseTPPercent / agent.baseSLPercent);
+    strategy = `${agent.type.toLowerCase()}-atr`;
+  } else {
+    // Fallback path — keep the original range-based sizing for parity
+    const volMultiplier = isHighVol ? 1.4 : (isRangebound ? 0.7 : 1.0);
+    const rangeAdjustment = Math.min(1.5, Math.max(0.6, range / 4));
+    tp = agent.baseTPPercent * volMultiplier * rangeAdjustment;
+    sl = agent.baseSLPercent * volMultiplier * rangeAdjustment;
+    if (tp / sl < MIN_RR) tp = sl * MIN_RR;
+    strategy = `${agent.type.toLowerCase()}-multi-confirm`;
+  }
+
   tp = Math.min(TP_CAP_PERCENT, Math.max(1.5, tp));
   sl = Math.min(SL_CAP_PERCENT, Math.max(0.75, sl));
 
@@ -310,7 +378,7 @@ function generateSignal(
     confidence,
     takeProfitPercent: tp,
     stopLossPercent: sl,
-    strategy: `${agent.type.toLowerCase()}-multi-confirm`,
+    strategy,
   };
 }
 
@@ -328,6 +396,203 @@ function isHaltedByCircuitBreaker(session: AgentSession | undefined): boolean {
   return false;
 }
 
+// ─── Correlation gate ─────────────────────────────────────────────────────────
+// Static 30-day correlation map — refreshed manually if/when the universe
+// changes. Source: rolling Pearson on 30d daily closes from Binance.
+// Above CORRELATION_THRESHOLD, two agents going same-direction is a
+// concentrated bet, not a diversified one.
+const CORRELATION_MAP: Record<string, Record<string, number>> = {
+  BTCUSDT:  { ETHUSDT: 0.88, SOLUSDT: 0.82, BNBUSDT: 0.78, XRPUSDT: 0.65, DOGEUSDT: 0.70 },
+  ETHUSDT:  { BTCUSDT: 0.88, SOLUSDT: 0.85, BNBUSDT: 0.80, XRPUSDT: 0.62, DOGEUSDT: 0.72 },
+  SOLUSDT:  { BTCUSDT: 0.82, ETHUSDT: 0.85, BNBUSDT: 0.75, XRPUSDT: 0.60, DOGEUSDT: 0.68 },
+  BNBUSDT:  { BTCUSDT: 0.78, ETHUSDT: 0.80, SOLUSDT: 0.75, XRPUSDT: 0.55, DOGEUSDT: 0.55 },
+  XRPUSDT:  { BTCUSDT: 0.65, ETHUSDT: 0.62, SOLUSDT: 0.60, BNBUSDT: 0.55, DOGEUSDT: 0.50 },
+  DOGEUSDT: { BTCUSDT: 0.70, ETHUSDT: 0.72, SOLUSDT: 0.68, BNBUSDT: 0.55, XRPUSDT: 0.50 },
+};
+const CORRELATION_THRESHOLD = 0.85;
+
+interface OpenIntent { symbol: string; direction: Direction; }
+
+function findCorrelatedConflict(
+  newSymbol: string,
+  newDirection: Direction,
+  existing: OpenIntent[],
+): { symbol: string; corr: number } | null {
+  const corrMap = CORRELATION_MAP[newSymbol] ?? {};
+  for (const e of existing) {
+    if (e.symbol === newSymbol) continue;
+    if (e.direction !== newDirection) continue;
+    const corr = corrMap[e.symbol] ?? 0;
+    if (corr > CORRELATION_THRESHOLD) return { symbol: e.symbol, corr };
+  }
+  return null;
+}
+
+// ─── Brain (per-strategy bias EMA) ────────────────────────────────────────────
+// Persisted to autonomous_state.state.strategyBias.
+// Key: `${strategy}-${regime}` → 0.5..1.5 multiplier on notional.
+// Update: alpha=0.1 EMA toward 1.3 (win) or 0.7 (loss). Clamped [0.5, 1.5]
+// inside getStrategyBias to cap upside/downside per-trade. Strategies that
+// consistently win in a regime get bigger trades; consistent losers get smaller.
+interface BrainState {
+  strategyBias: Record<string, number>;
+}
+const DEFAULT_BRAIN: BrainState = { strategyBias: {} };
+const BIAS_ALPHA = 0.1;
+
+async function loadBrain(supabase: any): Promise<{ brain: BrainState; rawState: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('autonomous_state')
+      .select('state')
+      .eq('id', 'singleton')
+      .single();
+    if (error || !data?.state) return { brain: DEFAULT_BRAIN, rawState: {} };
+    const s = data.state;
+    return {
+      brain: { strategyBias: s.strategyBias && typeof s.strategyBias === 'object' ? { ...s.strategyBias } : {} },
+      rawState: s,
+    };
+  } catch {
+    return { brain: DEFAULT_BRAIN, rawState: {} };
+  }
+}
+
+async function persistBrain(supabase: any, rawState: any, brain: BrainState): Promise<void> {
+  // Trim entries that have drifted back to ~1.0 (no signal) to keep JSONB lean
+  const trimmed: Record<string, number> = {};
+  for (const [k, v] of Object.entries(brain.strategyBias)) {
+    if (Math.abs(v - 1.0) > 0.05) trimmed[k] = v;
+  }
+  const newState = { ...rawState, strategyBias: trimmed, brainLastUpdate: Date.now() };
+  const { error } = await supabase
+    .from('autonomous_state')
+    .upsert({ id: 'singleton', state: newState, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  if (error) console.warn('[trade-tick] brain persist failed:', error.message);
+}
+
+function getStrategyBias(brain: BrainState, strategy: string, regime: string): number {
+  const key = `${strategy}-${regime}`;
+  const v = brain.strategyBias[key] ?? brain.strategyBias[strategy] ?? 1.0;
+  return Math.max(0.5, Math.min(1.5, v));
+}
+
+function updateStrategyBias(brain: BrainState, strategy: string, regime: string, isWin: boolean): void {
+  const key = `${strategy}-${regime}`;
+  const current = brain.strategyBias[key] ?? 1.0;
+  const target = isWin ? 1.3 : 0.7;
+  const updated = Math.max(0.1, Math.min(2.0, current * (1 - BIAS_ALPHA) + target * BIAS_ALPHA));
+  brain.strategyBias[key] = updated;
+}
+
+// ─── Intel layer (sentiment + liquidation cascades) ──────────────────────────
+// Self-contained — no imports from src/* or api/lib/*. Fetches free public APIs
+// once per tick, applies a directional bias to candidate confidence, then lets
+// the existing correlation gate / heat cap / brain bias do the rest.
+
+interface SentimentSnap {
+  fearGreed: number;            // 0=extreme fear, 100=extreme greed (alternative.me)
+  fundingBTC: number;           // % per 8h on BTC perps
+  fundingETH: number;
+  longShortRatio: number;       // BTC top-trader account ratio (>2 crowd long)
+  partial: boolean;
+}
+
+async function fetchSentiment(): Promise<SentimentSnap> {
+  const snap: SentimentSnap = { fearGreed: 50, fundingBTC: 0, fundingETH: 0, longShortRatio: 1, partial: false };
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 7000);
+  const fetchOne = async (url: string): Promise<any | null> => {
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch { return null; }
+  };
+  const [fng, fBtc, fEth, lsr] = await Promise.all([
+    fetchOne('https://api.alternative.me/fng/?limit=1'),
+    fetchOne('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT'),
+    fetchOne('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=ETHUSDT'),
+    fetchOne('https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&limit=1'),
+  ]);
+  clearTimeout(t);
+  if (fng?.data?.[0]) snap.fearGreed = Number(fng.data[0].value); else snap.partial = true;
+  if (fBtc?.lastFundingRate != null) snap.fundingBTC = Number(fBtc.lastFundingRate) * 100; else snap.partial = true;
+  if (fEth?.lastFundingRate != null) snap.fundingETH = Number(fEth.lastFundingRate) * 100; else snap.partial = true;
+  if (Array.isArray(lsr) && lsr[0]) snap.longShortRatio = Number(lsr[0].longShortRatio); else snap.partial = true;
+  return snap;
+}
+
+/**
+ * Sentiment → directional bias on a LONG. Flip sign for SHORT.
+ * Range roughly -12..+12. Contrarian: extreme fear/funding/L-S favors LONG.
+ */
+function sentimentBiasFor(snap: SentimentSnap, direction: Direction): { bias: number; tag: string } {
+  let raw = 0;
+  const parts: string[] = [];
+  if (snap.fearGreed <= 20)      { raw += 5; parts.push(`F&G=${snap.fearGreed}↑`); }
+  else if (snap.fearGreed <= 30) { raw += 2; }
+  else if (snap.fearGreed >= 80) { raw -= 5; parts.push(`F&G=${snap.fearGreed}↓`); }
+  else if (snap.fearGreed >= 70) { raw -= 2; }
+  const avgFund = (snap.fundingBTC + snap.fundingETH) / 2;
+  if (avgFund > 0.05)  { raw -= 4; parts.push('fund-hot'); }
+  else if (avgFund < -0.05) { raw += 4; parts.push('fund-inv'); }
+  if (snap.longShortRatio >= 2.5) { raw -= 3; parts.push('crowd-long'); }
+  else if (snap.longShortRatio <= 0.4) { raw += 3; parts.push('crowd-short'); }
+  const bias = direction === 'LONG' ? raw : -raw;
+  return { bias: Math.max(-12, Math.min(12, bias)), tag: parts.join(',') };
+}
+
+/**
+ * Liquidation cascade pulse from public Binance Futures 1m klines. Detects
+ * "cascade candles" (abnormal volume + range + wick signature). Aligned cascade
+ * boosts confidence; opposing cascade penalizes (don't fight a flush).
+ */
+async function fetchCascadePulse(symbol: string): Promise<{ pressure: number; intensity: number }> {
+  const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1m&limit=20`;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
+  let raw: any[];
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+    clearTimeout(t);
+    if (!r.ok) return { pressure: 0, intensity: 0 };
+    raw = (await r.json()) as any[];
+  } catch { clearTimeout(t); return { pressure: 0, intensity: 0 }; }
+  if (!Array.isArray(raw) || raw.length < 10) return { pressure: 0, intensity: 0 };
+  const candles = raw.map(k => ({ open: +k[1], high: +k[2], low: +k[3], close: +k[4], vol: +k[5] }));
+  const baseline = candles.slice(0, -3);
+  const median = (arr: number[]) => [...arr].sort((a, b) => a - b)[Math.floor(arr.length / 2)] || 0;
+  const medVol = median(baseline.map(c => c.vol));
+  const medRng = median(baseline.map(c => (c.high - c.low) / Math.max(1e-9, c.close)));
+  if (medVol === 0 || medRng === 0) return { pressure: 0, intensity: 0 };
+  let pSum = 0, n = 0, maxI = 0;
+  for (const c of candles.slice(-3)) {
+    const rng = (c.high - c.low) / Math.max(1e-9, c.close);
+    const vR = c.vol / medVol;
+    const rR = rng / medRng;
+    if (vR < 2 || rR < 1.8) continue;
+    n++;
+    const body = c.close - c.open;
+    const upper = c.high - Math.max(c.open, c.close);
+    const lower = Math.min(c.open, c.close) - c.low;
+    const total = c.high - c.low || 1e-9;
+    const dir = (body / total) * 60 + ((upper - lower) / total) * 30;
+    const mag = Math.min(2.5, (vR + rR) / 2);
+    pSum += Math.max(-100, Math.min(100, dir * mag));
+    maxI = Math.max(maxI, Math.min(100, vR * 20 + rR * 15));
+  }
+  return { pressure: n > 0 ? Math.round(pSum / n) : 0, intensity: Math.round(maxI) };
+}
+
+function cascadeBiasFor(pulse: { pressure: number; intensity: number }, direction: Direction): number {
+  if (pulse.intensity < 30) return 0;
+  const aligned = (direction === 'LONG' && pulse.pressure > 0)
+              || (direction === 'SHORT' && pulse.pressure < 0);
+  const mag = Math.min(12, Math.abs(pulse.pressure) / 8);
+  return aligned ? mag : -mag * 1.4;
+}
+
 // ─── Tick logic ───────────────────────────────────────────────────────────────
 
 interface TickResult {
@@ -336,6 +601,7 @@ interface TickResult {
   skipReasons: Record<string, number>;
   errors: string[];
   regime: string;
+  intel?: { fearGreed: number; fundingBTC: number; longShortRatio: number; cascadesActive: number };
 }
 
 async function runTradingTick(): Promise<TickResult> {
@@ -344,11 +610,34 @@ async function runTradingTick(): Promise<TickResult> {
     closed: 0, opened: 0, skipReasons: {}, errors: [], regime: 'RANGEBOUND',
   };
 
-  const [prices, sessionsResult, positionsResult] = await Promise.all([
+  // 1. Load all state + intel in parallel. Sentiment + cascade pulses are pure
+  //    free APIs (alternative.me F&G + Binance public endpoints). Each has its
+  //    own short timeout so a slow source can't stall the whole tick.
+  const [prices, sessionsResult, positionsResult, atrByPair, brainLoad, sentiment, btcCascade, ethCascade, solCascade, dogeCascade] = await Promise.all([
     fetchPrices(),
     supabase.from('arena_agent_sessions').select('*'),
     supabase.from('arena_active_positions').select('*'),
+    fetchAtrForPairs(),
+    loadBrain(supabase),
+    fetchSentiment(),
+    fetchCascadePulse('BTCUSDT'),
+    fetchCascadePulse('ETHUSDT'),
+    fetchCascadePulse('SOLUSDT'),
+    fetchCascadePulse('DOGEUSDT'),
   ]);
+  const { brain, rawState: brainRawState } = brainLoad;
+  let brainDirty = false;
+  const cascadeBySymbol = new Map<string, { pressure: number; intensity: number }>([
+    ['BTCUSDT', btcCascade], ['ETHUSDT', ethCascade], ['SOLUSDT', solCascade], ['DOGEUSDT', dogeCascade],
+  ]);
+  const cascadesActive = [btcCascade, ethCascade, solCascade, dogeCascade].filter(c => c.intensity >= 30).length;
+  result.intel = {
+    fearGreed: sentiment.fearGreed,
+    fundingBTC: sentiment.fundingBTC,
+    longShortRatio: sentiment.longShortRatio,
+    cascadesActive,
+  };
+  console.info(`[trade-tick] intel: F&G=${sentiment.fearGreed} fund=${sentiment.fundingBTC.toFixed(3)}% L/S=${sentiment.longShortRatio.toFixed(2)} cascades=${cascadesActive}/4${sentiment.partial ? ' (partial)' : ''}`);
 
   if ((sessionsResult as any).error) {
     const msg = `arena_agent_sessions read failed: ${(sessionsResult as any).error.message ?? (sessionsResult as any).error}`;
@@ -419,7 +708,7 @@ async function runTradingTick(): Promise<TickResult> {
     }
 
     if (close) {
-      closeOps.push(closeTrade(supabase, pos, exitPrice, reason, sessionsByAgent.get(agentId), result));
+      closeOps.push(closeTrade(supabase, pos, exitPrice, reason, sessionsByAgent.get(agentId), result, brain, () => { brainDirty = true; }));
       result.closed++;
       reservedSymbols.delete(pos.symbol);
       positionsByAgent.delete(agentId);
@@ -480,6 +769,11 @@ async function runTradingTick(): Promise<TickResult> {
     console.info(`[trade-tick] portfolio heat: $${currentHeatUSD.toFixed(0)} / $${MAX_PORTFOLIO_HEAT_USD.toFixed(0)} (${((currentHeatUSD / MAX_PORTFOLIO_HEAT_USD) * 100).toFixed(0)}%)`);
   }
 
+  // Track open intents (positions already open + new ones we open this tick) so
+  // the correlation gate can also block within-tick correlated co-openings.
+  const openIntents: OpenIntent[] = Array.from(positionsByAgent.values())
+    .map(p => ({ symbol: p.symbol, direction: p.direction }));
+
   const openOps: Promise<void>[] = [];
   for (const agent of AGENTS) {
     if (positionsByAgent.has(agent.id)) continue;
@@ -502,27 +796,74 @@ async function runTradingTick(): Promise<TickResult> {
       continue;
     }
 
-    let chosenSignal: Signal | null = null;
-    let chosenPair: typeof TRADING_PAIRS[0] | null = null;
+    // Generate candidate signals per pair, then pick the best one that ALSO
+    // passes the correlation gate (prefer a less-correlated lower-confidence
+    // candidate over the highest-confidence one if it conflicts).
+    // Generate base candidates, then enrich each with intel-derived bias
+    // (sentiment direction-bias + per-symbol cascade alignment). Effective
+    // confidence drives ranking; raw confidence still drives sizing later.
+    const candidates: Array<{ pair: typeof TRADING_PAIRS[0]; signal: Signal; effConf: number; intelTag: string }> = [];
     for (const pair of availablePairs) {
       const price = prices.get(pair.symbol);
       if (!price) continue;
-      const sig = generateSignal(agent, pair, price, marketState);
-      if (sig && (!chosenSignal || sig.confidence > chosenSignal.confidence)) {
-        chosenSignal = sig;
-        chosenPair = pair;
+      const sig = generateSignal(agent, pair, price, marketState, atrByPair.get(pair.symbol));
+      if (!sig) continue;
+      const sBias = sentimentBiasFor(sentiment, sig.direction);
+      const cPulse = cascadeBySymbol.get(pair.symbol) ?? { pressure: 0, intensity: 0 };
+      const cBias = cascadeBiasFor(cPulse, sig.direction);
+      const effConf = Math.max(0, Math.min(100, sig.confidence + sBias.bias + cBias));
+      const tagParts: string[] = [];
+      if (sBias.bias !== 0) tagParts.push(`sent${sBias.bias >= 0 ? '+' : ''}${sBias.bias.toFixed(0)}${sBias.tag ? `:${sBias.tag}` : ''}`);
+      if (cBias !== 0)      tagParts.push(`liq${cBias >= 0 ? '+' : ''}${cBias.toFixed(0)}`);
+      candidates.push({ pair, signal: sig, effConf, intelTag: tagParts.join(' ') });
+    }
+    candidates.sort((a, b) => b.effConf - a.effConf);
+
+    // Hard veto: opposing cascade with high intensity is strong "don't fight it"
+    const FLOOR = 50;
+    let chosen: { pair: typeof TRADING_PAIRS[0]; signal: Signal; effConf: number; intelTag: string } | null = null;
+    let correlatedRejection: { newSym: string; conflict: { symbol: string; corr: number } } | null = null;
+    let intelRejected = 0;
+    for (const c of candidates) {
+      if (c.effConf < FLOOR) { intelRejected++; continue; }
+      const conflict = findCorrelatedConflict(c.pair.symbol, c.signal.direction, openIntents);
+      if (!conflict) {
+        chosen = c;
+        break;
       }
+      if (!correlatedRejection) correlatedRejection = { newSym: c.pair.symbol, conflict };
     }
 
-    if (!chosenSignal || !chosenPair) {
-      result.skipReasons['NO_SIGNAL'] = (result.skipReasons['NO_SIGNAL'] ?? 0) + 1;
+    if (!chosen) {
+      if (candidates.length === 0) {
+        result.skipReasons['NO_SIGNAL'] = (result.skipReasons['NO_SIGNAL'] ?? 0) + 1;
+      } else if (intelRejected === candidates.length) {
+        result.skipReasons['INTEL_REJECT'] = (result.skipReasons['INTEL_REJECT'] ?? 0) + 1;
+        console.info(`[trade-tick] intel-reject ${agent.name}: best effConf=${candidates[0]?.effConf.toFixed(0)} < ${FLOOR}`);
+      } else {
+        result.skipReasons['CORRELATION_GATE'] = (result.skipReasons['CORRELATION_GATE'] ?? 0) + 1;
+        if (correlatedRejection) {
+          console.info(`[trade-tick] corr-gate skip ${agent.name} ${correlatedRejection.newSym}: ${correlatedRejection.conflict.corr.toFixed(2)} corr with open ${correlatedRejection.conflict.symbol} same dir`);
+        }
+      }
       continue;
     }
+    if (chosen.intelTag) {
+      console.info(`[trade-tick] intel ${agent.name} ${chosen.signal.direction} ${chosen.pair.symbol} rawConf=${chosen.signal.confidence.toFixed(0)} effConf=${chosen.effConf.toFixed(0)} ${chosen.intelTag}`);
+    }
 
+    const chosenSignal = chosen.signal;
+    const chosenPair = chosen.pair;
     const price = prices.get(chosenPair.symbol)!;
     const balance = computeBalance(session);
+
+    // Brain bias: scale notional by per-(strategy, regime) EMA learned from outcomes.
+    // 1.0 = unbiased; >1 = strategy has been winning here, take bigger bites.
+    const bias = getStrategyBias(brain, chosenSignal.strategy, marketState);
+
     let notional = balance * (agent.positionSizePercent / 100);
     notional *= Math.max(0.7, Math.min(1.3, 0.4 + chosenSignal.confidence / 100));
+    notional *= bias;
     notional = Math.min(notional, MAX_POSITION_USD);
     notional = Math.max(notional, MIN_POSITION_USD);
 
@@ -540,11 +881,21 @@ async function runTradingTick(): Promise<TickResult> {
     }
     currentHeatUSD += projectedHeatUSD;
 
+    if (Math.abs(bias - 1.0) > 0.05) {
+      console.info(`[trade-tick] brain bias ${agent.name} ${chosenSignal.strategy}@${marketState}=${bias.toFixed(2)}x notional=$${notional.toFixed(0)}`);
+    }
+
     openOps.push(openPosition(supabase, agent, chosenPair, price, chosenSignal, notional, marketState, result));
     result.opened++;
     reservedSymbols.add(chosenPair.symbol);
+    openIntents.push({ symbol: chosenPair.symbol, direction: chosenSignal.direction });
   }
   await Promise.all(openOps);
+
+  // Persist brain if any close updated the bias map (closeTrade sets brainDirty)
+  if (brainDirty) {
+    await persistBrain(supabase, brainRawState, brain);
+  }
 
   return result;
 }
@@ -601,6 +952,8 @@ async function closeTrade(
   reason: CloseReason,
   session: AgentSession | undefined,
   result: TickResult,
+  brain?: BrainState,
+  onBrainUpdate?: () => void,
 ): Promise<void> {
   const isLong = pos.direction === 'LONG';
   const entry = Number(pos.entry_price);
@@ -611,6 +964,14 @@ async function closeTrade(
   const notional = qty * entry;
   const pnlDollar = (pnlPercent / 100) * notional;
   const isWin = pnlPercent > 0;
+
+  // Brain learning: EMA-update the per-(strategy, regime) bias from this outcome.
+  // Mutates brain in place. The caller flips brainDirty so the end-of-tick
+  // persist actually writes the update back to autonomous_state.
+  if (brain && pos.strategy && pos.market_state_at_entry) {
+    updateStrategyBias(brain, pos.strategy, pos.market_state_at_entry, isWin);
+    onBrainUpdate?.();
+  }
 
   const consecutive = isWin ? 0 : (session?.consecutive_losses ?? 0) + 1;
   let circuitLevel = 'ACTIVE';
