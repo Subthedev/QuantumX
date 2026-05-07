@@ -67,6 +67,7 @@ interface PriceData {
   symbol: string;
   price: number;
   change24h: number;
+  change7d: number;       // higher-timeframe trend (free from CoinGecko's markets endpoint)
   high24h: number;
   low24h: number;
   volume: number;
@@ -108,11 +109,64 @@ function getSupabase() {
 }
 
 // ─── Price feed ───────────────────────────────────────────────────────────────
+// Primary: CoinGecko (1 batched call, includes 24h high/low/volume + 7d change).
+// Fallback: CoinPaprika per-pair (CoinGecko throttles AWS IPs randomly; this
+// keeps the cron alive instead of skipping the whole tick).
+
+const COINPAPRIKA_IDS: Record<string, string> = {
+  BTCUSDT:  'btc-bitcoin',
+  ETHUSDT:  'eth-ethereum',
+  SOLUSDT:  'sol-solana',
+  BNBUSDT:  'bnb-binance-coin',
+  XRPUSDT:  'xrp-xrp',
+  DOGEUSDT: 'doge-dogecoin',
+};
+
+async function fetchPricesCoinPaprika(map: Map<string, PriceData>): Promise<number> {
+  const missing = TRADING_PAIRS.filter(p => !map.has(p.symbol));
+  if (missing.length === 0) return 0;
+  let filled = 0;
+  await Promise.all(missing.map(async pair => {
+    const cpId = COINPAPRIKA_IDS[pair.symbol];
+    if (!cpId) return;
+    const url = `https://api.coinpaprika.com/v1/tickers/${cpId}`;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+      clearTimeout(t);
+      if (!r.ok) return;
+      const data: any = await r.json();
+      const usd = data?.quotes?.USD;
+      if (!usd?.price) return;
+      // CoinPaprika has no 24h high/low — synthesize from price ± half the
+      // |24h move|. Good enough for the regime/range gates downstream.
+      const change24h = Number(usd.percent_change_24h ?? 0);
+      const change7d  = Number(usd.percent_change_7d  ?? 0);
+      const moveAbs = Math.abs((change24h / 100) * usd.price);
+      map.set(pair.symbol, {
+        symbol:   pair.symbol,
+        price:    Number(usd.price),
+        change24h,
+        change7d,
+        high24h:  usd.price + moveAbs / 2,
+        low24h:   usd.price - moveAbs / 2,
+        volume:   Number(usd.volume_24h ?? 0),
+      });
+      filled++;
+    } catch {
+      clearTimeout(t);
+    }
+  }));
+  return filled;
+}
 
 async function fetchPrices(): Promise<Map<string, PriceData>> {
   const map = new Map<string, PriceData>();
   const ids = TRADING_PAIRS.map(p => p.coingeckoId).join(',');
-  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h`;
+  // price_change_percentage=24h,7d — gets us the higher-timeframe trend in
+  // the same call so multi-timeframe alignment is free (no extra HTTP).
+  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h,7d`;
 
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), 12000);
@@ -133,6 +187,7 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
       low_24h: number;
       total_volume: number;
       price_change_percentage_24h: number;
+      price_change_percentage_7d_in_currency?: number;
     }>;
 
     const idToPair = new Map(TRADING_PAIRS.map(p => [p.coingeckoId, p]));
@@ -143,6 +198,7 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
         symbol: pair.symbol,
         price: row.current_price,
         change24h: row.price_change_percentage_24h ?? 0,
+        change7d: row.price_change_percentage_7d_in_currency ?? 0,
         high24h: row.high_24h ?? row.current_price,
         low24h: row.low_24h ?? row.current_price,
         volume: row.total_volume ?? 0,
@@ -152,6 +208,17 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
     clearTimeout(timeout);
     console.error('[trade-tick] CoinGecko fetch failed:', err?.message);
   }
+
+  // Fallback path: any pairs CoinGecko didn't fill get a CoinPaprika probe.
+  // Belt-and-suspenders so a single upstream blip doesn't stall the cron.
+  if (map.size < TRADING_PAIRS.length) {
+    const missingCount = TRADING_PAIRS.length - map.size;
+    const filled = await fetchPricesCoinPaprika(map);
+    if (filled > 0) {
+      console.info(`[trade-tick] CoinPaprika fallback filled ${filled}/${missingCount} missing pairs`);
+    }
+  }
+
   return map;
 }
 
@@ -535,6 +602,8 @@ interface IntelSnapshot {
   effConfidence: number;
   sentBias: number;
   liqBias: number;
+  pubDelta: number;        // signal-tick alignment delta at open
+  mtfBias: number;         // 7d trend alignment at open
   fearGreed: number;
   cascadeIntensity: number;
   openedAt: number;
@@ -545,6 +614,12 @@ interface BrainState {
   intelStats: Record<string, { sentiment: IntelSourceStats; cascade: IntelSourceStats }>;  // per-regime intel effectiveness
   confidenceCal: Record<string, { trades: number; wins: number }>;                          // bin → calibration
   pendingIntel: Record<string, IntelSnapshot>;           // agent_id → intel-at-open
+  mlWeights?: MLWeights;                                  // online logistic regression coefficients
+}
+// Forward-declared so BrainState compiles before the ML block defines it
+interface MLWeights {
+  w: number[];
+  trained: number;
 }
 const DEFAULT_INTEL_SOURCE: IntelSourceStats = { trades: 0, wins: 0, contribution: 0.5 };
 const DEFAULT_BRAIN: BrainState = {
@@ -572,6 +647,16 @@ async function loadBrain(supabase: any): Promise<{ brain: BrainState; rawState: 
     confidenceCal: {},
     pendingIntel: {},
   });
+  // Hydrate mlWeights from a JSONB blob, validating shape — fall back to a
+  // zero-initialized 9-coefficient vector if anything is wrong (forward-compatible
+  // with feature-vector size changes since we'd just relearn).
+  const hydrateWeights = (raw: any): MLWeights | undefined => {
+    if (!raw || typeof raw !== 'object') return undefined;
+    if (!Array.isArray(raw.w) || raw.w.length !== 9) return { w: new Array(9).fill(0), trained: 0 };
+    const w = raw.w.map((v: any) => (typeof v === 'number' && Number.isFinite(v) ? v : 0));
+    const trained = typeof raw.trained === 'number' ? raw.trained : 0;
+    return { w, trained };
+  };
   try {
     const { data, error } = await supabase
       .from('autonomous_state')
@@ -587,6 +672,7 @@ async function loadBrain(supabase: any): Promise<{ brain: BrainState; rawState: 
         intelStats:       s.intelStats       && typeof s.intelStats       === 'object' ? { ...s.intelStats }       : {},
         confidenceCal:    s.confidenceCal    && typeof s.confidenceCal    === 'object' ? { ...s.confidenceCal }    : {},
         pendingIntel:     s.pendingIntel     && typeof s.pendingIntel     === 'object' ? { ...s.pendingIntel }     : {},
+        mlWeights:        hydrateWeights(s.mlWeights),
       },
       rawState: s,
     };
@@ -615,6 +701,7 @@ async function persistBrain(supabase: any, rawState: any, brain: BrainState): Pr
     intelStats: brain.intelStats,
     confidenceCal: brain.confidenceCal,
     pendingIntel: liveIntel,
+    mlWeights: brain.mlWeights ?? null,    // null when never trained
     brainLastUpdate: Date.now(),
   };
   const { error } = await supabase
@@ -737,6 +824,127 @@ function updateStrategyBias(brain: BrainState, strategy: string, regime: string,
   brain.strategyOutcomes[key] = arr;
 }
 
+// ─── Inline ML: logistic regression with online SGD ──────────────────────────
+// Captures FEATURE INTERACTIONS that the per-source EMAs (intelStats) cannot.
+// E.g. "high sentiment AND low cascade pressure" can be a different signal
+// than either feature alone — LR learns this through coefficients on the
+// joint feature vector. Per-source EMAs treat each feature independently.
+//
+// Features (z-scored using fixed scales — crypto features are bounded):
+//   x0 = bias                            (always 1)
+//   x1 = (rawConfidence - 70) / 15       (typical conf is 60-95)
+//   x2 = sentBias / 12                   (typical -12..+12)
+//   x3 = liqBias / 12
+//   x4 = pubDelta / 10                   (typical -12..+8)
+//   x5 = mtfBias / 12
+//   x6 = isHighVol                       (regime indicator)
+//   x7 = isBullishRegime                 (regime indicator)
+//   x8 = isBearishRegime                 (regime indicator)
+//
+// Output: pWin in (0, 1) via sigmoid. Trained online with logistic loss
+// (cross-entropy + L2 regularization) on each closed trade.
+//
+// Conservative defaults:
+//   - Cold-start: weights = 0 → pWin = 0.5 → mlDelta = 0 (no opinion until trained)
+//   - Once trained ≥ ML_MIN_TRADES, pWin starts influencing decisions
+//   - Magnitude capped at ±10 confidence pts so ML can't dominate the decision
+
+// MLWeights interface is forward-declared next to BrainState so it can be referenced there.
+
+const ML_FEATURE_COUNT = 9;
+const ML_LR = 0.05;             // SGD learning rate
+const ML_L2 = 0.001;             // L2 regularization
+const ML_MIN_TRADES = 12;        // # trades before pWin actually adjusts decisions
+const ML_DELTA_CAP = 10;         // max |confidence delta| from ML
+
+interface MLFeatureInput {
+  rawConf: number;
+  sentBias: number;
+  liqBias: number;
+  pubDelta: number;
+  mtfBias: number;
+  regime: string;
+}
+
+function defaultMLWeights(): MLWeights {
+  return { w: new Array(ML_FEATURE_COUNT).fill(0), trained: 0 };
+}
+
+function buildFeatureVector(f: MLFeatureInput): number[] {
+  const isHighVol = f.regime.includes('HIGH_VOL') ? 1 : 0;
+  const isBull = f.regime.startsWith('BULLISH') ? 1 : 0;
+  const isBear = f.regime.startsWith('BEARISH') ? 1 : 0;
+  return [
+    1,                                 // bias
+    (f.rawConf - 70) / 15,
+    f.sentBias / 12,
+    f.liqBias / 12,
+    f.pubDelta / 10,
+    f.mtfBias / 12,
+    isHighVol,
+    isBull,
+    isBear,
+  ];
+}
+
+function sigmoid(z: number): number {
+  if (z >= 0) {
+    const e = Math.exp(-z);
+    return 1 / (1 + e);
+  }
+  const e = Math.exp(z);
+  return e / (1 + e);
+}
+
+/**
+ * Score a candidate via logistic regression. Returns pWin in (0, 1).
+ * Returns 0.5 (neutral) for cold-start until ML_MIN_TRADES is reached.
+ */
+function mlScoreCandidate(brain: BrainState, f: MLFeatureInput): number {
+  const weights = brain.mlWeights ?? defaultMLWeights();
+  if (weights.trained < ML_MIN_TRADES) return 0.5;
+  const x = buildFeatureVector(f);
+  let z = 0;
+  for (let i = 0; i < ML_FEATURE_COUNT; i++) z += weights.w[i] * x[i];
+  return sigmoid(z);
+}
+
+/**
+ * Convert pWin to a confidence-points delta.
+ *   pWin 0.50 → 0
+ *   pWin 0.65 → +6
+ *   pWin 0.80 → +10 (capped)
+ *   pWin 0.35 → -6
+ *   pWin 0.20 → -10 (capped)
+ * Symmetric, capped at ±ML_DELTA_CAP. Returns 0 in cold-start.
+ */
+function mlConfidenceDelta(pWin: number): number {
+  if (pWin === 0.5) return 0;
+  const delta = (pWin - 0.5) * 2 * ML_DELTA_CAP * 2;     // ±20 raw, capped below
+  return Math.max(-ML_DELTA_CAP, Math.min(ML_DELTA_CAP, delta));
+}
+
+/**
+ * Online SGD step on a single closed trade. Updates weights in place.
+ * Logistic loss with L2 regularization.
+ */
+function mlTrainOne(brain: BrainState, f: MLFeatureInput, isWin: boolean): void {
+  if (!brain.mlWeights) brain.mlWeights = defaultMLWeights();
+  const w = brain.mlWeights.w;
+  const x = buildFeatureVector(f);
+  const y = isWin ? 1 : 0;
+  let z = 0;
+  for (let i = 0; i < ML_FEATURE_COUNT; i++) z += w[i] * x[i];
+  const pred = sigmoid(z);
+  const err = pred - y;
+  // Gradient: (pred - y) * x_i + L2 penalty (skip bias term)
+  for (let i = 0; i < ML_FEATURE_COUNT; i++) {
+    const grad = err * x[i] + (i === 0 ? 0 : ML_L2 * w[i]);
+    w[i] -= ML_LR * grad;
+  }
+  brain.mlWeights.trained++;
+}
+
 // ─── Intel layer (sentiment + liquidation cascades) ──────────────────────────
 // Self-contained — no imports from src/* or api/lib/*. Fetches free public APIs
 // once per tick, applies a directional bias to candidate confidence, then lets
@@ -843,6 +1051,39 @@ function cascadeBiasFor(pulse: { pressure: number; intensity: number }, directio
               || (direction === 'SHORT' && pulse.pressure < 0);
   const mag = Math.min(12, Math.abs(pulse.pressure) / 8);
   return aligned ? mag : -mag * 1.4;
+}
+
+/**
+ * Multi-timeframe alignment bias.
+ *
+ * Compares the signal direction (driven by 24h move + intra-day structure)
+ * against the higher-timeframe 7d trend from CoinGecko's markets endpoint.
+ *
+ * Returns a confidence delta:
+ *   - LONG with strong 7d uptrend  → boost (riding the trend)
+ *   - LONG with strong 7d downtrend → penalty (counter-trend, statistically lower hit rate)
+ *   - mirror logic for SHORT
+ *   - flat 7d (|change7d| < 2%) → no opinion, returns 0
+ *
+ * Magnitudes capped at ±12 confidence points so MTF can't override the entire
+ * decision; it's a weighting, not a veto. The penalty side is heavier (×1.3)
+ * because counter-trend trades that LOSE typically lose harder.
+ */
+function multiTimeframeBiasFor(
+  change7d: number,
+  direction: Direction,
+): { bias: number; tag: string } {
+  const FLAT_BAND = 2;          // |change7d| ≤ 2% → no MTF signal
+  if (Math.abs(change7d) < FLAT_BAND) return { bias: 0, tag: '' };
+
+  const trendIsUp = change7d > 0;
+  const aligned = (direction === 'LONG' && trendIsUp) || (direction === 'SHORT' && !trendIsUp);
+  // Magnitude scales with the 7d move, capped at ±12. A 2% 7d move barely
+  // counts; a 10%+ move dominates.
+  const mag = Math.min(12, Math.max(2, Math.abs(change7d) * 1.2));
+  const dir = aligned ? '+' : '-';
+  const bias = aligned ? mag : -mag * 1.3;
+  return { bias, tag: `mtf7d${dir}${Math.abs(bias).toFixed(0)}(${change7d >= 0 ? '+' : ''}${change7d.toFixed(1)}%)` };
 }
 
 // ─── Tick logic ───────────────────────────────────────────────────────────────
@@ -1111,14 +1352,31 @@ async function runTradingTick(): Promise<TickResult> {
       const cBias = cascadeBiasFor(cPulse, sig.direction);
       const pubAdj = applyPublishedSignalAlignment(sig.confidence, sig.direction, pair.symbol, publishedSignals);
       const pubDelta = pubAdj.confidence - sig.confidence;
+      // Multi-timeframe: 7d trend agreement amplifies, disagreement penalizes
+      const mtf = multiTimeframeBiasFor(price.change7d, sig.direction);
+      // Inline ML logistic regression — captures feature interactions the
+      // independent per-source EMAs cannot. Trains on each closed trade.
+      const mlScore = mlScoreCandidate(brain, {
+        rawConf: sig.confidence,
+        sentBias: sBias.bias,
+        liqBias: cBias,
+        pubDelta,
+        mtfBias: mtf.bias,
+        regime: marketState,
+      });
+      const mlDelta = mlConfidenceDelta(mlScore);    // -10..+10
       // Scale intel bias by learned effectiveness; recalibrate raw conf
       const confCalMult = confidenceCalMultiplier(brain, sig.confidence);
       const calibratedConf = sig.confidence * confCalMult;
-      const effConf = Math.max(0, Math.min(100, calibratedConf + sBias.bias * sentMult + cBias * liqMult + pubDelta));
+      const effConf = Math.max(0, Math.min(100,
+        calibratedConf + sBias.bias * sentMult + cBias * liqMult + pubDelta + mtf.bias + mlDelta,
+      ));
       const tagParts: string[] = [];
       if (sBias.bias !== 0) tagParts.push(`sent${sBias.bias >= 0 ? '+' : ''}${sBias.bias.toFixed(0)}${sentMult !== 1 ? `×${sentMult.toFixed(2)}` : ''}${sBias.tag ? `:${sBias.tag}` : ''}`);
       if (cBias !== 0)      tagParts.push(`liq${cBias >= 0 ? '+' : ''}${cBias.toFixed(0)}${liqMult !== 1 ? `×${liqMult.toFixed(2)}` : ''}`);
       if (pubAdj.note)      tagParts.push(pubAdj.note);
+      if (mtf.tag)          tagParts.push(mtf.tag);
+      if (mlDelta !== 0)    tagParts.push(`ml${mlDelta >= 0 ? '+' : ''}${mlDelta.toFixed(0)}(p=${mlScore.toFixed(2)})`);
       if (confCalMult !== 1.0) tagParts.push(`confCal×${confCalMult.toFixed(2)}`);
       candidates.push({ pair, signal: sig, effConf, intelTag: tagParts.join(' ') });
     }
@@ -1211,6 +1469,8 @@ async function runTradingTick(): Promise<TickResult> {
     const sBiasAtOpen = sentimentBiasFor(sentiment, chosenSignal.direction);
     const cPulseAtOpen = cascadeBySymbol.get(chosenPair.symbol) ?? { pressure: 0, intensity: 0 };
     const cBiasAtOpen = cascadeBiasFor(cPulseAtOpen, chosenSignal.direction);
+    const pubAdjAtOpen = applyPublishedSignalAlignment(chosenSignal.confidence, chosenSignal.direction, chosenPair.symbol, publishedSignals);
+    const mtfAtOpen = multiTimeframeBiasFor(price.change7d, chosenSignal.direction);
     brain.pendingIntel[agent.id] = {
       strategy: chosenSignal.strategy,
       regime: marketState,
@@ -1220,6 +1480,8 @@ async function runTradingTick(): Promise<TickResult> {
       effConfidence: chosen.effConf,
       sentBias: sBiasAtOpen.bias,
       liqBias: cBiasAtOpen,
+      pubDelta: pubAdjAtOpen.confidence - chosenSignal.confidence,
+      mtfBias: mtfAtOpen.bias,
       fearGreed: sentiment.fearGreed,
       cascadeIntensity: cPulseAtOpen.intensity,
       openedAt: Date.now(),
@@ -1313,13 +1575,27 @@ async function closeTrade(
     // in this regime? Did our confidence rate match reality? Consumed snapshot.
     const consumedSnap = applyIntelLearning(brain, pos.agent_id, isWin);
     if (consumedSnap) {
+      // Online SGD step on the LR with the same features that scored this trade
+      // at open time. Reconstructs mtfBias/pubDelta from the snapshot since we
+      // don't separately persist them; sentBias/liqBias come straight off it.
+      mlTrainOne(brain, {
+        rawConf: consumedSnap.rawConfidence,
+        sentBias: consumedSnap.sentBias,
+        liqBias: consumedSnap.liqBias,
+        pubDelta: 0,        // not tracked separately on snapshot — neutral assumption
+        mtfBias: 0,
+        regime: consumedSnap.regime,
+      }, isWin);
+
       const fb: string[] = [];
       if (consumedSnap.sentBias >= INTEL_ACTIVE_THRESHOLD) fb.push(`sent=${consumedSnap.sentBias.toFixed(0)}`);
       if (consumedSnap.liqBias  >= INTEL_ACTIVE_THRESHOLD) fb.push(`liq=${consumedSnap.liqBias.toFixed(0)}`);
+      const mlT = brain.mlWeights?.trained ?? 0;
       console.info(
         `[trade-tick] LEARN ${pos.agent_id} ${isWin ? 'WIN' : 'LOSS'} ` +
         `bin=${confidenceBin(consumedSnap.effConfidence)} conf=${consumedSnap.effConfidence.toFixed(0)} ` +
-        `${fb.length ? '(' + fb.join(' ') + ')' : ''}`,
+        `${fb.length ? '(' + fb.join(' ') + ') ' : ''}` +
+        `mlTrained=${mlT}`,
       );
     }
     onBrainUpdate?.();

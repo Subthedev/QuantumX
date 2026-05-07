@@ -1,52 +1,76 @@
 /**
- * QuantumX Server-Side Signal Generator — Vercel Cron
+ * QuantumX Server-Side Signal Generator — Self-contained
  *
- * Runs every 5 minutes via Vercel Cron. One execution = one signal pass:
- *   1. Fetch live prices from CoinGecko
- *   2. Detect market regime
- *   3. Load autonomous brain (strategy bias, blacklist)
- *   4. Run shared signal pipeline → SignalCandidates
- *   5. Deduplicate against intelligence_signals from last 15 min
- *   6. Insert top-N into intelligence_signals (Realtime broadcasts to clients)
- *   7. Mark stale signals (older than 2h) as expired
+ * One execution = one signal pass:
+ *   1. Fetch live prices via CoinGecko
+ *   2. Detect coarse market regime
+ *   3. For each pair: compute multi-confirmation signal
+ *   4. Dedupe against active signals from last 15 min
+ *   5. Insert top-5 confidence signals into intelligence_signals
+ *   6. Mark expired signals (older than expires_at)
  *
- * Phase 2 deliverable. This replaces what globalHubService used to do in the
- * browser via setInterval (which died when the tab closed). Now the pipeline
- * runs server-side every 5 min and clients subscribe via Supabase Realtime.
+ * Driven by Supabase pg_cron every 5 min.
  *
- * Authentication: same `Authorization: Bearer ${CRON_SECRET}` as trade-tick.
+ * Authentication: `Authorization: Bearer ${CRON_SECRET}`.
  *
  * Route: GET /api/agents/signal-tick
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import {
-  generateSignalCandidates,
-  DEFAULT_SIGNAL_UNIVERSE,
-  type SignalCandidate,
-} from '../../src/core/signalPipeline';
-import {
-  detectMarketStateFromPrices,
-  type PriceData,
-  type AutonomousBrain,
-} from '../../src/core/tradeDecision';
 
-const COINGECKO_IDS: Record<string, string> = {
-  BTCUSDT: 'bitcoin',
-  ETHUSDT: 'ethereum',
-  SOLUSDT: 'solana',
-  BNBUSDT: 'binancecoin',
-  XRPUSDT: 'ripple',
-  DOGEUSDT: 'dogecoin',
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Direction = 'LONG' | 'SHORT';
+
+interface PriceData {
+  symbol: string;
+  ticker: string;
+  price: number;
+  change24h: number;
+  high24h: number;
+  low24h: number;
+  volume: number;
+}
+
+interface Candidate {
+  ticker: string;
+  signalType: Direction;
+  confidence: number;
+  currentPrice: number;
+  entryMin: number;
+  entryMax: number;
+  target1: number;
+  target2: number;
+  stopLoss: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  strength: string;
+  thesis: string;
+  invalidation: string;
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const SIGNAL_UNIVERSE = [
+  { symbol: 'BTCUSDT',  ticker: 'BTC',  coingeckoId: 'bitcoin' },
+  { symbol: 'ETHUSDT',  ticker: 'ETH',  coingeckoId: 'ethereum' },
+  { symbol: 'SOLUSDT',  ticker: 'SOL',  coingeckoId: 'solana' },
+  { symbol: 'BNBUSDT',  ticker: 'BNB',  coingeckoId: 'binancecoin' },
+  { symbol: 'XRPUSDT',  ticker: 'XRP',  coingeckoId: 'ripple' },
+  { symbol: 'DOGEUSDT', ticker: 'DOGE', coingeckoId: 'dogecoin' },
+];
+
+const SIGNAL_TTL_MS = 2 * 60 * 60 * 1000;
+const DEDUPE_WINDOW_MS = 15 * 60 * 1000;
+const MIN_CONFIDENCE = 60;
+const MAX_PUBLISH_PER_TICK = 5;
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
 
 function getSupabase() {
-  const url = process.env.VITE_SUPABASE_URL
-    ?? process.env.SUPABASE_URL
-    ?? 'https://vidziydspeewmcexqicg.supabase.co';
+  const url = process.env.SUPABASE_URL
+    ?? process.env.VITE_SUPABASE_URL
+    ?? 'https://abdjyaumafnewqjhsjlq.supabase.co';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
   return createClient(url, key, { auth: { persistSession: false } });
 }
@@ -55,7 +79,7 @@ function getSupabase() {
 
 async function fetchPrices(): Promise<Map<string, PriceData>> {
   const map = new Map<string, PriceData>();
-  const ids = DEFAULT_SIGNAL_UNIVERSE.map(p => COINGECKO_IDS[p.symbol]).filter(Boolean).join(',');
+  const ids = SIGNAL_UNIVERSE.map(p => p.coingeckoId).join(',');
   const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h`;
 
   const ctrl = new AbortController();
@@ -76,12 +100,13 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
       price_change_percentage_24h: number;
     }>;
 
-    const idToSymbol = new Map(Object.entries(COINGECKO_IDS).map(([sym, id]) => [id, sym]));
+    const idToPair = new Map(SIGNAL_UNIVERSE.map(p => [p.coingeckoId, p]));
     for (const row of arr) {
-      const symbol = idToSymbol.get(row.id);
-      if (!symbol) continue;
-      map.set(symbol, {
-        symbol,
+      const pair = idToPair.get(row.id);
+      if (!pair) continue;
+      map.set(pair.ticker, {
+        symbol: pair.symbol,
+        ticker: pair.ticker,
         price: row.current_price,
         change24h: row.price_change_percentage_24h ?? 0,
         high24h: row.high_24h ?? row.current_price,
@@ -96,95 +121,136 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
   return map;
 }
 
-// ─── Fear & Greed (best-effort) ───────────────────────────────────────────────
+// ─── Regime + signal generation ──────────────────────────────────────────────
 
-async function fetchFearGreedIndex(): Promise<number> {
-  try {
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 5000);
-    const r = await fetch('https://api.alternative.me/fng/', { signal: ctrl.signal });
-    clearTimeout(timeout);
-    if (!r.ok) return 50;
-    const data: any = await r.json();
-    const v = data?.data?.[0]?.value;
-    return v ? Number(v) : 50;
-  } catch {
-    return 50;
-  }
+function detectMarketRegime(prices: Map<string, PriceData>): string {
+  const btc = prices.get('BTC');
+  if (!btc) return 'RANGEBOUND';
+  const range = btc.high24h > 0 ? ((btc.high24h - btc.low24h) / btc.price) * 100 : 0;
+  const isHighVol = range > 4.5;
+  if (btc.change24h > 2.5)  return isHighVol ? 'BULLISH_HIGH_VOL' : 'BULLISH_LOW_VOL';
+  if (btc.change24h < -2.5) return isHighVol ? 'BEARISH_HIGH_VOL' : 'BEARISH_LOW_VOL';
+  return 'RANGEBOUND';
 }
 
-// ─── Brain loader (same as trade-tick) ────────────────────────────────────────
+function generateCandidate(price: PriceData, regime: string): Candidate | null {
+  const range = price.high24h > 0 ? ((price.high24h - price.low24h) / price.price) * 100 : 0;
+  const positionInRange = price.high24h > price.low24h
+    ? (price.price - price.low24h) / (price.high24h - price.low24h)
+    : 0.5;
 
-const DEFAULT_BRAIN: AutonomousBrain = {
-  positionSizeMultiplier: 1.0,
-  signalFrequencyMultiplier: 1.0,
-  regimeTransitionPenalty: 1.0,
-  strategyBias: {},
-  blacklistedStrategies: [],
-};
+  const momentum   = price.change24h > 1 ? 1 : price.change24h < -1 ? -1 : 0;
+  const meanRevert = positionInRange > 0.7 ? -1 : positionInRange < 0.3 ? 1 : 0;
+  const regimeBias = regime.startsWith('BULLISH') ? 1 : regime.startsWith('BEARISH') ? -1 : 0;
+  const volBias    = range > 3 ? Math.sign(momentum + regimeBias) : 0;
 
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
+  const bias = momentum + meanRevert + regimeBias + volBias;
+  if (Math.abs(bias) < 1) return null;
+
+  const direction: Direction = bias > 0 ? 'LONG' : 'SHORT';
+  const confidence = Math.min(95, Math.round(50 + Math.abs(bias) * 10 + (range > 3 ? 5 : 0)));
+  if (confidence < MIN_CONFIDENCE) return null;
+
+  const entryWindow = price.price * 0.003;
+  const slPercent  = 0.02;
+  const tp1Percent = 0.04;
+  const tp2Percent = 0.07;
+
+  const entryMin = price.price - entryWindow;
+  const entryMax = price.price + entryWindow;
+  const target1  = direction === 'LONG' ? price.price * (1 + tp1Percent) : price.price * (1 - tp1Percent);
+  const target2  = direction === 'LONG' ? price.price * (1 + tp2Percent) : price.price * (1 - tp2Percent);
+  const stopLoss = direction === 'LONG' ? price.price * (1 - slPercent)  : price.price * (1 + slPercent);
+
+  const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' =
+    confidence >= 80 ? 'LOW' : confidence >= 70 ? 'MEDIUM' : 'HIGH';
+  const strength = String(Math.min(10, Math.round(confidence / 10)));
+
+  const driverParts: string[] = [];
+  if (momentum !== 0)   driverParts.push(`24h momentum ${price.change24h.toFixed(1)}%`);
+  if (meanRevert !== 0) driverParts.push(positionInRange < 0.3 ? 'price near 24h low' : 'price near 24h high');
+  if (regimeBias !== 0) driverParts.push(`${regime} regime`);
+  if (range > 3)        driverParts.push(`expansion (24h range ${range.toFixed(1)}%)`);
+
+  const decimals = price.price > 100 ? 2 : 4;
+  const thesis = `${direction} ${price.ticker}: ` + driverParts.join(' + ');
+  const invalidation = direction === 'LONG'
+    ? `Below ${stopLoss.toFixed(decimals)} invalidates`
+    : `Above ${stopLoss.toFixed(decimals)} invalidates`;
+
+  return {
+    ticker: price.ticker,
+    signalType: direction,
+    confidence,
+    currentPrice: price.price,
+    entryMin, entryMax, target1, target2, stopLoss,
+    riskLevel, strength, thesis, invalidation,
+  };
 }
 
-async function loadAutonomousBrain(supabase: any): Promise<AutonomousBrain> {
-  try {
-    const { data, error } = await supabase
-      .from('autonomous_state')
-      .select('state')
-      .eq('id', 'singleton')
-      .single();
-    if (error || !data?.state) return DEFAULT_BRAIN;
-    const s = data.state;
-    return {
-      positionSizeMultiplier: clamp(Number(s.positionSizeMultiplier ?? 1.0), 0.25, 1.5),
-      signalFrequencyMultiplier: clamp(Number(s.signalFrequencyMultiplier ?? 1.0), 0.5, 2.0),
-      regimeTransitionPenalty: clamp(Number(s.regimeTransitionPenalty ?? 1.0), 0.5, 1.0),
-      strategyBias: s.strategyBias || {},
-      blacklistedStrategies: s.blacklistedStrategies || [],
-    };
-  } catch {
-    return DEFAULT_BRAIN;
-  }
-}
+// ─── Pipeline ────────────────────────────────────────────────────────────────
 
-// ─── Insert helpers ───────────────────────────────────────────────────────────
-
-interface InsertResult {
-  inserted: number;
+interface TickResult {
+  generated: number;
+  published: number;
   skippedDuplicate: number;
+  expired: number;
   errors: string[];
+  regime: string;
 }
 
-async function insertSignals(
-  supabase: any,
-  candidates: SignalCandidate[],
-  fearGreedIndex: number,
-): Promise<InsertResult> {
-  const result: InsertResult = { inserted: 0, skippedDuplicate: 0, errors: [] };
-  if (candidates.length === 0) return result;
+async function runSignalTick(): Promise<TickResult> {
+  const supabase = getSupabase();
+  const result: TickResult = {
+    generated: 0, published: 0, skippedDuplicate: 0, expired: 0, errors: [], regime: 'RANGEBOUND',
+  };
 
-  // Dedup: any candidate that matches symbol+signal_type within last 15 min is skipped
-  const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  const symbols = candidates.map(c => c.symbol);
-  const { data: recent } = await supabase
-    .from('intelligence_signals')
-    .select('symbol, signal_type')
-    .in('symbol', symbols)
-    .gte('created_at', since);
+  const [prices, activeSignalsResult] = await Promise.all([
+    fetchPrices(),
+    supabase.from('intelligence_signals')
+      .select('symbol, signal_type, created_at')
+      .gte('created_at', new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString()),
+  ]);
 
-  const recentSet = new Set<string>(
-    (recent ?? []).map((r: any) => `${r.symbol}-${r.signal_type}`)
-  );
+  if ((activeSignalsResult as any).error) {
+    const msg = `intelligence_signals read failed: ${(activeSignalsResult as any).error.message ?? (activeSignalsResult as any).error}`;
+    console.error('[signal-tick]', msg);
+    result.errors.push(msg);
+    return result;
+  }
+  if (prices.size === 0) {
+    result.errors.push('Failed to fetch prices from CoinGecko');
+    return result;
+  }
 
-  const rows: any[] = [];
-  for (const c of candidates) {
-    if (recentSet.has(`${c.symbol}-${c.signalType}`)) {
-      result.skippedDuplicate++;
-      continue;
-    }
-    rows.push({
-      symbol: c.symbol,
+  const recentSignals = ((activeSignalsResult as any).data || []) as Array<{ symbol: string; signal_type: string }>;
+  const dupeKey = (sym: string, dir: string) => `${sym}::${dir}`;
+  const recentDupes = new Set<string>(recentSignals.map(s => dupeKey(s.symbol, s.signal_type)));
+
+  result.regime = detectMarketRegime(prices);
+
+  const candidates: Candidate[] = [];
+  for (const price of prices.values()) {
+    const c = generateCandidate(price, result.regime);
+    if (c) candidates.push(c);
+  }
+  result.generated = candidates.length;
+
+  const ranked = candidates
+    .sort((a, b) => b.confidence - a.confidence)
+    .filter(c => {
+      if (recentDupes.has(dupeKey(c.ticker, c.signalType))) {
+        result.skippedDuplicate++;
+        return false;
+      }
+      return true;
+    })
+    .slice(0, MAX_PUBLISH_PER_TICK);
+
+  if (ranked.length > 0) {
+    const expiresAt = new Date(Date.now() + SIGNAL_TTL_MS).toISOString();
+    const rows = ranked.map(c => ({
+      symbol: c.ticker,
       signal_type: c.signalType,
       confidence: c.confidence,
       current_price: c.currentPrice,
@@ -194,105 +260,38 @@ async function insertSignals(
       target_2: c.target2,
       stop_loss: c.stopLoss,
       risk_level: c.riskLevel,
-      strength: String(c.strength),
+      strength: c.strength,
       status: 'active',
-      timeframe: '1h',
-      expires_at: new Date(Date.now() + c.expiresInMs).toISOString(),
-      regime: c.regime,
-      fear_greed_index: fearGreedIndex,
-      funding_rate: 0,
+      timeframe: '4h',
+      expires_at: expiresAt,
+      regime: result.regime,
       thesis: c.thesis,
       invalidation: c.invalidation,
-    });
+    }));
+    const { error } = await supabase.from('intelligence_signals').insert(rows);
+    if (error) {
+      const msg = `intelligence_signals insert failed: ${error.message ?? error.code ?? error}`;
+      console.error('[signal-tick]', msg);
+      result.errors.push(msg);
+    } else {
+      result.published = rows.length;
+      console.info(`[signal-tick] PUBLISHED ${rows.length} signals: ${ranked.map(c => `${c.ticker}-${c.signalType}@${c.confidence}`).join(', ')}`);
+    }
   }
 
-  if (rows.length === 0) return result;
-
-  const { error, data } = await supabase
+  // Expire stale signals (cleanup pass)
+  const { count: expiredCount, error: expireErr } = await supabase
     .from('intelligence_signals')
-    .insert(rows)
-    .select('id');
-
-  if (error) {
-    result.errors.push(error.message);
-    console.error('[signal-tick] insert failed:', error.message);
-  } else {
-    result.inserted = data?.length ?? 0;
-  }
-
-  return result;
-}
-
-async function expireStaleSignals(supabase: any): Promise<number> {
-  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from('intelligence_signals')
-    .update({ status: 'expired' })
+    .update({ status: 'expired', completed_at: new Date().toISOString() }, { count: 'exact' })
     .eq('status', 'active')
-    .lt('expires_at', cutoff)
-    .select('id');
-  if (error) {
-    console.warn('[signal-tick] expire failed:', error.message);
-    return 0;
+    .lt('expires_at', new Date().toISOString());
+  if (expireErr) {
+    const msg = `expire pass failed: ${expireErr.message ?? expireErr.code ?? expireErr}`;
+    console.error('[signal-tick]', msg);
+    result.errors.push(msg);
+  } else {
+    result.expired = expiredCount ?? 0;
   }
-  return data?.length ?? 0;
-}
-
-// ─── Tick logic ───────────────────────────────────────────────────────────────
-
-interface TickResult {
-  generated: number;
-  inserted: number;
-  skippedDuplicate: number;
-  expired: number;
-  regime: string;
-  fearGreed: number;
-  errors: string[];
-}
-
-async function runSignalTick(): Promise<TickResult> {
-  const supabase = getSupabase();
-  const result: TickResult = {
-    generated: 0, inserted: 0, skippedDuplicate: 0, expired: 0,
-    regime: 'RANGEBOUND', fearGreed: 50, errors: [],
-  };
-
-  // 1. Load all state in parallel
-  const [prices, brain, fearGreedIndex] = await Promise.all([
-    fetchPrices(),
-    loadAutonomousBrain(supabase),
-    fetchFearGreedIndex(),
-  ]);
-
-  if (prices.size === 0) {
-    result.errors.push('Failed to fetch any prices');
-    return result;
-  }
-
-  result.fearGreed = fearGreedIndex;
-  const marketState = detectMarketStateFromPrices(prices);
-  result.regime = marketState;
-
-  console.info(`[signal-tick] regime=${marketState} fg=${fearGreedIndex} pairs=${prices.size}`);
-
-  // 2. Generate candidates via shared pipeline
-  const candidates = generateSignalCandidates(
-    prices,
-    marketState,
-    brain,
-    DEFAULT_SIGNAL_UNIVERSE,
-    { minConfidence: 65, maxSignals: 4, expiresInMs: 2 * 60 * 60 * 1000, fearGreedIndex },
-  );
-  result.generated = candidates.length;
-
-  // 3. Insert with dedup
-  const insertResult = await insertSignals(supabase, candidates, fearGreedIndex);
-  result.inserted = insertResult.inserted;
-  result.skippedDuplicate = insertResult.skippedDuplicate;
-  result.errors.push(...insertResult.errors);
-
-  // 4. Expire stale signals
-  result.expired = await expireStaleSignals(supabase);
 
   return result;
 }
@@ -302,12 +301,9 @@ async function runSignalTick(): Promise<TickResult> {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const authHeader = req.headers.authorization;
   const expectedSecret = process.env.CRON_SECRET;
-  if (!expectedSecret) {
-    return res.status(500).json({ error: 'CRON_SECRET not configured' });
-  }
-  if (authHeader !== `Bearer ${expectedSecret}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (!expectedSecret) return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  if (authHeader !== `Bearer ${expectedSecret}`) return res.status(401).json({ error: 'Unauthorized' });
+
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' });
   }
@@ -316,11 +312,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const result = await runSignalTick();
     const elapsedMs = Date.now() - startedAt;
-    console.info(`[signal-tick] DONE in ${elapsedMs}ms`, JSON.stringify(result));
+    console.info(`[signal-tick] DONE in ${elapsedMs}ms`, result);
     return res.status(200).json({ ok: true, elapsedMs, ...result });
   } catch (err: any) {
     console.error('[signal-tick] FATAL', err);
-    return res.status(500).json({ error: 'Tick failed', message: err?.message });
+    return res.status(500).json({ error: 'Tick failed', message: err?.message, stack: err?.stack });
   }
 }
 
