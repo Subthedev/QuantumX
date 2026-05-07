@@ -3,12 +3,6 @@
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/" }
   ],
-  "crons": [
-    {
-      "path": "/api/agents/trade-tick",
-      "schedule": "* * * * *"
-    }
-  ],
   "functions": {
     "api/agents/trade-tick.ts": {
       "maxDuration": 30
