@@ -148,7 +148,60 @@ async function fetchPricesCoinbase(map: Map<string, PriceData>): Promise<number>
   return filled;
 }
 
-async function fetchPrices(): Promise<Map<string, PriceData>> {
+async function tryPriceCache(supabase: any, maxAgeMs: number = 30_000): Promise<Map<string, PriceData> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('price_cache')
+      .select('symbol, price, change24h, high24h, low24h, volume, fetched_at')
+      .in('symbol', SIGNAL_UNIVERSE.map(p => p.symbol));
+    if (error || !data || data.length < SIGNAL_UNIVERSE.length) return null;
+    const now = Date.now();
+    const map = new Map<string, PriceData>();
+    for (const row of data) {
+      if (now - new Date(row.fetched_at).getTime() > maxAgeMs) return null;
+      const pair = SIGNAL_UNIVERSE.find(p => p.symbol === row.symbol);
+      if (!pair) continue;
+      map.set(pair.ticker, {
+        symbol: pair.symbol,
+        ticker: pair.ticker,
+        price: Number(row.price),
+        change24h: Number(row.change24h),
+        high24h: Number(row.high24h),
+        low24h: Number(row.low24h),
+        volume: Number(row.volume) || 0,
+      });
+    }
+    return map.size === SIGNAL_UNIVERSE.length ? map : null;
+  } catch {
+    return null;
+  }
+}
+
+async function persistPriceCache(supabase: any, map: Map<string, PriceData>, source: string): Promise<void> {
+  if (map.size === 0) return;
+  const payload = Array.from(map.values()).map(p => ({
+    symbol: p.symbol,
+    price: p.price,
+    change24h: p.change24h,
+    high24h: p.high24h,
+    low24h: p.low24h,
+    volume: p.volume,
+    source,
+  }));
+  try {
+    await supabase.rpc('worker_upsert_prices', {
+      p_secret: process.env.CRON_SECRET ?? '',
+      p_payload: payload,
+    });
+  } catch {/* non-critical */}
+}
+
+async function fetchPrices(supabase?: any): Promise<Map<string, PriceData>> {
+  if (supabase) {
+    const cached = await tryPriceCache(supabase);
+    if (cached) return cached;
+  }
+
   const map = new Map<string, PriceData>();
   const ids = SIGNAL_UNIVERSE.map(p => p.coingeckoId).join(',');
   const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h`;
@@ -198,6 +251,10 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
     if (filled > 0) {
       console.info(`[signal-tick] Coinbase fallback filled ${filled}/${SIGNAL_UNIVERSE.length - before} missing`);
     }
+  }
+
+  if (supabase && map.size > 0) {
+    void persistPriceCache(supabase, map, 'coingecko+coinbase');
   }
 
   return map;
@@ -655,9 +712,11 @@ async function updateSignalQualityEMA(
     signalQualityLastUpdate: Date.now(),
   };
 
-  const { error: upErr } = await supabase
-    .from('autonomous_state')
-    .upsert({ id: 'singleton', state: newState, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+  const { error: upErr } = await supabase.rpc('worker_upsert_brain', {
+    p_secret: process.env.CRON_SECRET ?? '',
+    p_state: newState,
+    p_decisions: [],
+  });
   if (upErr) {
     console.warn('[signal-tick] signalQuality persist failed:', upErr.message);
   } else {
@@ -689,7 +748,7 @@ async function runSignalTick(): Promise<TickResult> {
   };
 
   const [prices, candlesByTicker, recentSignalsResult, activeSignalsResult] = await Promise.all([
-    fetchPrices(),
+    fetchPrices(supabase),
     fetchCandlesByTicker(),
     supabase.from('intelligence_signals')
       .select('symbol, signal_type, created_at')
@@ -723,18 +782,16 @@ async function runSignalTick(): Promise<TickResult> {
     if (out) resolutions.push(out);
   }
   for (const r of resolutions) {
-    const { error } = await supabase
-      .from('intelligence_signals')
-      .update({
-        status: r.status,
-        exit_price: r.exit_price,
-        hit_target: r.hit_target,
-        hit_stop_loss: r.hit_stop_loss,
-        profit_loss_percent: r.profit_loss_percent,
-        completed_at: r.completed_at,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', r.id);
+    const { error } = await supabase.rpc('worker_resolve_signal_outcome', {
+      p_secret: process.env.CRON_SECRET ?? '',
+      p_id: r.id,
+      p_status: r.status,
+      p_exit_price: r.exit_price,
+      p_hit_target: r.hit_target,
+      p_hit_stop_loss: r.hit_stop_loss,
+      p_profit_loss_percent: r.profit_loss_percent,
+      p_completed_at: r.completed_at,
+    });
     if (error) {
       result.errors.push(`resolve ${r.id} failed: ${error.message ?? error}`);
       continue;
@@ -816,7 +873,10 @@ async function runSignalTick(): Promise<TickResult> {
       thesis: c.thesis,
       invalidation: c.invalidation,
     }));
-    const { error } = await supabase.from('intelligence_signals').insert(rows);
+    const { error } = await supabase.rpc('worker_publish_signals_bulk', {
+      p_secret: process.env.CRON_SECRET ?? '',
+      p_payload: rows,
+    });
     if (error) {
       const msg = `intelligence_signals insert failed: ${error.message ?? error.code ?? error}`;
       console.error('[signal-tick]', msg);
@@ -828,18 +888,29 @@ async function runSignalTick(): Promise<TickResult> {
   }
 
   // Step 4 — final sweep: expire any active signal still past TTL that we
-  // didn't resolve above (e.g. candles missing for that pair).
-  const { count: expiredCount, error: expireErr } = await supabase
-    .from('intelligence_signals')
-    .update({ status: 'expired', completed_at: new Date().toISOString() }, { count: 'exact' })
-    .eq('status', 'active')
-    .lt('expires_at', new Date().toISOString());
-  if (expireErr) {
-    const msg = `expire pass failed: ${expireErr.message ?? expireErr.code ?? expireErr}`;
-    console.error('[signal-tick]', msg);
-    result.errors.push(msg);
-  } else if (expiredCount && expiredCount > 0) {
-    result.expired += expiredCount;
+  // didn't resolve above (e.g. candles missing for that pair). signal-tick
+  // runs as service_role which bypasses RLS, so a direct UPDATE is enough.
+  // (The earlier RPC version had ownership/grant issues against the table.)
+  try {
+    const { data: expiredRows, error: expireErr } = await supabase
+      .from('intelligence_signals')
+      .update({
+        status: 'expired',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('status', 'active')
+      .lt('expires_at', new Date().toISOString())
+      .select('id');
+    if (expireErr) {
+      const msg = `expire pass failed: ${expireErr.message ?? expireErr.code ?? expireErr}`;
+      console.error('[signal-tick]', msg);
+      result.errors.push(msg);
+    } else if (Array.isArray(expiredRows) && expiredRows.length > 0) {
+      result.expired += expiredRows.length;
+    }
+  } catch (err: any) {
+    result.errors.push(`expire pass exception: ${err?.message ?? err}`);
   }
 
   return result;
