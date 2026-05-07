@@ -13,13 +13,11 @@
 
 import { cryptoDataService, type CryptoData } from './cryptoDataService';
 
-export enum MarketState {
-  BULLISH_HIGH_VOL = 'BULLISH_HIGH_VOL',
-  BULLISH_LOW_VOL = 'BULLISH_LOW_VOL',
-  BEARISH_HIGH_VOL = 'BEARISH_HIGH_VOL',
-  BEARISH_LOW_VOL = 'BEARISH_LOW_VOL',
-  RANGEBOUND = 'RANGEBOUND',
-}
+// MarketState enum lives in @/core/marketState so server-side code can import
+// it without pulling in browser-only services. Re-exported here for backward
+// compatibility with the many existing imports of this module.
+export { MarketState } from '@/core/marketState';
+import { MarketState } from '@/core/marketState';
 
 export interface MarketStateAnalysis {
   state: MarketState;

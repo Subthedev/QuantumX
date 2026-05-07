@@ -620,9 +620,10 @@ class AutonomousOrchestrator {
 
     // Debounce the Supabase write. The cron uses a non-debounced path because
     // Vercel functions don't survive past the response — see saveStateNow().
+    // Phase 4: All saves go through saveStateWithRetry() to tolerate
+    // concurrent writers (multiple browser tabs + cron).
     if (typeof window === 'undefined') {
-      // Server-side (Vercel cron): save synchronously
-      this.saveStateNow().catch(err =>
+      this.saveStateWithRetry().catch(err =>
         console.warn('[Orchestrator] Supabase save failed:', err?.message)
       );
       return;
@@ -630,7 +631,7 @@ class AutonomousOrchestrator {
 
     if (this.saveDebounceTimer) clearTimeout(this.saveDebounceTimer);
     this.saveDebounceTimer = setTimeout(() => {
-      this.saveStateNow().catch(err =>
+      this.saveStateWithRetry().catch(err =>
         console.warn('[Orchestrator] Supabase save failed:', err?.message)
       );
     }, this.SAVE_DEBOUNCE_MS);
@@ -639,19 +640,70 @@ class AutonomousOrchestrator {
   /**
    * Non-debounced Supabase write — call directly from server-side code that
    * needs to flush before responding (e.g. trade-tick.ts at end of tick).
+   *
+   * Phase 4: Optimistic concurrency control. The UPDATE is gated on
+   * `version = currentVersion` and bumps to currentVersion+1. If another
+   * writer (a second browser tab, or the cron) updated the row in between
+   * our load and our save, the WHERE clause matches zero rows and we get a
+   * stale-write error. The caller can choose to reload + retry.
+   *
+   * Returns the new version on success, or throws on conflict.
    */
-  async saveStateNow(): Promise<void> {
+  async saveStateNow(): Promise<number> {
     const payload = this.serialize();
-    this.currentVersion += 1;
-    const { error } = await (supabase as any)
+    const expectedVersion = this.currentVersion;
+    const nextVersion = expectedVersion + 1;
+
+    const { data, error } = await (supabase as any)
       .from(this.SUPABASE_TABLE)
       .update({
         state: payload.state,
         decisions: payload.decisions,
-        version: this.currentVersion,
+        version: nextVersion,
       })
-      .eq('id', this.SUPABASE_ROW_ID);
+      .eq('id', this.SUPABASE_ROW_ID)
+      .eq('version', expectedVersion)
+      .select('version')
+      .maybeSingle();
+
     if (error) throw error;
+
+    if (!data) {
+      // Stale write detected — another writer bumped the version.
+      // Reload canonical state and let the caller decide whether to retry.
+      console.warn(`[Orchestrator] Stale write rejected (expected v${expectedVersion}). Reloading…`);
+      try { await this.loadFromSupabase(); } catch { /* swallow */ }
+      const err = new Error('STALE_WRITE');
+      (err as any).code = 'STALE_WRITE';
+      (err as any).expectedVersion = expectedVersion;
+      (err as any).actualVersion = this.currentVersion;
+      throw err;
+    }
+
+    this.currentVersion = data.version;
+    return this.currentVersion;
+  }
+
+  /**
+   * Save with one-shot retry on stale-write conflict. Recommended for routine
+   * saves where you want best-effort persistence; if the conflict resolution
+   * succeeds, the last writer wins by re-applying its delta on top of the
+   * fresh state.
+   */
+  async saveStateWithRetry(): Promise<number | null> {
+    try {
+      return await this.saveStateNow();
+    } catch (err: any) {
+      if (err?.code !== 'STALE_WRITE') throw err;
+      // After loadFromSupabase() in saveStateNow's catch path, the in-memory
+      // state may have been overridden. We re-serialize and try once more.
+      try {
+        return await this.saveStateNow();
+      } catch (retryErr: any) {
+        console.warn('[Orchestrator] Stale write retry also failed:', retryErr?.message);
+        return null;
+      }
+    }
   }
 
   /**

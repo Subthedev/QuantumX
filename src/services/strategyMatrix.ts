@@ -12,7 +12,7 @@
  * - Gamma Agent (Chaos Engine): Strategies designed for high volatility
  */
 
-import { MarketState } from './marketStateDetectionEngine';
+import { MarketState } from '../core/marketState';
 
 export enum AgentType {
   ALPHAX = 'alphaX', // Trend Engine
