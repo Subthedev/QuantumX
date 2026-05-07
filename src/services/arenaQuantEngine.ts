@@ -37,13 +37,13 @@ const TRADING_PAIRS = [
 // Based on professional quant firm practices (Citadel/Millennium)
 
 const RISK_LIMITS = {
-  // Position sizing limits
-  MAX_POSITION_PERCENT: 3,      // Max 3% of balance per trade
-  MIN_POSITION_USD: 50,         // Min $50 position
-  MAX_POSITION_USD: 300,        // Max $300 per position
+  // Position sizing limits — sized for $10K agent balance, 24/7 profit-seeking mandate
+  MAX_POSITION_PERCENT: 20,     // Max 20% of balance per trade (was 3%)
+  MIN_POSITION_USD: 200,        // Min $200 position (was $50)
+  MAX_POSITION_USD: 2500,       // Max $2,500 per position (was $300)
 
   // Strategy suitability
-  MIN_STRATEGY_SUITABILITY: 60, // Block strategies below 60% suitability
+  MIN_STRATEGY_SUITABILITY: 50, // Block strategies below 50% (was 60% — too restrictive)
 
   // Drawdown-scaled position sizing
   DRAWDOWN_ADJUSTMENTS: [
@@ -433,22 +433,22 @@ function calculateAdaptiveRiskReward(
     ? ((priceData.high24h - priceData.low24h) / priceData.price) * 100
     : 2;
 
-  // Base values by strategy type
+  // Base values by strategy type — sized for 30-60min hold windows, not 5min
   let baseTP: number;
   let baseSL: number;
 
   if (strategy.agent === AgentType.ALPHAX) {
     // Trend: Let winners run, cut losers quickly
-    baseTP = 1.2;
-    baseSL = 0.5;
+    baseTP = 3.5;
+    baseSL = 1.4;
   } else if (strategy.agent === AgentType.BETAX) {
-    // Reversion: Quick profits, tight stops
-    baseTP = 0.8;
-    baseSL = 0.4;
+    // Reversion: Faster profits, tight stops
+    baseTP = 2.5;
+    baseSL = 1.2;
   } else {
     // Chaos: Wide targets for volatility
-    baseTP = 1.5;
-    baseSL = 0.7;
+    baseTP = 4.5;
+    baseSL = 2.0;
   }
 
   // Volatility adjustment: Scale with market conditions
@@ -461,15 +461,15 @@ function calculateAdaptiveRiskReward(
   let takeProfitPercent = baseTP * volMultiplier * rangeAdjustment;
   let stopLossPercent = baseSL * volMultiplier * rangeAdjustment;
 
-  // Ensure minimum R:R of 1.5:1 for profitability
-  const minRR = 1.5;
+  // Ensure minimum R:R of 1.8:1 for profitability after fees/slippage
+  const minRR = 1.8;
   if (takeProfitPercent / stopLossPercent < minRR) {
     takeProfitPercent = stopLossPercent * minRR;
   }
 
-  // Cap maximum values
-  takeProfitPercent = Math.min(3.0, Math.max(0.5, takeProfitPercent));
-  stopLossPercent = Math.min(1.5, Math.max(0.25, stopLossPercent));
+  // Cap maximum values — wider envelope for crypto volatility
+  takeProfitPercent = Math.min(10.0, Math.max(1.5, takeProfitPercent));
+  stopLossPercent = Math.min(4.0, Math.max(0.75, stopLossPercent));
 
   return {
     takeProfitPercent,
@@ -1511,7 +1511,7 @@ class ArenaQuantEngine {
 
   private checkPositions(): void {
     const now = Date.now();
-    const maxHoldTime = 300000; // 5 minutes max hold
+    const maxHoldTime = 3600000; // 60 minutes max hold — gives TPs room to materialize
 
     this.agents.forEach(agent => {
       if (!agent.currentPosition) return;
@@ -1526,15 +1526,19 @@ class ArenaQuantEngine {
       const trailing = this.trailingStops.get(pos.id) || { active: false, stopPrice: pos.stopLossPrice };
 
       if (trailing.active) {
-        // TRAILING MODE: TP was already hit, now trail the stop
+        // TRAILING MODE: TP was already hit, now trail the stop wider (60% of run, not 40%)
+        // and the trailing stop never falls below 50% of the original TP gain — locks in real P&L
         if (isLong) {
-          // Trail: keep stop at 40% of distance from entry to peak
-          const newTrail = price.price - (price.price - pos.entryPrice) * 0.4;
-          trailing.stopPrice = Math.max(trailing.stopPrice, newTrail);
+          const runFromEntry = price.price - pos.entryPrice;
+          const newTrail = price.price - runFromEntry * 0.4;            // trail at 40% of run from peak
+          const minLockIn = pos.entryPrice + (pos.takeProfitPrice - pos.entryPrice) * 0.5; // half of TP banked
+          trailing.stopPrice = Math.max(trailing.stopPrice, newTrail, minLockIn);
           if (price.price <= trailing.stopPrice) { close = true; reason = 'TP'; }
         } else {
-          const newTrail = price.price + (pos.entryPrice - price.price) * 0.4;
-          trailing.stopPrice = Math.min(trailing.stopPrice, newTrail);
+          const runFromEntry = pos.entryPrice - price.price;
+          const newTrail = price.price + runFromEntry * 0.4;
+          const minLockIn = pos.entryPrice - (pos.entryPrice - pos.takeProfitPrice) * 0.5;
+          trailing.stopPrice = Math.min(trailing.stopPrice, newTrail, minLockIn);
           if (price.price >= trailing.stopPrice) { close = true; reason = 'TP'; }
         }
         this.trailingStops.set(pos.id, trailing);
@@ -1542,20 +1546,20 @@ class ArenaQuantEngine {
         // NORMAL MODE: check TP and SL
         if (isLong) {
           if (price.price >= pos.takeProfitPrice) {
-            // Activate trailing instead of closing immediately
+            // Activate trailing — lock in 50% of the TP gain as the floor (not breakeven!)
             trailing.active = true;
-            trailing.stopPrice = pos.entryPrice * 1.001; // Breakeven + buffer
+            trailing.stopPrice = pos.entryPrice + (pos.takeProfitPrice - pos.entryPrice) * 0.5;
             this.trailingStops.set(pos.id, trailing);
-            console.log(`[Arena] Trailing activated: ${agent.name} ${pos.displaySymbol} TP hit @ $${price.price.toFixed(2)}`);
+            console.log(`[Arena] Trail-from-TP: ${agent.name} ${pos.displaySymbol} @ $${price.price.toFixed(2)}, floor $${trailing.stopPrice.toFixed(2)}`);
             return; // Don't close yet, let it trail
           }
           else if (price.price <= pos.stopLossPrice) { close = true; reason = 'SL'; }
         } else {
           if (price.price <= pos.takeProfitPrice) {
             trailing.active = true;
-            trailing.stopPrice = pos.entryPrice * 0.999;
+            trailing.stopPrice = pos.entryPrice - (pos.entryPrice - pos.takeProfitPrice) * 0.5;
             this.trailingStops.set(pos.id, trailing);
-            console.log(`[Arena] Trailing activated: ${agent.name} ${pos.displaySymbol} TP hit @ $${price.price.toFixed(2)}`);
+            console.log(`[Arena] Trail-from-TP: ${agent.name} ${pos.displaySymbol} @ $${price.price.toFixed(2)}, floor $${trailing.stopPrice.toFixed(2)}`);
             return;
           }
           else if (price.price >= pos.stopLossPrice) { close = true; reason = 'SL'; }
