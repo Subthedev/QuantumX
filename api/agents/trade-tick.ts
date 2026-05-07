@@ -191,36 +191,45 @@ function generateSignal(
     ? (price.price - price.low24h) / (price.high24h - price.low24h)
     : 0.5;
 
-  // Five-signal confirmation system
-  const signals = {
-    momentum: price.change24h > 1 ? 1 : price.change24h < -1 ? -1 : 0,
-    range:    positionInRange > 0.7 ? -1 : positionInRange < 0.3 ? 1 : 0, // mean-reversion
-    volatility: range > 3 ? 1 : 0, // prefer trades when there's actual movement
-    regimeAlignment: 0,
-    agentTypeFit: 0,
-  };
+  const isHighVol = marketState.includes('HIGH_VOL');
+  const isBullish = marketState.startsWith('BULLISH');
+  const isBearish = marketState.startsWith('BEARISH');
 
-  if (marketState.startsWith('BULLISH'))      signals.regimeAlignment = 1;
-  else if (marketState.startsWith('BEARISH')) signals.regimeAlignment = -1;
+  let direction: Direction;
+  let confidence: number;
+  let strategy: string;
 
-  // Agent personality: AlphaX = trend, BetaX = reversion, GammaX = volatility
-  if (agent.type === 'AGGRESSIVE')         signals.agentTypeFit = signals.momentum;
-  else if (agent.type === 'BALANCED')      signals.agentTypeFit = -signals.range; // BetaX flips: high-in-range = short
-  else                                     signals.agentTypeFit = signals.volatility;
+  if (agent.type === 'AGGRESSIVE') {
+    // AlphaX — trend follower. Need real momentum, must not fight the regime.
+    if (Math.abs(price.change24h) < 1) return null;
+    direction = price.change24h > 0 ? 'LONG' : 'SHORT';
+    if (direction === 'LONG' && isBearish) return null;
+    if (direction === 'SHORT' && isBullish) return null;
+    confidence = Math.min(95, 55 + Math.abs(price.change24h) * 4 + range * 2);
+    strategy = 'alpha-trend';
+  } else if (agent.type === 'BALANCED') {
+    // BetaX — true mean reversion. Fade extremes when there's room to revert.
+    if (range < 1.5) return null;                       // need real range to fade
+    const extremity = Math.abs(positionInRange - 0.5) * 2; // 0 (mid) → 1 (edge)
+    if (extremity < 0.4) return null;                   // not near an extreme yet
+    direction = positionInRange > 0.5 ? 'SHORT' : 'LONG';
+    confidence = Math.min(90, 55 + extremity * 25 + Math.min(range, 5) * 2);
+    // Small penalty for catching a falling knife (or grabbing a rocket) — strong regime moves rarely revert cleanly.
+    if (direction === 'LONG'  && isBearish && price.change24h < -3) confidence -= 8;
+    if (direction === 'SHORT' && isBullish && price.change24h >  3) confidence -= 8;
+    strategy = 'beta-reversion';
+  } else {
+    // GammaX — volatility/breakout specialist. Only when there's chaos to surf.
+    if (range < 3) return null;
+    if (Math.abs(price.change24h) < 1.5) return null;
+    direction = price.change24h > 0 ? 'LONG' : 'SHORT';
+    confidence = Math.min(92, 55 + range * 4 + Math.abs(price.change24h) * 2);
+    strategy = 'gamma-vol-breakout';
+  }
 
-  // Aggregate. Any net bias triggers a trade — we'd rather take a moderate-conviction
-  // trade than sit idle. The 24/7 mandate means flat conditions still need exploration.
-  const bias = signals.momentum + signals.range + signals.regimeAlignment + signals.agentTypeFit;
-  if (Math.abs(bias) < 1) return null;
-
-  const direction: Direction = bias > 0 ? 'LONG' : 'SHORT';
-  // Confidence floor 50, ceiling 95. Bias of 1 = 60%, bias of 2 = 70%, bias of 3 = 80%, bias of 4 = 90%.
-  const confidence = Math.min(95, 50 + Math.abs(bias) * 10 + signals.volatility * 5);
-
-  if (confidence < 50) return null;
+  if (confidence < SUITABILITY_FLOOR_PERCENT) return null;
 
   // Risk-adjusted TP/SL based on 24h range
-  const isHighVol = marketState.includes('HIGH_VOL');
   const isRangebound = marketState === 'RANGEBOUND';
   const volMultiplier = isHighVol ? 1.4 : (isRangebound ? 0.7 : 1.0);
   const rangeAdjustment = Math.min(1.5, Math.max(0.6, range / 4));
@@ -231,13 +240,7 @@ function generateSignal(
   tp = Math.min(TP_CAP_PERCENT, Math.max(1.5, tp));
   sl = Math.min(SL_CAP_PERCENT, Math.max(0.75, sl));
 
-  return {
-    direction,
-    confidence,
-    takeProfitPercent: tp,
-    stopLossPercent: sl,
-    strategy: `${agent.type.toLowerCase()}-multi-confirm`,
-  };
+  return { direction, confidence, takeProfitPercent: tp, stopLossPercent: sl, strategy };
 }
 
 function computeBalance(session: AgentSession | undefined): number {
@@ -250,6 +253,62 @@ function isHaltedByCircuitBreaker(session: AgentSession | undefined): boolean {
   if (session.circuit_breaker_level === 'L4_HALTED' || session.circuit_breaker_level === 'L5_EMERGENCY') return true;
   if (session.halted_until && new Date(session.halted_until).getTime() > Date.now()) return true;
   return false;
+}
+
+// ─── Autonomous Orchestrator State (Phase 1.C) ────────────────────────────────
+// The cron READS the singleton `autonomous_state` row to apply the brain's
+// learned multipliers. Browser writes are canonical until Phase 1.B fully
+// extracts the engine to a runtime-agnostic module — at that point the cron
+// will become a writer too.
+//
+// Why this matters: previously the cron's notional sizing ignored the brain
+// entirely. After every winning streak the orchestrator learns to push
+// positionSizeMultiplier toward 1.5; after losses it pulls back to 0.25.
+// Without this read, 24/7 trades have NO benefit from any of that learning.
+
+interface AutonomousBrain {
+  positionSizeMultiplier: number;     // 0.25 - 1.5
+  signalFrequencyMultiplier: number;  // 0.5 - 2.0 (used in cooldown gating)
+  regimeTransitionPenalty: number;    // 0.5 - 1.0
+  strategyBias: Record<string, number>;
+}
+
+const DEFAULT_BRAIN: AutonomousBrain = {
+  positionSizeMultiplier: 1.0,
+  signalFrequencyMultiplier: 1.0,
+  regimeTransitionPenalty: 1.0,
+  strategyBias: {},
+};
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}
+
+async function loadAutonomousBrain(supabase: any): Promise<AutonomousBrain> {
+  try {
+    const { data, error } = await supabase
+      .from('autonomous_state')
+      .select('state')
+      .eq('id', 'singleton')
+      .single();
+    if (error || !data?.state) return DEFAULT_BRAIN;
+    const s = data.state;
+    return {
+      positionSizeMultiplier: clamp(Number(s.positionSizeMultiplier ?? 1.0), 0.25, 1.5),
+      signalFrequencyMultiplier: clamp(Number(s.signalFrequencyMultiplier ?? 1.0), 0.5, 2.0),
+      regimeTransitionPenalty: clamp(Number(s.regimeTransitionPenalty ?? 1.0), 0.5, 1.0),
+      strategyBias: s.strategyBias || {},
+    };
+  } catch {
+    return DEFAULT_BRAIN;
+  }
+}
+
+function getStrategyBias(brain: AutonomousBrain, strategy: string, regime: string): number {
+  // Match autonomousOrchestrator.getStrategyBias() resolution order
+  const key = `${strategy}-${regime}`;
+  const v = brain.strategyBias[key] ?? brain.strategyBias[strategy] ?? 1.0;
+  return clamp(Number(v), 0.1, 2.0);
 }
 
 // ─── Tick Logic ───────────────────────────────────────────────────────────────
@@ -267,11 +326,12 @@ async function runTradingTick(): Promise<TickResult> {
   const supabase = getSupabase();
   const result: TickResult = { closed: 0, opened: 0, skippedNoSignal: 0, skippedCooldown: 0, skippedHalted: 0, errors: [] };
 
-  // 1. Load state
-  const [pricesResult, sessionsResult, positionsResult] = await Promise.all([
+  // 1. Load state — including the autonomous_state singleton (Phase 1.C)
+  const [pricesResult, sessionsResult, positionsResult, brain] = await Promise.all([
     fetchPrices(),
     supabase.from('arena_agent_sessions').select('*'),
     supabase.from('arena_active_positions').select('*'),
+    loadAutonomousBrain(supabase),
   ]);
 
   const prices = pricesResult;
@@ -287,10 +347,13 @@ async function runTradingTick(): Promise<TickResult> {
     return result;
   }
 
+  console.info(`[trade-tick] brain: posSize=${brain.positionSizeMultiplier.toFixed(2)}x, regimePenalty=${brain.regimeTransitionPenalty.toFixed(2)}x, biases=${Object.keys(brain.strategyBias).length}`);
+
   const marketState = detectMarketState(prices);
   const reservedSymbols = new Set<string>(Array.from(positionsByAgent.values()).map(p => p.symbol));
 
-  // 2. Manage existing positions — check TP / SL / TIMEOUT
+  // 2. Manage existing positions — check TP / SL / TIMEOUT (parallel close)
+  const closeOps: Promise<void>[] = [];
   for (const [agentId, pos] of positionsByAgent) {
     const price = prices.get(pos.symbol);
     if (!price) continue;
@@ -317,14 +380,16 @@ async function runTradingTick(): Promise<TickResult> {
     }
 
     if (close) {
-      await closeTrade(supabase, pos, exitPrice, reason, sessionsByAgent.get(agentId));
+      closeOps.push(closeTrade(supabase, pos, exitPrice, reason, sessionsByAgent.get(agentId)));
       result.closed++;
       reservedSymbols.delete(pos.symbol);
       positionsByAgent.delete(agentId);
     }
   }
+  await Promise.all(closeOps);
 
-  // 3. Open new positions for agents without one
+  // 3. Open new positions for agents without one (parallel writes)
+  const openOps: Promise<void>[] = [];
   for (const agent of AGENTS) {
     if (positionsByAgent.has(agent.id)) continue;
 
@@ -371,6 +436,12 @@ async function runTradingTick(): Promise<TickResult> {
     let notional = balance * (agent.positionSizePercent / 100);
     // Confidence scaling
     notional *= Math.max(0.7, Math.min(1.3, 0.4 + chosenSignal.confidence / 100));
+
+    // Phase 1.C — apply autonomous orchestrator multipliers
+    notional *= brain.positionSizeMultiplier;          // 0.25x - 1.5x learned
+    notional *= brain.regimeTransitionPenalty;          // 0.5x during chaotic regime
+    notional *= getStrategyBias(brain, chosenSignal.strategy, marketState); // per-strategy bias
+
     notional = Math.min(notional, MAX_POSITION_USD);
     notional = Math.max(notional, MIN_POSITION_USD);
 
@@ -379,10 +450,11 @@ async function runTradingTick(): Promise<TickResult> {
       continue;
     }
 
-    await openPosition(supabase, agent, chosenPair, price, chosenSignal, notional, marketState);
+    openOps.push(openPosition(supabase, agent, chosenPair, price, chosenSignal, notional, marketState));
     result.opened++;
     reservedSymbols.add(chosenPair.symbol);
   }
+  await Promise.all(openOps);
 
   return result;
 }
@@ -444,27 +516,6 @@ async function closeTrade(
   const pnlDollar = (pnlPercent / 100) * notional;
   const isWin = pnlPercent > 0;
 
-  // 1. Insert into trade history
-  await supabase.from('arena_trade_history').insert({
-    agent_id: pos.agent_id,
-    timestamp: new Date().toISOString(),
-    symbol: pos.symbol,
-    direction: pos.direction,
-    entry_price: pos.entry_price,
-    exit_price: exitPrice,
-    quantity: pos.quantity,
-    pnl_percent: pnlPercent,
-    pnl_dollar: pnlDollar,
-    is_win: isWin,
-    strategy: pos.strategy,
-    market_state: pos.market_state_at_entry,
-    reason,
-  });
-
-  // 2. Delete active position
-  await supabase.from('arena_active_positions').delete().eq('agent_id', pos.agent_id);
-
-  // 3. Update session — accumulate stats + circuit breaker logic
   const consecutive = isWin ? 0 : (session?.consecutive_losses ?? 0) + 1;
   let circuitLevel = 'ACTIVE';
   let haltedUntil: string | null = null;
@@ -479,17 +530,36 @@ async function closeTrade(
     haltedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   }
 
-  await supabase.from('arena_agent_sessions').upsert({
-    agent_id: pos.agent_id,
-    trades: (session?.trades ?? 0) + 1,
-    wins: (session?.wins ?? 0) + (isWin ? 1 : 0),
-    pnl: (session?.pnl ?? 0) + pnlPercent,
-    balance_delta: newDelta,
-    consecutive_losses: consecutive,
-    circuit_breaker_level: circuitLevel,
-    halted_until: haltedUntil,
-    last_trade_time: new Date().toISOString(),
-  }, { onConflict: 'agent_id' });
+  // Parallel: history insert + active-position delete + session upsert
+  await Promise.all([
+    supabase.from('arena_trade_history').insert({
+      agent_id: pos.agent_id,
+      timestamp: new Date().toISOString(),
+      symbol: pos.symbol,
+      direction: pos.direction,
+      entry_price: pos.entry_price,
+      exit_price: exitPrice,
+      quantity: pos.quantity,
+      pnl_percent: pnlPercent,
+      pnl_dollar: pnlDollar,
+      is_win: isWin,
+      strategy: pos.strategy,
+      market_state: pos.market_state_at_entry,
+      reason,
+    }),
+    supabase.from('arena_active_positions').delete().eq('agent_id', pos.agent_id),
+    supabase.from('arena_agent_sessions').upsert({
+      agent_id: pos.agent_id,
+      trades: (session?.trades ?? 0) + 1,
+      wins: (session?.wins ?? 0) + (isWin ? 1 : 0),
+      pnl: (session?.pnl ?? 0) + pnlPercent,
+      balance_delta: newDelta,
+      consecutive_losses: consecutive,
+      circuit_breaker_level: circuitLevel,
+      halted_until: haltedUntil,
+      last_trade_time: new Date().toISOString(),
+    }, { onConflict: 'agent_id' }),
+  ]);
 
   console.info(`[trade-tick] CLOSE ${pos.agent_id} ${pos.direction} ${pos.display_symbol} ${reason} pnl=${pnlPercent.toFixed(2)}% ($${pnlDollar.toFixed(2)}) consec=${consecutive}`);
 }
@@ -525,5 +595,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 export const config = {
-  maxDuration: 30,
+  maxDuration: 60,
 };
