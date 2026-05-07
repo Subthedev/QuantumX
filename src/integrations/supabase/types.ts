@@ -14,6 +14,204 @@ export type Database = {
   }
   public: {
     Tables: {
+      arena_active_positions: {
+        Row: {
+          agent_id: string
+          current_price: number
+          direction: string
+          display_symbol: string
+          entry_price: number
+          entry_time: string
+          id: string
+          market_state_at_entry: string | null
+          position_id: string
+          quantity: number
+          stop_loss_price: number
+          strategy: string | null
+          symbol: string
+          take_profit_price: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          current_price: number
+          direction: string
+          display_symbol: string
+          entry_price: number
+          entry_time?: string
+          id?: string
+          market_state_at_entry?: string | null
+          position_id: string
+          quantity: number
+          stop_loss_price: number
+          strategy?: string | null
+          symbol: string
+          take_profit_price: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          current_price?: number
+          direction?: string
+          display_symbol?: string
+          entry_price?: number
+          entry_time?: string
+          id?: string
+          market_state_at_entry?: string | null
+          position_id?: string
+          quantity?: number
+          stop_loss_price?: number
+          strategy?: string | null
+          symbol?: string
+          take_profit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      arena_agent_sessions: {
+        Row: {
+          agent_id: string
+          balance_delta: number
+          circuit_breaker_level: string
+          consecutive_losses: number
+          halted_until: string | null
+          id: string
+          last_trade_time: string | null
+          pnl: number
+          trades: number
+          updated_at: string
+          wins: number
+        }
+        Insert: {
+          agent_id: string
+          balance_delta?: number
+          circuit_breaker_level?: string
+          consecutive_losses?: number
+          halted_until?: string | null
+          id?: string
+          last_trade_time?: string | null
+          pnl?: number
+          trades?: number
+          updated_at?: string
+          wins?: number
+        }
+        Update: {
+          agent_id?: string
+          balance_delta?: number
+          circuit_breaker_level?: string
+          consecutive_losses?: number
+          halted_until?: string | null
+          id?: string
+          last_trade_time?: string | null
+          pnl?: number
+          trades?: number
+          updated_at?: string
+          wins?: number
+        }
+        Relationships: []
+      }
+      arena_market_state: {
+        Row: {
+          confidence: number
+          id: string
+          state: string
+          trend_strength: number
+          updated_at: string
+          volatility: number
+        }
+        Insert: {
+          confidence?: number
+          id?: string
+          state: string
+          trend_strength?: number
+          updated_at?: string
+          volatility?: number
+        }
+        Update: {
+          confidence?: number
+          id?: string
+          state?: string
+          trend_strength?: number
+          updated_at?: string
+          volatility?: number
+        }
+        Relationships: []
+      }
+      arena_trade_history: {
+        Row: {
+          agent_id: string
+          direction: string
+          entry_price: number
+          exit_price: number | null
+          id: string
+          is_win: boolean | null
+          market_state: string | null
+          pnl_dollar: number | null
+          pnl_percent: number | null
+          quantity: number
+          reason: string | null
+          strategy: string | null
+          symbol: string
+          timestamp: string
+        }
+        Insert: {
+          agent_id: string
+          direction: string
+          entry_price: number
+          exit_price?: number | null
+          id?: string
+          is_win?: boolean | null
+          market_state?: string | null
+          pnl_dollar?: number | null
+          pnl_percent?: number | null
+          quantity: number
+          reason?: string | null
+          strategy?: string | null
+          symbol: string
+          timestamp?: string
+        }
+        Update: {
+          agent_id?: string
+          direction?: string
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          is_win?: boolean | null
+          market_state?: string | null
+          pnl_dollar?: number | null
+          pnl_percent?: number | null
+          quantity?: number
+          reason?: string | null
+          strategy?: string | null
+          symbol?: string
+          timestamp?: string
+        }
+        Relationships: []
+      }
+      autonomous_state: {
+        Row: {
+          decisions: Json
+          id: string
+          state: Json
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          decisions?: Json
+          id?: string
+          state?: Json
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          decisions?: Json
+          id?: string
+          state?: Json
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       crypto_reports: {
         Row: {
           coin_symbol: string
@@ -103,6 +301,11 @@ export type Database = {
           target_3: number | null
           timeframe: string
           updated_at: string
+          regime: string | null
+          fear_greed_index: number | null
+          funding_rate: number | null
+          thesis: string | null
+          invalidation: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -129,6 +332,11 @@ export type Database = {
           target_3?: number | null
           timeframe?: string
           updated_at?: string
+          regime?: string | null
+          fear_greed_index?: number | null
+          funding_rate?: number | null
+          thesis?: string | null
+          invalidation?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -155,6 +363,11 @@ export type Database = {
           target_3?: number | null
           timeframe?: string
           updated_at?: string
+          regime?: string | null
+          fear_greed_index?: number | null
+          funding_rate?: number | null
+          thesis?: string | null
+          invalidation?: string | null
         }
         Relationships: []
       }

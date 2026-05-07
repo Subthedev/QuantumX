@@ -335,6 +335,25 @@ async function runTradingTick(): Promise<TickResult> {
   ]);
 
   const prices = pricesResult;
+
+  // Surface DB read errors — silent failures here are how we ended up trading into the void
+  if (sessionsResult.error) {
+    const msg = `arena_agent_sessions read failed: ${sessionsResult.error.message ?? sessionsResult.error.code ?? sessionsResult.error}`;
+    console.error('[trade-tick]', msg);
+    result.errors.push(msg);
+  }
+  if (positionsResult.error) {
+    const msg = `arena_active_positions read failed: ${positionsResult.error.message ?? positionsResult.error.code ?? positionsResult.error}`;
+    console.error('[trade-tick]', msg);
+    result.errors.push(msg);
+  }
+
+  // Abort early if either critical read failed — opening trades when we can't see
+  // existing positions causes duplicate trades / state corruption
+  if (sessionsResult.error || positionsResult.error) {
+    return result;
+  }
+
   const sessionsByAgent = new Map<string, AgentSession>(
     (sessionsResult.data || []).map((s: AgentSession) => [s.agent_id, s])
   );
@@ -380,7 +399,7 @@ async function runTradingTick(): Promise<TickResult> {
     }
 
     if (close) {
-      closeOps.push(closeTrade(supabase, pos, exitPrice, reason, sessionsByAgent.get(agentId)));
+      closeOps.push(closeTrade(supabase, pos, exitPrice, reason, sessionsByAgent.get(agentId), result));
       result.closed++;
       reservedSymbols.delete(pos.symbol);
       positionsByAgent.delete(agentId);
@@ -450,7 +469,7 @@ async function runTradingTick(): Promise<TickResult> {
       continue;
     }
 
-    openOps.push(openPosition(supabase, agent, chosenPair, price, chosenSignal, notional, marketState));
+    openOps.push(openPosition(supabase, agent, chosenPair, price, chosenSignal, notional, marketState, result));
     result.opened++;
     reservedSymbols.add(chosenPair.symbol);
   }
@@ -467,6 +486,7 @@ async function openPosition(
   signal: NonNullable<ReturnType<typeof generateSignal>>,
   notional: number,
   marketState: string,
+  result: TickResult,
 ): Promise<void> {
   const isLong = signal.direction === 'LONG';
   const entry = price.price;
@@ -494,7 +514,9 @@ async function openPosition(
     }, { onConflict: 'agent_id' });
 
   if (error) {
-    console.error(`[trade-tick] open failed for ${agent.id}:`, error.message);
+    const msg = `open failed for ${agent.id}: ${error.message ?? error.code ?? error}`;
+    console.error('[trade-tick]', msg);
+    result.errors.push(msg);
     return;
   }
 
@@ -507,6 +529,7 @@ async function closeTrade(
   exitPrice: number,
   reason: CloseReason,
   session: AgentSession | undefined,
+  result: TickResult,
 ): Promise<void> {
   const isLong = pos.direction === 'LONG';
   const pnlPercent = isLong
@@ -531,7 +554,7 @@ async function closeTrade(
   }
 
   // Parallel: history insert + active-position delete + session upsert
-  await Promise.all([
+  const writes = await Promise.all([
     supabase.from('arena_trade_history').insert({
       agent_id: pos.agent_id,
       timestamp: new Date().toISOString(),
@@ -560,6 +583,16 @@ async function closeTrade(
       last_trade_time: new Date().toISOString(),
     }, { onConflict: 'agent_id' }),
   ]);
+
+  // Surface any write errors so we can detect silent DB failures
+  const writeNames = ['trade_history.insert', 'active_position.delete', 'agent_session.upsert'];
+  writes.forEach((w: any, i: number) => {
+    if (w?.error) {
+      const msg = `close ${writeNames[i]} failed for ${pos.agent_id}: ${w.error.message ?? w.error.code ?? w.error}`;
+      console.error('[trade-tick]', msg);
+      result.errors.push(msg);
+    }
+  });
 
   console.info(`[trade-tick] CLOSE ${pos.agent_id} ${pos.direction} ${pos.display_symbol} ${reason} pnl=${pnlPercent.toFixed(2)}% ($${pnlDollar.toFixed(2)}) consec=${consecutive}`);
 }

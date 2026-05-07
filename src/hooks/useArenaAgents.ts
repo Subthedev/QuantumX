@@ -1,12 +1,14 @@
 /**
- * ARENA AGENTS HOOK V4 - PRODUCTION BULLETPROOF
+ * ARENA AGENTS HOOK V5 — single source of truth: arenaQuantEngine.
  *
- * Syncs with arenaLiveTrading engine for real-time agent data.
- * Properly handles persistence restoration.
+ * Phase 0 fix: previously read from arenaLiveTrading (localStorage-only,
+ * never reached Supabase) while ArenaClean.tsx read from arenaQuantEngine
+ * (Supabase-backed). Same UI, two different data sources — out-of-sync stats
+ * and "phantom" trades. Unified to arenaQuantEngine.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { arenaLiveTrading, type LiveAgent, type TradeEvent } from '@/services/arenaLiveTrading';
+import { arenaQuantEngine, type QuantAgent, type TradeEvent } from '@/services/arenaQuantEngine';
 import { useToast } from '@/hooks/use-toast';
 
 // Interface for Arena UI
@@ -59,10 +61,7 @@ interface UseArenaAgentsResult {
   restoredTrades: number;
 }
 
-/**
- * Convert LiveAgent to ArenaAgent format
- */
-function toArenaAgent(agent: LiveAgent): ArenaAgent {
+function toArenaAgent(agent: QuantAgent): ArenaAgent {
   return {
     id: agent.id,
     name: agent.name,
@@ -87,13 +86,22 @@ function toArenaAgent(agent: LiveAgent): ArenaAgent {
     followers: agent.followers,
     performance: agent.performance,
     streakCount: agent.streakCount,
-    streakType: agent.streakType
+    streakType: agent.streakType,
   };
 }
 
-/**
- * Hook for accessing live agent data with persistence
- */
+function buildStats(quantAgents: QuantAgent[]): ArenaStats {
+  const engineStats = arenaQuantEngine.getStats();
+  return {
+    totalTrades: engineStats.totalTrades,
+    totalPnLPercent: engineStats.totalPnL,
+    activeAgents: quantAgents.filter(a => a.isActive).length,
+    wins: engineStats.wins,
+    losses: engineStats.losses,
+    winRate: engineStats.winRate,
+  };
+}
+
 export function useArenaAgents(_refreshInterval: number = 1000): UseArenaAgentsResult {
   const { toast } = useToast();
   const [agents, setAgents] = useState<ArenaAgent[]>([]);
@@ -103,67 +111,49 @@ export function useArenaAgents(_refreshInterval: number = 1000): UseArenaAgentsR
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [restoredTrades, setRestoredTrades] = useState(0);
 
-  // Use ref to track initialization and prevent double-init in StrictMode
   const initializedRef = useRef(false);
   const mountedRef = useRef(true);
 
-  // Update state from engine
   const syncFromEngine = useCallback(() => {
     if (!mountedRef.current) return;
-
-    const liveAgents = arenaLiveTrading.getAgents();
-    const arenaAgents = liveAgents.map(toArenaAgent);
-    const liveStats = arenaLiveTrading.getStats();
-
-    setAgents(arenaAgents);
-    setStats({
-      totalTrades: liveStats.totalTrades,
-      totalPnLPercent: liveStats.totalPnL,
-      activeAgents: arenaAgents.filter(a => a.isActive).length,
-      wins: liveStats.wins,
-      losses: liveStats.losses,
-      winRate: liveStats.winRate
-    });
+    const quantAgents = arenaQuantEngine.getAgents();
+    setAgents(quantAgents.map(toArenaAgent));
+    setStats(buildStats(quantAgents));
     setLastUpdate(Date.now());
-    setRestoredTrades(arenaLiveTrading.getRestoredTrades());
+    setRestoredTrades(arenaQuantEngine.getRestoredTrades());
   }, []);
 
   useEffect(() => {
-    // Skip if already initialized (prevents StrictMode double-init)
     if (initializedRef.current) {
-      console.log('[Arena Hook V4] Already initialized, skipping');
+      console.log('[Arena Hook V5] Already initialized, skipping');
       return;
     }
     initializedRef.current = true;
     mountedRef.current = true;
 
-    console.log('[Arena Hook V4] Initializing...');
+    console.log('[Arena Hook V5] Initializing arenaQuantEngine subscription...');
 
     const initialize = async () => {
       try {
-        // Get initial state IMMEDIATELY from engine (includes restored data)
+        // Initial render from in-memory state (cache hydrated by engine init)
         syncFromEngine();
 
-        const initialTrades = arenaLiveTrading.getStats().totalTrades;
-        console.log(`[Arena Hook V4] Initial sync: ${initialTrades} trades from engine`);
-
-        // Start engine if not already running
-        if (!arenaLiveTrading.isActive()) {
-          console.log('[Arena Hook V4] Starting engine...');
-          await arenaLiveTrading.start();
+        // Start engine if not already running. arenaQuantEngine.start() awaits
+        // its own Supabase initialization with a 5s timeout, so this is safe.
+        if (!arenaQuantEngine.isActive()) {
+          console.log('[Arena Hook V5] Starting arenaQuantEngine...');
+          await arenaQuantEngine.start();
         }
 
         if (!mountedRef.current) return;
 
-        // Sync again after start (in case start triggered any changes)
         syncFromEngine();
         setLoading(false);
 
-        console.log('[Arena Hook V4] ✅ Initialization complete');
-
+        console.log('[Arena Hook V5] ✅ Initialization complete');
       } catch (err) {
         if (!mountedRef.current) return;
-        console.error('[Arena Hook V4] Error:', err);
+        console.error('[Arena Hook V5] Error:', err);
         setError(err instanceof Error ? err : new Error('Failed to initialize'));
         setLoading(false);
       }
@@ -171,42 +161,27 @@ export function useArenaAgents(_refreshInterval: number = 1000): UseArenaAgentsR
 
     initialize();
 
-    // Subscribe to state changes
-    const unsubscribeState = arenaLiveTrading.onStateChange((liveAgents) => {
+    const unsubscribeState = arenaQuantEngine.onStateChange((quantAgents) => {
       if (!mountedRef.current) return;
-
-      const arenaAgents = liveAgents.map(toArenaAgent);
-      const liveStats = arenaLiveTrading.getStats();
-
-      setAgents(arenaAgents);
-      setStats({
-        totalTrades: liveStats.totalTrades,
-        totalPnLPercent: liveStats.totalPnL,
-        activeAgents: arenaAgents.filter(a => a.isActive).length,
-        wins: liveStats.wins,
-        losses: liveStats.losses,
-        winRate: liveStats.winRate
-      });
+      setAgents(quantAgents.map(toArenaAgent));
+      setStats(buildStats(quantAgents));
       setLastUpdate(Date.now());
     });
 
-    // Subscribe to trade events for notifications
-    const unsubscribeTrades = arenaLiveTrading.onTradeEvent((event: TradeEvent) => {
+    const unsubscribeTrades = arenaQuantEngine.onTradeEvent((event: TradeEvent) => {
       if (!mountedRef.current) return;
-
       if (event.type === 'open') {
         toast({
           title: `${event.agent.name} opened ${event.position.direction}`,
           description: `${event.position.displaySymbol} @ $${event.position.entryPrice.toFixed(2)}`,
-          duration: 3000
+          duration: 3000,
         });
       } else if (event.type === 'close') {
-        const isWin = event.isWin;
         toast({
           title: `${event.agent.name} ${event.reason}: ${event.pnlPercent?.toFixed(2)}%`,
           description: `${event.position.displaySymbol} closed`,
           duration: 3000,
-          variant: isWin ? 'default' : 'destructive'
+          variant: event.isWin ? 'default' : 'destructive',
         });
       }
     });
@@ -215,7 +190,7 @@ export function useArenaAgents(_refreshInterval: number = 1000): UseArenaAgentsR
       mountedRef.current = false;
       unsubscribeState();
       unsubscribeTrades();
-      console.log('[Arena Hook V4] Cleanup');
+      console.log('[Arena Hook V5] Cleanup');
     };
   }, [toast, syncFromEngine]);
 
@@ -225,19 +200,12 @@ export function useArenaAgents(_refreshInterval: number = 1000): UseArenaAgentsR
     loading: agents.length === 0 && loading,
     error,
     lastUpdate,
-    restoredTrades
+    restoredTrades,
   };
 }
 
-/**
- * Get agents sorted by P&L (best first)
- */
 export function useRankedAgents(refreshInterval?: number) {
   const { agents, ...rest } = useArenaAgents(refreshInterval);
   const rankedAgents = [...agents].sort((a, b) => b.totalPnLPercent - a.totalPnLPercent);
-
-  return {
-    agents: rankedAgents,
-    ...rest
-  };
+  return { agents: rankedAgents, ...rest };
 }
