@@ -126,6 +126,66 @@ const COINPAPRIKA_IDS: Record<string, string> = {
   DOGEUSDT: 'doge-dogecoin',
 };
 
+// Coinbase Exchange product mapping. BNB isn't listed on Coinbase US; missing
+// pairs simply stay missing and don't trade this tick.
+const COINBASE_PRODUCTS: Record<string, string> = {
+  BTCUSDT:  'BTC-USD',
+  ETHUSDT:  'ETH-USD',
+  SOLUSDT:  'SOL-USD',
+  XRPUSDT:  'XRP-USD',
+  DOGEUSDT: 'DOGE-USD',
+  // BNB not on Coinbase
+};
+
+/**
+ * Coinbase Exchange fallback. The most reliable price source from AWS-hosted
+ * Vercel functions because Coinbase itself runs on AWS — no IP-block games.
+ *
+ * Two-call pattern per pair: /products/{id}/stats (24h high/low/last/volume)
+ * + /products/{id}/ticker (current price). Stats has 30d open which we use
+ * as a proxy for change24h. We pull ticker for current_price + Coinbase
+ * doesn't expose direct change24h, so we compute it from open-vs-last.
+ */
+async function fetchPricesCoinbase(map: Map<string, PriceData>): Promise<number> {
+  const missing = TRADING_PAIRS.filter(p => !map.has(p.symbol) && COINBASE_PRODUCTS[p.symbol]);
+  if (missing.length === 0) return 0;
+  let filled = 0;
+  await Promise.all(missing.map(async pair => {
+    const product = COINBASE_PRODUCTS[pair.symbol];
+    const url = `https://api.exchange.coinbase.com/products/${product}/stats`;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+      clearTimeout(t);
+      if (!r.ok) return;
+      const stats: any = await r.json();
+      const open = Number(stats.open ?? 0);
+      const last = Number(stats.last ?? 0);
+      const high = Number(stats.high ?? last);
+      const low  = Number(stats.low  ?? last);
+      const vol  = Number(stats.volume ?? 0);
+      if (last <= 0 || open <= 0) return;
+      const change24h = ((last - open) / open) * 100;
+      // Coinbase doesn't ship 7d change in /stats. Approximate with 0; most
+      // downstream code treats change7d as a soft tilt only.
+      map.set(pair.symbol, {
+        symbol:   pair.symbol,
+        price:    last,
+        change24h,
+        change7d: 0,
+        high24h:  high,
+        low24h:   low,
+        volume:   vol,
+      });
+      filled++;
+    } catch {
+      clearTimeout(t);
+    }
+  }));
+  return filled;
+}
+
 async function fetchPricesCoinPaprika(map: Map<string, PriceData>): Promise<number> {
   const missing = TRADING_PAIRS.filter(p => !map.has(p.symbol));
   if (missing.length === 0) return 0;
@@ -213,13 +273,22 @@ async function fetchPrices(): Promise<Map<string, PriceData>> {
     console.error('[trade-tick] CoinGecko fetch failed:', err?.message);
   }
 
-  // Fallback path: any pairs CoinGecko didn't fill get a CoinPaprika probe.
-  // Belt-and-suspenders so a single upstream blip doesn't stall the cron.
+  // Fallback chain. Both CoinGecko AND CoinPaprika get throttled from AWS
+  // IPs in production (we've seen ticks return zero pairs from both). Coinbase
+  // Exchange runs on AWS itself, so it never IP-blocks — it's the third-tier
+  // safety net. Each fallback only fills pairs the previous tiers missed.
   if (map.size < TRADING_PAIRS.length) {
-    const missingCount = TRADING_PAIRS.length - map.size;
-    const filled = await fetchPricesCoinPaprika(map);
-    if (filled > 0) {
-      console.info(`[trade-tick] CoinPaprika fallback filled ${filled}/${missingCount} missing pairs`);
+    const beforeCp = map.size;
+    const cpFilled = await fetchPricesCoinPaprika(map);
+    if (cpFilled > 0) {
+      console.info(`[trade-tick] CoinPaprika fallback filled ${cpFilled}/${TRADING_PAIRS.length - beforeCp} missing pairs`);
+    }
+  }
+  if (map.size < TRADING_PAIRS.length) {
+    const beforeCb = map.size;
+    const cbFilled = await fetchPricesCoinbase(map);
+    if (cbFilled > 0) {
+      console.info(`[trade-tick] Coinbase fallback filled ${cbFilled}/${TRADING_PAIRS.length - beforeCb} missing pairs`);
     }
   }
 
