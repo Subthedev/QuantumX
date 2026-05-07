@@ -29,6 +29,7 @@ import {
 import { useServerSignals, type ServerSignal } from '@/hooks/useServerSignals';
 import { supabase } from '@/integrations/supabase/client';
 import { CryptoLogo } from '@/utils/cryptoLogos';
+import EnginePipeline from '@/components/intelligence/EnginePipeline';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types pulled from arena_* tables (read-only here, written by trade-tick).
@@ -279,6 +280,12 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
           {regime.label}
         </div>
       </div>
+    </div>
+  );
+
+  const Pipeline = (
+    <div className="mb-5">
+      <EnginePipeline />
     </div>
   );
 
@@ -629,6 +636,7 @@ export default function IntelligenceHub({ embedded = false }: { embedded?: boole
       {!embedded && <AppHeader />}
       <div className={embedded ? '' : 'container mx-auto px-6 py-8 max-w-[1400px]'}>
         {Header}
+        {Pipeline}
         {KPIs}
         {ActiveSignals}
         {RecentOutcomes}

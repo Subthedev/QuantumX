@@ -66,6 +66,8 @@ export interface SignalOutcome {
   regime: string;
   returnPct: number;
   timestamp: number;
+  // Optional: agent that produced the trade (enables per-agent learning)
+  agentId?: string;
   // Detailed outcome tracking for ML learning
   outcomeReason?: string;
   outcomeDetails?: {
@@ -166,6 +168,12 @@ class ZetaLearningEngine extends SimpleEventEmitter {
         arenaQuantEngine.onTradeEvent((event) => {
           if (event.type !== 'close' || !event.position || event.pnlPercent === undefined) return;
 
+          // Capture the actual market regime at entry — this is what makes
+          // regime-aware learning possible downstream (Delta V2, blacklist, etc.).
+          // Falling back to 'UNKNOWN' here was the bug that defeated the entire
+          // strategy×regime learning path.
+          const regimeAtEntry = String(event.position.marketStateAtEntry || 'UNKNOWN');
+
           const outcome: SignalOutcome = {
             signalId: `arena-${event.agent.id}-${Date.now()}`,
             symbol: event.position.symbol,
@@ -175,15 +183,25 @@ class ZetaLearningEngine extends SimpleEventEmitter {
             exitPrice: event.exitPrice || event.position.entryPrice,
             confidence: 65, // Arena trades use moderate confidence baseline
             strategy: event.position.strategy || 'MOMENTUM',
-            regime: 'UNKNOWN',
+            regime: regimeAtEntry,
             returnPct: event.pnlPercent,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            outcomeDetails: {
+              targetHit: event.reason === 'TP' && event.isWin ? 'TP1' : undefined,
+              stopLossHit: event.reason === 'SL',
+              timeoutReason: event.reason === 'TIMEOUT' ? 'TIME_EXPIRED' : undefined,
+              holdDuration: Date.now() - event.position.entryTime,
+            },
           };
+
+          // Per-agent learning hook — tag the outcome with the originating agent
+          // so we can build per-agent strategy×regime performance maps.
+          outcome.agentId = event.agent.id;
 
           this.processSignalOutcome(outcome);
         });
 
-        console.log('[Zeta] ✅ Connected to arenaQuantEngine trade events (high-frequency learning)');
+        console.log('[Zeta] ✅ Connected to arenaQuantEngine trade events (high-frequency learning, regime-aware)');
       });
     }
 
@@ -348,6 +366,29 @@ class ZetaLearningEngine extends SimpleEventEmitter {
         outcomeReason: outcome.outcomeReason,
         outcomeDetails: outcome.outcomeDetails
       });
+
+      // Emit `signal_outcome` for autonomousOrchestrator Loop 3 (adaptive
+      // position sizing). Previously this name mismatch silently broke the
+      // outcome → position-sizing feedback loop.
+      this.emit('signal_outcome', {
+        signalId: outcome.signalId,
+        symbol: outcome.symbol,
+        outcome: outcome.outcome,
+        strategy: outcome.strategy,
+        regime: outcome.regime,
+        returnPct: outcome.returnPct,
+        confidence: outcome.confidence,
+        timestamp: Date.now(),
+      });
+
+      // Update per-agent learning if this outcome came from a specific agent
+      if (outcome.agentId) {
+        this.updateAgentPerformance(outcome.agentId, outcome);
+      }
+
+      // Forward outcome to ContinuousLearningEngine for regime-weight gradient
+      // descent (complementary to Zeta's discrete blacklisting).
+      this.forwardToContinuousLearning(outcome);
 
       // Analyze outcome for engine-specific feedback
       const engineLearnings = this.analyzeOutcomeForEngines(outcome);
@@ -653,6 +694,13 @@ class ZetaLearningEngine extends SimpleEventEmitter {
   private strategyBlacklist: Set<string> = new Set();
   private readonly SELF_IMPROVE_KEY = 'zeta-self-improve-v1';
 
+  // PER-AGENT LEARNING — each agent (alphaX, betaX, gammaX) accumulates its
+  // own strategy×regime performance map so we can tilt position sizing and
+  // strategy selection toward what THAT agent has historically done well with.
+  // Key: `${strategy}-${regime}` → { wins, total, totalReturn }
+  private agentPerformance: Map<string, Map<string, { wins: number; total: number; totalReturn: number }>> = new Map();
+  private readonly AGENT_LEARNING_KEY = 'zeta-agent-learning-v1';
+
   /**
    * Called after every outcome to trigger self-improvement checks.
    * Runs automatically — no human intervention needed.
@@ -847,6 +895,223 @@ class ZetaLearningEngine extends SimpleEventEmitter {
         console.log(`[Zeta] Self-improvement state loaded: ${this.confidenceCalibration.size} calibration buckets, ${this.strategyBlacklist.size} blacklisted`);
       }
     } catch {}
+
+    // Load per-agent learning state separately (different storage key)
+    try {
+      const stored = localStorage.getItem(this.AGENT_LEARNING_KEY);
+      if (stored) {
+        const data = JSON.parse(stored) as Record<string, Record<string, { wins: number; total: number; totalReturn: number }>>;
+        for (const [agentId, perfMap] of Object.entries(data)) {
+          this.agentPerformance.set(agentId, new Map(Object.entries(perfMap)));
+        }
+        console.log(`[Zeta] Per-agent learning state loaded: ${this.agentPerformance.size} agents tracked`);
+      }
+    } catch {}
+  }
+
+  // ========== PER-AGENT LEARNING ==========
+
+  /**
+   * Update an agent's strategy×regime performance map after one of its trades closes.
+   * Called from the arena bridge inside processSignalOutcome().
+   */
+  private updateAgentPerformance(agentId: string, outcome: SignalOutcome): void {
+    if (!this.agentPerformance.has(agentId)) {
+      this.agentPerformance.set(agentId, new Map());
+    }
+    const agentMap = this.agentPerformance.get(agentId)!;
+    const key = `${outcome.strategy}-${outcome.regime}`;
+    const perf = agentMap.get(key) || { wins: 0, total: 0, totalReturn: 0 };
+    perf.total++;
+    if (outcome.outcome === 'WIN') perf.wins++;
+    perf.totalReturn += outcome.returnPct;
+    agentMap.set(key, perf);
+
+    // Persist (best-effort, throttled by parent saveState debounce path)
+    this.saveAgentPerformance();
+  }
+
+  /**
+   * Get a per-agent strategy bias (0.5 → 1.5) for sizing/selection decisions.
+   * Returns 1.0 (neutral) when there's not enough data for confident learning.
+   *
+   * The bias is centered on 1.0 and scales with sample-size confidence so that
+   * a 70% win rate over 3 trades doesn't produce the same boost as 70% over 30.
+   */
+  getAgentStrategyBias(agentId: string, strategy: string, regime: string): number {
+    const agentMap = this.agentPerformance.get(agentId);
+    if (!agentMap) return 1.0;
+
+    const key = `${strategy}-${regime}`;
+    const perf = agentMap.get(key);
+    if (!perf || perf.total < 3) return 1.0; // Not enough data — stay neutral
+
+    const winRate = perf.wins / perf.total;
+    const avgReturn = perf.totalReturn / perf.total;
+
+    // Confidence factor (Wilson-style): more samples → stronger signal
+    const confidence = Math.min(1.0, perf.total / 20); // 20 trades = full confidence
+
+    // Bias = baseline + (winRate departure from 50%) × confidence × scale
+    // Boost on positive avg return amplifies; negative damps further.
+    const winRateAdj = (winRate - 0.5) * 2 * confidence; // -1 to +1
+    const returnAdj = Math.tanh(avgReturn / 5) * confidence; // tanh squashes to -1..+1
+
+    const bias = 1.0 + (winRateAdj * 0.4 + returnAdj * 0.2);
+    return Math.max(0.4, Math.min(1.6, bias));
+  }
+
+  /**
+   * Snapshot of an agent's learning state — used by UI/diagnostic panels.
+   */
+  getAgentLearningInsights(agentId: string): {
+    totalTrades: number;
+    bestCombo: { key: string; winRate: number; total: number; avgReturn: number } | null;
+    worstCombo: { key: string; winRate: number; total: number; avgReturn: number } | null;
+    combos: Array<{ key: string; wins: number; total: number; winRate: number; avgReturn: number }>;
+  } {
+    const agentMap = this.agentPerformance.get(agentId);
+    if (!agentMap || agentMap.size === 0) {
+      return { totalTrades: 0, bestCombo: null, worstCombo: null, combos: [] };
+    }
+
+    const combos = Array.from(agentMap.entries()).map(([key, perf]) => ({
+      key,
+      wins: perf.wins,
+      total: perf.total,
+      winRate: perf.total > 0 ? (perf.wins / perf.total) * 100 : 0,
+      avgReturn: perf.total > 0 ? perf.totalReturn / perf.total : 0,
+    }));
+
+    const eligible = combos.filter(c => c.total >= 3);
+    const totalTrades = combos.reduce((s, c) => s + c.total, 0);
+
+    let bestCombo = null;
+    let worstCombo = null;
+    if (eligible.length > 0) {
+      const sortedByWR = [...eligible].sort((a, b) => b.winRate - a.winRate);
+      bestCombo = sortedByWR[0];
+      worstCombo = sortedByWR[sortedByWR.length - 1];
+    }
+
+    return { totalTrades, bestCombo, worstCombo, combos: combos.sort((a, b) => b.total - a.total) };
+  }
+
+  private saveAgentPerformance(): void {
+    try {
+      const serialized: Record<string, Record<string, { wins: number; total: number; totalReturn: number }>> = {};
+      for (const [agentId, perfMap] of this.agentPerformance) {
+        serialized[agentId] = Object.fromEntries(perfMap);
+      }
+      localStorage.setItem(this.AGENT_LEARNING_KEY, JSON.stringify(serialized));
+    } catch {}
+  }
+
+  // ========== CONTINUOUS-LEARNING BRIDGE ==========
+
+  /**
+   * Cached regime weight from ContinuousLearningEngine. Refreshed lazily on
+   * each outcome so synchronous consumers (arena.openStrategyPosition) can
+   * read it without awaiting a dynamic import.
+   */
+  private clRegimeWeights: Record<string, number> = {
+    BULL_TRENDING: 1.0,
+    BEAR_TRENDING: 1.0,
+    RANGING: 1.0,
+    HIGH_VOLATILITY: 1.0,
+    LOW_VOLATILITY: 1.0,
+    UNKNOWN: 1.0,
+  };
+
+  /**
+   * Synchronous read of the ContinuousLearningEngine's learned regime weight,
+   * keyed by any regime label this codebase produces. Returns a tightly-bounded
+   * multiplier (0.7 → 1.3) to avoid compounding with the other bias inputs in
+   * arena.openStrategyPosition. Defaults to 1.0 when the learner has no data.
+   */
+  getContinuousLearningRegimeWeight(regimeLabel: string | undefined): number {
+    if (!regimeLabel) return 1.0;
+    const map: Record<string, string> = {
+      BULLISH_HIGH_VOL: 'HIGH_VOLATILITY',
+      BULLISH_LOW_VOL: 'BULL_TRENDING',
+      BEARISH_HIGH_VOL: 'HIGH_VOLATILITY',
+      BEARISH_LOW_VOL: 'BEAR_TRENDING',
+      RANGEBOUND: 'RANGING',
+      BULLISH_TREND: 'BULL_TRENDING',
+      BEARISH_TREND: 'BEAR_TRENDING',
+      SIDEWAYS: 'RANGING',
+      CHOPPY: 'RANGING',
+    };
+    const mapped = map[regimeLabel.toUpperCase()] || regimeLabel.toUpperCase();
+    const raw = this.clRegimeWeights[mapped] ?? 1.0;
+    // Clamp the underlying 0.5–2.0 range into a more conservative 0.7–1.3
+    // band so a single-bias input can't dominate the sizing pipeline.
+    return Math.max(0.7, Math.min(1.3, 0.7 + (raw - 0.5) * 0.4));
+  }
+
+
+  /**
+   * Forward each outcome to the gradient-descent ContinuousLearningEngine so
+   * its regime-weight learner actually receives input. Previously this engine
+   * was instantiated but never fed any outcomes — pure SOP. We map Zeta's
+   * MarketState-style regime strings to the engine's MarketRegime enum.
+   */
+  private forwardToContinuousLearning(outcome: SignalOutcome): void {
+    if (typeof window === 'undefined') return;
+
+    import('./igx/ContinuousLearningEngine').then(({ continuousLearningEngine }) => {
+      // Normalize every regime label this codebase produces to the
+      // ContinuousLearningEngine's MarketRegime enum
+      // (BULL_TRENDING | BEAR_TRENDING | RANGING | HIGH_VOLATILITY | LOW_VOLATILITY | UNKNOWN).
+      // Sources covered:
+      //  - Arena's MarketState  (BULLISH_HIGH_VOL, BULLISH_LOW_VOL, BEARISH_*, RANGEBOUND)
+      //  - Delta V2's MarketRegime  (BULLISH_TREND, BEARISH_TREND, SIDEWAYS, HIGH_VOLATILITY, LOW_VOLATILITY)
+      //  - GlobalHub default 'CHOPPY'
+      //  - Native MarketRegime values (passthrough)
+      const regimeMap: Record<string, string> = {
+        // Arena MarketState
+        'BULLISH_HIGH_VOL': 'HIGH_VOLATILITY',
+        'BULLISH_LOW_VOL': 'BULL_TRENDING',
+        'BEARISH_HIGH_VOL': 'HIGH_VOLATILITY',
+        'BEARISH_LOW_VOL': 'BEAR_TRENDING',
+        'RANGEBOUND': 'RANGING',
+        // Delta V2 MarketRegime
+        'BULLISH_TREND': 'BULL_TRENDING',
+        'BEARISH_TREND': 'BEAR_TRENDING',
+        'SIDEWAYS': 'RANGING',
+        // GlobalHub fallback labels
+        'CHOPPY': 'RANGING',
+        // Native MarketRegime passthrough
+        'BULL_TRENDING': 'BULL_TRENDING',
+        'BEAR_TRENDING': 'BEAR_TRENDING',
+        'RANGING': 'RANGING',
+        'HIGH_VOLATILITY': 'HIGH_VOLATILITY',
+        'LOW_VOLATILITY': 'LOW_VOLATILITY',
+      };
+      const mappedRegime = regimeMap[(outcome.regime || '').toUpperCase()] || 'UNKNOWN';
+
+      continuousLearningEngine.recordOutcome({
+        signalId: outcome.signalId,
+        symbol: outcome.symbol,
+        direction: outcome.direction,
+        entryPrice: outcome.entryPrice,
+        exitPrice: outcome.exitPrice,
+        actualProfit: outcome.returnPct,
+        actualDrawdown: Math.max(0, -outcome.returnPct), // approximate drawdown from final return
+        duration: outcome.outcomeDetails?.holdDuration ?? 0,
+        regime: mappedRegime as any,
+        patternStrength: outcome.confidence, // use confidence as proxy for pattern strength
+        confidence: outcome.confidence,
+        timestamp: outcome.timestamp,
+      });
+
+      // Cache the freshly-updated regime weights so arena's synchronous
+      // sizing path (openStrategyPosition) can read them without awaiting.
+      try {
+        const w = continuousLearningEngine.getWeights();
+        this.clRegimeWeights = { ...w.regime } as Record<string, number>;
+      } catch {}
+    }).catch(err => console.warn('[Zeta] ContinuousLearning forward failed:', err?.message));
   }
 }
 
