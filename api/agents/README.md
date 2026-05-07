@@ -8,7 +8,7 @@ Server-side endpoints powering the autonomous trading platform.
 Receives validated signal payloads from the OpenClaw market-intel agent and writes them to `intelligence_signals`. Authenticated with `x-agent-secret` header (`AGENT_INGEST_SECRET`).
 
 ### `GET /api/agents/trade-tick`
-**24/7 autonomous trading worker.** Runs every minute via Vercel Cron. One execution = one trading tick:
+**24/7 autonomous trading worker.** Runs every 5 minutes via GitHub Actions cron (free; Vercel Hobby restricts cron to once/day, so we trigger from outside). One execution = one trading tick:
 
 1. Fetch live Binance prices for 6 trading pairs.
 2. Manage open positions (TP / SL / 60-min timeout) — close any that hit.
@@ -27,46 +27,64 @@ Receives validated signal payloads from the OpenClaw market-intel agent and writ
 | `AGENT_INGEST_SECRET` | Vercel Production + Preview | ✅ Already set |
 | `CRON_SECRET` | Vercel Production | ❌ **Add this** |
 
-## Deploying the 24/7 trader
+## Deployment architecture (free tier)
 
-### 1. Add `CRON_SECRET` to Vercel
-
-```bash
-# Generate a strong secret
-openssl rand -base64 32
-# → e.g. "k05FijKGeRUx+banAIyLpVO8hcbHckmk6Jo8envStik="
-
-# Add to Production
-printf 'YOUR_SECRET_HERE' | vercel env add CRON_SECRET production
-# Add to Preview if you want to test in preview deployments too
-printf 'YOUR_SECRET_HERE' | vercel env add CRON_SECRET preview
+```
+┌──────────────────────┐   every 5min    ┌──────────────────────┐
+│ GitHub Actions       │ ──────────────▶ │ Vercel Function       │
+│ .github/workflows/   │ Bearer token    │ api/agents/           │
+│   trade-tick.yml     │                 │   trade-tick.ts       │
+└──────────────────────┘                 └──────────┬───────────┘
+                                                    │
+                                                    ▼
+                                         ┌──────────────────────┐
+                                         │ Supabase             │
+                                         │  arena_*  tables     │
+                                         └──────────────────────┘
 ```
 
-### 2. Deploy
+The browser engine (`arenaQuantEngine`) keeps running for the live UI when a tab is open, sharing the same Supabase tables.
+
+## Required secrets
+
+| Secret | Where | Status |
+|---|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Vercel env (Prod + Preview) | ✅ Set |
+| `AGENT_INGEST_SECRET` | Vercel env (Prod + Preview) | ✅ Set |
+| `CRON_SECRET` | Vercel env (Prod + Preview) | ✅ Set |
+| `CRON_SECRET` | GitHub Actions repo secret | ✅ Set |
+
+To rotate `CRON_SECRET`, update both Vercel and GitHub:
 
 ```bash
-vercel --prod
+NEW_SECRET=$(openssl rand -base64 32 | tr -d '\n')
+printf '%s' "$NEW_SECRET" | vercel env rm CRON_SECRET production -y
+printf '%s' "$NEW_SECRET" | vercel env add CRON_SECRET production
+echo "$NEW_SECRET" | gh secret set CRON_SECRET --repo Subthedev/QuantumX
+vercel --prod # re-deploy so the function reads the new secret
 ```
 
-Vercel will pick up the `crons` block in `vercel.json` and start firing `/api/agents/trade-tick` every minute.
-
-### 3. Verify
+## Verification
 
 ```bash
-# Manual trigger to confirm it works
-curl -H "Authorization: Bearer YOUR_SECRET_HERE" https://quantumx.org.in/api/agents/trade-tick
+# Manual trigger
+curl -H "Authorization: Bearer $(cat /tmp/quantumx_cron_secret.txt)" \
+  https://quantumx.org.in/api/agents/trade-tick
 
 # Expected response shape:
 # { "ok": true, "elapsedMs": 1240, "closed": 0, "opened": 1, "skippedNoSignal": 2, ... }
+
+# Trigger workflow manually
+gh workflow run trade-tick.yml --repo Subthedev/QuantumX
+gh run list --workflow trade-tick.yml --repo Subthedev/QuantumX --limit 5
 ```
 
-Then check the Supabase tables — `arena_active_positions` and `arena_trade_history` should start filling up over the next few hours.
+## Monitoring
 
-### 4. Monitor
-
-- Vercel dashboard → Project → Logs → filter `[trade-tick]`
-- Supabase → SQL editor → `SELECT * FROM arena_trade_history ORDER BY timestamp DESC LIMIT 20;`
-- Cron status: Vercel dashboard → Project → Settings → Cron Jobs
+- **Vercel logs:** dashboard → quantumx → Logs → filter `[trade-tick]`
+- **GitHub Actions:** repo → Actions tab → "24/7 Trading Worker"
+- **Supabase:** SQL editor → `SELECT * FROM arena_trade_history ORDER BY timestamp DESC LIMIT 20;`
+- **Live agent state:** SQL editor → `SELECT * FROM arena_agent_sessions;`
 
 ## Risk parameters (server worker)
 
