@@ -100,47 +100,106 @@ function getSupabase() {
 
 // ─── Price + OHLC feed ───────────────────────────────────────────────────────
 
+// Coinbase Exchange product mapping. BNB isn't on Coinbase US — accepted gap.
+const COINBASE_PRODUCTS: Record<string, string> = {
+  BTCUSDT:  'BTC-USD',
+  ETHUSDT:  'ETH-USD',
+  SOLUSDT:  'SOL-USD',
+  XRPUSDT:  'XRP-USD',
+  DOGEUSDT: 'DOGE-USD',
+};
+
+async function fetchPricesCoinbase(map: Map<string, PriceData>): Promise<number> {
+  const missing = SIGNAL_UNIVERSE.filter(p => !map.has(p.ticker) && COINBASE_PRODUCTS[p.symbol]);
+  if (missing.length === 0) return 0;
+  let filled = 0;
+  await Promise.all(missing.map(async pair => {
+    const product = COINBASE_PRODUCTS[pair.symbol];
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const r = await fetch(`https://api.exchange.coinbase.com/products/${product}/stats`, {
+        signal: ctrl.signal,
+        headers: { accept: 'application/json' },
+      });
+      clearTimeout(t);
+      if (!r.ok) return;
+      const stats: any = await r.json();
+      const open = Number(stats.open ?? 0);
+      const last = Number(stats.last ?? 0);
+      const high = Number(stats.high ?? last);
+      const low  = Number(stats.low  ?? last);
+      const vol  = Number(stats.volume ?? 0);
+      if (last <= 0 || open <= 0) return;
+      map.set(pair.ticker, {
+        symbol: pair.symbol,
+        ticker: pair.ticker,
+        price: last,
+        change24h: ((last - open) / open) * 100,
+        high24h: high,
+        low24h: low,
+        volume: vol,
+      });
+      filled++;
+    } catch {
+      clearTimeout(t);
+    }
+  }));
+  return filled;
+}
+
 async function fetchPrices(): Promise<Map<string, PriceData>> {
   const map = new Map<string, PriceData>();
   const ids = SIGNAL_UNIVERSE.map(p => p.coingeckoId).join(',');
   const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h`;
 
   const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 12000);
+  const timeout = setTimeout(() => ctrl.abort(), 9000);
   try {
     const r = await fetch(url, { signal: ctrl.signal, headers: { 'accept': 'application/json' } });
     clearTimeout(timeout);
     if (!r.ok) {
       console.error(`[signal-tick] CoinGecko HTTP ${r.status}`);
-      return map;
-    }
-    const arr = (await r.json()) as Array<{
-      id: string;
-      current_price: number;
-      high_24h: number;
-      low_24h: number;
-      total_volume: number;
-      price_change_percentage_24h: number;
-    }>;
+    } else {
+      const arr = (await r.json()) as Array<{
+        id: string;
+        current_price: number;
+        high_24h: number;
+        low_24h: number;
+        total_volume: number;
+        price_change_percentage_24h: number;
+      }>;
 
-    const idToPair = new Map(SIGNAL_UNIVERSE.map(p => [p.coingeckoId, p]));
-    for (const row of arr) {
-      const pair = idToPair.get(row.id);
-      if (!pair) continue;
-      map.set(pair.ticker, {
-        symbol: pair.symbol,
-        ticker: pair.ticker,
-        price: row.current_price,
-        change24h: row.price_change_percentage_24h ?? 0,
-        high24h: row.high_24h ?? row.current_price,
-        low24h: row.low_24h ?? row.current_price,
-        volume: row.total_volume ?? 0,
-      });
+      const idToPair = new Map(SIGNAL_UNIVERSE.map(p => [p.coingeckoId, p]));
+      for (const row of arr) {
+        const pair = idToPair.get(row.id);
+        if (!pair) continue;
+        map.set(pair.ticker, {
+          symbol: pair.symbol,
+          ticker: pair.ticker,
+          price: row.current_price,
+          change24h: row.price_change_percentage_24h ?? 0,
+          high24h: row.high_24h ?? row.current_price,
+          low24h: row.low_24h ?? row.current_price,
+          volume: row.total_volume ?? 0,
+        });
+      }
     }
   } catch (err: any) {
     clearTimeout(timeout);
     console.error('[signal-tick] CoinGecko fetch failed:', err?.message);
   }
+
+  // Coinbase fallback for any pair CoinGecko didn't fill. Coinbase runs on
+  // AWS so it's the most reliable source from Vercel.
+  if (map.size < SIGNAL_UNIVERSE.length) {
+    const before = map.size;
+    const filled = await fetchPricesCoinbase(map);
+    if (filled > 0) {
+      console.info(`[signal-tick] Coinbase fallback filled ${filled}/${SIGNAL_UNIVERSE.length - before} missing`);
+    }
+  }
+
   return map;
 }
 
