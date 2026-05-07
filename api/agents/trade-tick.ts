@@ -89,13 +89,15 @@ const AGENTS: AgentConfig[] = [
   { id: 'gammax', name: 'GammaX', type: 'CONSERVATIVE', positionSizePercent: 10, baseTPPercent: 4.5, baseSLPercent: 2.0, tradeIntervalMs: 6 * 60 * 1000 },
 ];
 
+// Binance USDT pair symbol → CoinGecko id. We use CoinGecko on the server because
+// Binance blocks Vercel/AWS IP ranges; the browser engine still uses Binance directly.
 const TRADING_PAIRS = [
-  { symbol: 'BTCUSDT', display: 'BTC/USD', tier: 'major' },
-  { symbol: 'ETHUSDT', display: 'ETH/USD', tier: 'major' },
-  { symbol: 'SOLUSDT', display: 'SOL/USD', tier: 'major' },
-  { symbol: 'BNBUSDT', display: 'BNB/USD', tier: 'mid' },
-  { symbol: 'XRPUSDT', display: 'XRP/USD', tier: 'mid' },
-  { symbol: 'DOGEUSDT', display: 'DOGE/USD', tier: 'volatile' },
+  { symbol: 'BTCUSDT',  display: 'BTC/USD',  tier: 'major',    coingeckoId: 'bitcoin' },
+  { symbol: 'ETHUSDT',  display: 'ETH/USD',  tier: 'major',    coingeckoId: 'ethereum' },
+  { symbol: 'SOLUSDT',  display: 'SOL/USD',  tier: 'major',    coingeckoId: 'solana' },
+  { symbol: 'BNBUSDT',  display: 'BNB/USD',  tier: 'mid',      coingeckoId: 'binancecoin' },
+  { symbol: 'XRPUSDT',  display: 'XRP/USD',  tier: 'mid',      coingeckoId: 'ripple' },
+  { symbol: 'DOGEUSDT', display: 'DOGE/USD', tier: 'volatile', coingeckoId: 'dogecoin' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -109,34 +111,52 @@ function getSupabase() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-async function fetchBinancePrices(): Promise<Map<string, PriceData>> {
+/**
+ * Fetch live prices via CoinGecko's /coins/markets endpoint. Single batched request.
+ * Free tier rate limit: ~30 calls/min — we use ≤1/tick so this is plenty.
+ */
+async function fetchPrices(): Promise<Map<string, PriceData>> {
   const map = new Map<string, PriceData>();
-  const results = await Promise.all(
-    TRADING_PAIRS.map(async (p) => {
-      const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), 8000);
-      try {
-        const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${p.symbol}`, { signal: ctrl.signal });
-        clearTimeout(timeout);
-        if (!r.ok) return null;
-        const d = await r.json();
-        return { symbol: p.symbol, data: d };
-      } catch {
-        clearTimeout(timeout);
-        return null;
-      }
-    })
-  );
-  for (const result of results) {
-    if (!result) continue;
-    map.set(result.symbol, {
-      symbol: result.symbol,
-      price: parseFloat(result.data.lastPrice),
-      change24h: parseFloat(result.data.priceChangePercent),
-      high24h: parseFloat(result.data.highPrice),
-      low24h: parseFloat(result.data.lowPrice),
-      volume: parseFloat(result.data.volume),
+  const ids = TRADING_PAIRS.map(p => p.coingeckoId).join(',');
+  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h`;
+
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'accept': 'application/json' },
     });
+    clearTimeout(timeout);
+    if (!r.ok) {
+      console.error(`[trade-tick] CoinGecko HTTP ${r.status}`);
+      return map;
+    }
+    const arr: Array<{
+      id: string;
+      current_price: number;
+      high_24h: number;
+      low_24h: number;
+      total_volume: number;
+      price_change_percentage_24h: number;
+    }> = await r.json();
+
+    const idToPair = new Map(TRADING_PAIRS.map(p => [p.coingeckoId, p]));
+    for (const row of arr) {
+      const pair = idToPair.get(row.id);
+      if (!pair) continue;
+      map.set(pair.symbol, {
+        symbol: pair.symbol,
+        price: row.current_price,
+        change24h: row.price_change_percentage_24h ?? 0,
+        high24h: row.high_24h ?? row.current_price,
+        low24h: row.low_24h ?? row.current_price,
+        volume: row.total_volume ?? 0,
+      });
+    }
+  } catch (err: any) {
+    clearTimeout(timeout);
+    console.error('[trade-tick] CoinGecko fetch failed:', err?.message);
   }
   return map;
 }
@@ -247,7 +267,7 @@ async function runTradingTick(): Promise<TickResult> {
 
   // 1. Load state
   const [pricesResult, sessionsResult, positionsResult] = await Promise.all([
-    fetchBinancePrices(),
+    fetchPrices(),
     supabase.from('arena_agent_sessions').select('*'),
     supabase.from('arena_active_positions').select('*'),
   ]);
@@ -261,7 +281,7 @@ async function runTradingTick(): Promise<TickResult> {
   );
 
   if (prices.size === 0) {
-    result.errors.push('Failed to fetch any Binance prices');
+    result.errors.push('Failed to fetch any prices from CoinGecko');
     return result;
   }
 
