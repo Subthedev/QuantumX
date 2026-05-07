@@ -280,7 +280,11 @@ function generateSignal(
   };
 
   if (agent.type === 'AGGRESSIVE')    signals.agentTypeFit = signals.momentum;
-  else if (agent.type === 'BALANCED') signals.agentTypeFit = -signals.range;
+  // BALANCED (Beta) is a contrarian — fade extremes. range is already the mean-reversion
+  // direction (oversold→+1, overbought→-1), so we ADD it (not negate it) to weight reversion
+  // higher. The previous `-signals.range` cancelled with `signals.range` and made Beta a
+  // degenerate trend-follower — same as Alpha but with worse params.
+  else if (agent.type === 'BALANCED') signals.agentTypeFit = signals.range;
   else                                signals.agentTypeFit = signals.volatility;
 
   const bias = signals.momentum + signals.range + signals.regimeAlignment + signals.agentTypeFit;
