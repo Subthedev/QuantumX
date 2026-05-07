@@ -78,7 +78,11 @@ interface PriceData {
 const INITIAL_BALANCE = 10_000;
 const MAX_POSITION_USD = 2_500;
 const MIN_POSITION_USD = 200;
-const MAX_HOLD_MS = 60 * 60 * 1000;
+// Hold window matches signal-tick TTL. With 1.5×ATR(30m) stops and ~2×ATR
+// targets, a 60-min cap forced ~95% of closes to TIMEOUT — no real W/L
+// signal for the brain to learn from. 4h aligns the trade horizon with
+// the same TP/SL math the targets are sized for.
+const MAX_HOLD_MS = 4 * 60 * 60 * 1000;
 const MIN_RR = 1.8;
 const TP_CAP_PERCENT = 10;
 const SL_CAP_PERCENT = 4;
@@ -681,7 +685,12 @@ async function loadBrain(supabase: any): Promise<{ brain: BrainState; rawState: 
   }
 }
 
-async function persistBrain(supabase: any, rawState: any, brain: BrainState): Promise<void> {
+async function persistBrain(
+  supabase: any,
+  rawState: any,
+  brain: BrainState,
+  lastTick?: any,                          // optional heartbeat payload
+): Promise<void> {
   // Trim bias entries that have drifted back to ~1.0 (no signal) to keep JSONB lean
   const trimmedBias: Record<string, number> = {};
   for (const [k, v] of Object.entries(brain.strategyBias)) {
@@ -694,7 +703,7 @@ async function persistBrain(supabase: any, rawState: any, brain: BrainState): Pr
   for (const [k, v] of Object.entries(brain.pendingIntel)) {
     if (v.openedAt >= cutoff) liveIntel[k] = v;
   }
-  const newState = {
+  const newState: any = {
     ...rawState,
     strategyBias: trimmedBias,
     strategyOutcomes: brain.strategyOutcomes,
@@ -704,6 +713,13 @@ async function persistBrain(supabase: any, rawState: any, brain: BrainState): Pr
     mlWeights: brain.mlWeights ?? null,    // null when never trained
     brainLastUpdate: Date.now(),
   };
+  // Heartbeat snapshot. Always written when supplied so external monitors
+  // can verify the engine is alive even on zero-activity ticks.
+  if (lastTick) newState.lastTick = lastTick;
+  // Preserve killSwitch flag — the operator's pause should NOT be silently
+  // cleared by a brain persist that didn't know about it.
+  if (typeof rawState?.killSwitch === 'boolean') newState.killSwitch = rawState.killSwitch;
+
   const { error } = await supabase
     .from('autonomous_state')
     .upsert({ id: 'singleton', state: newState, updated_at: new Date().toISOString() }, { onConflict: 'id' });
@@ -969,17 +985,59 @@ async function fetchSentiment(): Promise<SentimentSnap> {
       return await r.json();
     } catch { return null; }
   };
-  const [fng, fBtc, fEth, lsr] = await Promise.all([
+  // Binance Futures (fapi.binance.com) blocks AWS IP ranges → all 3 calls
+  // return null in production. Fall back to Bybit (open IPs, free) for funding
+  // and to OKX (open IPs, free) for the long/short crowd ratio. F&G has no
+  // proper substitute; we leave the 50 default if it fails.
+  const [fng, fBtc, fEth, lsrBin, fBtcByb, fEthByb, lsrOkx] = await Promise.all([
     fetchOne('https://api.alternative.me/fng/?limit=1'),
     fetchOne('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT'),
     fetchOne('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=ETHUSDT'),
     fetchOne('https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=5m&limit=1'),
+    // Bybit perpetual funding rate (8h, latest tick). open-IP, no auth.
+    fetchOne('https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT'),
+    fetchOne('https://api.bybit.com/v5/market/tickers?category=linear&symbol=ETHUSDT'),
+    // OKX long/short ratio for BTC perps (5min). open-IP, no auth.
+    fetchOne('https://www.okx.com/api/v5/rubik/stat/contracts/long-short-account-ratio?ccy=BTC&period=5m'),
   ]);
   clearTimeout(t);
-  if (fng?.data?.[0]) snap.fearGreed = Number(fng.data[0].value); else snap.partial = true;
-  if (fBtc?.lastFundingRate != null) snap.fundingBTC = Number(fBtc.lastFundingRate) * 100; else snap.partial = true;
-  if (fEth?.lastFundingRate != null) snap.fundingETH = Number(fEth.lastFundingRate) * 100; else snap.partial = true;
-  if (Array.isArray(lsr) && lsr[0]) snap.longShortRatio = Number(lsr[0].longShortRatio); else snap.partial = true;
+
+  // F&G — primary only
+  if (fng?.data?.[0]) snap.fearGreed = Number(fng.data[0].value);
+  else snap.partial = true;
+
+  // Funding BTC: Binance → Bybit fallback
+  if (fBtc?.lastFundingRate != null) {
+    snap.fundingBTC = Number(fBtc.lastFundingRate) * 100;
+  } else {
+    const byb = fBtcByb?.result?.list?.[0]?.fundingRate;
+    if (byb != null) snap.fundingBTC = Number(byb) * 100;
+    else snap.partial = true;
+  }
+
+  // Funding ETH: Binance → Bybit fallback
+  if (fEth?.lastFundingRate != null) {
+    snap.fundingETH = Number(fEth.lastFundingRate) * 100;
+  } else {
+    const byb = fEthByb?.result?.list?.[0]?.fundingRate;
+    if (byb != null) snap.fundingETH = Number(byb) * 100;
+    else snap.partial = true;
+  }
+
+  // L/S ratio: Binance → OKX fallback. OKX format:
+  //   data: [[ ts, ratio ], ...] where ratio = longAccount / shortAccount
+  if (Array.isArray(lsrBin) && lsrBin[0]) {
+    snap.longShortRatio = Number(lsrBin[0].longShortRatio);
+  } else {
+    const okxRows = lsrOkx?.data;
+    if (Array.isArray(okxRows) && okxRows.length > 0) {
+      const latest = okxRows[okxRows.length - 1];
+      const ratio = Array.isArray(latest) ? Number(latest[1]) : null;
+      if (ratio != null && !Number.isNaN(ratio) && ratio > 0) {
+        snap.longShortRatio = ratio;
+      } else snap.partial = true;
+    } else snap.partial = true;
+  }
   return snap;
 }
 
@@ -1004,22 +1062,48 @@ function sentimentBiasFor(snap: SentimentSnap, direction: Direction): { bias: nu
 }
 
 /**
- * Liquidation cascade pulse from public Binance Futures 1m klines. Detects
- * "cascade candles" (abnormal volume + range + wick signature). Aligned cascade
+ * Liquidation cascade pulse from public 1m perp klines. Detects "cascade
+ * candles" (abnormal volume + range + wick signature). Aligned cascade
  * boosts confidence; opposing cascade penalizes (don't fight a flush).
+ *
+ * Source preference: Binance Futures (richer volume) → Bybit (always reachable
+ * from AWS). Both endpoints are public and key-free; we keep Binance as the
+ * primary because it has higher liquidity, but Bybit is a perfectly cromulent
+ * substitute when Binance blocks our IPs (which it does in production).
  */
 async function fetchCascadePulse(symbol: string): Promise<{ pressure: number; intensity: number }> {
-  const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1m&limit=20`;
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 5000);
-  let raw: any[];
-  try {
-    const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
-    clearTimeout(t);
-    if (!r.ok) return { pressure: 0, intensity: 0 };
-    raw = (await r.json()) as any[];
-  } catch { clearTimeout(t); return { pressure: 0, intensity: 0 }; }
-  if (!Array.isArray(raw) || raw.length < 10) return { pressure: 0, intensity: 0 };
+  const fetchKlines = async (url: string): Promise<any[] | null> => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+      clearTimeout(t);
+      if (!r.ok) return null;
+      return (await r.json()) as any[];
+    } catch { clearTimeout(t); return null; }
+  };
+
+  // Try Binance first (richer data); fall back to Bybit if blocked.
+  let raw = await fetchKlines(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1m&limit=20`);
+  let usingBybit = false;
+
+  if (!Array.isArray(raw) || raw.length < 10) {
+    // Bybit response shape: { result: { list: [[start, open, high, low, close, vol, turnover], ...] } }
+    // Returns most-recent first, so we reverse to chronological for parity with Binance.
+    const bybit: any = await fetchKlines(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=1&limit=20`);
+    const list = bybit?.result?.list;
+    if (Array.isArray(list) && list.length >= 10) {
+      raw = [...list].reverse();
+      usingBybit = true;
+    } else {
+      return { pressure: 0, intensity: 0 };
+    }
+  }
+
+  // Binance kline: [openTime, open, high, low, close, vol, ...]
+  // Bybit kline:  [start,    open, high, low, close, vol, turnover]
+  // Both put the same fields in the same indexes 1..5, so the parser below
+  // works for either source.
   const candles = raw.map(k => ({ open: +k[1], high: +k[2], low: +k[3], close: +k[4], vol: +k[5] }));
   const baseline = candles.slice(0, -3);
   const median = (arr: number[]) => [...arr].sort((a, b) => a - b)[Math.floor(arr.length / 2)] || 0;
@@ -1086,6 +1170,84 @@ function multiTimeframeBiasFor(
   return { bias, tag: `mtf7d${dir}${Math.abs(bias).toFixed(0)}(${change7d >= 0 ? '+' : ''}${change7d.toFixed(1)}%)` };
 }
 
+// ─── Operational primitives: kill switch + heartbeat + history retention ─────
+
+/**
+ * Read the kill switch from autonomous_state.state.killSwitch. When true, the
+ * cron WILL still manage open positions (TP/SL/timeout/trailing) — those are
+ * safety-critical and must run — but it WILL NOT open new positions. Lets
+ * the operator pause the system without redeploying or removing the GHA cron.
+ *
+ * Set via Supabase SQL:
+ *   UPDATE autonomous_state SET state = state || '{"killSwitch": true}'
+ *   WHERE id = 'singleton';
+ *
+ * Resume:
+ *   UPDATE autonomous_state SET state = state || '{"killSwitch": false}'
+ *   WHERE id = 'singleton';
+ */
+function isKillSwitchOn(rawState: any): boolean {
+  return rawState?.killSwitch === true;
+}
+
+/**
+ * Write a per-tick heartbeat to autonomous_state.state.lastTick. This is the
+ * single source of truth for "is the engine alive?" — the timestamp tells us
+ * when the last successful tick ran; if it's > 10 minutes old, something
+ * is broken (GHA cron disabled? Supabase down? Vercel function failing?).
+ *
+ * Stays cheap: ~200 bytes added to the JSONB. Always written, even on
+ * zero-activity ticks, so a stale `lastTick.ts` is itself a signal.
+ */
+function buildTickSummary(result: TickResult, brain: BrainState, elapsedMs: number, killSwitch: boolean): any {
+  const skipTotal = Object.values(result.skipReasons).reduce((s, v) => s + v, 0);
+  return {
+    ts: Date.now(),
+    elapsedMs,
+    regime: result.regime,
+    opened: result.opened,
+    closed: result.closed,
+    skipped: skipTotal,
+    skipReasons: result.skipReasons,
+    errors: result.errors.slice(0, 5),     // cap error count for storage
+    killSwitch,
+    brainHealth: {
+      biasCells: Object.keys(brain.strategyBias).length,
+      outcomeCells: Object.keys(brain.strategyOutcomes).length,
+      intelRegimes: Object.keys(brain.intelStats).length,
+      confCalBins: Object.keys(brain.confidenceCal).length,
+      mlTrained: brain.mlWeights?.trained ?? 0,
+      pendingIntel: Object.keys(brain.pendingIntel).length,
+    },
+  };
+}
+
+/**
+ * Probabilistically prune old trade history rows. Runs on roughly 1% of ticks,
+ * which at 5-min cadence is ~3 prunes per day — plenty to keep the table small.
+ * Keeps the most recent 30 days of trades (which is more than enough for any
+ * rolling-window learner the brain currently uses).
+ */
+async function maybePruneTradeHistory(supabase: any): Promise<number> {
+  if (Math.random() > 0.01) return 0;
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const { error, count } = await supabase
+      .from('arena_trade_history')
+      .delete({ count: 'exact' })
+      .lt('timestamp', cutoff);
+    if (error) {
+      console.warn('[trade-tick] history prune failed:', error.message);
+      return 0;
+    }
+    if ((count ?? 0) > 0) console.info(`[trade-tick] pruned ${count} trade rows older than 30d`);
+    return count ?? 0;
+  } catch (err: any) {
+    console.warn('[trade-tick] history prune threw:', err?.message);
+    return 0;
+  }
+}
+
 // ─── Tick logic ───────────────────────────────────────────────────────────────
 
 interface TickResult {
@@ -1109,6 +1271,7 @@ interface TickResult {
 }
 
 async function runTradingTick(): Promise<TickResult> {
+  const tickStartedAt = Date.now();
   const supabase = getSupabase();
   const result: TickResult = {
     closed: 0, opened: 0, skipReasons: {}, errors: [], regime: 'RANGEBOUND',
@@ -1307,7 +1470,19 @@ async function runTradingTick(): Promise<TickResult> {
     .map(p => ({ symbol: p.symbol, direction: p.direction }));
 
   const openOps: Promise<void>[] = [];
+  // Kill-switch gate: if the operator has paused the engine, do NOT open
+  // anything new — but the close loop above still ran, so existing positions
+  // continue to be managed safely (TP/SL/timeout/trailing). When the operator
+  // flips killSwitch back to false, the engine resumes opening on the next tick.
+  const killSwitch = isKillSwitchOn(brainRawState);
+  if (killSwitch) {
+    console.warn('[trade-tick] KILL_SWITCH ON — skipping all opens (close loop already ran for safety)');
+  }
   for (const agent of AGENTS) {
+    if (killSwitch) {
+      result.skipReasons['KILL_SWITCH'] = (result.skipReasons['KILL_SWITCH'] ?? 0) + 1;
+      continue;
+    }
     if (positionsByAgent.has(agent.id)) continue;
 
     const session = sessionsByAgent.get(agent.id);
@@ -1490,12 +1665,18 @@ async function runTradingTick(): Promise<TickResult> {
   }
   await Promise.all(openOps);
 
-  // Persist brain on any change — strategyBias EMA, intel snapshots, intel
-  // stats, confidence calibration. brainDirty is flipped on every open and on
-  // every close (via closeTrade callback).
-  if (brainDirty) {
-    await persistBrain(supabase, brainRawState, brain);
-  }
+  // ─── End of tick: ALWAYS write heartbeat + persist brain if changed ───────
+  // The heartbeat snapshot (state.lastTick) is the single source of truth for
+  // "is the engine alive?". It's written every tick regardless of activity, so
+  // a stale `lastTick.ts` (>10 min old) is itself an alert signal.
+  const elapsedMs = Date.now() - tickStartedAt;
+  const tickSummary = buildTickSummary(result, brain, elapsedMs, killSwitch);
+  await persistBrain(supabase, brainRawState, brain, tickSummary);
+
+  // Probabilistic history pruning — runs ~1% of ticks (~3×/day at 5-min cadence).
+  // Keeps arena_trade_history bounded for long-term Supabase storage.
+  const pruned = await maybePruneTradeHistory(supabase);
+  if (pruned > 0) (result as any).pruned = pruned;
 
   return result;
 }
@@ -1575,15 +1756,15 @@ async function closeTrade(
     // in this regime? Did our confidence rate match reality? Consumed snapshot.
     const consumedSnap = applyIntelLearning(brain, pos.agent_id, isWin);
     if (consumedSnap) {
-      // Online SGD step on the LR with the same features that scored this trade
-      // at open time. Reconstructs mtfBias/pubDelta from the snapshot since we
-      // don't separately persist them; sentBias/liqBias come straight off it.
+      // Online SGD step using the EXACT features that scored this trade at open.
+      // pubDelta and mtfBias were captured into the snapshot at open time so
+      // gradients flow back to the right coefficients (no feature drift).
       mlTrainOne(brain, {
         rawConf: consumedSnap.rawConfidence,
         sentBias: consumedSnap.sentBias,
         liqBias: consumedSnap.liqBias,
-        pubDelta: 0,        // not tracked separately on snapshot — neutral assumption
-        mtfBias: 0,
+        pubDelta: consumedSnap.pubDelta ?? 0,
+        mtfBias: consumedSnap.mtfBias ?? 0,
         regime: consumedSnap.regime,
       }, isWin);
 

@@ -36,6 +36,12 @@ export interface ServerSignal {
   status: string;             // 'active' | 'expired' | 'completed'
   expiresAt: string;
   createdAt: string;
+  completedAt: string | null;
+  // Outcome — populated by signal-tick.ts resolver pass
+  exitPrice: number | null;
+  hitTarget: number | null;       // 0 = none, 1 = TP1, 2 = TP2
+  hitStopLoss: boolean;
+  profitLossPercent: number | null;
   // Phase 0 extension columns
   regime: string | null;
   fearGreedIndex: number | null;
@@ -61,6 +67,11 @@ function rowToSignal(row: any): ServerSignal {
     status: row.status ?? 'active',
     expiresAt: row.expires_at,
     createdAt: row.created_at,
+    completedAt: row.completed_at ?? null,
+    exitPrice: row.exit_price != null ? Number(row.exit_price) : null,
+    hitTarget: row.hit_target != null ? Number(row.hit_target) : null,
+    hitStopLoss: Boolean(row.hit_stop_loss),
+    profitLossPercent: row.profit_loss_percent != null ? Number(row.profit_loss_percent) : null,
     regime: row.regime ?? null,
     fearGreedIndex: row.fear_greed_index != null ? Number(row.fear_greed_index) : null,
     fundingRate: row.funding_rate != null ? Number(row.funding_rate) : null,

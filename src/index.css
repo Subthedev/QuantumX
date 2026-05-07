@@ -84,6 +84,16 @@ All colors MUST be HSL.
     --shadow-glow: 0 0 50px -12px hsl(16 88% 60% / 0.25);
     --shadow-elegant: 0 10px 30px -10px hsl(16 88% 60% / 0.3);
 
+    /* Motion — strong custom curves; default CSS easings lack the punch
+       that makes UI animations feel intentional. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --duration-press: 100ms;
+    --duration-fast: 160ms;
+    --duration-base: 200ms;
+    --duration-slow: 240ms;
+
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -210,9 +220,20 @@ All colors MUST be HSL.
     @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
   }
   
+  /* Interactive button base — explicit transition properties on the
+     custom ease-out curve. Used by the shadcn <Button>. */
+  .btn-motion-base {
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-press) var(--ease-out);
+  }
+
   /* Premium Card Styles */
   .card-premium {
-    @apply bg-white dark:bg-card rounded-xl shadow-lg hover:shadow-xl transition-all duration-300;
+    @apply bg-white dark:bg-card rounded-xl shadow-lg hover:shadow-xl;
+    transition: box-shadow var(--duration-base) var(--ease-out);
   }
   
   .card-risk-low {
@@ -229,7 +250,9 @@ All colors MUST be HSL.
   
   /* Professional Button Styles */
   .btn-premium {
-    @apply bg-gradient-premium text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200;
+    @apply bg-gradient-premium text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97];
+    transition: transform var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-base) var(--ease-out);
   }
   
   /* Monospace for Technical Data */
