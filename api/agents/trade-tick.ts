@@ -208,14 +208,16 @@ function generateSignal(
   else if (agent.type === 'BALANCED')      signals.agentTypeFit = -signals.range; // BetaX flips: high-in-range = short
   else                                     signals.agentTypeFit = signals.volatility;
 
-  // Aggregate. >= +2 means LONG bias, <= -2 means SHORT bias.
+  // Aggregate. Any net bias triggers a trade — we'd rather take a moderate-conviction
+  // trade than sit idle. The 24/7 mandate means flat conditions still need exploration.
   const bias = signals.momentum + signals.range + signals.regimeAlignment + signals.agentTypeFit;
-  if (Math.abs(bias) < 2) return null;
+  if (Math.abs(bias) < 1) return null;
 
   const direction: Direction = bias > 0 ? 'LONG' : 'SHORT';
-  const confidence = Math.min(95, 50 + Math.abs(bias) * 8 + signals.volatility * 5);
+  // Confidence floor 50, ceiling 95. Bias of 1 = 60%, bias of 2 = 70%, bias of 3 = 80%, bias of 4 = 90%.
+  const confidence = Math.min(95, 50 + Math.abs(bias) * 10 + signals.volatility * 5);
 
-  if (confidence < SUITABILITY_FLOOR_PERCENT) return null;
+  if (confidence < 50) return null;
 
   // Risk-adjusted TP/SL based on 24h range
   const isHighVol = marketState.includes('HIGH_VOL');
