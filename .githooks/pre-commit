@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# Blocks the two things that have actually bitten this repo:
+#   1. committing a real .env file
+#   2. committing a Supabase service_role JWT (full RLS bypass)
+#
+# Enable once per clone:  git config core.hooksPath .githooks
+# Bypass deliberately:    git commit --no-verify
+set -uo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+# 1. Real .env files (templates are fine).
+while IFS= read -r f; do
+  case "$f" in
+    *.example|*.sample|*.template) continue ;;
+  esac
+  case "$(basename "$f")" in
+    .env|.env.*)
+      echo "BLOCKED: refusing to commit '$f' — real secrets belong in Vercel/Supabase settings."
+      fail=1
+      ;;
+  esac
+done <<< "$staged"
+
+# 2. Supabase service_role JWTs. A base64url'd {"role":"service_role"} claim
+#    always contains this fragment. Split so this hook does not match itself.
+role_claim='InNlcnZpY2Vf'"$(printf 'cm9sZSI=' | tr -d '=')"
+
+# 3. Obvious provider key shapes.
+provider_keys='sk_live_[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}'
+
+for f in $staged; do
+  [ -f "$f" ] || continue
+  # This hook necessarily contains the patterns it searches for.
+  [ "$f" = ".githooks/pre-commit" ] && continue
+  blob=$(git show ":$f" 2>/dev/null) || continue
+  if printf '%s' "$blob" | grep -q "$role_claim"; then
+    echo "BLOCKED: '$f' contains a Supabase service_role JWT (bypasses all RLS)."
+    fail=1
+  fi
+  if printf '%s' "$blob" | grep -qE "$provider_keys"; then
+    echo "BLOCKED: '$f' looks like it contains a live provider secret."
+    fail=1
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo
+  echo "Nothing was committed. Remove the secret, or re-run with --no-verify if this is a false positive."
+  exit 1
+fi
+exit 0
